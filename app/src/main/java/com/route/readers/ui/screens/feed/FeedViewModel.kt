@@ -3,7 +3,6 @@ package com.route.readers.ui.screens.feed
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.route.readers.data.model.*
 
 class FeedViewModel : ViewModel() {
     private val _feedItems = MutableLiveData<List<FeedItem>>()
@@ -14,31 +13,16 @@ class FeedViewModel : ViewModel() {
     }
     
     private fun loadFeedData() {
-        // 실제 구현에서는 API 호출이나 데이터베이스 조회
         _feedItems.value = getMockFeedData()
     }
     
     private fun getMockFeedData(): List<FeedItem> {
         return listOf(
-            FeedItem(
-                user = User("1", "김독서", isCurrentlyReading = true),
-                book = Book("1", "해리포터와 마법사의 돌", "J.K. 롤링"),
-                currentPage = 150,
-                progressPercent = 45
-            ),
-            FeedItem(
-                user = User("2", "박책벌레", isCurrentlyReading = false),
-                book = Book("2", "1984", "조지 오웰"),
-                currentPage = 328,
-                progressPercent = 100,
-                isCompleted = true
-            ),
-            FeedItem(
-                user = User("3", "이문학", isCurrentlyReading = true),
-                book = Book("3", "코스모스", "칼 세이건"),
-                currentPage = 89,
-                progressPercent = 23
-            )
+            FeedItem.Follow("김독서님이 김이삭님을 팔로우했어요!", "김독서", "김이삭", "1분 전"),
+            FeedItem.ChallengeStart("김이삭님과 김독서님", "친구와 10일동안 100페이지 읽기 챌린지를 시작하셨어요!", "2분 전"),
+            FeedItem.ReadingProgress("김독서", "데미안", 45, 200, "오늘 30분 독서했어요", "1시간 전"),
+            FeedItem.ChallengeSuccess("김이삭님과 김독서님", "1주일동안 매일 책읽기 챌린지를 성공하셨습니다!", "3시간 전"),
+            FeedItem.BookReview("이책좋아", "해리포터와 마법사의 돌", 5, "정말 재미있었어요! 마법의 세계가 생생했습니다.", "5시간 전")
         )
     }
 }
