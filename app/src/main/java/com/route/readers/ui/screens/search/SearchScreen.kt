@@ -24,7 +24,7 @@ fun SearchScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(White)
+            .background(CreamBackground)
     ) {
         TabRow(
             selectedTabIndex = selectedTab,
@@ -74,7 +74,7 @@ fun BookSearchTab() {
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = LightGray),
+                colors = CardDefaults.cardColors(containerColor = White),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Column(
@@ -108,7 +108,7 @@ fun BookSearchTab() {
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = LightGray),
+                colors = CardDefaults.cardColors(containerColor = White),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Column(
@@ -154,7 +154,7 @@ fun BookSearchTab() {
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = LightGray),
+                colors = CardDefaults.cardColors(containerColor = White),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Column(
@@ -250,7 +250,7 @@ fun LibrarySearchTab() {
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp),
-                colors = CardDefaults.cardColors(containerColor = LightGray),
+                colors = CardDefaults.cardColors(containerColor = White),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Box(
@@ -284,7 +284,7 @@ fun LibrarySearchTab() {
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = LightGray),
+                colors = CardDefaults.cardColors(containerColor = White),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Column(
@@ -316,7 +316,7 @@ fun LibraryItem(name: String, distance: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(White, RoundedCornerShape(8.dp))
+            .background(CreamBackground, RoundedCornerShape(8.dp))
             .padding(12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
