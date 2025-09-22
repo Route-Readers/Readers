@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.sp
 fun UsedBookTradeScreen() {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+        contentPadding = PaddingValues(
             start = 16.dp,
             end = 16.dp,
             bottom = 100.dp
