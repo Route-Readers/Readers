@@ -40,4 +40,8 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     implementation("androidx.compose.runtime:runtime-livedata:1.5.4")
+    implementation("androidx.compose.material:material-icons-extended-android:1.6.5")
+    implementation("androidx.compose.material3:material3:1.2.1")
+    debugImplementation("androidx.compose.ui:ui-tooling:1.9.1")
+
 }
