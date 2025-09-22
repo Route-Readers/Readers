@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import com.route.readers.ui.screens.feed.FeedScreen
+import com.route.readers.ui.community.community.CommunityScreen
 import com.route.readers.ui.components.BottomNavBar
 
 class MainActivity : ComponentActivity() {
@@ -21,7 +21,7 @@ class MainActivity : ComponentActivity() {
                 ) {
                     Column {
                         Box(modifier = Modifier.weight(1f)) {
-                            FeedScreen()
+                            CommunityScreen()
                         }
                         BottomNavBar()
                     }
