@@ -43,7 +43,51 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.background
+import androidx.compose.material3.MaterialTheme // BottomNavBar에서 사용할 수 있도록
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue // selectedTab 상태 관리를 위해
+import androidx.compose.runtime.mutableStateOf // selectedTab 상태 관리를 위해
+import androidx.compose.runtime.remember // selectedTab 상태 관리를 위해
+import androidx.compose.runtime.setValue // selectedTab 상태 관리를 위해
 
+
+@Composable
+fun BottomNavBar(
+    selectedTab: Int = 0,
+    onTabSelected: (Int) -> Unit = {}
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(60.dp)
+            // .background(White), // White 대신 MaterialTheme.colorScheme.surface 사용 예시
+            .background(MaterialTheme.colorScheme.surface),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        BottomNavItem("피드", 0, selectedTab, onTabSelected)
+        BottomNavItem("내서재", 1, selectedTab, onTabSelected)
+        BottomNavItem("검색", 2, selectedTab, onTabSelected)
+        BottomNavItem("커뮤니티", 3, selectedTab, onTabSelected)
+        BottomNavItem("프로필", 4, selectedTab, onTabSelected)
+    }
+}
+@Composable
+fun BottomNavItem(
+    text: String,
+    index: Int,
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit
+) {
+    androidx.compose.material3.Text( // androidx.compose.material3.Text 사용
+        text = text,
+        //color = if (selectedTab == index) DarkRed else TextGray, // 사용자 정의 색상 대신 MaterialTheme 색상 사용 예시
+        color = if (selectedTab == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
+        modifier = Modifier.clickable { onTabSelected(index) }
+    )
+}
 
 
 val Typography = androidx.compose.material3.Typography()
@@ -142,6 +186,7 @@ data class TokenHistoryItem(
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @androidx.compose.runtime.Composable
 fun ProfilePageComposable() {
+    var selectedBottomTab by remember { mutableStateOf(4) }
     androidx.compose.material3.Scaffold(
         topBar = {
             androidx.compose.material3.TopAppBar(
@@ -154,6 +199,16 @@ fun ProfilePageComposable() {
                     }) {
                         androidx.compose.material3.Icon(Icons.Filled.Settings, contentDescription = "환경설정")
                     }
+                }
+            )
+        },
+        bottomBar = {
+            BottomNavBar(
+                selectedTab = selectedBottomTab,
+                onTabSelected = { index ->
+                    selectedBottomTab = index
+                    // TODO: 실제 화면 전환 로직 구현 (예: Navigation Controller 사용)
+                    Log.d("ProfilePage", "Bottom tab $index selected")
                 }
             )
         }
@@ -527,6 +582,7 @@ fun ProfileCard(
 }
 
 
+
 // --- 미리보기 코드 ---
 @Preview(showBackground = true, name = "Profile Screen Light")
 @androidx.compose.runtime.Composable
@@ -534,9 +590,9 @@ fun DefaultProfileScreenPreview() {
     ProfileScreen()
 }
 
-@Preview(showBackground = true, name = "Profile Screen Dark", uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES)
-@androidx.compose.runtime.Composable
-fun DarkProfileScreenPreview() {
-    ProfileScreen()
-}
+//@Preview(showBackground = true, name = "Profile Screen Dark", uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES)
+//@androidx.compose.runtime.Composable
+//fun DarkProfileScreenPreview() {
+//    ProfileScreen()
+//}
 
