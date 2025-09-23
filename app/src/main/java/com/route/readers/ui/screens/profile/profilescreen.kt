@@ -1,4 +1,4 @@
-package com.example.register.ui
+package com.route.readers.ui.screens.profile
 
 import android.util.Log
 import androidx.compose.foundation.background
