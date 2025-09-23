@@ -131,15 +131,6 @@ data class FeedItem(
     var isFavorite: Boolean = false
 )
 
-// TokenHistoryItem 데이터 클래스는 현재 코드에서 사용되지 않으므로,
-// 필요 없다면 제거해도 됩니다. 여기서는 유지합니다.
-data class TokenHistoryItem(
-    val id: String,
-    val type: String,
-    val amount: Int,
-    val description: String,
-    val timestamp: Long
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
