@@ -4,11 +4,8 @@ import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
+// import androidx.compose.foundation.isSystemInDarkTheme // 사용 안 함
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -17,21 +14,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.LibraryBooks
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AddCircleOutline
-import androidx.compose.material.icons.filled.Analytics
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.CardGiftcard
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material.icons.filled.Redeem
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -43,14 +28,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.background
-import androidx.compose.material3.MaterialTheme // BottomNavBar에서 사용할 수 있도록
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue // selectedTab 상태 관리를 위해
-import androidx.compose.runtime.mutableStateOf // selectedTab 상태 관리를 위해
-import androidx.compose.runtime.remember // selectedTab 상태 관리를 위해
-import androidx.compose.runtime.setValue // selectedTab 상태 관리를 위해
-
 
 @Composable
 fun BottomNavBar(
@@ -61,7 +38,6 @@ fun BottomNavBar(
         modifier = Modifier
             .fillMaxWidth()
             .height(60.dp)
-            // .background(White), // White 대신 MaterialTheme.colorScheme.surface 사용 예시
             .background(MaterialTheme.colorScheme.surface),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
@@ -73,6 +49,7 @@ fun BottomNavBar(
         BottomNavItem("프로필", 4, selectedTab, onTabSelected)
     }
 }
+
 @Composable
 fun BottomNavItem(
     text: String,
@@ -80,84 +57,63 @@ fun BottomNavItem(
     selectedTab: Int,
     onTabSelected: (Int) -> Unit
 ) {
-    androidx.compose.material3.Text( // androidx.compose.material3.Text 사용
+    Text(
         text = text,
-        //color = if (selectedTab == index) DarkRed else TextGray, // 사용자 정의 색상 대신 MaterialTheme 색상 사용 예시
         color = if (selectedTab == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
         modifier = Modifier.clickable { onTabSelected(index) }
     )
 }
 
+val AppTypography = Typography()
+val AppShapes = Shapes(medium = RoundedCornerShape(12.dp))
 
-val Typography = androidx.compose.material3.Typography()
-val Shapes = androidx.compose.material3.Shapes(medium = RoundedCornerShape(12.dp))
+// 다크 모드 색상표 정의 제거
+// private val DarkPinkColorScheme = darkColorScheme(...)
 
-
-private val DarkPinkColorScheme = androidx.compose.material3.darkColorScheme(
-    primary = Color(0xFFF06292),
-    onPrimary = Color.Black,
-    primaryContainer = Color(0xFFAD1457),
-    onPrimaryContainer = Color(0xFFFFDDEB),
-    secondary = Color(0xFF80CBC4),
-    onSecondary = Color.Black,
-    background = Color(0xFF121212),
-    onBackground = Color.White,
-    surface = Color(0xFF1E1E1E),
-    onSurface = Color.White,
-    surfaceVariant = Color(0xFF303030),
-    onSurfaceVariant = Color(0xFFBDBDBD),
-    error = Color(0xFFCF6679),
-    onError = Color.Black
-)
-private val LightPinkColorScheme = androidx.compose.material3.lightColorScheme(
+private val LightPinkColorScheme = lightColorScheme(
     primary = Color(0xFFE91E63),
     onPrimary = Color.White,
     primaryContainer = Color(0xFFF8BBD0),
     onPrimaryContainer = Color.Black,
     secondary = Color(0xFF03DAC5),
     onSecondary = Color.Black,
-    background = Color(0xFFF0F0F0),
-    onBackground = Color.Black,
-    surface = Color.White,
-    onSurface = Color.Black,
-    surfaceVariant = Color.LightGray,
-    onSurfaceVariant = Color.DarkGray
+    background = Color(0xFFF0F0F0), // 밝은 배경색
+    onBackground = Color.Black,   // 밝은 배경 위의 텍스트색
+    surface = Color.White,        // 카드, 시트 등의 표면색
+    onSurface = Color.Black,      // 표면 위의 텍스트색
+    surfaceVariant = Color(0xFFEDEDED), // 표면 변형 색 (예: 연한 회색 카드 배경)
+    onSurfaceVariant = Color.DarkGray,  // 표면 변형 위의 텍스트색
+    error = Color(0xFFB00020),         // 에러 색상
+    onError = Color.White             // 에러 색상 위의 텍스트색
 )
 
-@androidx.compose.runtime.Composable
+@Composable
 fun MyProfileAppTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @androidx.compose.runtime.Composable () -> Unit
+    // darkTheme 파라미터 및 관련 로직 제거
+    content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) {
-        DarkPinkColorScheme
-    } else {
-        LightPinkColorScheme
-    }
+    val colorScheme = LightPinkColorScheme // 항상 라이트 모드 색상표 사용
 
-    androidx.compose.material3.MaterialTheme(
+    MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
-        shapes = Shapes,
+        typography = AppTypography,
+        shapes = AppShapes,
         content = content
     )
 }
 
-
-@androidx.compose.runtime.Composable
+@Composable
 fun ProfileScreen() {
-    MyProfileAppTheme {
-        androidx.compose.material3.Surface(
+    MyProfileAppTheme { // MyProfileAppTheme은 이제 항상 라이트 모드
+        Surface(
             modifier = Modifier.fillMaxSize(),
-            color = androidx.compose.material3.MaterialTheme.colorScheme.background
+            color = MaterialTheme.colorScheme.background
         ) {
             ProfilePageComposable()
         }
     }
 }
-
-
 
 data class Friend(
     val id: String,
@@ -175,29 +131,22 @@ data class FeedItem(
     var isFavorite: Boolean = false
 )
 
-data class TokenHistoryItem(
-    val id: String,
-    val type: String,
-    val amount: Int,
-    val description: String,
-    val timestamp: Long
-)
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
-@androidx.compose.runtime.Composable
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 fun ProfilePageComposable() {
     var selectedBottomTab by remember { mutableStateOf(4) }
-    androidx.compose.material3.Scaffold(
-        topBar = {
-            androidx.compose.material3.TopAppBar(
-                title = { androidx.compose.material3.Text("마이 페이지", fontWeight = FontWeight.Bold) },
-                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface),
-                actions = {
-                    androidx.compose.material3.IconButton(onClick = {
-                        Log.d("ProfilePage", "TopAppBar 설정 버튼 클릭")
 
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("마이 페이지", fontWeight = FontWeight.Bold) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
+                actions = {
+                    IconButton(onClick = {
+                        Log.d("ProfilePage", "TopAppBar 설정 버튼 클릭")
                     }) {
-                        androidx.compose.material3.Icon(Icons.Filled.Settings, contentDescription = "환경설정")
+                        Icon(Icons.Filled.Settings, contentDescription = "환경설정")
                     }
                 }
             )
@@ -207,20 +156,18 @@ fun ProfilePageComposable() {
                 selectedTab = selectedBottomTab,
                 onTabSelected = { index ->
                     selectedBottomTab = index
-                    // TODO: 실제 화면 전환 로직 구현 (예: Navigation Controller 사용)
                     Log.d("ProfilePage", "Bottom tab $index selected")
                 }
             )
         }
-    ) { paddingValues ->
+    ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .background(androidx.compose.material3.MaterialTheme.colorScheme.background)
+                .padding(innerPadding)
+                .background(MaterialTheme.colorScheme.background)
                 .padding(horizontal = 16.dp),
-            verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item { ProfileSection() }
             item { MyActivitySection() }
@@ -230,16 +177,16 @@ fun ProfilePageComposable() {
             item { RecentBooksSection() }
             item { EventSection() }
             item { SettingsSection() }
+            // 스크롤 시 하단바에 내용이 가려지지 않도록 마지막에 여백 추가 (선택 사항)
+            // item { Spacer(modifier = Modifier.height(16.dp)) }
         }
     }
 }
 
-
-
-@androidx.compose.runtime.Composable
+@Composable
 fun ProfileSection() {
-    var isMyOnlineStatus by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(true) }
-    val friendsList = androidx.compose.runtime.remember {
+    var isMyOnlineStatus by remember { mutableStateOf(true) }
+    val friendsList = remember {
         listOf(
             Friend(id = "1", name = "친구A", isOnline = true),
             Friend(id = "2", name = "친구B", isOnline = false),
@@ -248,133 +195,128 @@ fun ProfileSection() {
     }
 
     ProfileCard(title = "프로필", icon = null, showEditButton = true, onEditClick = { Log.d("Profile", "프로필 편집 클릭") }) {
-        androidx.compose.foundation.layout.Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            androidx.compose.foundation.layout.Box(
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(
                 modifier = Modifier
                     .size(80.dp)
                     .clip(CircleShape)
-                    .background(Color.LightGray)
+                    .background(Color.LightGray) // 직접 색상 사용
                     .clickable { Log.d("Profile", "프로필 사진 변경 클릭") },
                 contentAlignment = Alignment.Center
             ) {
-                androidx.compose.material3.Icon(Icons.Filled.PhotoCamera, contentDescription = "프로필 사진", tint = Color.DarkGray, modifier = Modifier.size(40.dp))
+                Icon(Icons.Filled.PhotoCamera, contentDescription = "프로필 사진", tint = Color.DarkGray, modifier = Modifier.size(40.dp)) // 직접 색상 사용
             }
-            androidx.compose.foundation.layout.Spacer(modifier = Modifier.width(16.dp))
-            androidx.compose.foundation.layout.Column(modifier = Modifier.weight(1f)) {
-                androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
-                    androidx.compose.material3.Text("홍길동님", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.width(8.dp))
-                    androidx.compose.foundation.layout.Box(
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("홍길동님", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
                         modifier = Modifier
                             .size(16.dp)
                             .clip(CircleShape)
-                            .background(if (isMyOnlineStatus) Color(0xFF4CAF50) else Color.Red)
+                            .background(if (isMyOnlineStatus) Color(0xFF4CAF50) else Color.Red) // 직접 색상 사용
                             .clickable {
                                 isMyOnlineStatus = !isMyOnlineStatus
-                                Log.d(
-                                    "Profile",
-                                    "상태 표시등 클릭: ${if (isMyOnlineStatus) "온라인" else "오프라인"}"
-                                )
+                                Log.d("Profile", "상태 표시등 클릭: ${if (isMyOnlineStatus) "온라인" else "오프라인"}")
                             }
-                            .border(1.dp, Color.White.copy(alpha = 0.5f), CircleShape)
+                            .border(1.dp, Color.White.copy(alpha = 0.5f), CircleShape) // 직접 색상 사용
                     )
                 }
-                androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(4.dp))
-                androidx.compose.material3.Text("책과 함께하는 멋진 하루! 📚✨", fontSize = 14.sp, color = Color.Gray, maxLines = 2)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("책과 함께하는 멋진 하루! 📚✨", fontSize = 14.sp, color = Color.Gray, maxLines = 2) // 직접 색상 사용
             }
         }
-        androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(16.dp))
-        androidx.compose.material3.HorizontalDivider()
-        androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(16.dp))
-        androidx.compose.material3.Text("독서 취향", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-        androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("독서 취향", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+        Spacer(modifier = Modifier.height(8.dp))
         val genres = listOf("소설", "자기계발", "역사", "과학", "판타지", "에세이")
-        var selectedGenres by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(setOf<String>()) }
-        androidx.compose.foundation.layout.Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp, Alignment.Start)) {
+        var selectedGenres by remember { mutableStateOf(setOf<String>()) }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start)) {
             genres.take(3).forEach { genre ->
                 GenreChip(genre, selectedGenres.contains(genre)) {
                     selectedGenres = if (selectedGenres.contains(genre)) selectedGenres - genre else selectedGenres + genre
                 }
             }
-            androidx.compose.material3.TextButton(onClick = { Log.d("Profile", "독서 취향 더보기 클릭") }) { androidx.compose.material3.Text("더보기") }
+            TextButton(onClick = { Log.d("Profile", "독서 취향 더보기 클릭") }) { Text("더보기") }
         }
-        androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(16.dp))
-        androidx.compose.material3.HorizontalDivider()
-        androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(16.dp))
-        androidx.compose.foundation.layout.Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween) {
-            androidx.compose.material3.Text("친구 ${friendsList.size}", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-            androidx.compose.material3.TextButton(onClick = { Log.d("Profile", "친구 추가 버튼 클릭") }) {
-                androidx.compose.material3.Icon(Icons.Filled.Add, contentDescription = "친구 추가")
-                androidx.compose.foundation.layout.Spacer(modifier = Modifier.width(4.dp))
-                androidx.compose.material3.Text("추가")
+        Spacer(modifier = Modifier.height(16.dp))
+        HorizontalDivider()
+        Spacer(modifier = Modifier.height(16.dp))
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("친구 ${friendsList.size}", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+            TextButton(onClick = { Log.d("Profile", "친구 추가 버튼 클릭") }) {
+                Icon(Icons.Filled.Add, contentDescription = "친구 추가")
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("추가")
             }
         }
-        androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         if (friendsList.isEmpty()) {
-            androidx.compose.material3.Text("아직 친구가 없어요. 친구를 추가해보세요!", fontSize = 14.sp, color = Color.Gray)
+            Text("아직 친구가 없어요. 친구를 추가해보세요!", fontSize = 14.sp, color = Color.Gray) // 직접 색상 사용
         } else {
-            LazyRow(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(end = 8.dp)) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(end = 8.dp)) {
                 items(friendsList) { friend -> FriendItem(friend) }
             }
         }
     }
 }
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
-@androidx.compose.runtime.Composable
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 fun GenreChip(text: String, selected: Boolean, onChipClick: () -> Unit) {
-    androidx.compose.material3.FilterChip(
+    FilterChip(
         selected = selected,
         onClick = onChipClick,
-        label = { androidx.compose.material3.Text(text) },
+        label = { Text(text) },
         shape = RoundedCornerShape(16.dp),
-        colors = androidx.compose.material3.FilterChipDefaults.filterChipColors(
-            selectedContainerColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer,
-            selectedLabelColor = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer
+        colors = FilterChipDefaults.filterChipColors(
+            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
         )
     )
 }
 
-@androidx.compose.runtime.Composable
+@Composable
 fun FriendItem(friend: Friend) {
-    androidx.compose.foundation.layout.Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(
-        androidx.compose.foundation.layout.IntrinsicSize.Min)) {
-        androidx.compose.foundation.layout.Box {
-            androidx.compose.foundation.layout.Box(
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(IntrinsicSize.Min)) {
+        Box {
+            Box(
                 modifier = Modifier
                     .size(60.dp)
                     .clip(CircleShape)
-                    .background(Color.LightGray)
+                    .background(Color.LightGray) // 직접 색상 사용
                     .clickable { Log.d("Profile", "${friend.name} 프로필 클릭") },
                 contentAlignment = Alignment.Center
             ) {
-                androidx.compose.material3.Text(friend.name.first().toString(), fontSize = 24.sp, color = Color.DarkGray)
+                Text(friend.name.first().toString(), fontSize = 24.sp, color = Color.DarkGray) // 직접 색상 사용
             }
-            androidx.compose.foundation.layout.Box(
+            Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .size(18.dp)
                     .clip(CircleShape)
-                    .background(if (friend.isOnline) Color(0xFF4CAF50) else Color.Gray)
-                    .border(2.dp,
-                        androidx.compose.material3.MaterialTheme.colorScheme.surface, CircleShape)
+                    .background(if (friend.isOnline) Color(0xFF4CAF50) else Color.Gray) // 직접 색상 사용
+                    .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape)
             )
         }
-        androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(4.dp))
-        androidx.compose.material3.Text(friend.name, fontSize = 12.sp, maxLines = 1)
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(friend.name, fontSize = 12.sp, maxLines = 1)
     }
 }
 
-@androidx.compose.runtime.Composable
+@Composable
 fun MyActivitySection() {
-    val myFeeds = androidx.compose.runtime.remember {
+    val myFeeds = remember {
         listOf(
             FeedItem("my_feed_3", "홍길동", "오늘 날씨 정말 좋다! #일상", System.currentTimeMillis() - 100000, imageUrl = "https://example.com/image3.jpg", isFavorite = true),
             FeedItem("my_feed_2", "홍길동", "새로운 책 읽기 시작! 📚", System.currentTimeMillis() - 200000),
             FeedItem("my_feed_1", "홍길동", "첫 번째 게시글입니다~", System.currentTimeMillis() - 300000, imageUrl = "https://example.com/image1.jpg")
         ).sortedByDescending { it.timestamp }
     }
-    val savedFeedsFromOthers = androidx.compose.runtime.remember {
+    val savedFeedsFromOthers = remember {
         listOf(
             FeedItem("saved_feed_2", "작가B", "인상 깊은 구절 공유합니다.", System.currentTimeMillis() - 50000, isFavorite = true),
             FeedItem("saved_feed_1", "친구A", "이 책 추천해요! 정말 재밌음!", System.currentTimeMillis() - 150000, imageUrl = "https://example.com/image_friend.jpg", isFavorite = true)
@@ -382,152 +324,157 @@ fun MyActivitySection() {
     }
 
     ProfileCard(title = "나의 활동", icon = Icons.Filled.Analytics) {
-        androidx.compose.material3.Text("나의 피드", fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
-        androidx.compose.foundation.layout.Spacer(Modifier.height(8.dp))
+        Text("나의 피드", fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+        Spacer(Modifier.height(8.dp))
         if (myFeeds.isEmpty()) {
-            androidx.compose.material3.Text("아직 작성한 피드가 없어요.", fontSize = 14.sp, color = Color.Gray)
+            Text("아직 작성한 피드가 없어요.", fontSize = 14.sp, color = Color.Gray) // 직접 색상 사용
         } else {
-            myFeeds.firstOrNull()?.let { FeedItemView(it, true); androidx.compose.foundation.layout.Spacer(Modifier.height(8.dp)) }
-            androidx.compose.material3.TextButton(onClick = { Log.d("MyActivity", "나의 피드 전체 보기 클릭") }, modifier = Modifier.fillMaxWidth()) { androidx.compose.material3.Text("내 피드 더보기") }
+            myFeeds.firstOrNull()?.let { FeedItemView(it, true); Spacer(Modifier.height(8.dp)) }
+            TextButton(onClick = { Log.d("MyActivity", "나의 피드 전체 보기 클릭") }, modifier = Modifier.fillMaxWidth()) { Text("내 피드 더보기") }
         }
-        androidx.compose.foundation.layout.Spacer(Modifier.height(16.dp)); androidx.compose.material3.HorizontalDivider(); androidx.compose.foundation.layout.Spacer(Modifier.height(16.dp))
-        androidx.compose.material3.Text("저장한 피드", fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
-        androidx.compose.foundation.layout.Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(16.dp)); HorizontalDivider(); Spacer(Modifier.height(16.dp))
+        Text("저장한 피드", fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+        Spacer(Modifier.height(8.dp))
         if (savedFeedsFromOthers.isEmpty()) {
-            androidx.compose.material3.Text("아직 저장한 피드가 없어요.", fontSize = 14.sp, color = Color.Gray)
+            Text("아직 저장한 피드가 없어요.", fontSize = 14.sp, color = Color.Gray) // 직접 색상 사용
         } else {
-            savedFeedsFromOthers.firstOrNull()?.let { FeedItemView(it, false); androidx.compose.foundation.layout.Spacer(Modifier.height(8.dp)) }
-            androidx.compose.material3.TextButton(onClick = { Log.d("MyActivity", "저장한 피드 전체 보기 클릭") }, modifier = Modifier.fillMaxWidth()) { androidx.compose.material3.Text("저장한 피드 더보기") }
+            savedFeedsFromOthers.firstOrNull()?.let { FeedItemView(it, false); Spacer(Modifier.height(8.dp)) }
+            TextButton(onClick = { Log.d("MyActivity", "저장한 피드 전체 보기 클릭") }, modifier = Modifier.fillMaxWidth()) { Text("저장한 피드 더보기") }
         }
     }
 }
 
-@androidx.compose.runtime.Composable
+@Composable
 fun FeedItemView(feed: FeedItem, isMyFeed: Boolean) {
-    var isFavoriteState by androidx.compose.runtime.remember(feed.id) { androidx.compose.runtime.mutableStateOf(feed.isFavorite) }
-    androidx.compose.material3.Card(
+    var isFavoriteState by remember(feed.id) { mutableStateOf(feed.isFavorite) }
+    Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
-        colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
     ) {
-        androidx.compose.foundation.layout.Column(modifier = Modifier.padding(12.dp)) {
-            androidx.compose.foundation.layout.Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                androidx.compose.material3.Text(if (isMyFeed) "나" else feed.authorName, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                androidx.compose.material3.IconButton(
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(if (isMyFeed) "나" else feed.authorName, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                IconButton(
                     onClick = {
-                        isFavoriteState = !isFavoriteState; feed.isFavorite = isFavoriteState
+                        isFavoriteState = !isFavoriteState
+                        feed.isFavorite = isFavoriteState
                         Log.d("FeedItemView", "즐겨찾기: ${feed.id}, 상태: $isFavoriteState")
                     },
                     modifier = Modifier.size(24.dp)
                 ) {
-                    androidx.compose.material3.Icon(if (isFavoriteState) Icons.Filled.Star else Icons.Filled.StarBorder, "즐겨찾기",
-                        tint = if (isFavoriteState) Color(0xFFFFC107) else Color.Gray, modifier = Modifier.size(18.dp))
+                    Icon(
+                        imageVector = if (isFavoriteState) Icons.Filled.Star else Icons.Filled.StarBorder,
+                        contentDescription = "즐겨찾기",
+                        tint = if (isFavoriteState) Color(0xFFFFC107) else Color.Gray, // 직접 색상 사용
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
-                androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
-                androidx.compose.material3.Text(android.text.format.DateUtils.getRelativeTimeSpanString(feed.timestamp).toString(), fontSize = 12.sp, color = Color.Gray)
+                Spacer(Modifier.weight(1f))
+                Text(android.text.format.DateUtils.getRelativeTimeSpanString(feed.timestamp).toString(), fontSize = 12.sp, color = Color.Gray) // 직접 색상 사용
             }
-            androidx.compose.foundation.layout.Spacer(Modifier.height(4.dp))
-            androidx.compose.material3.Text(feed.content, fontSize = 14.sp)
+            Spacer(Modifier.height(4.dp))
+            Text(feed.content, fontSize = 14.sp)
             feed.imageUrl?.let {
-                androidx.compose.foundation.layout.Spacer(Modifier.height(8.dp))
-                androidx.compose.foundation.layout.Box(Modifier
-                    .fillMaxWidth()
-                    .height(150.dp)
-                    .background(Color.LightGray)
-                    .clip(RoundedCornerShape(4.dp)), Alignment.Center) {
-                    androidx.compose.material3.Text("이미지 자리: $it", fontSize = 12.sp, color = Color.DarkGray)
+                Spacer(Modifier.height(8.dp))
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(150.dp)
+                        .background(Color.LightGray) // 직접 색상 사용
+                        .clip(RoundedCornerShape(4.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("이미지 자리: $it", fontSize = 12.sp, color = Color.DarkGray) // 직접 색상 사용
                 }
             }
         }
     }
 }
 
-@androidx.compose.runtime.Composable
+@Composable
 fun MyTokenSection() {
     ProfileCard(
         title = "나의 토큰",
         icon = Icons.Filled.Redeem,
         additionalActions = {
-            androidx.compose.material3.IconButton(onClick = { Log.d("MyToken", "토큰 추가/충전 버튼 클릭") }) {
-                androidx.compose.material3.Icon(Icons.Filled.AddCircleOutline, "토큰 충전", tint = androidx.compose.material3.MaterialTheme.colorScheme.primary)
+            IconButton(onClick = { Log.d("MyToken", "토큰 추가/충전 버튼 클릭") }) {
+                Icon(Icons.Filled.AddCircleOutline, "토큰 충전", tint = MaterialTheme.colorScheme.primary)
             }
         }
     ) {
-        androidx.compose.foundation.layout.Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            androidx.compose.material3.Text("보유 토큰:", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-            androidx.compose.foundation.layout.Spacer(Modifier.width(8.dp))
-            androidx.compose.material3.Text("1,250 P", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = androidx.compose.material3.MaterialTheme.colorScheme.primary)
-            androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
-            androidx.compose.material3.TextButton(onClick = { Log.d("MyToken", "토큰 내역 보기 버튼 클릭") }) { androidx.compose.material3.Text("내역") }
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("보유 토큰:", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.width(8.dp))
+            Text("1,250 P", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = { Log.d("MyToken", "토큰 내역 보기 버튼 클릭") }) { Text("내역") }
         }
     }
 }
 
-@androidx.compose.runtime.Composable
+@Composable
 fun ReadingStatsSection() {
     ProfileCard(title = "독서 통계", icon = Icons.Filled.BarChart) {
-        androidx.compose.foundation.layout.Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
-            androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth(),
-                androidx.compose.foundation.layout.Arrangement.SpaceBetween) { androidx.compose.material3.Text("이번 달 완독", fontSize = 16.sp); androidx.compose.material3.Text("3 권", fontSize = 16.sp, fontWeight = FontWeight.SemiBold) }
-            androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth(),
-                androidx.compose.foundation.layout.Arrangement.SpaceBetween) { androidx.compose.material3.Text("총 독서 시간", fontSize = 16.sp); androidx.compose.material3.Text("15시간 20분", fontSize = 16.sp, fontWeight = FontWeight.SemiBold) }
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) { Text("이번 달 완독", fontSize = 16.sp); Text("3 권", fontSize = 16.sp, fontWeight = FontWeight.SemiBold) }
+            Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) { Text("총 독서 시간", fontSize = 16.sp); Text("15시간 20분", fontSize = 16.sp, fontWeight = FontWeight.SemiBold) }
         }
     }
 }
 
-@androidx.compose.runtime.Composable
+@Composable
 fun ReadingCalendarSection() {
     ProfileCard(
         title = "독서 캘린더",
         icon = Icons.Filled.CalendarToday,
         additionalActions = {
-            androidx.compose.material3.IconButton(onClick = { Log.d("ReadingCalendar", "달력 보기 버튼 클릭") }) {
-                androidx.compose.material3.Icon(Icons.Filled.DateRange, contentDescription = "달력 보기")
+            IconButton(onClick = { Log.d("ReadingCalendar", "달력 보기 버튼 클릭") }) {
+                Icon(Icons.Filled.DateRange, contentDescription = "달력 보기")
             }
         }
     ) {
-        androidx.compose.foundation.layout.Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
-            androidx.compose.material3.Text("목표: 5권 / 완독: 3권", fontSize = 14.sp)
-            androidx.compose.material3.Text("연속 독서: 7일", fontSize = 14.sp)
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("목표: 5권 / 완독: 3권", fontSize = 14.sp)
+            Text("연속 독서: 7일", fontSize = 14.sp)
         }
     }
 }
 
-@androidx.compose.runtime.Composable
+@Composable
 fun RecentBooksSection() {
     ProfileCard(title = "최근 읽은 책", icon = Icons.AutoMirrored.Filled.LibraryBooks) {
-        androidx.compose.material3.Text("최근 읽은 책 목록이 여기에 표시됩니다.", fontSize = 14.sp, color = Color.Gray)
-        androidx.compose.foundation.layout.Spacer(Modifier.height(8.dp))
-        androidx.compose.foundation.layout.Column { androidx.compose.material3.Text("- 책 제목 1 (저자 1)"); androidx.compose.material3.Text("- 책 제목 2 (저자 2)") }
+        Text("최근 읽은 책 목록이 여기에 표시됩니다.", fontSize = 14.sp, color = Color.Gray) // 직접 색상 사용
+        Spacer(Modifier.height(8.dp))
+        Column { Text("- 책 제목 1 (저자 1)"); Text("- 책 제목 2 (저자 2)") }
     }
 }
 
-@androidx.compose.runtime.Composable
+@Composable
 fun EventSection() {
     ProfileCard(title = "이벤트", icon = Icons.Filled.CardGiftcard) {
-        androidx.compose.material3.Text("진행 중인 이벤트 정보가 여기에 표시됩니다.", fontSize = 14.sp, color = Color.Gray)
-        androidx.compose.foundation.layout.Spacer(Modifier.height(8.dp))
-        androidx.compose.material3.Button(onClick = { Log.d("Event", "모든 이벤트 보기 클릭") }) { androidx.compose.material3.Text("모든 이벤트 보기") }
+        Text("진행 중인 이벤트 정보가 여기에 표시됩니다.", fontSize = 14.sp, color = Color.Gray) // 직접 색상 사용
+        Spacer(Modifier.height(8.dp))
+        Button(onClick = { Log.d("Event", "모든 이벤트 보기 클릭") }) { Text("모든 이벤트 보기") }
     }
 }
 
-
-@androidx.compose.runtime.Composable
+@Composable
 fun SettingsSection() {
     ProfileCard(title = "환경설정", icon = null) {
-        androidx.compose.foundation.layout.Column {
+        Column {
             SettingsItem(title = "알림 설정", icon = Icons.Filled.Notifications) { Log.d("Settings", "알림 설정 클릭") }
-            androidx.compose.material3.HorizontalDivider()
+            HorizontalDivider()
             SettingsItem(title = "계정 관리", icon = Icons.Filled.AccountCircle) { Log.d("Settings", "계정 관리 클릭") }
-            androidx.compose.material3.HorizontalDivider()
+            HorizontalDivider()
             SettingsItem(title = "앱 정보") { Log.d("Settings", "앱 정보 클릭") }
         }
     }
 }
 
-@androidx.compose.runtime.Composable
+@Composable
 fun SettingsItem(title: String, icon: ImageVector? = null, onClick: () -> Unit) {
-    androidx.compose.foundation.layout.Row(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
@@ -535,64 +482,65 @@ fun SettingsItem(title: String, icon: ImageVector? = null, onClick: () -> Unit) 
         verticalAlignment = Alignment.CenterVertically
     ) {
         icon?.let {
-            androidx.compose.material3.Icon(it, title, tint = androidx.compose.material3.MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-            androidx.compose.foundation.layout.Spacer(Modifier.width(16.dp))
+            Icon(it, title, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+            Spacer(Modifier.width(16.dp))
         }
-        androidx.compose.material3.Text(title, fontSize = 16.sp, modifier = Modifier.weight(1f))
-        androidx.compose.material3.Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "더보기", tint = Color.Gray)
+        Text(title, fontSize = 16.sp, modifier = Modifier.weight(1f))
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "더보기", tint = Color.Gray) // 직접 색상 사용
     }
 }
 
-@androidx.compose.runtime.Composable
+@Composable
 fun ProfileCard(
     title: String,
     icon: ImageVector? = null,
     showEditButton: Boolean = false,
     onEditClick: () -> Unit = {},
-    additionalActions: @androidx.compose.runtime.Composable androidx.compose.foundation.layout.RowScope.() -> Unit = {},
-    content: @androidx.compose.runtime.Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit
+    additionalActions: @Composable RowScope.() -> Unit = {},
+    content: @Composable ColumnScope.() -> Unit
 ) {
-    androidx.compose.material3.Card(
+    Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = androidx.compose.material3.MaterialTheme.shapes.medium, // 여기서는 MaterialTheme.shapes를 직접 사용
-        colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface)
+        shape = MaterialTheme.shapes.medium, // AppShapes.medium 사용 가능
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        androidx.compose.foundation.layout.Column(modifier = Modifier.padding(16.dp)) {
-            androidx.compose.foundation.layout.Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                     icon?.let {
-                        androidx.compose.material3.Icon(it, title, tint = androidx.compose.material3.MaterialTheme.colorScheme.primary); androidx.compose.foundation.layout.Spacer(Modifier.width(8.dp))
+                        Icon(it, title, tint = MaterialTheme.colorScheme.primary); Spacer(Modifier.width(8.dp))
                     }
-                    androidx.compose.material3.Text(title, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface)
+                    Text(title, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                 }
-                androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     additionalActions()
                     if (showEditButton) {
-                        androidx.compose.material3.TextButton(onClick = onEditClick) {
-                            androidx.compose.material3.Icon(Icons.Filled.Edit, "편집", tint = androidx.compose.material3.MaterialTheme.colorScheme.primary); androidx.compose.foundation.layout.Spacer(Modifier.width(4.dp))
-                            androidx.compose.material3.Text("편집", color = androidx.compose.material3.MaterialTheme.colorScheme.primary)
+                        TextButton(onClick = onEditClick) {
+                            Icon(Icons.Filled.Edit, "편집", tint = MaterialTheme.colorScheme.primary); Spacer(Modifier.width(4.dp))
+                            Text("편집", color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
             }
-            androidx.compose.foundation.layout.Spacer(Modifier.height(12.dp))
-            content()
+            Spacer(Modifier.height(12.dp))
+            content() // ColumnScope 내에서 호출됨 (원래 코드에서는 Column { content() } 였음)
+            // content 람다 자체가 ColumnScope를 가지므로 직접 호출해도 무방할 수 있으나,
+            // 명시적으로 Column { content() } 로 감싸는 것이 더 안전할 수 있습니다.
+            // 여기서는 제공된 코드의 구조를 최대한 유지합니다.
         }
     }
 }
 
-
-
 // --- 미리보기 코드 ---
-@Preview(showBackground = true, name = "Profile Screen Light")
-@androidx.compose.runtime.Composable
+@Preview(showBackground = true, name = "Profile Screen Light", heightDp = 1200)
+@Composable
 fun DefaultProfileScreenPreview() {
-    ProfileScreen()
+    ProfileScreen() // ProfileScreen은 MyProfileAppTheme을 사용 (항상 라이트 모드)
 }
 
-//@Preview(showBackground = true, name = "Profile Screen Dark", uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES)
-//@androidx.compose.runtime.Composable
-//fun DarkProfileScreenPreview() {
-//    ProfileScreen()
-//}
-
+// 다크 모드 미리보기 제거
+// @Preview(showBackground = true, name = "Profile Screen Dark", uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES, heightDp = 1200)
+// @Composable
+// fun DarkProfileScreenPreview() {
+// ProfileScreen()
+// }
