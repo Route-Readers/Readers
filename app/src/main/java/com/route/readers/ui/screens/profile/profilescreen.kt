@@ -1,10 +1,9 @@
-package com.example.register.ui
+package com.route.readers.ui.screens.profile
 
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-// import androidx.compose.foundation.isSystemInDarkTheme // 사용 안 함
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -28,92 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
-@Composable
-fun BottomNavBar(
-    selectedTab: Int = 0,
-    onTabSelected: (Int) -> Unit = {}
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(60.dp)
-            .background(MaterialTheme.colorScheme.surface),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        BottomNavItem("피드", 0, selectedTab, onTabSelected)
-        BottomNavItem("내서재", 1, selectedTab, onTabSelected)
-        BottomNavItem("검색", 2, selectedTab, onTabSelected)
-        BottomNavItem("커뮤니티", 3, selectedTab, onTabSelected)
-        BottomNavItem("프로필", 4, selectedTab, onTabSelected)
-    }
-}
-
-@Composable
-fun BottomNavItem(
-    text: String,
-    index: Int,
-    selectedTab: Int,
-    onTabSelected: (Int) -> Unit
-) {
-    Text(
-        text = text,
-        color = if (selectedTab == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-        fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
-        modifier = Modifier.clickable { onTabSelected(index) }
-    )
-}
-
-val AppTypography = Typography()
-val AppShapes = Shapes(medium = RoundedCornerShape(12.dp))
-
-// 다크 모드 색상표 정의 제거
-// private val DarkPinkColorScheme = darkColorScheme(...)
-
-private val LightPinkColorScheme = lightColorScheme(
-    primary = Color(0xFFE91E63),
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFF8BBD0),
-    onPrimaryContainer = Color.Black,
-    secondary = Color(0xFF03DAC5),
-    onSecondary = Color.Black,
-    background = Color(0xFFF0F0F0), // 밝은 배경색
-    onBackground = Color.Black,   // 밝은 배경 위의 텍스트색
-    surface = Color.White,        // 카드, 시트 등의 표면색
-    onSurface = Color.Black,      // 표면 위의 텍스트색
-    surfaceVariant = Color(0xFFEDEDED), // 표면 변형 색 (예: 연한 회색 카드 배경)
-    onSurfaceVariant = Color.DarkGray,  // 표면 변형 위의 텍스트색
-    error = Color(0xFFB00020),         // 에러 색상
-    onError = Color.White             // 에러 색상 위의 텍스트색
-)
-
-@Composable
-fun MyProfileAppTheme(
-    // darkTheme 파라미터 및 관련 로직 제거
-    content: @Composable () -> Unit
-) {
-    val colorScheme = LightPinkColorScheme // 항상 라이트 모드 색상표 사용
-
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = AppTypography,
-        shapes = AppShapes,
-        content = content
-    )
-}
-
-@Composable
-fun ProfileScreen() {
-    MyProfileAppTheme { // MyProfileAppTheme은 이제 항상 라이트 모드
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.background
-        ) {
-            ProfilePageComposable()
-        }
-    }
-}
+import com.route.readers.ui.components.BottomNavBar
 
 data class Friend(
     val id: String,
@@ -131,55 +45,93 @@ data class FeedItem(
     var isFavorite: Boolean = false
 )
 
+val AppTypography = Typography()
+val AppShapes = Shapes(medium = RoundedCornerShape(12.dp))
+
+private val LightPinkColorScheme = lightColorScheme(
+    primary = Color(0xFFE91E63),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFF8BBD0),
+    onPrimaryContainer = Color.Black,
+    secondary = Color(0xFF03DAC5),
+    onSecondary = Color.Black,
+    background = Color(0xFFF0F0F0),
+    onBackground = Color.Black,
+    surface = Color.White,
+    onSurface = Color.Black,
+    surfaceVariant = Color(0xFFEDEDED),
+    onSurfaceVariant = Color.DarkGray,
+    error = Color(0xFFB00020),
+    onError = Color.White
+)
+
+@Composable
+fun ReadersProfileAppTheme(
+    content: @Composable () -> Unit
+) {
+    MaterialTheme(
+        colorScheme = LightPinkColorScheme,
+        typography = AppTypography,
+        shapes = AppShapes,
+        content = content
+    )
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfilePageComposable() {
+fun ProfileScreen() {
     var selectedBottomTab by remember { mutableStateOf(4) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("마이 페이지", fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
-                actions = {
-                    IconButton(onClick = {
-                        Log.d("ProfilePage", "TopAppBar 설정 버튼 클릭")
-                    }) {
-                        Icon(Icons.Filled.Settings, contentDescription = "환경설정")
+    ReadersProfileAppTheme {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("마이 페이지", fontWeight = FontWeight.Bold) },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
+                    actions = {
+                        IconButton(onClick = {
+                            Log.d("ProfileScreen", "TopAppBar 설정 버튼 클릭")
+                        }) {
+                            Icon(Icons.Filled.Settings, contentDescription = "환경설정")
+                        }
                     }
-                }
-            )
-        },
-        bottomBar = {
-            BottomNavBar(
-                selectedTab = selectedBottomTab,
-                onTabSelected = { index ->
-                    selectedBottomTab = index
-                    Log.d("ProfilePage", "Bottom tab $index selected")
-                }
+                )
+            },
+            bottomBar = {
+                BottomNavBar(
+                    selectedTab = selectedBottomTab,
+                    onTabSelected = { index ->
+                        selectedBottomTab = index
+                        Log.d("ProfileScreen", "Bottom tab $index selected")
+                    }
+                )
+            }
+        ) { innerPadding ->
+            ProfilePageContent(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .background(MaterialTheme.colorScheme.background)
             )
         }
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .background(MaterialTheme.colorScheme.background)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item { ProfileSection() }
-            item { MyActivitySection() }
-            item { MyTokenSection() }
-            item { ReadingStatsSection() }
-            item { ReadingCalendarSection() }
-            item { RecentBooksSection() }
-            item { EventSection() }
-            item { SettingsSection() }
-            // 스크롤 시 하단바에 내용이 가려지지 않도록 마지막에 여백 추가 (선택 사항)
-            // item { Spacer(modifier = Modifier.height(16.dp)) }
-        }
+    }
+}
+
+@Composable
+fun ProfilePageContent(modifier: Modifier = Modifier) {
+    LazyColumn(
+        modifier = modifier.padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(bottom = 16.dp)
+    ) {
+        item { ProfileSection() }
+        item { MyActivitySection() }
+        item { MyTokenSection() }
+        item { ReadingStatsSection() }
+        item { ReadingCalendarSection() }
+        item { RecentBooksSection() }
+        item { EventSection() }
+        item { SettingsSection() }
     }
 }
 
@@ -200,37 +152,37 @@ fun ProfileSection() {
                 modifier = Modifier
                     .size(80.dp)
                     .clip(CircleShape)
-                    .background(Color.LightGray) // 직접 색상 사용
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .clickable { Log.d("Profile", "프로필 사진 변경 클릭") },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Filled.PhotoCamera, contentDescription = "프로필 사진", tint = Color.DarkGray, modifier = Modifier.size(40.dp)) // 직접 색상 사용
+                Icon(Icons.Filled.PhotoCamera, contentDescription = "프로필 사진", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(40.dp))
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("홍길동님", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text("홍길동님", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                     Spacer(modifier = Modifier.width(8.dp))
                     Box(
                         modifier = Modifier
                             .size(16.dp)
                             .clip(CircleShape)
-                            .background(if (isMyOnlineStatus) Color(0xFF4CAF50) else Color.Red) // 직접 색상 사용
+                            .background(if (isMyOnlineStatus) Color(0xFF4CAF50) else Color.Red)
                             .clickable {
                                 isMyOnlineStatus = !isMyOnlineStatus
                                 Log.d("Profile", "상태 표시등 클릭: ${if (isMyOnlineStatus) "온라인" else "오프라인"}")
                             }
-                            .border(1.dp, Color.White.copy(alpha = 0.5f), CircleShape) // 직접 색상 사용
+                            .border(1.dp, MaterialTheme.colorScheme.surface.copy(alpha = 0.5f), CircleShape)
                     )
                 }
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("책과 함께하는 멋진 하루! 📚✨", fontSize = 14.sp, color = Color.Gray, maxLines = 2) // 직접 색상 사용
+                Text("책과 함께하는 멋진 하루! 📚✨", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
-        HorizontalDivider()
+        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
         Spacer(modifier = Modifier.height(16.dp))
-        Text("독서 취향", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+        Text("독서 취향", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground)
         Spacer(modifier = Modifier.height(8.dp))
         val genres = listOf("소설", "자기계발", "역사", "과학", "판타지", "에세이")
         var selectedGenres by remember { mutableStateOf(setOf<String>()) }
@@ -240,22 +192,22 @@ fun ProfileSection() {
                     selectedGenres = if (selectedGenres.contains(genre)) selectedGenres - genre else selectedGenres + genre
                 }
             }
-            TextButton(onClick = { Log.d("Profile", "독서 취향 더보기 클릭") }) { Text("더보기") }
+            TextButton(onClick = { Log.d("Profile", "독서 취향 더보기 클릭") }) { Text("더보기", color = MaterialTheme.colorScheme.primary) }
         }
         Spacer(modifier = Modifier.height(16.dp))
-        HorizontalDivider()
+        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
         Spacer(modifier = Modifier.height(16.dp))
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("친구 ${friendsList.size}", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+            Text("친구 ${friendsList.size}", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground)
             TextButton(onClick = { Log.d("Profile", "친구 추가 버튼 클릭") }) {
-                Icon(Icons.Filled.Add, contentDescription = "친구 추가")
+                Icon(Icons.Filled.Add, contentDescription = "친구 추가", tint = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("추가")
+                Text("추가", color = MaterialTheme.colorScheme.primary)
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
         if (friendsList.isEmpty()) {
-            Text("아직 친구가 없어요. 친구를 추가해보세요!", fontSize = 14.sp, color = Color.Gray) // 직접 색상 사용
+            Text("아직 친구가 없어요. 친구를 추가해보세요!", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(end = 8.dp)) {
                 items(friendsList) { friend -> FriendItem(friend) }
@@ -274,7 +226,9 @@ fun GenreChip(text: String, selected: Boolean, onChipClick: () -> Unit) {
         shape = RoundedCornerShape(16.dp),
         colors = FilterChipDefaults.filterChipColors(
             selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
         )
     )
 }
@@ -287,23 +241,23 @@ fun FriendItem(friend: Friend) {
                 modifier = Modifier
                     .size(60.dp)
                     .clip(CircleShape)
-                    .background(Color.LightGray) // 직접 색상 사용
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .clickable { Log.d("Profile", "${friend.name} 프로필 클릭") },
                 contentAlignment = Alignment.Center
             ) {
-                Text(friend.name.first().toString(), fontSize = 24.sp, color = Color.DarkGray) // 직접 색상 사용
+                Text(friend.name.firstOrNull()?.toString() ?: "?", fontSize = 24.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .size(18.dp)
                     .clip(CircleShape)
-                    .background(if (friend.isOnline) Color(0xFF4CAF50) else Color.Gray) // 직접 색상 사용
+                    .background(if (friend.isOnline) Color(0xFF4CAF50) else MaterialTheme.colorScheme.outline)
                     .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape)
             )
         }
         Spacer(modifier = Modifier.height(4.dp))
-        Text(friend.name, fontSize = 12.sp, maxLines = 1)
+        Text(friend.name, fontSize = 12.sp, maxLines = 1, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -324,22 +278,22 @@ fun MyActivitySection() {
     }
 
     ProfileCard(title = "나의 활동", icon = Icons.Filled.Analytics) {
-        Text("나의 피드", fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+        Text("나의 피드", fontWeight = FontWeight.SemiBold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onBackground)
         Spacer(Modifier.height(8.dp))
         if (myFeeds.isEmpty()) {
-            Text("아직 작성한 피드가 없어요.", fontSize = 14.sp, color = Color.Gray) // 직접 색상 사용
+            Text("아직 작성한 피드가 없어요.", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
             myFeeds.firstOrNull()?.let { FeedItemView(it, true); Spacer(Modifier.height(8.dp)) }
-            TextButton(onClick = { Log.d("MyActivity", "나의 피드 전체 보기 클릭") }, modifier = Modifier.fillMaxWidth()) { Text("내 피드 더보기") }
+            TextButton(onClick = { Log.d("MyActivity", "나의 피드 전체 보기 클릭") }, modifier = Modifier.fillMaxWidth()) { Text("내 피드 더보기", color = MaterialTheme.colorScheme.primary) }
         }
-        Spacer(Modifier.height(16.dp)); HorizontalDivider(); Spacer(Modifier.height(16.dp))
-        Text("저장한 피드", fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+        Spacer(Modifier.height(16.dp)); HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)); Spacer(Modifier.height(16.dp))
+        Text("저장한 피드", fontWeight = FontWeight.SemiBold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onBackground)
         Spacer(Modifier.height(8.dp))
         if (savedFeedsFromOthers.isEmpty()) {
-            Text("아직 저장한 피드가 없어요.", fontSize = 14.sp, color = Color.Gray) // 직접 색상 사용
+            Text("아직 저장한 피드가 없어요.", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
             savedFeedsFromOthers.firstOrNull()?.let { FeedItemView(it, false); Spacer(Modifier.height(8.dp)) }
-            TextButton(onClick = { Log.d("MyActivity", "저장한 피드 전체 보기 클릭") }, modifier = Modifier.fillMaxWidth()) { Text("저장한 피드 더보기") }
+            TextButton(onClick = { Log.d("MyActivity", "저장한 피드 전체 보기 클릭") }, modifier = Modifier.fillMaxWidth()) { Text("저장한 피드 더보기", color = MaterialTheme.colorScheme.primary) }
         }
     }
 }
@@ -354,7 +308,7 @@ fun FeedItemView(feed: FeedItem, isMyFeed: Boolean) {
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(if (isMyFeed) "나" else feed.authorName, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text(if (isMyFeed) "나" else feed.authorName, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
                 IconButton(
                     onClick = {
                         isFavoriteState = !isFavoriteState
@@ -366,26 +320,30 @@ fun FeedItemView(feed: FeedItem, isMyFeed: Boolean) {
                     Icon(
                         imageVector = if (isFavoriteState) Icons.Filled.Star else Icons.Filled.StarBorder,
                         contentDescription = "즐겨찾기",
-                        tint = if (isFavoriteState) Color(0xFFFFC107) else Color.Gray, // 직접 색상 사용
+                        tint = if (isFavoriteState) Color(0xFFFFC107) else MaterialTheme.colorScheme.outline,
                         modifier = Modifier.size(18.dp)
                     )
                 }
                 Spacer(Modifier.weight(1f))
-                Text(android.text.format.DateUtils.getRelativeTimeSpanString(feed.timestamp).toString(), fontSize = 12.sp, color = Color.Gray) // 직접 색상 사용
+                Text(
+                    android.text.format.DateUtils.getRelativeTimeSpanString(feed.timestamp).toString(),
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             Spacer(Modifier.height(4.dp))
-            Text(feed.content, fontSize = 14.sp)
+            Text(feed.content, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
             feed.imageUrl?.let {
                 Spacer(Modifier.height(8.dp))
                 Box(
                     Modifier
                         .fillMaxWidth()
                         .height(150.dp)
-                        .background(Color.LightGray) // 직접 색상 사용
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clip(RoundedCornerShape(4.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("이미지 자리: $it", fontSize = 12.sp, color = Color.DarkGray) // 직접 색상 사용
+                    Text("이미지 자리: $it", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -404,11 +362,11 @@ fun MyTokenSection() {
         }
     ) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("보유 토큰:", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text("보유 토큰:", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
             Spacer(Modifier.width(8.dp))
             Text("1,250 P", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = { Log.d("MyToken", "토큰 내역 보기 버튼 클릭") }) { Text("내역") }
+            TextButton(onClick = { Log.d("MyToken", "토큰 내역 보기 버튼 클릭") }) { Text("내역", color = MaterialTheme.colorScheme.primary) }
         }
     }
 }
@@ -417,8 +375,14 @@ fun MyTokenSection() {
 fun ReadingStatsSection() {
     ProfileCard(title = "독서 통계", icon = Icons.Filled.BarChart) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) { Text("이번 달 완독", fontSize = 16.sp); Text("3 권", fontSize = 16.sp, fontWeight = FontWeight.SemiBold) }
-            Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) { Text("총 독서 시간", fontSize = 16.sp); Text("15시간 20분", fontSize = 16.sp, fontWeight = FontWeight.SemiBold) }
+            Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
+                Text("이번 달 완독", fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground)
+                Text("3 권", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
+            }
+            Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
+                Text("총 독서 시간", fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground)
+                Text("15시간 20분", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
+            }
         }
     }
 }
@@ -430,13 +394,13 @@ fun ReadingCalendarSection() {
         icon = Icons.Filled.CalendarToday,
         additionalActions = {
             IconButton(onClick = { Log.d("ReadingCalendar", "달력 보기 버튼 클릭") }) {
-                Icon(Icons.Filled.DateRange, contentDescription = "달력 보기")
+                Icon(Icons.Filled.DateRange, contentDescription = "달력 보기", tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("목표: 5권 / 완독: 3권", fontSize = 14.sp)
-            Text("연속 독서: 7일", fontSize = 14.sp)
+            Text("목표: 5권 / 완독: 3권", fontSize = 14.sp, color = MaterialTheme.colorScheme.onBackground)
+            Text("연속 독서: 7일", fontSize = 14.sp, color = MaterialTheme.colorScheme.onBackground)
         }
     }
 }
@@ -444,18 +408,26 @@ fun ReadingCalendarSection() {
 @Composable
 fun RecentBooksSection() {
     ProfileCard(title = "최근 읽은 책", icon = Icons.AutoMirrored.Filled.LibraryBooks) {
-        Text("최근 읽은 책 목록이 여기에 표시됩니다.", fontSize = 14.sp, color = Color.Gray) // 직접 색상 사용
+        Text("최근 읽은 책 목록이 여기에 표시됩니다.", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(8.dp))
-        Column { Text("- 책 제목 1 (저자 1)"); Text("- 책 제목 2 (저자 2)") }
+        Column {
+            Text("- 책 제목 1 (저자 1)", color = MaterialTheme.colorScheme.onBackground)
+            Text("- 책 제목 2 (저자 2)", color = MaterialTheme.colorScheme.onBackground)
+        }
     }
 }
 
 @Composable
 fun EventSection() {
     ProfileCard(title = "이벤트", icon = Icons.Filled.CardGiftcard) {
-        Text("진행 중인 이벤트 정보가 여기에 표시됩니다.", fontSize = 14.sp, color = Color.Gray) // 직접 색상 사용
+        Text("진행 중인 이벤트 정보가 여기에 표시됩니다.", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(8.dp))
-        Button(onClick = { Log.d("Event", "모든 이벤트 보기 클릭") }) { Text("모든 이벤트 보기") }
+        Button(
+            onClick = { Log.d("Event", "모든 이벤트 보기 클릭") },
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+        ) {
+            Text("모든 이벤트 보기", color = MaterialTheme.colorScheme.onPrimary)
+        }
     }
 }
 
@@ -464,10 +436,10 @@ fun SettingsSection() {
     ProfileCard(title = "환경설정", icon = null) {
         Column {
             SettingsItem(title = "알림 설정", icon = Icons.Filled.Notifications) { Log.d("Settings", "알림 설정 클릭") }
-            HorizontalDivider()
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
             SettingsItem(title = "계정 관리", icon = Icons.Filled.AccountCircle) { Log.d("Settings", "계정 관리 클릭") }
-            HorizontalDivider()
-            SettingsItem(title = "앱 정보") { Log.d("Settings", "앱 정보 클릭") }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+            SettingsItem(title = "앱 정보", icon = Icons.Filled.Info) { Log.d("Settings", "앱 정보 클릭") }
         }
     }
 }
@@ -478,15 +450,15 @@ fun SettingsItem(title: String, icon: ImageVector? = null, onClick: () -> Unit) 
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(vertical = 12.dp),
+            .padding(vertical = 16.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         icon?.let {
             Icon(it, title, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
             Spacer(Modifier.width(16.dp))
         }
-        Text(title, fontSize = 16.sp, modifier = Modifier.weight(1f))
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "더보기", tint = Color.Gray) // 직접 색상 사용
+        Text(title, fontSize = 16.sp, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface)
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "더보기", tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -501,8 +473,9 @@ fun ProfileCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium, // AppShapes.medium 사용 가능
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -523,24 +496,15 @@ fun ProfileCard(
                 }
             }
             Spacer(Modifier.height(12.dp))
-            content() // ColumnScope 내에서 호출됨 (원래 코드에서는 Column { content() } 였음)
-            // content 람다 자체가 ColumnScope를 가지므로 직접 호출해도 무방할 수 있으나,
-            // 명시적으로 Column { content() } 로 감싸는 것이 더 안전할 수 있습니다.
-            // 여기서는 제공된 코드의 구조를 최대한 유지합니다.
+            this.content()
         }
     }
 }
 
-// --- 미리보기 코드 ---
-@Preview(showBackground = true, name = "Profile Screen Light", heightDp = 1200)
+@Preview(showBackground = true, name = "Profile Screen Full", heightDp = 1600)
 @Composable
 fun DefaultProfileScreenPreview() {
-    ProfileScreen() // ProfileScreen은 MyProfileAppTheme을 사용 (항상 라이트 모드)
+    ReadersProfileAppTheme{
+        ProfileScreen()
+    }
 }
-
-// 다크 모드 미리보기 제거
-// @Preview(showBackground = true, name = "Profile Screen Dark", uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES, heightDp = 1200)
-// @Composable
-// fun DarkProfileScreenPreview() {
-// ProfileScreen()
-// }
