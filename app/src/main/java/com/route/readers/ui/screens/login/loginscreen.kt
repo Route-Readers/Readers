@@ -1,31 +1,43 @@
-package com.route.readers.ui.screens.login // 실제 패키지명으로 수정
+package com.route.readers.ui.screens.login
 
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color // LoginPageTheme을 제거했다면 이 Color는 사용되지 않을 수 있음import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-// import com.route.readers.ui.theme.ReadersTheme // 만약 프로젝트 테마가 있다면 import
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 
 @Composable
 fun LoginScreen(
-    // 필요하다면 네비게이션을 위한 콜백 함수 등을 파라미터로 추가할 수 있습니다.
-    // 예: onLoginSuccess: () -> Unit, onNavigateToSignUp: () -> Unit
+    onLoginSuccess: () -> Unit,
+    onNavigateToSignUp: () -> Unit
 ) {
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var rememberId by rememberSaveable { mutableStateOf(false) }
+
+    val auth: FirebaseAuth = Firebase.auth
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -44,11 +56,6 @@ fun LoginScreen(
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
-            // TODO: 실제 로고 이미지로 교체 (예: Image Composable 사용)
-            // Image(
-            //     painter = painterResource(id = R.drawable.your_logo_resource_id),
-            //     contentDescription = "앱 로고",
-            // )
         }
 
         Column(
@@ -57,7 +64,7 @@ fun LoginScreen(
                 .weight(1f),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
-        ) {
+        ){
             Text(
                 text = "로그인",
                 fontSize = 28.sp,
@@ -67,24 +74,35 @@ fun LoginScreen(
 
             OutlinedTextField(
                 value = email,
-                onValueChange = { email = it },
+                onValueChange = { email = it; errorMessage = null },
                 label = { Text("이메일을 입력하세요") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                isError = errorMessage != null
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
                 value = password,
-                onValueChange = { password = it },
+                onValueChange = { password = it; errorMessage = null },
                 label = { Text("비밀번호를 입력하세요") },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                isError = errorMessage != null
             )
+
+            if (errorMessage != null) {
+                Text(
+                    text = errorMessage!!,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = 8.dp).fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
+            }
 
             Row(
                 modifier = Modifier
@@ -108,15 +126,48 @@ fun LoginScreen(
 
             Button(
                 onClick = {
-                    // TODO: 로그인 로직 구현
-                    Log.d("LoginScreen", "Email: $email, Password: $password, RememberID: $rememberId")
-                    // onLoginSuccess() // 예시: 로그인 성공 시 호출
+                    if (email.isBlank() || password.isBlank()) {
+                        errorMessage = "이메일과 비밀번호를 모두 입력해주세요."
+                        return@Button
+                    }
+                    isLoading = true
+                    errorMessage = null
+
+                    auth.signInWithEmailAndPassword(email.trim(), password)
+                        .addOnCompleteListener { task ->
+                            isLoading = false
+                            if (task.isSuccessful) {
+                                Log.d("LoginScreen", "signInWithEmail:success")
+                                val user = auth.currentUser
+                                Toast.makeText(context, "로그인 성공: ${user?.email}", Toast.LENGTH_SHORT).show()
+                                onLoginSuccess()
+                            } else {
+                                Log.w("LoginScreen", "signInWithEmail:failure", task.exception)
+                                val exceptionMessage = task.exception?.message
+                                errorMessage = when {
+                                    exceptionMessage?.contains("ERROR_USER_NOT_FOUND") == true ||
+                                            exceptionMessage?.contains("auth/user-not-found") == true -> "등록되지 않은 이메일입니다."
+                                    exceptionMessage?.contains("ERROR_WRONG_PASSWORD") == true ||
+                                            exceptionMessage?.contains("auth/wrong-password") == true -> "잘못된 비밀번호입니다."
+                                    exceptionMessage?.contains("INVALID_LOGIN_CREDENTIALS") == true -> "이메일 또는 비밀번호가 잘못되었습니다."
+                                    else -> "로그인에 실패했습니다. (${exceptionMessage ?: "알 수 없는 오류"})"
+                                }
+                            }
+                        }
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp)
+                    .height(50.dp),
+                enabled = !isLoading
             ) {
-                Text("로그인", fontSize = 18.sp)
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                } else {
+                    Text("로그인", fontSize = 18.sp)
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -127,10 +178,11 @@ fun LoginScreen(
                 Text("계정이 없으신가요? ")
                 TextButton(
                     onClick = {
-                        // TODO: 회원가입 화면으로 이동
-                        Log.d("LoginScreen", "회원가입 클릭")
-                        // onNavigateToSignUp() // 예시: 회원가입 화면 이동 시 호출
-                    }
+                        if (!isLoading) {
+                            onNavigateToSignUp()
+                        }
+                    },
+                    enabled = !isLoading
                 ) {
                     Text("회원가입")
                 }
@@ -141,10 +193,13 @@ fun LoginScreen(
 
 @Preview(showBackground = true, name = "Login Screen Preview")
 @Composable
-fun DefaultLoginScreenPreview() { // Preview 함수 이름 변경 (선택 사항)
-    // ReadersTheme { // 프로젝트의 기본 테마로 감싸주세요
-    Surface(modifier = Modifier.fillMaxSize()) { // Surface 추가하면 배경색 등이 더 잘 보일 수 있음
-        LoginScreen()
+fun DefaultLoginScreenPreview() {
+    MaterialTheme {
+        Surface(modifier = Modifier.fillMaxSize()) {
+            LoginScreen(
+                onLoginSuccess = { Log.d("Preview", "Login Success Clicked") },
+                onNavigateToSignUp = { Log.d("Preview", "Navigate to Sign Up Clicked") }
+            )
+        }
     }
-    // }
 }
