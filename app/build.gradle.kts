@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.gms.google-services") // Firebase 플러그인 추가
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {

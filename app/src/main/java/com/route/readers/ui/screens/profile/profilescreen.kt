@@ -96,15 +96,6 @@ fun ProfileScreen() {
                         }
                     }
                 )
-            },
-            bottomBar = {
-                BottomNavBar(
-                    selectedTab = selectedBottomTab,
-                    onTabSelected = { index ->
-                        selectedBottomTab = index
-                        Log.d("ProfileScreen", "Bottom tab $index selected")
-                    }
-                )
             }
         ) { innerPadding ->
             ProfilePageContent(
