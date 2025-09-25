@@ -11,6 +11,8 @@ import androidx.compose.ui.Modifier
 import com.route.readers.ui.screens.feed.FeedScreen
 import com.route.readers.ui.screens.search.SearchScreen
 import com.route.readers.ui.components.BottomNavBar
+import com.route.readers.navigation.AppNavigation
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -23,6 +25,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    AppNavigation()
                     Column {
                         Box(modifier = Modifier.weight(1f)) {
                             when (selectedTab) {
