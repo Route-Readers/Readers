@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.route.readers.ui.theme.*
 
 @Composable
 fun FeedScreen() {
@@ -30,7 +31,9 @@ fun FeedScreen() {
     )
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(CreamBackground),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -45,6 +48,7 @@ fun FeedCard(item: FeedItem) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = White),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(
@@ -61,7 +65,7 @@ fun FeedCard(item: FeedItem) {
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .background(Color.Gray),
+                            .background(DarkRed),
                         contentAlignment = Alignment.Center
                     ) {
                         Text("👤", fontSize = 20.sp)
@@ -70,12 +74,13 @@ fun FeedCard(item: FeedItem) {
                     Text(
                         text = item.userName,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
+                        fontSize = 16.sp,
+                        color = DarkRed
                     )
                 }
                 Text(
                     text = item.timeAgo,
-                    color = Color.Gray,
+                    color = TextGray,
                     fontSize = 12.sp
                 )
             }
@@ -89,9 +94,10 @@ fun FeedCard(item: FeedItem) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Button(
                         onClick = { },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = DarkRed)
                     ) {
-                        Text("맞팔하기")
+                        Text("맞팔하기", color = White)
                     }
                 }
                 is FeedItem.ChallengeStart -> {
@@ -99,30 +105,34 @@ fun FeedCard(item: FeedItem) {
                     Spacer(modifier = Modifier.height(8.dp))
                     LinearProgressIndicator(
                         progress = 0f,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        color = DarkRed,
+                        trackColor = White
                     )
-                    Text("0% 완료", fontSize = 12.sp, color = Color.Gray)
+                    Text("0% 완료", fontSize = 12.sp, color = TextGray)
                 }
                 is FeedItem.ChallengeSuccess -> {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("🎉", fontSize = 20.sp)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = item.description, fontSize = 14.sp)
+                        Text(text = item.description, fontSize = 14.sp, color = DarkRed, fontWeight = FontWeight.Medium)
                     }
                 }
                 is FeedItem.ReadingProgress -> {
-                    Text(text = "📖 ${item.bookTitle}", fontWeight = FontWeight.Medium)
+                    Text(text = "📖 ${item.bookTitle}", fontWeight = FontWeight.Medium, color = DarkRed)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(text = item.description, fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(8.dp))
                     LinearProgressIndicator(
                         progress = item.currentPage.toFloat() / item.totalPages,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        color = ReadingGreen,
+                        trackColor = White
                     )
-                    Text("${item.currentPage}/${item.totalPages}페이지", fontSize = 12.sp, color = Color.Gray)
+                    Text("${item.currentPage}/${item.totalPages}페이지", fontSize = 12.sp, color = TextGray)
                 }
                 is FeedItem.BookReview -> {
-                    Text(text = "📚 ${item.bookTitle}", fontWeight = FontWeight.Medium)
+                    Text(text = "📚 ${item.bookTitle}", fontWeight = FontWeight.Medium, color = DarkRed)
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         repeat(5) { index ->
@@ -132,7 +142,7 @@ fun FeedCard(item: FeedItem) {
                             )
                         }
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("${item.rating}/5", fontSize = 12.sp, color = Color.Gray)
+                        Text("${item.rating}/5", fontSize = 12.sp, color = TextGray)
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(text = item.review, fontSize = 14.sp)
@@ -156,10 +166,10 @@ fun FeedCard(item: FeedItem) {
                         Icon(
                             imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                             contentDescription = "좋아요",
-                            tint = if (isLiked) Color.Red else Color.Gray
+                            tint = if (isLiked) DarkRed else TextGray
                         )
                     }
-                    Text("12", fontSize = 14.sp, color = Color.Gray)
+                    Text("12", fontSize = 14.sp, color = TextGray)
                 }
                 
                 Row(
@@ -167,7 +177,7 @@ fun FeedCard(item: FeedItem) {
                     modifier = Modifier.weight(1f)
                 ) {
                     TextButton(onClick = { }) {
-                        Text("💬 3", fontSize = 14.sp, color = Color.Gray)
+                        Text("💬 3", fontSize = 14.sp, color = TextGray)
                     }
                 }
             }
