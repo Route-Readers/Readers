@@ -1,171 +1,177 @@
-package com.route.readers.ui.screens.signup // 실제 프로젝트 패키지명으로 변경하세요
+package com.route.readers.ui.screens.signup
 
+import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack // RTL 지원 아이콘
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-// import com.route.readers.ui.theme.ReadersTheme // 실제 앱 테마가 있다면 import 하세요
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import com.google.firebase.auth.FirebaseAuthWeakPasswordException
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignUpScreen(
-    onNavigateBack: () -> Unit = {} // 뒤로가기 액션 콜백
+    onSignUpSuccess: () -> Unit,
+    onNavigateToLogin: () -> Unit
 ) {
-    var email by remember { mutableStateOf("") }
-    var username by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") } // 비밀번호 확인 필드 추가
-    var displayName by remember { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var passwordConfirm by rememberSaveable { mutableStateOf("") }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("회원가입") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "뒤로가기"
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors( // 예시: 상단바 색상 지정
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            )
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 24.dp, vertical = 16.dp)
-                .verticalScroll(rememberScrollState()), // 스크롤 가능하도록
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp) // 아이템 간 수직 간격
-        ) {
+    val auth: FirebaseAuth = Firebase.auth
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 32.dp, vertical = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "회원가입",
+            fontSize = 28.sp,
+            style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.padding(bottom = 24.dp)
+        )
+
+        OutlinedTextField(
+            value = email,
+            onValueChange = { email = it; errorMessage = null },
+            label = { Text("이메일을 입력하세요") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+            modifier = Modifier.fillMaxWidth(),
+            isError = errorMessage?.contains("이메일") == true
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it; errorMessage = null },
+            label = { Text("비밀번호를 입력하세요") },
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            modifier = Modifier.fillMaxWidth(),
+            isError = errorMessage?.contains("비밀번호") == true
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = passwordConfirm,
+            onValueChange = { passwordConfirm = it; errorMessage = null },
+            label = { Text("비밀번호를 다시 입력하세요") },
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            modifier = Modifier.fillMaxWidth(),
+            isError = errorMessage?.contains("일치하지 않습니다") == true
+        )
+
+        if (errorMessage != null) {
             Text(
-                text = "새 계정 만들기",
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(bottom = 8.dp) // 제목 하단 여백
+                text = errorMessage!!,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(top = 8.dp).fillMaxWidth(),
+                textAlign = TextAlign.Center
             )
+        }
 
-            OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = { Text("이메일 주소") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                modifier = Modifier.fillMaxWidth()
-            )
+        Spacer(modifier = Modifier.height(24.dp))
 
-            OutlinedTextField(
-                value = username,
-                onValueChange = { username = it },
-                label = { Text("사용자 아이디") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
+        Button(
+            onClick = {
+                if (email.isBlank() || password.isBlank()) {
+                    errorMessage = "이메일과 비밀번호를 모두 입력해주세요."
+                    return@Button
+                }
+                if (password != passwordConfirm) {
+                    errorMessage = "비밀번호가 일치하지 않습니다."
+                    return@Button
+                }
 
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("비밀번호") },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                modifier = Modifier.fillMaxWidth()
-            )
+                isLoading = true
+                errorMessage = null
 
-            OutlinedTextField(
-                value = confirmPassword,
-                onValueChange = { confirmPassword = it },
-                label = { Text("비밀번호 확인") },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                modifier = Modifier.fillMaxWidth()
-                // TODO: 여기에 비밀번호 일치 여부 검증 로직 추가 (UI 상태 반영)
-            )
-
-            OutlinedTextField(
-                value = displayName,
-                onValueChange = { displayName = it },
-                label = { Text("닉네임 (표시될 이름)") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp)) // 버튼과의 간격
-
-            Button(
-                onClick = {
-                    // 기능은 없으므로 현재는 로그만 출력
-                    println("회원가입 버튼 클릭됨:")
-                    println("Email: $email")
-                    println("Username: $username")
-                    println("Password: (hidden)")
-                    println("Confirm Password: (hidden)")
-                    println("DisplayName: $displayName")
-                    // TODO: 실제 회원가입 로직 및 입력값 검증 로직 추가
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-            ) {
-                Text("계정 만들기", fontSize = 18.sp)
-            }
-
-            TextButton(
-                onClick = {
-                    // 기능은 없으므로 현재는 로그만 출력
-                    println("이미 계정이 있으신가요? 로그인 클릭됨")
-                    // TODO: 로그인 화면으로 이동하는 로직 추가 (onNavigateBack과 유사한 콜백 사용 가능)
-                },
-                modifier = Modifier.padding(top = 8.dp)
-            ) {
-                Text("이미 계정이 있으신가요? 로그인")
+                auth.createUserWithEmailAndPassword(email.trim(), password)
+                    .addOnCompleteListener { task ->
+                        isLoading = false
+                        if (task.isSuccessful) {
+                            Log.d("SignUpScreen", "createUserWithEmail:success")
+                            val firebaseUser = auth.currentUser
+                            Toast.makeText(context, "회원가입 성공: ${firebaseUser?.email}", Toast.LENGTH_SHORT).show()
+                            onSignUpSuccess()
+                        } else {
+                            Log.w("SignUpScreen", "createUserWithEmail:failure", task.exception)
+                            val exception = task.exception
+                            errorMessage = when (exception) {
+                                is FirebaseAuthWeakPasswordException -> "비밀번호는 6자 이상이어야 합니다."
+                                is FirebaseAuthInvalidCredentialsException -> "이메일 형식이 올바르지 않습니다."
+                                is FirebaseAuthUserCollisionException -> "이미 사용 중인 이메일입니다."
+                                else -> "회원가입에 실패했습니다. (${exception?.message ?: "알 수 없는 오류"})"
+                            }
+                        }
+                    }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp),
+            enabled = !isLoading
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                Text("회원가입 완료", fontSize = 18.sp)
             }
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        TextButton(
+            onClick = {
+                if (!isLoading) {
+                    onNavigateToLogin()
+                }
+            },
+            enabled = !isLoading
+        ) {
+            Text("이미 계정이 있으신가요? 로그인")
+        }
     }
 }
 
-// --- 미리보기 코드 ---
-@Preview(showBackground = true, name = "SignUp Screen Light")
+@Preview(showBackground = true, name = "SignUp Screen Preview")
 @Composable
-fun SignUpScreenPreview() {
-    // ReadersTheme { // 실제 앱 테마가 있다면 해당 테마로 감싸주세요.
-    MaterialTheme { // 임시로 기본 MaterialTheme 사용
+fun DefaultSignUpScreenPreview() {
+    MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
-            SignUpScreen()
+            SignUpScreen(
+                onSignUpSuccess = { Log.d("Preview", "Sign Up Success") },
+                onNavigateToLogin = { Log.d("Preview", "Navigate to Login") }
+            )
         }
     }
-    // }
 }
 
-@Preview(showBackground = true, name = "SignUp Screen Dark", uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES)
-@Composable
-fun SignUpScreenDarkPreview() {
-    // ReadersTheme { // 실제 앱 테마가 있다면 해당 테마로 감싸주세요.
-    MaterialTheme(colorScheme = darkColorScheme()) { // 임시로 기본 다크 MaterialTheme 사용
-        Surface(modifier = Modifier.fillMaxSize()) {
-            SignUpScreen()
-        }
-    }
-    // }
-}
