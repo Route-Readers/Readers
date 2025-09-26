@@ -1,7 +1,8 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("com.google.gms.google-services") // Firebase 플러그인 추가
+    id("com.google.gms.google-services")
+    id("org.jetbrains.kotlin.plugin.compose") version "2.0.0"
 }
 
 android {
@@ -28,6 +29,10 @@ android {
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.8" // 최신 버전 유지
+    }
+    composeCompiler {
+        reportsDestination = layout.buildDirectory.dir("compose_compiler")
+        stabilityConfigurationFile = rootProject.layout.projectDirectory.file("stability_config.conf")
     }
 }
 
