@@ -27,7 +27,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.route.readers.ui.components.BottomNavBar
 
 data class Friend(
     val id: String,
@@ -80,8 +79,6 @@ fun ReadersProfileAppTheme(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen() {
-    var selectedBottomTab by remember { mutableStateOf(4) }
-
     ReadersProfileAppTheme {
         Scaffold(
             topBar = {
@@ -97,11 +94,12 @@ fun ProfileScreen() {
                     }
                 )
             }
+            // BottomNavBar는 MainActivity에서 관리하므로 여기서는 제거합니다.
         ) { innerPadding ->
             ProfilePageContent(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
+                    .padding(innerPadding) // Scaffold의 내부 패딩을 사용합니다.
                     .background(MaterialTheme.colorScheme.background)
             )
         }
@@ -113,7 +111,7 @@ fun ProfilePageContent(modifier: Modifier = Modifier) {
     LazyColumn(
         modifier = modifier.padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(bottom = 16.dp)
+        contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp) // 상단 패딩 추가 가능성
     ) {
         item { ProfileSection() }
         item { MyActivitySection() }
