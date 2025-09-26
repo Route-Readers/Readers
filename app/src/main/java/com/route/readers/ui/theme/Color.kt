@@ -10,8 +10,15 @@ val LightGray = Color(0xFFF5F5F5)
 val White = Color(0xFFFFFFFF)
 val DarkRed = Color(0xFF8B0000)
 
-// 새로운 배경 색상 옵션들
-val CreamBackground = Color(0xFFFFF8E1)  // 따뜻한 크림색
-val RoseGoldBackground = Color(0xFFFFF0F0)  // 연한 로즈골드
-val IvoryBackground = Color(0xFFFFFFF0)  // 아이보리
-val PinkBeigeBackground = Color(0xFFFFF5F5)  // 연한 핑크베이지
+val CreamBackground = Color(0xFFFFF8E1)
+val RoseGoldBackground = Color(0xFFFFF0F0)
+val IvoryBackground = Color(0xFFFFFFF0)
+val PinkBeigeBackground = Color(0xFFFFF5F5)
+
+val Purple80 = Color(0xFFD0BCFF)
+val PurpleGrey80 = Color(0xFFCCC2DC)
+val Pink80 = Color(0xFFEFB8C8)
+
+val Purple40 = Color(0xFF6650a4)
+val PurpleGrey40 = Color(0xFF625b71)
+val Pink40 = Color(0xFF7D5260)
