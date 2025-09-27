@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination // 이 import 문이 필요합니다.
 import androidx.navigation.compose.currentBackStackEntryAsState
 
 sealed class BottomNavItem(val route: String, val title: String, val icon: ImageVector) {
@@ -36,7 +37,6 @@ val bottomNavItems = listOf(
 @Composable
 fun BottomNavBar(
     navController: NavController,
-    onTabSelected: (BottomNavItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -50,7 +50,14 @@ fun BottomNavBar(
                 selected = currentRoute == screen.route,
                 onClick = {
                     if (currentRoute != screen.route) {
-                        onTabSelected(screen)
+                        navController.navigate(screen.route) {
+
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
                 }
             )
