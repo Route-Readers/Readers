@@ -1,51 +1,56 @@
 package com.route.readers.ui.components
-
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import com.route.readers.ui.theme.DarkRed
-import com.route.readers.ui.theme.TextGray
-import com.route.readers.ui.theme.White
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.navigation.NavController
+import androidx.navigation.compose.currentBackStackEntryAsState
+
+sealed class BottomNavItem(val route: String, val title: String, val icon: ImageVector) {
+    object Feed : BottomNavItem("feed_screen", "피드", Icons.Filled.Home)
+    object MyLibrary : BottomNavItem("mylibrary_screen", "내 서재", Icons.Filled.Book)
+    object Search : BottomNavItem("search_screen", "검색", Icons.Filled.Search)
+    object Community : BottomNavItem("community_screen", "커뮤니티", Icons.Filled.Explore)
+    object Profile : BottomNavItem("profile_screen", "프로필", Icons.Filled.AccountCircle)
+}
+
+val bottomNavItems = listOf(
+    BottomNavItem.Feed,
+    BottomNavItem.MyLibrary,
+    BottomNavItem.Search,
+    BottomNavItem.Community,
+    BottomNavItem.Profile
+)
 
 @Composable
 fun BottomNavBar(
-    selectedTab: Int = 0,
-    onTabSelected: (Int) -> Unit = {}
+    navController: NavController,
+    onTabSelected: (BottomNavItem) -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(60.dp)
-            .background(White),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        BottomNavItem("피드", 0, selectedTab, onTabSelected)
-        BottomNavItem("내서재", 1, selectedTab, onTabSelected)
-        BottomNavItem("검색", 2, selectedTab, onTabSelected)
-        BottomNavItem("커뮤니티", 3, selectedTab, onTabSelected)
-        BottomNavItem("프로필", 4, selectedTab, onTabSelected)
-    }
-}
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
 
-@Composable
-fun BottomNavItem(
-    text: String,
-    index: Int,
-    selectedTab: Int,
-    onTabSelected: (Int) -> Unit
-) {
-    Text(
-        text = text,
-        color = if (selectedTab == index) DarkRed else TextGray,
-        fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
-        modifier = Modifier.clickable { onTabSelected(index) }
-    )
+    NavigationBar {
+        bottomNavItems.forEach { screen ->
+            NavigationBarItem(
+                icon = { Icon(imageVector = screen.icon, contentDescription = screen.title) },
+                label = { Text(screen.title) },
+                selected = currentRoute == screen.route,
+                onClick = {
+                    if (currentRoute != screen.route) {
+                        onTabSelected(screen)
+                    }
+                }
+            )
+        }
+    }
 }
