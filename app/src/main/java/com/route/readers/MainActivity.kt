@@ -3,61 +3,46 @@ package com.route.readers
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
+import com.route.readers.ui.screens.feed.FeedScreen
+import com.route.readers.ui.screens.mylibrary.MyLibraryScreen
+import com.route.readers.ui.screens.search.SearchScreen
+import com.route.readers.ui.screens.community.CommunityScreen
+import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.components.BottomNavBar
-import com.route.readers.ui.navigation.AppNavigation
-import com.route.readers.ui.theme.ReadersTheme
+import com.route.readers.ui.theme.*
 
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
         super.onCreate(savedInstanceState)
         setContent {
+            var selectedTab by remember { mutableStateOf(0) }
+
             ReadersTheme {
-                val navController = rememberNavController()
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentDestination = navBackStackEntry?.destination
-
-                val shouldShowBottomBar = currentDestination?.route !in listOf(
-                    "login_or_initial_screen",
-                    "signup_screen"
-                ) && currentDestination?.route != null
-
-                Scaffold(
-                    bottomBar = {
-                        if (shouldShowBottomBar) {
-                            BottomNavBar(
-                                navController = navController,
-                                onTabSelected = { screen ->
-                                    navController.navigate(screen.route) {
-                                        popUpTo(navController.graph.startDestinationId) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                }
-                            )
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    Column {
+                        Box(modifier = Modifier.weight(1f)) {
+                            when (selectedTab) {
+                                0 -> FeedScreen()
+                                1 -> MyLibraryScreen()
+                                2 -> SearchScreen()
+                                3 -> CommunityScreen()
+                                4 -> ProfileScreen()
+                                else -> FeedScreen()
+                            }
                         }
-                    }
-                ) { innerPadding ->
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding),
-                        color = MaterialTheme.colorScheme.background
-                    ) {
-                        AppNavigation(navController = navController)
+                        BottomNavBar(
+                            selectedTab = selectedTab,
+                            onTabSelected = { selectedTab = it }
+                        )
                     }
                 }
             }
