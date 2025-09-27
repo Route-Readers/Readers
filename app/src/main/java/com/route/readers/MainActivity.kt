@@ -16,12 +16,13 @@ import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.components.BottomNavBar
 import com.route.readers.ui.theme.*
 
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             var selectedTab by remember { mutableStateOf(0) }
-            
+
             ReadersTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
