@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -15,18 +14,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.route.readers.R
 import com.route.readers.data.model.Book
+import com.route.readers.data.remote.MyLibraryRepository
 
 @Composable
-fun MyLibraryScreen() {
-    val books = listOf(
-        Book(title = "아토믹 해빗", author = "제임스 클리어", currentPage = 47, totalPages = 320, progress = 15),
-        Book(title = "사피엔스", author = "유발 하라리", currentPage = 123, totalPages = 435, progress = 28),
-        Book(title = "데미안", author = "헤르만 헤세", currentPage = 78, totalPages = 240, progress = 33)
-    )
+fun MyLibraryScreen(
+    libraryRepository: MyLibraryRepository = MyLibraryRepository()
+) {
+    val myBooks by libraryRepository.myBooks.collectAsState()
     
     Column(
         modifier = Modifier
@@ -47,7 +49,7 @@ fun MyLibraryScreen() {
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "3/10 권",
+                    text = "${myBooks.size}/10 권",
                     fontSize = 14.sp,
                     color = Color.Gray
                 )
@@ -72,11 +74,46 @@ fun MyLibraryScreen() {
         Spacer(modifier = Modifier.height(32.dp))
         
         // Book Cards
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            items(books) { book ->
-                BookCard(book = book)
+        if (myBooks.isNotEmpty()) {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                items(myBooks) { book ->
+                    BookCard(
+                        book = book,
+                        onUpdateProgress = { isbn, currentPage ->
+                            libraryRepository.updateReadingProgress(isbn, currentPage)
+                        }
+                    )
+                }
+            }
+        } else {
+            // 빈 서재 상태
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(280.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        "📚",
+                        fontSize = 48.sp
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        "아직 서재에 책이 없습니다",
+                        fontSize = 16.sp,
+                        color = Color.Gray
+                    )
+                    Text(
+                        "검색에서 책을 추가해보세요!",
+                        fontSize = 14.sp,
+                        color = Color.Gray
+                    )
+                }
             }
         }
         
@@ -112,7 +149,10 @@ fun MyLibraryScreen() {
 }
 
 @Composable
-fun BookCard(book: Book) {
+fun BookCard(
+    book: Book,
+    onUpdateProgress: (String, Int) -> Unit
+) {
     Card(
         modifier = Modifier
             .width(200.dp)
@@ -124,16 +164,17 @@ fun BookCard(book: Book) {
             modifier = Modifier.padding(16.dp)
         ) {
             // Book Cover
-            Box(
+            AsyncImage(
+                model = book.cover.ifEmpty { null },
+                contentDescription = "책 표지",
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(120.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color.LightGray),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("책 표지", color = Color.Gray)
-            }
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop,
+                error = painterResource(R.drawable.readerslogo),
+                placeholder = painterResource(R.drawable.readerslogo)
+            )
             
             Spacer(modifier = Modifier.height(16.dp))
             
@@ -141,7 +182,8 @@ fun BookCard(book: Book) {
             Text(
                 text = book.title,
                 fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                maxLines = 2
             )
             Text(
                 text = book.author,
