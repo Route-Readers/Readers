@@ -1,4 +1,4 @@
-package com.route.readers.ui.navigation
+package com.route.readers.ui.AppNavigaiton
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost

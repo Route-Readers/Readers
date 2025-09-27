@@ -10,7 +10,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.rememberNavController
 import com.route.readers.ui.components.BottomNavBar
-import com.route.readers.ui.navigation.AppNavigation
+import com.route.readers.ui.AppNavigaiton.AppNavigation
 import com.route.readers.ui.theme.ReadersTheme
 
 class MainActivity : ComponentActivity() {
