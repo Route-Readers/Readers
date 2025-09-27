@@ -172,8 +172,8 @@ fun BookCard(
                     .height(120.dp)
                     .clip(RoundedCornerShape(8.dp)),
                 contentScale = ContentScale.Crop,
-                error = painterResource(R.drawable.readerslogo),
-                placeholder = painterResource(R.drawable.readerslogo)
+                error = painterResource(R.mipmap.readerslogo),
+                placeholder = painterResource(R.mipmap.readerslogo)
             )
             
             Spacer(modifier = Modifier.height(16.dp))

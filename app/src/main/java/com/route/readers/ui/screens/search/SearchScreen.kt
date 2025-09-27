@@ -222,8 +222,8 @@ fun BookSearchResultCard(
                     .size(80.dp, 100.dp)
                     .background(ReadingGreen, RoundedCornerShape(8.dp)),
                 contentScale = ContentScale.Crop,
-                error = painterResource(R.drawable.readerslogo),
-                placeholder = painterResource(R.drawable.readerslogo)
+                error = painterResource(R.mipmap.readerslogo),
+                placeholder = painterResource(R.mipmap.readerslogo)
             )
             
             Spacer(modifier = Modifier.width(16.dp))

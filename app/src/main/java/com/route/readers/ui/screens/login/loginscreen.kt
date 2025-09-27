@@ -65,6 +65,7 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ){
+
             Text(
                 text = "로그인",
                 fontSize = 28.sp,

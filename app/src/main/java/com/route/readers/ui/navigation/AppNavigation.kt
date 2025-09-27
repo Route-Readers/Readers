@@ -1,4 +1,5 @@
 package com.route.readers.ui.navigation
+
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -11,7 +12,6 @@ import com.route.readers.ui.screens.mylibrary.MyLibraryScreen
 import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.search.SearchScreen
 import com.route.readers.ui.screens.signup.SignUpScreen
-
 
 @Composable
 fun AppNavigation(navController: NavHostController) {
