@@ -25,7 +25,7 @@ fun SplashScreenUI() {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Image(
-            painter = painterResource(id = R.drawable.readerslogo),
+            painter = painterResource(id = R.mipmap.readerslogo),
             contentDescription = "App Logo",
             modifier = Modifier.size(120.dp)
         )

@@ -1,4 +1,5 @@
 package com.route.readers.ui.components
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Book
@@ -11,6 +12,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -34,12 +36,13 @@ val bottomNavItems = listOf(
 @Composable
 fun BottomNavBar(
     navController: NavController,
-    onTabSelected: (BottomNavItem) -> Unit
+    onTabSelected: (BottomNavItem) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    NavigationBar {
+    NavigationBar(modifier = modifier) {
         bottomNavItems.forEach { screen ->
             NavigationBarItem(
                 icon = { Icon(imageVector = screen.icon, contentDescription = screen.title) },

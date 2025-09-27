@@ -31,7 +31,7 @@ fun SearchScreen(
     libraryRepository: MyLibraryRepository = MyLibraryRepository()
 ) {
     var selectedTab by remember { mutableStateOf(0) }
-    
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -53,7 +53,7 @@ fun SearchScreen(
                 text = { Text("도서관검색") }
             )
         }
-        
+
         when (selectedTab) {
             0 -> BookSearchTab(viewModel, libraryRepository)
             1 -> LibrarySearchTab()
@@ -71,7 +71,7 @@ fun BookSearchTab(
     val books by viewModel.books.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
-    
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -87,7 +87,7 @@ fun BookSearchTab(
                 shape = RoundedCornerShape(12.dp),
                 trailingIcon = {
                     Button(
-                        onClick = { 
+                        onClick = {
                             try {
                                 if (searchText.isNotBlank() && searchText.trim().isNotEmpty()) {
                                     viewModel.searchBooks(searchText.trim())
@@ -103,7 +103,7 @@ fun BookSearchTab(
                 }
             )
         }
-        
+
         // 에러 메시지 표시
         errorMessage?.let { message ->
             item {
@@ -120,7 +120,7 @@ fun BookSearchTab(
                 }
             }
         }
-        
+
         // 로딩 상태
         if (isLoading) {
             item {
@@ -138,7 +138,7 @@ fun BookSearchTab(
                 }
             }
         }
-        
+
         // 검색 결과
         if (books.isNotEmpty()) {
             item {
@@ -149,7 +149,7 @@ fun BookSearchTab(
                     color = DarkRed
                 )
             }
-            
+
             items(books) { book ->
                 BookSearchResultCard(
                     book = book,
@@ -158,7 +158,7 @@ fun BookSearchTab(
                 )
             }
         }
-        
+
         // 초기 상태일 때 신간 도서 표시
         if (books.isEmpty() && searchText.isBlank() && !isLoading && errorMessage == null) {
             item {
@@ -222,12 +222,12 @@ fun BookSearchResultCard(
                     .size(80.dp, 100.dp)
                     .background(ReadingGreen, RoundedCornerShape(8.dp)),
                 contentScale = ContentScale.Crop,
-                error = painterResource(R.drawable.readerslogo),
-                placeholder = painterResource(R.drawable.readerslogo)
+                error = painterResource(R.mipmap.readerslogo),
+                placeholder = painterResource(R.mipmap.readerslogo)
             )
-            
+
             Spacer(modifier = Modifier.width(16.dp))
-            
+
             // 책 정보
             Column(
                 modifier = Modifier.weight(1f)
@@ -260,9 +260,9 @@ fun BookSearchResultCard(
                         color = TextGray
                     )
                 }
-                
+
                 Spacer(modifier = Modifier.height(12.dp))
-                
+
                 // 버튼들
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -285,9 +285,9 @@ fun BookSearchResultCard(
                             Text("서재 추가", fontSize = 12.sp)
                         }
                     }
-                    
+
                     OutlinedButton(
-                        onClick = { 
+                        onClick = {
                             // TODO: 책 읽기 시작 로직
                         },
                         modifier = Modifier.height(32.dp)
@@ -303,7 +303,7 @@ fun BookSearchResultCard(
 @Composable
 fun LibrarySearchTab() {
     var searchText by remember { mutableStateOf("") }
-    
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -319,7 +319,7 @@ fun LibrarySearchTab() {
                 shape = RoundedCornerShape(12.dp)
             )
         }
-        
+
         item {
             Card(
                 modifier = Modifier
@@ -355,7 +355,7 @@ fun LibrarySearchTab() {
                 }
             }
         }
-        
+
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -372,7 +372,7 @@ fun LibrarySearchTab() {
                         color = DarkRed
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-                    
+
                     Column(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
