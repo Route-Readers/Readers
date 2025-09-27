@@ -1,9 +1,10 @@
 package com.route.readers.ui.screens.search
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
@@ -11,14 +12,24 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import com.route.readers.R
+import com.route.readers.data.model.Book
+import com.route.readers.data.remote.MyLibraryRepository
 import com.route.readers.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SearchScreen() {
+fun SearchScreen(
+    viewModel: BookViewModel = viewModel(),
+    libraryRepository: MyLibraryRepository = MyLibraryRepository()
+) {
     var selectedTab by remember { mutableStateOf(0) }
     
     Column(
@@ -44,7 +55,7 @@ fun SearchScreen() {
         }
         
         when (selectedTab) {
-            0 -> BookSearchTab()
+            0 -> BookSearchTab(viewModel, libraryRepository)
             1 -> LibrarySearchTab()
         }
     }
@@ -52,8 +63,14 @@ fun SearchScreen() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BookSearchTab() {
+fun BookSearchTab(
+    viewModel: BookViewModel,
+    libraryRepository: MyLibraryRepository
+) {
     var searchText by remember { mutableStateOf("") }
+    val books by viewModel.books.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
     
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -67,123 +84,115 @@ fun BookSearchTab() {
                 placeholder = { Text("책 제목, 작가명으로 검색") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                trailingIcon = {
+                    Button(
+                        onClick = { 
+                            try {
+                                if (searchText.isNotBlank() && searchText.trim().isNotEmpty()) {
+                                    viewModel.searchBooks(searchText.trim())
+                                }
+                            } catch (e: Exception) {
+                                Log.e("SearchScreen", "Search button error: ${e.message}", e)
+                            }
+                        },
+                        enabled = searchText.isNotBlank() && !isLoading
+                    ) {
+                        Text("검색")
+                    }
+                }
             )
         }
         
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = White),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
+        // 에러 메시지 표시
+        errorMessage?.let { message ->
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(
-                        "맞춤 추천",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = DarkRed
+                        text = message,
+                        modifier = Modifier.padding(16.dp),
+                        color = MaterialTheme.colorScheme.onErrorContainer
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "읽은 책 기반으로 추천해드려요",
-                        color = TextGray,
-                        fontSize = 14.sp
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(3) { index ->
-                            BookRecommendationCard("추천 도서 ${index + 1}")
-                        }
-                    }
                 }
             }
         }
         
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = White),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
+        // 로딩 상태
+        if (isLoading) {
+            item {
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        "필터 검색",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = DarkRed
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf("소설", "에세이", "자기계발").forEach { genre ->
-                            FilterChip(
-                                onClick = {},
-                                label = { Text(genre) },
-                                selected = false
-                            )
-                        }
-                    }
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf("2024년", "2023년", "평점 4.0+").forEach { filter ->
-                            FilterChip(
-                                onClick = {},
-                                label = { Text(filter) },
-                                selected = false
-                            )
-                        }
-                    }
-                }
-            }
-        }
-        
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = White),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text(
-                        "인기 검색어",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = DarkRed
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
                     Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        repeat(5) { index ->
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("검색 중...", color = TextGray)
+                    }
+                }
+            }
+        }
+        
+        // 검색 결과
+        if (books.isNotEmpty()) {
+            item {
+                Text(
+                    "검색 결과 (${books.size}권)",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = DarkRed
+                )
+            }
+            
+            items(books) { book ->
+                BookSearchResultCard(
+                    book = book,
+                    onAddToLibrary = { libraryRepository.addBookToLibrary(it) },
+                    isInLibrary = libraryRepository.isBookInLibrary(book.isbn)
+                )
+            }
+        }
+        
+        // 초기 상태일 때 신간 도서 표시
+        if (books.isEmpty() && searchText.isBlank() && !isLoading && errorMessage == null) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = White),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "신간 도서",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = DarkRed
+                            )
+                            TextButton(
+                                onClick = { viewModel.getNewBooks() }
                             ) {
-                                Text(
-                                    "${index + 1}",
-                                    color = DarkRed,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.width(20.dp)
-                                )
-                                Text("인기 도서 ${index + 1}", color = TextGray)
+                                Text("불러오기")
                             }
                         }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "최신 출간 도서를 확인해보세요",
+                            color = TextGray,
+                            fontSize = 14.sp
+                        )
                     }
                 }
             }
@@ -192,35 +201,101 @@ fun BookSearchTab() {
 }
 
 @Composable
-fun BookRecommendationCard(title: String) {
+fun BookSearchResultCard(
+    book: Book,
+    onAddToLibrary: (Book) -> Unit,
+    isInLibrary: Boolean
+) {
     Card(
-        modifier = Modifier
-            .width(120.dp)
-            .height(160.dp),
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = White),
-        shape = RoundedCornerShape(8.dp)
+        shape = RoundedCornerShape(12.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(8.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
+        Row(
+            modifier = Modifier.padding(16.dp)
         ) {
-            Box(
+            // 책 표지 (실제 이미지 또는 플레이스홀더)
+            AsyncImage(
+                model = book.cover.ifEmpty { null },
+                contentDescription = "책 표지",
                 modifier = Modifier
-                    .size(80.dp)
-                    .background(ReadingGreen, RoundedCornerShape(4.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("📚", fontSize = 24.sp)
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                title,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium
+                    .size(80.dp, 100.dp)
+                    .background(ReadingGreen, RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop,
+                error = painterResource(R.drawable.readerslogo),
+                placeholder = painterResource(R.drawable.readerslogo)
             )
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            // 책 정보
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = book.title,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = book.author,
+                    fontSize = 14.sp,
+                    color = TextGray
+                )
+                if (!book.categoryName.isNullOrEmpty()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = book.categoryName,
+                        fontSize = 12.sp,
+                        color = DarkRed
+                    )
+                }
+                if (!book.itemPage.isNullOrEmpty()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "${book.itemPage}페이지",
+                        fontSize = 12.sp,
+                        color = TextGray
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                // 버튼들
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (isInLibrary) {
+                        Button(
+                            onClick = { },
+                            colors = ButtonDefaults.buttonColors(containerColor = ReadingGreen),
+                            modifier = Modifier.height(32.dp),
+                            enabled = false
+                        ) {
+                            Text("서재에 있음", fontSize = 12.sp)
+                        }
+                    } else {
+                        Button(
+                            onClick = { onAddToLibrary(book) },
+                            colors = ButtonDefaults.buttonColors(containerColor = DarkRed),
+                            modifier = Modifier.height(32.dp)
+                        ) {
+                            Text("서재 추가", fontSize = 12.sp)
+                        }
+                    }
+                    
+                    OutlinedButton(
+                        onClick = { 
+                            // TODO: 책 읽기 시작 로직
+                        },
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Text("읽기 시작", fontSize = 12.sp)
+                    }
+                }
+            }
         }
     }
 }
