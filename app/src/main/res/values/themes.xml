@@ -1,7 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Readers" parent="android:Theme.Material.Light.NoActionBar" />
 
 
+    <style name="Theme.ReadersApp.AppBase" parent="android:Theme.DeviceDefault.NoActionBar">
+
+    </style>
+
+
+    <style name="Theme.ReadersApp.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/black</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/readerslogo</item>
+        <item name="postSplashScreenTheme">@style/Theme.ReadersApp.AppBase</item>
+    </style>
 </resources>
-

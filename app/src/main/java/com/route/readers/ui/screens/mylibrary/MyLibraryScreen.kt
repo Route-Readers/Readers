@@ -29,7 +29,7 @@ fun MyLibraryScreen(
     libraryRepository: MyLibraryRepository = MyLibraryRepository()
 ) {
     val myBooks by libraryRepository.myBooks.collectAsState()
-    
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -54,7 +54,7 @@ fun MyLibraryScreen(
                     color = Color.Gray
                 )
             }
-            
+
             Row {
                 Button(
                     onClick = { },
@@ -70,9 +70,9 @@ fun MyLibraryScreen(
                 }
             }
         }
-        
+
         Spacer(modifier = Modifier.height(32.dp))
-        
+
         // Book Cards
         if (myBooks.isNotEmpty()) {
             LazyRow(
@@ -116,9 +116,9 @@ fun MyLibraryScreen(
                 }
             }
         }
-        
+
         Spacer(modifier = Modifier.weight(1f))
-        
+
         // Start Reading Button
         Box(
             modifier = Modifier.fillMaxWidth(),
@@ -172,12 +172,12 @@ fun BookCard(
                     .height(120.dp)
                     .clip(RoundedCornerShape(8.dp)),
                 contentScale = ContentScale.Crop,
-                error = painterResource(R.drawable.readerslogo),
-                placeholder = painterResource(R.drawable.readerslogo)
+                error = painterResource(R.mipmap.readerslogo),
+                placeholder = painterResource(R.mipmap.readerslogo)
             )
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             // Book Info
             Text(
                 text = book.title,
@@ -190,9 +190,9 @@ fun BookCard(
                 fontSize = 12.sp,
                 color = Color.Gray
             )
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             // Progress
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -216,9 +216,9 @@ fun BookCard(
                     color = Color.Gray
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             // Progress Bar
             LinearProgressIndicator(
                 progress = book.progress / 100f,
