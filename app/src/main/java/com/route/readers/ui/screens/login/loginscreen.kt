@@ -1,6 +1,6 @@
 package com.route.readers.ui.screens.login
 
-import android.content.Context // SharedPreferences 사용을 위해 Context 임포트
+import android.content.Context
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.clickable
@@ -25,8 +25,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 
-// SharedPreferences 키 상수 정의
-private const val PREFS_NAME = "com.route.readers.AppPrefs" // 앱의 고유한 이름으로 설정
+private const val PREFS_NAME = "com.route.readers.AppPrefs"
 private const val KEY_REMEMBERED_EMAIL = "remembered_email"
 private const val KEY_REMEMBER_ID = "remember_id"
 
@@ -36,16 +35,14 @@ fun LoginScreen(
     onNavigateToSignUp: () -> Unit
 ) {
     val context = LocalContext.current
-    // SharedPreferences 인스턴스를 remember를 사용하여 컴포지션 중에 유지
     val sharedPreferences = remember {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
-    // SharedPreferences에서 저장된 값으로 상태 변수 초기화
     var email by rememberSaveable {
         mutableStateOf(sharedPreferences.getString(KEY_REMEMBERED_EMAIL, "") ?: "")
     }
-    var password by rememberSaveable { mutableStateOf("") } // 비밀번호는 보통 저장하지 않음
+    var password by rememberSaveable { mutableStateOf("") }
     var rememberId by rememberSaveable {
         mutableStateOf(sharedPreferences.getBoolean(KEY_REMEMBER_ID, false))
     }
@@ -67,7 +64,7 @@ fun LoginScreen(
                 .height(60.dp)
         ) {
             Text(
-                text = "[앱 로고]", // TODO: 실제 앱 로고 이미지로 교체
+                text = "[앱 로고]",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -155,17 +152,15 @@ fun LoginScreen(
                         .addOnCompleteListener { task ->
                             isLoading = false
                             if (task.isSuccessful) {
-                                // 로그인 성공 시 SharedPreferences에 아이디 저장 여부 및 이메일 저장
                                 if (rememberId) {
                                     sharedPreferences.edit()
                                         .putString(KEY_REMEMBERED_EMAIL, email.trim())
                                         .putBoolean(KEY_REMEMBER_ID, true)
-                                        .apply() // 비동기적으로 저장
+                                        .apply()
                                 } else {
-                                    // 아이디 저장 체크 해제 시 저장된 정보 삭제
                                     sharedPreferences.edit()
                                         .remove(KEY_REMEMBERED_EMAIL)
-                                        .putBoolean(KEY_REMEMBER_ID, false) // 또는 .remove(KEY_REMEMBER_ID)
+                                        .putBoolean(KEY_REMEMBER_ID, false)
                                         .apply()
                                 }
 
@@ -181,7 +176,7 @@ fun LoginScreen(
                                             exceptionMessage?.contains("auth/user-not-found") == true -> "등록되지 않은 이메일입니다."
                                     exceptionMessage?.contains("ERROR_WRONG_PASSWORD") == true ||
                                             exceptionMessage?.contains("auth/wrong-password") == true -> "잘못된 비밀번호입니다."
-                                    exceptionMessage?.contains("INVALID_LOGIN_CREDENTIALS") == true -> "이메일 또는 비밀번호가 잘못되었습니다." // Firebase 최신 에러 코드
+                                    exceptionMessage?.contains("INVALID_LOGIN_CREDENTIALS") == true -> "이메일 또는 비밀번호가 잘못되었습니다."
                                     else -> "로그인에 실패했습니다. (${exceptionMessage ?: "알 수 없는 오류"})"
                                 }
                             }
