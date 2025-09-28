@@ -16,7 +16,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -28,6 +27,7 @@ import com.route.readers.ui.components.BottomNavItem
 import com.route.readers.ui.screens.community.CommunityScreen
 import com.route.readers.ui.screens.mylibrary.MyLibraryScreen
 import com.route.readers.ui.screens.profile.ProfileScreen
+import com.route.readers.ui.screens.profile.settings.SettingsScreen
 import com.route.readers.ui.screens.search.SearchScreen
 import com.route.readers.ui.theme.*
 
@@ -256,9 +256,11 @@ fun FeedScreen() {
                 CommunityScreen()
             }
             composable(BottomNavItem.Profile.route) {
-                ProfileScreen()
+                ProfileScreen(navController = bottomNavController) // ProfileScreen에 navController 전달
+            }
+            composable("settings_screen_route") {
+                SettingsScreen(navController = bottomNavController)
             }
         }
     }
 }
-

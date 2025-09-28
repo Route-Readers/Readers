@@ -7,8 +7,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -17,17 +20,22 @@ import com.route.readers.ui.screens.login.LoginScreen
 import com.route.readers.ui.screens.signup.SignUpScreen
 import com.route.readers.ui.theme.ReadersTheme
 
+val LocalAppNavController = staticCompositionLocalOf<NavHostController?> { null }
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         setContent {
+            val appNavController = rememberNavController()
             ReadersTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    RootAppNavigation()
+                CompositionLocalProvider(LocalAppNavController provides appNavController) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        RootAppNavigation()
+                    }
                 }
             }
         }
@@ -36,7 +44,8 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun RootAppNavigation() {
-    val appNavController = rememberNavController()
+    val appNavController = LocalAppNavController.current
+        ?: throw IllegalStateException("LocalAppNavController not provided")
     val startDestination = "login_route"
 
     NavHost(navController = appNavController, startDestination = startDestination) {

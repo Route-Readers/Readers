@@ -45,6 +45,6 @@ fun AppNavigation(navController: NavHostController) {
         composable(BottomNavItem.MyLibrary.route) { MyLibraryScreen() }
         composable(BottomNavItem.Search.route) { SearchScreen() }
         composable(BottomNavItem.Community.route) { CommunityScreen() }
-        composable(BottomNavItem.Profile.route) { ProfileScreen() }
+        composable(BottomNavItem.Profile.route) { ProfileScreen(navController = navController) }
     }
 }
