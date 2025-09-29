@@ -11,17 +11,28 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.route.readers.ui.components.BottomNavBar
+import com.route.readers.ui.components.BottomNavItem
+import com.route.readers.ui.screens.community.CommunityScreen
+import com.route.readers.ui.screens.mylibrary.MyLibraryScreen
+import com.route.readers.ui.screens.profile.ProfileScreen
+import com.route.readers.ui.screens.profile.settings.SettingsScreen
+import com.route.readers.ui.screens.search.SearchScreen
 import com.route.readers.ui.theme.*
 
 @Composable
-fun FeedScreen() {
+fun ActualFeedContent() {
     val feedItems = listOf(
         FeedItem.Follow("김독서님이 김이삭님을 팔로우했어요!", "김독서", "김이삭", "1분 전"),
         FeedItem.ChallengeStart("김이삭님과 김독서님", "친구와 10일동안 100페이지 읽기 챌린지를 시작하셨어요!", "2분 전"),
@@ -54,7 +65,6 @@ fun FeedCard(item: FeedItem) {
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            // 헤더
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -87,7 +97,6 @@ fun FeedCard(item: FeedItem) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 내용
             when (item) {
                 is FeedItem.Follow -> {
                     Text(text = item.description, fontSize = 14.sp)
@@ -151,13 +160,12 @@ fun FeedCard(item: FeedItem) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 좋아요, 댓글 버튼
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 var isLiked by remember { mutableStateOf(false) }
-                
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
@@ -171,7 +179,7 @@ fun FeedCard(item: FeedItem) {
                     }
                     Text("12", fontSize = 14.sp, color = TextGray)
                 }
-                
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
@@ -192,19 +200,19 @@ sealed class FeedItem(val userName: String, val timeAgo: String) {
         val following: String,
         val time: String
     ) : FeedItem(follower, time)
-    
+
     data class ChallengeStart(
         val users: String,
         val description: String,
         val time: String
     ) : FeedItem(users, time)
-    
+
     data class ChallengeSuccess(
         val users: String,
         val description: String,
         val time: String
     ) : FeedItem(users, time)
-    
+
     data class ReadingProgress(
         val user: String,
         val bookTitle: String,
@@ -213,7 +221,7 @@ sealed class FeedItem(val userName: String, val timeAgo: String) {
         val description: String,
         val time: String
     ) : FeedItem(user, time)
-    
+
     data class BookReview(
         val user: String,
         val bookTitle: String,
@@ -221,4 +229,38 @@ sealed class FeedItem(val userName: String, val timeAgo: String) {
         val review: String,
         val time: String
     ) : FeedItem(user, time)
+}
+
+@Composable
+fun FeedScreen() {
+    val bottomNavController = rememberNavController()
+
+    Scaffold(
+        bottomBar = { BottomNavBar(navController = bottomNavController) }
+    ) { innerPadding ->
+        NavHost(
+            navController = bottomNavController,
+            startDestination = BottomNavItem.Feed.route,
+            modifier = Modifier.padding(innerPadding)
+        ) {
+            composable(BottomNavItem.Feed.route) {
+                ActualFeedContent()
+            }
+            composable(BottomNavItem.MyLibrary.route) {
+                MyLibraryScreen()
+            }
+            composable(BottomNavItem.Search.route) {
+                SearchScreen()
+            }
+            composable(BottomNavItem.Community.route) {
+                CommunityScreen()
+            }
+            composable(BottomNavItem.Profile.route) {
+                ProfileScreen(navController = bottomNavController) // ProfileScreen에 navController 전달
+            }
+            composable("settings_screen_route") {
+                SettingsScreen(navController = bottomNavController)
+            }
+        }
+    }
 }

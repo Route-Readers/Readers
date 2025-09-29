@@ -1,0 +1,11 @@
+gradle.projectsEvaluated {
+    // Disable execution history to prevent lock issues
+    gradle.startParameter.systemPropertiesArgs.put("org.gradle.internal.execution.history.impl.DefaultExecutionHistoryStore.enabled", "false")
+}
+
+allprojects {
+    // Force clean state for each build
+    tasks.withType(JavaCompile) {
+        options.fork = false
+    }
+}

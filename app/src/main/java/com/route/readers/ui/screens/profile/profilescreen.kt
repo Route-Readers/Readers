@@ -11,7 +11,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -27,7 +26,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.route.readers.ui.components.BottomNavBar
+import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavHostController
 
 data class Friend(
     val id: String,
@@ -79,9 +80,7 @@ fun ReadersProfileAppTheme(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen() {
-    var selectedBottomTab by remember { mutableStateOf(4) }
-
+fun ProfileScreen(navController: NavHostController) {
     ReadersProfileAppTheme {
         Scaffold(
             topBar = {
@@ -91,18 +90,10 @@ fun ProfileScreen() {
                     actions = {
                         IconButton(onClick = {
                             Log.d("ProfileScreen", "TopAppBar 설정 버튼 클릭")
+                            navController.navigate("settings_screen_route") // SettingsScreen으로 이동
                         }) {
                             Icon(Icons.Filled.Settings, contentDescription = "환경설정")
                         }
-                    }
-                )
-            },
-            bottomBar = {
-                BottomNavBar(
-                    selectedTab = selectedBottomTab,
-                    onTabSelected = { index ->
-                        selectedBottomTab = index
-                        Log.d("ProfileScreen", "Bottom tab $index selected")
                     }
                 )
             }
@@ -122,7 +113,7 @@ fun ProfilePageContent(modifier: Modifier = Modifier) {
     LazyColumn(
         modifier = modifier.padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(bottom = 16.dp)
+        contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
     ) {
         item { ProfileSection() }
         item { MyActivitySection() }
@@ -131,7 +122,6 @@ fun ProfilePageContent(modifier: Modifier = Modifier) {
         item { ReadingCalendarSection() }
         item { RecentBooksSection() }
         item { EventSection() }
-        item { SettingsSection() }
     }
 }
 
@@ -430,38 +420,6 @@ fun EventSection() {
         }
     }
 }
-
-@Composable
-fun SettingsSection() {
-    ProfileCard(title = "환경설정", icon = null) {
-        Column {
-            SettingsItem(title = "알림 설정", icon = Icons.Filled.Notifications) { Log.d("Settings", "알림 설정 클릭") }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
-            SettingsItem(title = "계정 관리", icon = Icons.Filled.AccountCircle) { Log.d("Settings", "계정 관리 클릭") }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
-            SettingsItem(title = "앱 정보", icon = Icons.Filled.Info) { Log.d("Settings", "앱 정보 클릭") }
-        }
-    }
-}
-
-@Composable
-fun SettingsItem(title: String, icon: ImageVector? = null, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 16.dp, horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        icon?.let {
-            Icon(it, title, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-            Spacer(Modifier.width(16.dp))
-        }
-        Text(title, fontSize = 16.sp, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface)
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "더보기", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
 @Composable
 fun ProfileCard(
     title: String,
@@ -505,6 +463,6 @@ fun ProfileCard(
 @Composable
 fun DefaultProfileScreenPreview() {
     ReadersProfileAppTheme{
-        ProfileScreen()
+        ProfileScreen(navController = rememberNavController()) // Preview에 NavController 전달
     }
 }

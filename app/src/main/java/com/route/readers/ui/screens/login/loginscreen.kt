@@ -1,5 +1,6 @@
 package com.route.readers.ui.screens.login
 
+import android.content.Context
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.clickable
@@ -24,20 +25,31 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 
+private const val PREFS_NAME = "com.route.readers.AppPrefs"
+private const val KEY_REMEMBERED_EMAIL = "remembered_email"
+private const val KEY_REMEMBER_ID = "remember_id"
+
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onNavigateToSignUp: () -> Unit
 ) {
-    var email by rememberSaveable { mutableStateOf("") }
+    val context = LocalContext.current
+    val sharedPreferences = remember {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    }
+
+    var email by rememberSaveable {
+        mutableStateOf(sharedPreferences.getString(KEY_REMEMBERED_EMAIL, "") ?: "")
+    }
     var password by rememberSaveable { mutableStateOf("") }
-    var rememberId by rememberSaveable { mutableStateOf(false) }
+    var rememberId by rememberSaveable {
+        mutableStateOf(sharedPreferences.getBoolean(KEY_REMEMBER_ID, false))
+    }
 
     val auth: FirebaseAuth = Firebase.auth
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-
-    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -65,6 +77,7 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ){
+
             Text(
                 text = "로그인",
                 fontSize = 28.sp,
@@ -99,7 +112,9 @@ fun LoginScreen(
                 Text(
                     text = errorMessage!!,
                     color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(top = 8.dp).fillMaxWidth(),
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .fillMaxWidth(),
                     textAlign = TextAlign.Center
                 )
             }
@@ -137,6 +152,18 @@ fun LoginScreen(
                         .addOnCompleteListener { task ->
                             isLoading = false
                             if (task.isSuccessful) {
+                                if (rememberId) {
+                                    sharedPreferences.edit()
+                                        .putString(KEY_REMEMBERED_EMAIL, email.trim())
+                                        .putBoolean(KEY_REMEMBER_ID, true)
+                                        .apply()
+                                } else {
+                                    sharedPreferences.edit()
+                                        .remove(KEY_REMEMBERED_EMAIL)
+                                        .putBoolean(KEY_REMEMBER_ID, false)
+                                        .apply()
+                                }
+
                                 Log.d("LoginScreen", "signInWithEmail:success")
                                 val user = auth.currentUser
                                 Toast.makeText(context, "로그인 성공: ${user?.email}", Toast.LENGTH_SHORT).show()
