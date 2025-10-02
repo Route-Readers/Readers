@@ -12,11 +12,9 @@ class MyLibraryRepository {
     fun addBookToLibrary(book: Book) {
         val currentBooks = _myBooks.value.toMutableList()
         // 이미 있는 책인지 확인 (ISBN으로 중복 체크)
-        if (!currentBooks.any { it.isbn == book.isbn }) {
-            // 페이지 정보가 있으면 그대로, 없으면 기본값 설정
-            val totalPages = if (!book.itemPage.isNullOrEmpty()) {
-                book.itemPage.toIntOrNull() ?: 300
-            } else 300
+        if (currentBooks.none { it.isbn == book.isbn }) {
+            // 페이지 정보 추출
+            val totalPages = book.getPageCount().takeIf { it > 0 } ?: 300
             
             val bookWithProgress = book.copy(
                 totalPages = totalPages,

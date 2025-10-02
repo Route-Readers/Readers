@@ -1,6 +1,6 @@
 package com.route.readers.ui.screens.search
 
-import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -21,14 +22,17 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.route.readers.R
 import com.route.readers.data.model.Book
-import com.route.readers.data.remote.MyLibraryRepository
+import com.route.readers.data.model.MyBook
+import com.route.readers.data.remote.FirestoreRepository
+import com.route.readers.data.remote.BookRepository
 import com.route.readers.ui.theme.*
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
     viewModel: BookViewModel = viewModel(),
-    libraryRepository: MyLibraryRepository = MyLibraryRepository()
+    firestoreRepository: FirestoreRepository = FirestoreRepository()
 ) {
     var selectedTab by remember { mutableStateOf(0) }
 
@@ -55,7 +59,7 @@ fun SearchScreen(
         }
 
         when (selectedTab) {
-            0 -> BookSearchTab(viewModel, libraryRepository)
+            0 -> BookSearchTab(viewModel, firestoreRepository)
             1 -> LibrarySearchTab()
         }
     }
@@ -65,12 +69,15 @@ fun SearchScreen(
 @Composable
 fun BookSearchTab(
     viewModel: BookViewModel,
-    libraryRepository: MyLibraryRepository
+    firestoreRepository: FirestoreRepository
 ) {
     var searchText by remember { mutableStateOf("") }
     val books by viewModel.books.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val bookRepository = remember { BookRepository() }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -88,12 +95,8 @@ fun BookSearchTab(
                 trailingIcon = {
                     Button(
                         onClick = {
-                            try {
-                                if (searchText.isNotBlank() && searchText.trim().isNotEmpty()) {
-                                    viewModel.searchBooks(searchText.trim())
-                                }
-                            } catch (e: Exception) {
-                                Log.e("SearchScreen", "Search button error: ${e.message}", e)
+                            if (searchText.isNotBlank()) {
+                                viewModel.searchBooks(searchText.trim())
                             }
                         },
                         enabled = searchText.isNotBlank() && !isLoading
@@ -102,6 +105,46 @@ fun BookSearchTab(
                     }
                 }
             )
+        }
+
+        // 테스트 버튼 추가
+        item {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = { 
+                        viewModel.searchBooks("해리포터")
+                    },
+                    enabled = !isLoading
+                ) {
+                    Text("해리포터 검색")
+                }
+                Button(
+                    onClick = { viewModel.getNewBooks() },
+                    enabled = !isLoading
+                ) {
+                    Text("신간 불러오기")
+                }
+            }
+        }
+
+        // 로딩 상태 표시
+        if (isLoading) {
+            item {
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("검색 중...")
+                    }
+                }
+            }
         }
 
         // 에러 메시지 표시
@@ -121,79 +164,52 @@ fun BookSearchTab(
             }
         }
 
-        // 로딩 상태
-        if (isLoading) {
+        // 검색 결과가 있을 때만 표시
+        if (books.isNotEmpty()) {
+            items(books) { book ->
+                BookSearchResultCard(
+                    book = book,
+                    onAddToLibrary = { 
+                        scope.launch {
+                            // 먼저 기본 페이지 수 확인
+                            var totalPages = book.getPageCount()
+                            
+                            // 페이지 정보가 없으면 API로 다시 조회
+                            if (totalPages == 0) {
+                                bookRepository.getPageInfo(book.isbn)?.let { pageInfo ->
+                                    totalPages = pageInfo
+                                }
+                            }
+                            
+                            val myBook = MyBook(
+                                id = book.isbn,
+                                title = book.title,
+                                author = book.author,
+                                cover = book.cover,
+                                isbn = book.isbn,
+                                totalPages = totalPages.takeIf { it > 0 } ?: 300
+                            )
+                            val success = firestoreRepository.addBookToLibrary(myBook)
+                            if (success) {
+                                Toast.makeText(context, "서재에 추가되었습니다", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "추가 실패. 다시 시도해주세요", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                )
+            }
+        } else if (!isLoading && errorMessage == null) {
             item {
                 Box(
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        CircularProgressIndicator()
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("검색 중...", color = TextGray)
-                    }
-                }
-            }
-        }
-
-        // 검색 결과
-        if (books.isNotEmpty()) {
-            item {
-                Text(
-                    "검색 결과 (${books.size}권)",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = DarkRed
-                )
-            }
-
-            items(books) { book ->
-                BookSearchResultCard(
-                    book = book,
-                    onAddToLibrary = { libraryRepository.addBookToLibrary(it) },
-                    isInLibrary = libraryRepository.isBookInLibrary(book.isbn)
-                )
-            }
-        }
-
-        // 초기 상태일 때 신간 도서 표시
-        if (books.isEmpty() && searchText.isBlank() && !isLoading && errorMessage == null) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = White),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                "신간 도서",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = DarkRed
-                            )
-                            TextButton(
-                                onClick = { viewModel.getNewBooks() }
-                            ) {
-                                Text("불러오기")
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "최신 출간 도서를 확인해보세요",
-                            color = TextGray,
-                            fontSize = 14.sp
-                        )
-                    }
+                    Text(
+                        text = "검색어를 입력하고 검색해보세요",
+                        color = TextGray,
+                        modifier = Modifier.padding(32.dp)
+                    )
                 }
             }
         }
@@ -203,9 +219,11 @@ fun BookSearchTab(
 @Composable
 fun BookSearchResultCard(
     book: Book,
-    onAddToLibrary: (Book) -> Unit,
-    isInLibrary: Boolean
+    onAddToLibrary: () -> Unit
 ) {
+    var isAdding by remember { mutableStateOf(false) }
+    var isAdded by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = White),
@@ -214,7 +232,6 @@ fun BookSearchResultCard(
         Row(
             modifier = Modifier.padding(16.dp)
         ) {
-            // 책 표지 (실제 이미지 또는 플레이스홀더)
             AsyncImage(
                 model = book.cover.ifEmpty { null },
                 contentDescription = "책 표지",
@@ -228,7 +245,6 @@ fun BookSearchResultCard(
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // 책 정보
             Column(
                 modifier = Modifier.weight(1f)
             ) {
@@ -244,18 +260,12 @@ fun BookSearchResultCard(
                     fontSize = 14.sp,
                     color = TextGray
                 )
-                if (!book.categoryName.isNullOrEmpty()) {
+                
+                val pageCount = book.getPageCount()
+                if (pageCount > 0) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = book.categoryName,
-                        fontSize = 12.sp,
-                        color = DarkRed
-                    )
-                }
-                if (!book.itemPage.isNullOrEmpty()) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "${book.itemPage}페이지",
+                        text = "${pageCount}페이지",
                         fontSize = 12.sp,
                         color = TextGray
                     )
@@ -263,156 +273,63 @@ fun BookSearchResultCard(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // 버튼들
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (isInLibrary) {
-                        Button(
-                            onClick = { },
-                            colors = ButtonDefaults.buttonColors(containerColor = ReadingGreen),
-                            modifier = Modifier.height(32.dp),
-                            enabled = false
-                        ) {
-                            Text("서재에 있음", fontSize = 12.sp)
+                Button(
+                    onClick = {
+                        if (!isAdding && !isAdded) {
+                            isAdding = true
                         }
-                    } else {
-                        Button(
-                            onClick = { onAddToLibrary(book) },
-                            colors = ButtonDefaults.buttonColors(containerColor = DarkRed),
-                            modifier = Modifier.height(32.dp)
-                        ) {
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isAdded) ReadingGreen else DarkRed
+                    ),
+                    modifier = Modifier.height(32.dp),
+                    enabled = !isAdding && !isAdded
+                ) {
+                    when {
+                        isAdding -> {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    color = White,
+                                    strokeWidth = 2.dp
+                                )
+                                Text("추가 중...", fontSize = 12.sp)
+                            }
+                        }
+                        isAdded -> {
+                            Text("추가 완료", fontSize = 12.sp)
+                        }
+                        else -> {
                             Text("서재 추가", fontSize = 12.sp)
                         }
                     }
-
-                    OutlinedButton(
-                        onClick = {
-                            // TODO: 책 읽기 시작 로직
-                        },
-                        modifier = Modifier.height(32.dp)
-                    ) {
-                        Text("읽기 시작", fontSize = 12.sp)
-                    }
                 }
             }
+        }
+    }
+
+    // 추가 로직 처리
+    LaunchedEffect(isAdding) {
+        if (isAdding) {
+            onAddToLibrary() // 실제 서재 추가 실행
+            kotlinx.coroutines.delay(1000) // 1초 후
+            isAdding = false
+            isAdded = true
+            kotlinx.coroutines.delay(2000) // 2초 후 원래 상태로
+            isAdded = false
         }
     }
 }
 
 @Composable
 fun LibrarySearchTab() {
-    var searchText by remember { mutableStateOf("") }
-
-    LazyColumn(
+    Box(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        contentAlignment = Alignment.Center
     ) {
-        item {
-            OutlinedTextField(
-                value = searchText,
-                onValueChange = { searchText = it },
-                placeholder = { Text("지역명으로 검색 (예: 강남구)") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            )
-        }
-
-        item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
-                colors = CardDefaults.cardColors(containerColor = White),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            "🗺️",
-                            fontSize = 48.sp
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "지도 영역",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = DarkRed
-                        )
-                        Text(
-                            "(지도 API 연동 예정)",
-                            fontSize = 12.sp,
-                            color = TextGray
-                        )
-                    }
-                }
-            }
-        }
-
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = White),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text(
-                        "주변 서점/도서관",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = DarkRed
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        repeat(3) { index ->
-                            LibraryItem("서점/도서관 ${index + 1}", "${index + 1}km")
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun LibraryItem(name: String, distance: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(CreamBackground, RoundedCornerShape(8.dp))
-            .padding(12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column {
-            Text(
-                name,
-                fontWeight = FontWeight.Medium,
-                fontSize = 14.sp
-            )
-            Text(
-                "서울시 강남구",
-                color = TextGray,
-                fontSize = 12.sp
-            )
-        }
-        Text(
-            distance,
-            color = DarkRed,
-            fontWeight = FontWeight.Bold,
-            fontSize = 12.sp
-        )
+        Text("도서관 검색 기능 준비 중")
     }
 }
