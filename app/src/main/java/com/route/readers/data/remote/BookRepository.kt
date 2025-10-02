@@ -6,12 +6,14 @@ import com.route.readers.BuildConfig
 import com.route.readers.data.model.Book
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.converter.scalars.ScalarsConverterFactory
 
 class BookRepository {
     
     private val gson = GsonBuilder().setLenient().create()
     private val retrofit: Retrofit = Retrofit.Builder()
         .baseUrl("http://www.aladin.co.kr/ttb/api/")
+        .addConverterFactory(ScalarsConverterFactory.create())
         .addConverterFactory(GsonConverterFactory.create(gson))
         .build()
 
@@ -24,33 +26,16 @@ class BookRepository {
                 return emptyList()
             }
             
-            Log.d("BookRepository", "API Key: ${TTBKEY.take(10)}...")
-            Log.d("BookRepository", "Search query: $query")
-            
             val response = bookService.getBookSearch(
                 ttbkey = TTBKEY,
                 query = query
             )
-            
-            Log.d("BookRepository", "Response code: ${response.code()}")
-            Log.d("BookRepository", "Response message: ${response.message()}")
+            Log.d("BookRepository", "Search response: ${response.body()}")
             
             if (response.isSuccessful) {
-                val responseBody = response.body()
-                Log.d("BookRepository", "Response body: $responseBody")
-                
-                val books = responseBody?.books ?: emptyList()
-                Log.d("BookRepository", "Books count: ${books.size}")
-                
-                books.forEach { book ->
-                    Log.d("BookRepository", "Book: ${book.title} by ${book.author}")
-                }
-                
-                books
+                response.body()?.books ?: emptyList()
             } else {
-                val errorBody = response.errorBody()?.string()
                 Log.e("BookRepository", "API Error: ${response.code()} - ${response.message()}")
-                Log.e("BookRepository", "Error body: $errorBody")
                 emptyList()
             }
         } catch (e: Exception) {
@@ -66,64 +51,37 @@ class BookRepository {
                 return emptyList()
             }
             
-            Log.d("BookRepository", "Getting new books...")
-            
             val response = bookService.getBookList(
                 ttbkey = TTBKEY,
                 querytype = QUERY_TYPE,
                 searchtarget = SEARCH_TARGET,
                 output = OUTPUT
             )
-            
-            Log.d("BookRepository", "New books response code: ${response.code()}")
+            Log.d("BookRepository", "List response: ${response.body()}")
             
             if (response.isSuccessful) {
-                val books = response.body()?.books ?: emptyList()
-                Log.d("BookRepository", "New books count: ${books.size}")
-                books
+                response.body()?.books ?: emptyList()
             } else {
-                Log.e("BookRepository", "New books API Error: ${response.code()} - ${response.message()}")
+                Log.e("BookRepository", "API Error: ${response.code()} - ${response.message()}")
                 emptyList()
             }
         } catch (e: Exception) {
-            Log.e("BookRepository", "New books error: ${e.message}", e)
+            Log.e("BookRepository", "List error: ${e.message}", e)
             emptyList()
         }
     }
 
-    suspend fun getPageInfo(isbn: String): Int? {
+    suspend fun getBookDetail(itemid: String): Book? {
         return try {
-            Log.d("BookRepository", "Getting page info for ISBN: $isbn")
-            
             val response = bookService.getBookDetail(
                 ttbkey = TTBKEY,
-                itemid = isbn,
+                itemid = itemid,
                 itemidtype = ITEM_ID_TYPE,
                 output = OUTPUT
             )
-            
-            if (response.isSuccessful) {
-                val responseBody = response.body()
-                Log.d("BookRepository", "Page info response: $responseBody")
-                
-                val book = responseBody?.books?.firstOrNull()
-                val subInfo = book?.subInfo
-                val itemPage = subInfo?.get("itemPage")
-                
-                Log.d("BookRepository", "SubInfo: $subInfo")
-                Log.d("BookRepository", "ItemPage: $itemPage")
-                
-                when (itemPage) {
-                    is Number -> itemPage.toInt()
-                    is String -> itemPage.toIntOrNull()
-                    else -> null
-                }
-            } else {
-                Log.e("BookRepository", "Page info API Error: ${response.code()}")
-                null
-            }
+            response.body()?.books?.firstOrNull()
         } catch (e: Exception) {
-            Log.e("BookRepository", "Page info error: ${e.message}", e)
+            Log.e("BookRepository", "Detail error: ${e.message}")
             null
         }
     }
