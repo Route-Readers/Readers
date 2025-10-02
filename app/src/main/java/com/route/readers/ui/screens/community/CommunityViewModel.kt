@@ -29,4 +29,16 @@ class CommunityViewModel : ViewModel() {
         )
     )
     val uiState: StateFlow<CommunityUiState> = _uiState.asStateFlow()
+    
+    fun addFriend(friendId: String) {
+        val newFriend = Friend(
+            name = friendId,
+            currentBook = "최근 본 책: 없음",
+            isOnline = false,
+            lastActive = "방금 전"
+        )
+        _uiState.value = _uiState.value.copy(
+            friends = _uiState.value.friends + newFriend
+        )
+    }
 }
