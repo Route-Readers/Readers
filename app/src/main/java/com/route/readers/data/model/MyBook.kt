@@ -12,5 +12,7 @@ data class MyBook(
     val lastReadDate: Long = System.currentTimeMillis()
 ) {
     val progressPercentage: Int
-        get() = if (totalPages > 0) (currentPage * 100 / totalPages) else 0
+        get() = if (totalPages > 0) {
+            ((currentPage.toFloat() / totalPages) * 100).toInt()
+        } else 0
 }

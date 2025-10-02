@@ -1,16 +1,22 @@
 package com.route.readers.ui.screens.mylibrary
 
+import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -28,11 +34,22 @@ fun MyLibraryScreen(
 ) {
     var books by remember { mutableStateOf<List<MyBook>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var showProgressDialog by remember { mutableStateOf<MyBook?>(null) }
+    var showDeleteDialog by remember { mutableStateOf<MyBook?>(null) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    // 책 목록 새로고침 함수
+    fun refreshBooks() {
+        scope.launch {
+            isLoading = true
+            books = firestoreRepository.getMyBooks()
+            isLoading = false
+        }
+    }
 
     LaunchedEffect(Unit) {
-        books = firestoreRepository.getMyBooks()
-        isLoading = false
+        refreshBooks()
     }
 
     Column(
@@ -57,7 +74,16 @@ fun MyLibraryScreen(
                 CircularProgressIndicator()
             }
         } else if (books.isEmpty()) {
-            EmptyLibraryState()
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "서재가 비어있습니다\n검색에서 책을 추가해보세요",
+                    color = TextGray,
+                    fontSize = 16.sp
+                )
+            }
         } else {
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -65,30 +91,69 @@ fun MyLibraryScreen(
                 items(books) { book ->
                     MyBookCard(
                         book = book,
-                        onUpdateProgress = { isbn, page ->
-                            scope.launch {
-                                firestoreRepository.updateReadingProgress(isbn, page)
-                                books = firestoreRepository.getMyBooks()
-                            }
-                        }
+                        onProgressClick = { showProgressDialog = book },
+                        onDeleteClick = { showDeleteDialog = book }
                     )
                 }
             }
         }
+    }
+
+    // 진도 업데이트 다이얼로그
+    showProgressDialog?.let { book ->
+        ProgressUpdateDialog(
+            book = book,
+            onDismiss = { showProgressDialog = null },
+            onUpdate = { currentPage ->
+                scope.launch {
+                    Log.d("MyLibraryScreen", "Updating progress: ${book.title} to page $currentPage")
+                    val success = firestoreRepository.updateReadingProgress(book.isbn, currentPage)
+                    Log.d("MyLibraryScreen", "Update result: $success")
+                    if (success) {
+                        refreshBooks() // 새로고침
+                        Toast.makeText(context, "진도가 업데이트되었습니다", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "업데이트 실패. 다시 시도해주세요", Toast.LENGTH_SHORT).show()
+                    }
+                    showProgressDialog = null
+                }
+            }
+        )
+    }
+
+    // 삭제 확인 다이얼로그
+    showDeleteDialog?.let { book ->
+        DeleteConfirmDialog(
+            bookTitle = book.title,
+            onDismiss = { showDeleteDialog = null },
+            onConfirm = {
+                scope.launch {
+                    Log.d("MyLibraryScreen", "Deleting book: ${book.title}")
+                    val success = firestoreRepository.removeBookFromLibrary(book.isbn)
+                    Log.d("MyLibraryScreen", "Delete result: $success")
+                    if (success) {
+                        refreshBooks() // 새로고침
+                        Toast.makeText(context, "책이 삭제되었습니다", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "삭제 실패. 다시 시도해주세요", Toast.LENGTH_SHORT).show()
+                    }
+                    showDeleteDialog = null
+                }
+            }
+        )
     }
 }
 
 @Composable
 fun MyBookCard(
     book: MyBook,
-    onUpdateProgress: (String, Int) -> Unit
+    onProgressClick: () -> Unit,
+    onDeleteClick: () -> Unit
 ) {
-    var showProgressDialog by remember { mutableStateOf(false) }
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { showProgressDialog = true },
+            .clickable { onProgressClick() },
         colors = CardDefaults.cardColors(containerColor = White),
         shape = RoundedCornerShape(12.dp)
     ) {
@@ -123,72 +188,76 @@ fun MyBookCard(
                     fontSize = 14.sp,
                     color = TextGray
                 )
+                Spacer(modifier = Modifier.height(8.dp))
                 
-                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "${book.progressPercentage}%",
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = DarkRed
+                )
                 
-                if (book.totalPages > 0) {
-                    // 진도율을 큰 텍스트로 표시
-                    Row(
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        Text(
-                            text = "${book.progressPercentage}",
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = DarkRed
-                        )
-                        Text(
-                            text = "%",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = DarkRed,
-                            modifier = Modifier.padding(bottom = 4.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "${book.currentPage}/${book.totalPages}p",
-                            fontSize = 14.sp,
-                            color = TextGray,
-                            modifier = Modifier.padding(bottom = 6.dp)
-                        )
-                    }
-                    
-                    Spacer(modifier = Modifier.height(8.dp))
-                    
-                    // 진도 바
-                    LinearProgressIndicator(
-                        progress = book.progressPercentage / 100f,
-                        modifier = Modifier.fillMaxWidth(),
-                        color = ReadingGreen,
-                        trackColor = CreamBackground
-                    )
-                } else {
-                    Text(
-                        text = "페이지 정보 없음",
-                        fontSize = 14.sp,
-                        color = TextGray
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "탭해서 진도 입력",
-                        fontSize = 12.sp,
-                        color = DarkRed
-                    )
-                }
+                LinearProgressIndicator(
+                    progress = book.progressPercentage / 100f,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp),
+                    color = ReadingGreen,
+                    trackColor = Color.LightGray
+                )
+                
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "${book.currentPage} / ${book.totalPages} 페이지",
+                    fontSize = 12.sp,
+                    color = TextGray
+                )
+            }
+
+            // 삭제 버튼
+            IconButton(
+                onClick = onDeleteClick
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "삭제",
+                    tint = Color.Gray
+                )
             }
         }
     }
+}
 
-    if (showProgressDialog) {
-        ProgressUpdateDialog(
-            book = book,
-            onDismiss = { showProgressDialog = false },
-            onUpdate = { page ->
-                onUpdateProgress(book.isbn, page)
-                showProgressDialog = false
+@Composable
+fun DeleteConfirmDialog(
+    bookTitle: String,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("책을 서재에서 삭제하시겠습니까?")
+        },
+        text = {
+            Text("'$bookTitle'을(를) 서재에서 삭제합니다.")
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm
+            ) {
+                Text("예", color = Color.Red)
             }
-        )
-    }
+        },
+        dismissButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(containerColor = DarkRed)
+            ) {
+                Text("아니오", color = White)
+            }
+        }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -198,41 +267,36 @@ fun ProgressUpdateDialog(
     onDismiss: () -> Unit,
     onUpdate: (Int) -> Unit
 ) {
-    var pageText by remember { mutableStateOf(book.currentPage.toString()) }
+    var currentPageText by remember { mutableStateOf(book.currentPage.toString()) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("읽기 진도 업데이트") },
+        title = { Text("읽은 페이지 업데이트") },
         text = {
             Column {
                 Text("${book.title}")
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
-                    value = pageText,
-                    onValueChange = { pageText = it },
+                    value = currentPageText,
+                    onValueChange = { currentPageText = it },
                     label = { Text("현재 페이지") },
-                    suffix = { 
-                        if (book.totalPages > 0) {
-                            Text("/ ${book.totalPages}")
-                        } else {
-                            Text("페이지")
-                        }
-                    }
+                    suffix = { Text("/ ${book.totalPages}") }
                 )
             }
         },
         confirmButton = {
-            TextButton(
+            Button(
                 onClick = {
-                    val page = pageText.toIntOrNull() ?: 0
-                    if (book.totalPages > 0) {
-                        if (page in 0..book.totalPages) {
-                            onUpdate(page)
-                        }
-                    } else {
+                    val page = currentPageText.toIntOrNull()
+                    Log.d("ProgressDialog", "Input: $currentPageText, Parsed: $page, Total: ${book.totalPages}")
+                    if (page != null && page >= 0 && page <= book.totalPages) {
                         onUpdate(page)
+                    } else {
+                        // 잘못된 입력에 대한 피드백 (여기서는 간단히 무시)
+                        Log.w("ProgressDialog", "Invalid page number: $currentPageText")
                     }
-                }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = DarkRed)
             ) {
                 Text("업데이트")
             }
@@ -243,34 +307,4 @@ fun ProgressUpdateDialog(
             }
         }
     )
-}
-
-@Composable
-fun EmptyLibraryState() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "📚",
-                fontSize = 64.sp
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "서재가 비어있습니다",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = DarkRed
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "검색 탭에서 책을 추가해보세요",
-                fontSize = 14.sp,
-                color = TextGray
-            )
-        }
-    }
 }

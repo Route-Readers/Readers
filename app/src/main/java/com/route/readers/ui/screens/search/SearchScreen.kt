@@ -222,6 +222,7 @@ fun BookSearchResultCard(
     onAddToLibrary: () -> Unit
 ) {
     var isAdding by remember { mutableStateOf(false) }
+    var isAdded by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -274,24 +275,51 @@ fun BookSearchResultCard(
 
                 Button(
                     onClick = {
-                        isAdding = true
-                        onAddToLibrary()
-                        isAdding = false
+                        if (!isAdding && !isAdded) {
+                            isAdding = true
+                        }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = DarkRed),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isAdded) ReadingGreen else DarkRed
+                    ),
                     modifier = Modifier.height(32.dp),
-                    enabled = !isAdding
+                    enabled = !isAdding && !isAdded
                 ) {
-                    if (isAdding) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            color = White
-                        )
-                    } else {
-                        Text("서재 추가", fontSize = 12.sp)
+                    when {
+                        isAdding -> {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    color = White,
+                                    strokeWidth = 2.dp
+                                )
+                                Text("추가 중...", fontSize = 12.sp)
+                            }
+                        }
+                        isAdded -> {
+                            Text("추가 완료", fontSize = 12.sp)
+                        }
+                        else -> {
+                            Text("서재 추가", fontSize = 12.sp)
+                        }
                     }
                 }
             }
+        }
+    }
+
+    // 추가 로직 처리
+    LaunchedEffect(isAdding) {
+        if (isAdding) {
+            onAddToLibrary() // 실제 서재 추가 실행
+            kotlinx.coroutines.delay(1000) // 1초 후
+            isAdding = false
+            isAdded = true
+            kotlinx.coroutines.delay(2000) // 2초 후 원래 상태로
+            isAdded = false
         }
     }
 }
