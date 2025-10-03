@@ -4,35 +4,48 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.route.readers.ui.components.BottomNavItem
-import com.route.readers.ui.screens.community.CommunityScreen
+import com.google.firebase.auth.FirebaseAuth
 import com.route.readers.ui.screens.feed.FeedScreen
 import com.route.readers.ui.screens.login.LoginScreen
-import com.route.readers.ui.screens.mylibrary.MyLibraryScreen
-import com.route.readers.ui.screens.profile.ProfileScreen
-import com.route.readers.ui.screens.search.SearchScreen
+import com.route.readers.ui.screens.onboarding.OnboardingScreen
 import com.route.readers.ui.screens.signup.SignUpScreen
 
 @Composable
 fun AppNavigation(navController: NavHostController) {
-    NavHost(navController = navController, startDestination = "login_or_initial_screen") {
-        composable("login_or_initial_screen") {
+    val currentUser = FirebaseAuth.getInstance().currentUser
+    val startDestination = if (currentUser == null) "onboarding_route" else "main_app_content_route"
+
+    NavHost(navController = navController, startDestination = startDestination) {
+
+        // 1. 온보딩 화면
+        composable("onboarding_route") {
+            OnboardingScreen(
+                onNavigateToSignUp = { navController.navigate("signup_route") },
+                onNavigateToLogin = { navController.navigate("login_route") }
+            )
+        }
+
+        // 2. 로그인 화면
+        composable("login_route") {
             LoginScreen(
                 onLoginSuccess = {
-                    navController.navigate(BottomNavItem.Feed.route) {
-                        popUpTo("login_or_initial_screen") { inclusive = true }
+                    navController.navigate("main_app_content_route") {
+                        popUpTo(navController.graph.id) { inclusive = true }
                     }
                 },
                 onNavigateToSignUp = {
-                    navController.navigate("signup_screen")
+
+                    navController.navigate("signup_route")
                 }
             )
         }
-        composable("signup_screen") {
+
+        // 3. 회원가입 화면
+        composable("signup_route") {
             SignUpScreen(
                 onSignUpSuccess = {
-                    navController.navigate(BottomNavItem.Feed.route) {
-                        popUpTo("login_or_initial_screen") { inclusive = true }
+                    navController.navigate("main_app_content_route") {
+                        popUpTo(navController.graph.id) { inclusive = true }
                     }
                 },
                 onNavigateToLogin = {
@@ -41,10 +54,8 @@ fun AppNavigation(navController: NavHostController) {
             )
         }
 
-        composable(BottomNavItem.Feed.route) { FeedScreen() }
-        composable(BottomNavItem.MyLibrary.route) { MyLibraryScreen() }
-        composable(BottomNavItem.Search.route) { SearchScreen() }
-        composable(BottomNavItem.Community.route) { CommunityScreen() }
-        composable(BottomNavItem.Profile.route) { ProfileScreen(navController = navController) }
+        composable("main_app_content_route") {
+            FeedScreen()
+        }
     }
 }

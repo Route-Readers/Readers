@@ -20,10 +20,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
-import com.route.readers.LocalAppNavController
 
 data class SettingItem(
     val id: String,
@@ -34,9 +34,11 @@ data class SettingItem(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(navController: NavController) {
+fun SettingsScreen(
+    bottomNavController: NavController?,
+    appNavController: NavController?
+) {
     var currentSettingView by remember { mutableStateOf("main") }
-    val appNavController = LocalAppNavController.current
     val firebaseAuth = FirebaseAuth.getInstance()
     val context = LocalContext.current
 
@@ -64,7 +66,7 @@ fun SettingsScreen(navController: NavController) {
                         if (currentSettingView == "account") {
                             currentSettingView = "main"
                         } else {
-                            navController.popBackStack()
+                            bottomNavController?.popBackStack()
                         }
                     }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")
@@ -90,8 +92,10 @@ fun SettingsScreen(navController: NavController) {
                         firebaseAuth.signOut()
                         googleSignInClient.signOut().addOnCompleteListener {
                             Log.d("SettingsScreen", "Firebase and Google user signed out.")
-                            appNavController?.navigate("login_route") {
-                                popUpTo("main_app_content_route") { inclusive = true }
+                            appNavController?.navigate("onboarding_route") {
+                                popUpTo(appNavController.graph.findStartDestination().id) {
+                                    inclusive = true
+                                }
                                 launchSingleTop = true
                             }
                         }
