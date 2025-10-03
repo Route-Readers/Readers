@@ -152,24 +152,36 @@ fun LoginScreen(
                         .addOnCompleteListener { task ->
                             isLoading = false
                             if (task.isSuccessful) {
-                                if (rememberId) {
-                                    sharedPreferences.edit()
-                                        .putString(KEY_REMEMBERED_EMAIL, email.trim())
-                                        .putBoolean(KEY_REMEMBER_ID, true)
-                                        .apply()
-                                } else {
-                                    sharedPreferences.edit()
-                                        .remove(KEY_REMEMBERED_EMAIL)
-                                        .putBoolean(KEY_REMEMBER_ID, false)
-                                        .apply()
-                                }
-
-                                Log.d("LoginScreen", "signInWithEmail:success")
                                 val user = auth.currentUser
-                                Toast.makeText(context, "로그인 성공: ${user?.email}", Toast.LENGTH_SHORT).show()
-                                onLoginSuccess()
+                                // --- ★ 수정된 부분 시작 ★ ---
+                                // 1. 유저가 null이 아니고, 이메일 인증(isEmailVerified)이 true인지 확인
+                                if (user != null && user.isEmailVerified) {
+                                    // 2. 인증된 사용자: 로그인 성공 처리
+                                    if (rememberId) {
+                                        sharedPreferences.edit()
+                                            .putString(KEY_REMEMBERED_EMAIL, email.trim())
+                                            .putBoolean(KEY_REMEMBER_ID, true)
+                                            .apply()
+                                    } else {
+                                        sharedPreferences.edit()
+                                            .remove(KEY_REMEMBERED_EMAIL)
+                                            .putBoolean(KEY_REMEMBER_ID, false)
+                                            .apply()
+                                    }
+                                    Log.d("LoginScreen", "signInWithEmail:success and email verified")
+                                    Toast.makeText(context, "로그인되었습니다.", Toast.LENGTH_SHORT).show()
+                                    onLoginSuccess()
+                                } else {
+                                    // 3. 인증되지 않은 사용자: 에러 메시지 표시 및 로그아웃 처리
+                                    Log.w("LoginScreen", "signInWithEmail:success but email not verified")
+                                    errorMessage = "이메일 인증을 먼저 완료해주세요."
+                                    // 4. (가장 중요) 앱에 접근하지 못하도록 즉시 로그아웃시킴
+                                    auth.signOut()
+                                }
+                                // --- ★ 수정된 부분 끝 ★ ---
                             } else {
                                 Log.w("LoginScreen", "signInWithEmail:failure", task.exception)
+                                // 기존 오류 처리 로직은 그대로 유지
                                 val exceptionMessage = task.exception?.message
                                 errorMessage = when {
                                     exceptionMessage?.contains("ERROR_USER_NOT_FOUND") == true ||
@@ -177,7 +189,7 @@ fun LoginScreen(
                                     exceptionMessage?.contains("ERROR_WRONG_PASSWORD") == true ||
                                             exceptionMessage?.contains("auth/wrong-password") == true -> "잘못된 비밀번호입니다."
                                     exceptionMessage?.contains("INVALID_LOGIN_CREDENTIALS") == true -> "이메일 또는 비밀번호가 잘못되었습니다."
-                                    else -> "로그인에 실패했습니다. (${exceptionMessage ?: "알 수 없는 오류"})"
+                                    else -> "로그인에 실패했습니다."
                                 }
                             }
                         }

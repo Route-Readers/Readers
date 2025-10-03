@@ -1,7 +1,10 @@
 package com.route.readers.ui.screens.signup
 
+import android.app.Activity
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -11,19 +14,26 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.GoogleAuthProvider
+import com.route.readers.R
 
 @Composable
 fun SignUpScreen(
@@ -36,8 +46,53 @@ fun SignUpScreen(
 
     val auth: FirebaseAuth = Firebase.auth
     var isLoading by remember { mutableStateOf(false) }
+    var isGoogleLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+
+    val googleSignInClient = remember {
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken("725580725763-a6efs546tsd56hridug8ifsav9af0lav.apps.googleusercontent.com")
+            .requestEmail()
+            .build()
+        GoogleSignIn.getClient(context, gso)
+    }
+
+    fun firebaseAuthWithGoogle(idToken: String) {
+        val credential = GoogleAuthProvider.getCredential(idToken, null)
+        isGoogleLoading = true
+        auth.signInWithCredential(credential)
+            .addOnCompleteListener { task ->
+                isGoogleLoading = false
+                if (task.isSuccessful) {
+                    Log.d("SignUpScreen", "Google signInWithCredential success")
+                    Toast.makeText(context, "Google 계정으로 로그인했습니다.", Toast.LENGTH_SHORT).show()
+                    onSignUpSuccess()
+                } else {
+                    Log.w("SignUpScreen", "Google signInWithCredential failure", task.exception)
+                    errorMessage = "Google 로그인에 실패했습니다. (${task.exception?.message})"
+                }
+            }
+    }
+
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult(),
+        onResult = { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+                try {
+                    val account = task.getResult(ApiException::class.java)!!
+                    Log.d("SignUpScreen", "Google Sign In successful, getting idToken")
+                    firebaseAuthWithGoogle(account.idToken!!)
+                } catch (e: ApiException) {
+                    Log.w("SignUpScreen", "Google sign in failed", e)
+                    errorMessage = "Google 로그인에 실패했습니다. (API Exception)"
+                }
+            } else {
+                Log.w("SignUpScreen", "Google sign in cancelled or failed. Result code: ${result.resultCode}")
+            }
+        }
+    )
 
     Column(
         modifier = Modifier
@@ -91,7 +146,9 @@ fun SignUpScreen(
             Text(
                 text = errorMessage!!,
                 color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(top = 8.dp).fillMaxWidth(),
+                modifier = Modifier
+                    .padding(top = 8.dp)
+                    .fillMaxWidth(),
                 textAlign = TextAlign.Center
             )
         }
@@ -118,8 +175,19 @@ fun SignUpScreen(
                         if (task.isSuccessful) {
                             Log.d("SignUpScreen", "createUserWithEmail:success")
                             val firebaseUser = auth.currentUser
-                            Toast.makeText(context, "회원가입 성공: ${firebaseUser?.email}", Toast.LENGTH_SHORT).show()
-                            onSignUpSuccess()
+                            firebaseUser?.sendEmailVerification()
+                                ?.addOnCompleteListener { verificationTask ->
+                                    if (verificationTask.isSuccessful) {
+                                        Log.d("SignUpScreen", "Email verification sent.")
+                                        // ★ 수정된 부분 1: 더 명확한 안내 메시지 표시
+                                        Toast.makeText(context, "인증 메일을 보냈습니다. 확인 후 로그인해주세요.", Toast.LENGTH_LONG).show()
+                                    } else {
+                                        Log.e("SignUpScreen", "sendEmailVerification failed", verificationTask.exception)
+                                        Toast.makeText(context, "인증 메일 발송에 실패했습니다. 이메일 주소를 확인해주세요.", Toast.LENGTH_SHORT).show()
+                                    }
+                                    // ★ 수정된 부분 2: 회원가입 성공 시, 메인 화면이 아닌 로그인 화면으로 이동
+                                    onNavigateToLogin()
+                                }
                         } else {
                             Log.w("SignUpScreen", "createUserWithEmail:failure", task.exception)
                             val exception = task.exception
@@ -135,7 +203,7 @@ fun SignUpScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
-            enabled = !isLoading
+            enabled = !isLoading && !isGoogleLoading
         ) {
             if (isLoading) {
                 CircularProgressIndicator(
@@ -143,7 +211,42 @@ fun SignUpScreen(
                     color = MaterialTheme.colorScheme.onPrimary
                 )
             } else {
-                Text("회원가입 완료", fontSize = 18.sp)
+                Text("이메일로 회원가입", fontSize = 18.sp)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Divider(modifier = Modifier.weight(1f))
+            Text(" 또는 ", modifier = Modifier.padding(horizontal = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Divider(modifier = Modifier.weight(1f))
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedButton(
+            onClick = {
+                if (!isGoogleLoading && !isLoading) {
+                    errorMessage = null
+                    Log.d("SignUpScreen", "Launching Google Sign-In flow")
+                    val signInIntent = googleSignInClient.signInIntent
+                    googleSignInLauncher.launch(signInIntent)
+                }
+            },
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            enabled = !isLoading && !isGoogleLoading
+        ) {
+            if (isGoogleLoading) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        painter = painterResource(id = R.mipmap.signupgoogle),
+                        contentDescription = "Google Logo",
+                        modifier = Modifier.size(24.dp),
+                        tint = Color.Unspecified
+                    )
+                    Text("Google 계정으로 계속하기", modifier = Modifier.padding(start = 12.dp))
+                }
             }
         }
 
@@ -151,11 +254,11 @@ fun SignUpScreen(
 
         TextButton(
             onClick = {
-                if (!isLoading) {
+                if (!isLoading && !isGoogleLoading) {
                     onNavigateToLogin()
                 }
             },
-            enabled = !isLoading
+            enabled = !isLoading && !isGoogleLoading
         ) {
             Text("이미 계정이 있으신가요? 로그인")
         }
@@ -174,4 +277,3 @@ fun DefaultSignUpScreenPreview() {
         }
     }
 }
-
