@@ -179,13 +179,11 @@ fun SignUpScreen(
                                 ?.addOnCompleteListener { verificationTask ->
                                     if (verificationTask.isSuccessful) {
                                         Log.d("SignUpScreen", "Email verification sent.")
-                                        // ★ 수정된 부분 1: 더 명확한 안내 메시지 표시
                                         Toast.makeText(context, "인증 메일을 보냈습니다. 확인 후 로그인해주세요.", Toast.LENGTH_LONG).show()
                                     } else {
                                         Log.e("SignUpScreen", "sendEmailVerification failed", verificationTask.exception)
                                         Toast.makeText(context, "인증 메일 발송에 실패했습니다. 이메일 주소를 확인해주세요.", Toast.LENGTH_SHORT).show()
                                     }
-                                    // ★ 수정된 부분 2: 회원가입 성공 시, 메인 화면이 아닌 로그인 화면으로 이동
                                     onNavigateToLogin()
                                 }
                         } else {
@@ -223,7 +221,7 @@ fun SignUpScreen(
         }
         Spacer(modifier = Modifier.height(16.dp))
 
-        OutlinedButton(
+        Button(
             onClick = {
                 if (!isGoogleLoading && !isLoading) {
                     errorMessage = null
@@ -232,21 +230,26 @@ fun SignUpScreen(
                     googleSignInLauncher.launch(signInIntent)
                 }
             },
-            modifier = Modifier.fillMaxWidth().height(50.dp),
-            enabled = !isLoading && !isGoogleLoading
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp),
+            enabled = !isLoading && !isGoogleLoading,
+            contentPadding = PaddingValues(0.dp),
+            border = null,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color.Transparent,
+                disabledContainerColor = Color.Transparent
+            )
         ) {
             if (isGoogleLoading) {
                 CircularProgressIndicator(modifier = Modifier.size(24.dp))
             } else {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        painter = painterResource(id = R.mipmap.signupgoogle),
-                        contentDescription = "Google Logo",
-                        modifier = Modifier.size(24.dp),
-                        tint = Color.Unspecified
-                    )
-                    Text("Google 계정으로 계속하기", modifier = Modifier.padding(start = 12.dp))
-                }
+                Icon(
+                    painter = painterResource(id = R.mipmap.signupgoogle),
+                    contentDescription = "Google 계정으로 계속하기",
+                    modifier = Modifier.fillMaxSize(),
+                    tint = Color.Unspecified
+                )
             }
         }
 

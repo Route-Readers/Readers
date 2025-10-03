@@ -15,10 +15,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
 import com.route.readers.LocalAppNavController
 
@@ -35,6 +38,17 @@ fun SettingsScreen(navController: NavController) {
     var currentSettingView by remember { mutableStateOf("main") }
     val appNavController = LocalAppNavController.current
     val firebaseAuth = FirebaseAuth.getInstance()
+    val context = LocalContext.current
+
+    val gso = remember {
+        GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken("725580725763-a6efs546tsd56hridug8ifsav9af0lav.apps.googleusercontent.com")
+            .requestEmail()
+            .build()
+    }
+    val googleSignInClient = remember {
+        GoogleSignIn.getClient(context, gso)
+    }
 
     Scaffold(
         topBar = {
@@ -74,10 +88,12 @@ fun SettingsScreen(navController: NavController) {
                     modifier = Modifier.padding(innerPadding),
                     onLogout = {
                         firebaseAuth.signOut()
-                        Log.d("SettingsScreen", "User signed out from Firebase.")
-                        appNavController?.navigate("login_route") {
-                            popUpTo("main_app_content_route") { inclusive = true }
-                            launchSingleTop = true
+                        googleSignInClient.signOut().addOnCompleteListener {
+                            Log.d("SettingsScreen", "Firebase and Google user signed out.")
+                            appNavController?.navigate("login_route") {
+                                popUpTo("main_app_content_route") { inclusive = true }
+                                launchSingleTop = true
+                            }
                         }
                     }
                 )
@@ -162,4 +178,3 @@ fun SettingRow(item: SettingItem) {
         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "이동")
     }
 }
-
