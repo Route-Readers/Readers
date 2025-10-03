@@ -17,6 +17,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.route.readers.ui.screens.feed.FeedScreen
 import com.route.readers.ui.screens.login.LoginScreen
+import com.route.readers.ui.screens.onboarding.OnboardingScreen
 import com.route.readers.ui.screens.signup.SignUpScreen
 import com.route.readers.ui.theme.ReadersTheme
 
@@ -46,18 +47,28 @@ class MainActivity : ComponentActivity() {
 fun RootAppNavigation() {
     val appNavController = LocalAppNavController.current
         ?: throw IllegalStateException("LocalAppNavController not provided")
-    val startDestination = "login_route"
+    val startDestination = "onboarding_route"
 
     NavHost(navController = appNavController, startDestination = startDestination) {
+
+        composable("onboarding_route") {
+            OnboardingScreen(
+                onNavigateToSignUp = { appNavController.navigate("signup_route") },
+                onNavigateToLogin = { appNavController.navigate("login_route") }
+            )
+        }
+
         composable("login_route") {
             LoginScreen(
                 onLoginSuccess = {
                     appNavController.navigate("main_app_content_route") {
-                        popUpTo("login_route") { inclusive = true }
+                        popUpTo("onboarding_route") { inclusive = true }
                     }
                 },
                 onNavigateToSignUp = {
-                    appNavController.navigate("signup_route")
+                    appNavController.navigate("signup_route") {
+                        popUpTo("login_route") { inclusive = true }
+                    }
                 }
             )
         }
@@ -66,11 +77,13 @@ fun RootAppNavigation() {
             SignUpScreen(
                 onSignUpSuccess = {
                     appNavController.navigate("main_app_content_route") {
-                        popUpTo(appNavController.graph.startDestinationId) { inclusive = true }
+                        popUpTo("onboarding_route") { inclusive = true }
                     }
                 },
                 onNavigateToLogin = {
-                    appNavController.popBackStack()
+                    appNavController.navigate("login_route") {
+                        popUpTo("signup_route") { inclusive = true }
+                    }
                 }
             )
         }
