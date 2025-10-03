@@ -26,7 +26,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavHostController
 
@@ -90,7 +89,7 @@ fun ProfileScreen(navController: NavHostController) {
                     actions = {
                         IconButton(onClick = {
                             Log.d("ProfileScreen", "TopAppBar 설정 버튼 클릭")
-                            navController.navigate("settings_screen_route") // SettingsScreen으로 이동
+                            navController.navigate("settings_screen_route")
                         }) {
                             Icon(Icons.Filled.Settings, contentDescription = "환경설정")
                         }
@@ -463,6 +462,6 @@ fun ProfileCard(
 @Composable
 fun DefaultProfileScreenPreview() {
     ReadersProfileAppTheme{
-        ProfileScreen(navController = rememberNavController()) // Preview에 NavController 전달
+        ProfileScreen(navController = rememberNavController())
     }
 }
