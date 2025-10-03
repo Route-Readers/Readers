@@ -15,6 +15,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.google.firebase.auth.FirebaseAuth
 import com.route.readers.ui.screens.feed.FeedScreen
 import com.route.readers.ui.screens.login.LoginScreen
 import com.route.readers.ui.screens.onboarding.OnboardingScreen
@@ -47,7 +48,9 @@ class MainActivity : ComponentActivity() {
 fun RootAppNavigation() {
     val appNavController = LocalAppNavController.current
         ?: throw IllegalStateException("LocalAppNavController not provided")
-    val startDestination = "onboarding_route"
+
+    val currentUser = FirebaseAuth.getInstance().currentUser
+    val startDestination = if (currentUser == null) "onboarding_route" else "main_app_content_route"
 
     NavHost(navController = appNavController, startDestination = startDestination) {
 
@@ -62,13 +65,11 @@ fun RootAppNavigation() {
             LoginScreen(
                 onLoginSuccess = {
                     appNavController.navigate("main_app_content_route") {
-                        popUpTo("onboarding_route") { inclusive = true }
+                        popUpTo(appNavController.graph.id) { inclusive = true }
                     }
                 },
                 onNavigateToSignUp = {
-                    appNavController.navigate("signup_route") {
-                        popUpTo("login_route") { inclusive = true }
-                    }
+                    appNavController.navigate("signup_route")
                 }
             )
         }
@@ -77,13 +78,11 @@ fun RootAppNavigation() {
             SignUpScreen(
                 onSignUpSuccess = {
                     appNavController.navigate("main_app_content_route") {
-                        popUpTo("onboarding_route") { inclusive = true }
+                        popUpTo(appNavController.graph.id) { inclusive = true }
                     }
                 },
                 onNavigateToLogin = {
-                    appNavController.navigate("login_route") {
-                        popUpTo("signup_route") { inclusive = true }
-                    }
+                    appNavController.popBackStack()
                 }
             )
         }

@@ -79,7 +79,10 @@ fun ReadersProfileAppTheme(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(navController: NavHostController) {
+fun ProfileScreen(
+    bottomNavController: NavHostController?,
+    appNavController: NavHostController?
+) {
     ReadersProfileAppTheme {
         Scaffold(
             topBar = {
@@ -89,7 +92,7 @@ fun ProfileScreen(navController: NavHostController) {
                     actions = {
                         IconButton(onClick = {
                             Log.d("ProfileScreen", "TopAppBar 설정 버튼 클릭")
-                            navController.navigate("settings_screen_route")
+                            bottomNavController?.navigate("settings_screen_route")
                         }) {
                             Icon(Icons.Filled.Settings, contentDescription = "환경설정")
                         }
@@ -462,6 +465,9 @@ fun ProfileCard(
 @Composable
 fun DefaultProfileScreenPreview() {
     ReadersProfileAppTheme{
-        ProfileScreen(navController = rememberNavController())
+        ProfileScreen(
+            bottomNavController = rememberNavController(),
+            appNavController = rememberNavController()
+        )
     }
 }

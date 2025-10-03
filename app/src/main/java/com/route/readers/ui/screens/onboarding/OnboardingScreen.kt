@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -47,11 +48,11 @@ fun OnboardingScreen(
                     .background(primaryRed),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
+                Image(
                     painter = painterResource(id = R.mipmap.readerslogo),
                     contentDescription = "App Main Logo",
-                    modifier = Modifier.size(60.dp),
-                    tint = Color.White
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.FillBounds
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))
@@ -108,4 +109,3 @@ fun OnboardingScreenPreview() {
         OnboardingScreen(onNavigateToSignUp = {}, onNavigateToLogin = {})
     }
 }
-
