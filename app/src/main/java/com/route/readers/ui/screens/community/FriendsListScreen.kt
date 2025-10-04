@@ -50,9 +50,28 @@ fun FriendsListScreen(
             items(uiState.friends) { friend ->
                 FriendItemWithDelete(
                     friend = friend,
-                    onDeleteClick = { viewModel.removeFriend(friend.id) }
+                    onDeleteClick = { viewModel.showDeleteConfirmation(friend) }
                 )
             }
         }
+    }
+    
+    // 친구 삭제 확인 다이얼로그
+    uiState.friendToDelete?.let { friend ->
+        AlertDialog(
+            onDismissRequest = { viewModel.cancelDeleteFriend() },
+            title = { Text("친구 삭제") },
+            text = { Text("${friend.name}님을 친구에서 삭제하시겠습니까?") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.confirmDeleteFriend() }) {
+                    Text("삭제")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.cancelDeleteFriend() }) {
+                    Text("취소")
+                }
+            }
+        )
     }
 }
