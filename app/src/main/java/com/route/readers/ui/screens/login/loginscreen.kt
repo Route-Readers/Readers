@@ -5,7 +5,10 @@ import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
@@ -13,6 +16,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -21,8 +25,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.Firebase
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
 
 private const val PREFS_NAME = "com.route.readers.AppPrefs"
@@ -30,10 +34,12 @@ private const val KEY_REMEMBERED_EMAIL = "remembered_email"
 private const val KEY_REMEMBER_ID = "remember_id"
 private const val KEY_AUTO_LOGIN = "auto_login"
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
-    onNavigateToSignUp: () -> Unit
+    onNavigateToSignUp: () -> Unit,
+    onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
     val sharedPreferences = remember {
@@ -55,54 +61,74 @@ fun LoginScreen(
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    val darkRedColor = Color(0xFFB71C1C)
+
     LaunchedEffect(Unit) {
-        if (sharedPreferences.getBoolean(KEY_AUTO_LOGIN, false) && auth.currentUser != null && auth.currentUser!!.isEmailVerified) {
+        if (autoLogin && auth.currentUser != null && auth.currentUser!!.isEmailVerified) {
             Log.d("LoginScreen", "Auto-login condition met. Navigating to main screen.")
             onLoginSuccess()
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(start = 32.dp, end = 32.dp, bottom = 32.dp),
-        horizontalAlignment = Alignment.Start,
-        verticalArrangement = Arrangement.Top
-    ) {
-        Box(
-            modifier = Modifier
-                .padding(top = 32.dp)
-                .height(60.dp)
-        ) {
-            Text(
-                text = "[앱 로고]",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        "Readers",
+                        fontWeight = FontWeight.Bold,
+                        color = darkRedColor
+                    )
+                },
+                navigationIcon = {},
+                actions = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "뒤로가기"
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    actionIconContentColor = MaterialTheme.colorScheme.onBackground
+                )
             )
-        }
-
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { paddingValues ->
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
-        ){
+        ) {
             Text(
                 text = "로그인",
-                fontSize = 28.sp,
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(bottom = 24.dp)
+                fontSize = 40.sp,
+                fontWeight = FontWeight.Bold,
+                color = darkRedColor,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            Text(
+                text = "독서를 시작하세요",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 32.dp)
             )
 
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it; errorMessage = null },
-                label = { Text("이메일을 입력하세요") },
+                label = { Text("이메일") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 modifier = Modifier.fillMaxWidth(),
-                isError = errorMessage != null
+                isError = errorMessage != null,
+                shape = RoundedCornerShape(12.dp)
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -110,12 +136,13 @@ fun LoginScreen(
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it; errorMessage = null },
-                label = { Text("비밀번호를 입력하세요") },
+                label = { Text("비밀번호") },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 modifier = Modifier.fillMaxWidth(),
-                isError = errorMessage != null
+                isError = errorMessage != null,
+                shape = RoundedCornerShape(12.dp)
             )
 
             if (errorMessage != null) {
@@ -138,26 +165,20 @@ fun LoginScreen(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { rememberId = !rememberId }
+                    modifier = Modifier
+                        .clickable { rememberId = !rememberId }
+                        .padding(end = 16.dp)
                 ) {
-                    Checkbox(
-                        checked = rememberId,
-                        onCheckedChange = { rememberId = it }
-                    )
-                    Text(text = "아이디 저장")
+                    Checkbox(checked = rememberId, onCheckedChange = { rememberId = it })
+                    Text(text = "아이디 저장", style = MaterialTheme.typography.bodyMedium)
                 }
-
-                Spacer(modifier = Modifier.width(16.dp))
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.clickable { autoLogin = !autoLogin }
                 ) {
-                    Checkbox(
-                        checked = autoLogin,
-                        onCheckedChange = { autoLogin = it }
-                    )
-                    Text(text = "자동 로그인")
+                    Checkbox(checked = autoLogin, onCheckedChange = { autoLogin = it })
+                    Text(text = "자동 로그인", style = MaterialTheme.typography.bodyMedium)
                 }
             }
 
@@ -208,49 +229,53 @@ fun LoginScreen(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp),
-                enabled = !isLoading
+                    .height(52.dp),
+                enabled = !isLoading,
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = darkRedColor,
+                    contentColor = Color.White
+                )
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
+                        color = Color.White
                     )
                 } else {
-                    Text("로그인", fontSize = 18.sp)
+                    Text("로그인", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically
+            TextButton(
+                onClick = {
+                    if (!isLoading) {
+                        onNavigateToSignUp()
+                    }
+                },
+                enabled = !isLoading
             ) {
-                Text("계정이 없으신가요? ")
-                TextButton(
-                    onClick = {
-                        if (!isLoading) {
-                            onNavigateToSignUp()
-                        }
-                    },
-                    enabled = !isLoading
-                ) {
-                    Text("회원가입")
-                }
+                Text(
+                    text = "계정이 없으신가요? 회원가입",
+                    color = darkRedColor,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
     }
 }
 
+
 @Preview(showBackground = true, name = "Login Screen Preview")
 @Composable
 fun DefaultLoginScreenPreview() {
     MaterialTheme {
-        Surface(modifier = Modifier.fillMaxSize()) {
-            LoginScreen(
-                onLoginSuccess = { Log.d("Preview", "Login Success Clicked") },
-                onNavigateToSignUp = { Log.d("Preview", "Navigate to Sign Up Clicked") }
-            )
-        }
+        LoginScreen(
+            onLoginSuccess = { Log.d("Preview", "Login Success Clicked") },
+            onNavigateToSignUp = { Log.d("Preview", "Navigate to Sign Up Clicked") },
+            onNavigateBack = { Log.d("Preview", "Navigate Back Clicked") }
+        )
     }
 }

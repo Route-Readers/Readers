@@ -12,9 +12,11 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.google.firebase.auth.FirebaseAuth
 import com.route.readers.ui.screens.feed.FeedScreen
 import com.route.readers.ui.screens.login.LoginScreen
@@ -49,19 +51,36 @@ fun RootAppNavigation() {
     val appNavController = LocalAppNavController.current
         ?: throw IllegalStateException("LocalAppNavController not provided")
 
-    val currentUser = FirebaseAuth.getInstance().currentUser
-    val startDestination = if (currentUser == null) "onboarding_route" else "main_app_content_route"
+    val startDestination = "splash_or_onboarding_decision"
 
     NavHost(navController = appNavController, startDestination = startDestination) {
+
+        composable("splash_or_onboarding_decision") {
+            val currentUser = FirebaseAuth.getInstance().currentUser
+            val destination = if (currentUser != null && currentUser.isEmailVerified) {
+                "login_route/{from}"
+            } else {
+                "onboarding_route"
+            }
+
+            appNavController.navigate(destination.replace("{from}", "splash")) {
+                popUpTo("splash_or_onboarding_decision") { inclusive = true }
+            }
+        }
 
         composable("onboarding_route") {
             OnboardingScreen(
                 onNavigateToSignUp = { appNavController.navigate("signup_route") },
-                onNavigateToLogin = { appNavController.navigate("login_route") }
+                onNavigateToLogin = { appNavController.navigate("login_route/onboarding") }
             )
         }
 
-        composable("login_route") {
+        composable(
+            route = "login_route/{from}",
+            arguments = listOf(navArgument("from") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val fromScreen = backStackEntry.arguments?.getString("from")
+
             LoginScreen(
                 onLoginSuccess = {
                     appNavController.navigate("main_app_content_route") {
@@ -70,6 +89,15 @@ fun RootAppNavigation() {
                 },
                 onNavigateToSignUp = {
                     appNavController.navigate("signup_route")
+                },
+                onNavigateBack = {
+                    if (fromScreen == "signup") {
+                        appNavController.popBackStack()
+                    } else {
+                        appNavController.navigate("onboarding_route") {
+                            popUpTo("login_route/{from}") { inclusive = true }
+                        }
+                    }
                 }
             )
         }
@@ -82,6 +110,9 @@ fun RootAppNavigation() {
                     }
                 },
                 onNavigateToLogin = {
+                    appNavController.navigate("login_route/signup") {}
+                },
+                onNavigateBack = {
                     appNavController.popBackStack()
                 }
             )
