@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -11,6 +12,8 @@ import com.route.readers.LocalAppNavController
 import com.route.readers.ui.components.BottomNavBar
 import com.route.readers.ui.components.BottomNavItem
 import com.route.readers.ui.screens.community.CommunityScreen
+import com.route.readers.ui.screens.community.CommunityViewModel
+import com.route.readers.ui.screens.community.FriendsListScreen
 import com.route.readers.ui.screens.feed.FeedScreen
 import com.route.readers.ui.screens.mylibrary.MyLibraryScreen
 import com.route.readers.ui.screens.profile.ProfileScreen
@@ -24,6 +27,7 @@ fun MainScreen(
         ?: throw IllegalStateException("LocalAppNavController not provided")
 
     val bottomNavController = rememberNavController()
+    val communityViewModel: CommunityViewModel = viewModel()
 
     Scaffold(
         bottomBar = { BottomNavBar(navController = bottomNavController) }
@@ -43,7 +47,20 @@ fun MainScreen(
                 SearchScreen()
             }
             composable(BottomNavItem.Community.route) {
-                CommunityScreen()
+                CommunityScreen(
+                    onNavigateToFriendsList = {
+                        bottomNavController.navigate("friends_list")
+                    },
+                    viewModel = communityViewModel
+                )
+            }
+            composable("friends_list") {
+                FriendsListScreen(
+                    onBackClick = {
+                        bottomNavController.popBackStack()
+                    },
+                    viewModel = communityViewModel
+                )
             }
             composable(BottomNavItem.Profile.route) {
                 ProfileScreen(
