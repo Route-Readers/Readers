@@ -240,12 +240,12 @@ fun SignUpScreen(
                                     ?.addOnCompleteListener { verificationTask ->
                                         if (verificationTask.isSuccessful) {
                                             Log.d("SignUpScreen", "Email verification sent.")
-                                            Toast.makeText(context, "인증 메일을 보냈습니다. 확인 후 로그인해주세요.", Toast.LENGTH_LONG).show()
+                                            Toast.makeText(context, "인증 메일을 보냈습니다. 프로필을 설정해주세요.", Toast.LENGTH_LONG).show()
                                         } else {
                                             Log.e("SignUpScreen", "sendEmailVerification failed", verificationTask.exception)
                                             Toast.makeText(context, "인증 메일 발송에 실패했습니다.", Toast.LENGTH_SHORT).show()
                                         }
-                                        onNavigateToLogin()
+                                        onSignUpSuccess()
                                     }
                             } else {
                                 Log.w("SignUpScreen", "createUserWithEmail:failure", task.exception)

@@ -1,15 +1,21 @@
 package com.route.readers
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -18,9 +24,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.ui.screens.feed.FeedScreen
 import com.route.readers.ui.screens.login.LoginScreen
 import com.route.readers.ui.screens.onboarding.OnboardingScreen
+import com.route.readers.ui.screens.profilesetup.ProfileSetupScreen
 import com.route.readers.ui.screens.signup.SignUpScreen
 import com.route.readers.ui.theme.ReadersTheme
 
@@ -51,21 +59,56 @@ fun RootAppNavigation() {
     val appNavController = LocalAppNavController.current
         ?: throw IllegalStateException("LocalAppNavController not provided")
 
-    val startDestination = "splash_or_onboarding_decision"
+    val startDestination = "decision_route"
 
     NavHost(navController = appNavController, startDestination = startDestination) {
 
-        composable("splash_or_onboarding_decision") {
-            val currentUser = FirebaseAuth.getInstance().currentUser
-            val destination = if (currentUser != null && currentUser.isEmailVerified) {
-                "login_route/{from}"
-            } else {
-                "onboarding_route"
+        composable("decision_route") {
+            val auth = FirebaseAuth.getInstance()
+            val firestore = FirebaseFirestore.getInstance()
+            val context = LocalContext.current
+
+            LaunchedEffect(Unit) {
+                val currentUser = auth.currentUser
+                if (currentUser == null) {
+                    appNavController.navigate("onboarding_route") {
+                        popUpTo("decision_route") { inclusive = true }
+                    }
+                } else {
+                    firestore.collection("users").document(currentUser.uid).get()
+                        .addOnSuccessListener { document ->
+                            val destination = if (document.exists() && document.getString("nickname") != null) {
+                                "main_app_content_route"
+                            } else {
+                                "profile_setup_route"
+                            }
+                            appNavController.navigate(destination) {
+                                popUpTo("decision_route") { inclusive = true }
+                            }
+                        }
+                        .addOnFailureListener {
+                            Toast.makeText(context, "사용자 정보 확인에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                            auth.signOut()
+                            appNavController.navigate("onboarding_route") {
+                                popUpTo("decision_route") { inclusive = true }
+                            }
+                        }
+                }
             }
 
-            appNavController.navigate(destination.replace("{from}", "splash")) {
-                popUpTo("splash_or_onboarding_decision") { inclusive = true }
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
             }
+        }
+
+        composable("profile_setup_route") {
+            ProfileSetupScreen(
+                onSetupComplete = {
+                    appNavController.navigate("main_app_content_route") {
+                        popUpTo(appNavController.graph.id) { inclusive = true }
+                    }
+                }
+            )
         }
 
         composable("onboarding_route") {
@@ -83,7 +126,7 @@ fun RootAppNavigation() {
 
             LoginScreen(
                 onLoginSuccess = {
-                    appNavController.navigate("main_app_content_route") {
+                    appNavController.navigate("decision_route") {
                         popUpTo(appNavController.graph.id) { inclusive = true }
                     }
                 },
@@ -105,12 +148,12 @@ fun RootAppNavigation() {
         composable("signup_route") {
             SignUpScreen(
                 onSignUpSuccess = {
-                    appNavController.navigate("main_app_content_route") {
+                    appNavController.navigate("profile_setup_route") {
                         popUpTo(appNavController.graph.id) { inclusive = true }
                     }
                 },
                 onNavigateToLogin = {
-                    appNavController.navigate("login_route/signup") {}
+                    appNavController.navigate("login_route/signup")
                 },
                 onNavigateBack = {
                     appNavController.popBackStack()
