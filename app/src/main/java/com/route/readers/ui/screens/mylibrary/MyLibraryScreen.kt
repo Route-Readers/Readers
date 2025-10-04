@@ -55,19 +55,8 @@ fun MyLibraryScreen(
                 )
             }
 
-            Row {
-                Button(
-                    onClick = { },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
-                    shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier.height(36.dp)
-                ) {
-                    Text("브랜딩 보기", fontSize = 12.sp)
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                IconButton(onClick = { }) {
-                    Icon(Icons.Default.Add, contentDescription = "책 추가")
-                }
+            IconButton(onClick = { }) {
+                Icon(Icons.Default.Add, contentDescription = "책 추가")
             }
         }
 
