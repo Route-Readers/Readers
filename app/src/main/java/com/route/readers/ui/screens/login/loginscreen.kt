@@ -12,7 +12,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,78 +20,71 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.firebase.Firebase
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.auth
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 private const val PREFS_NAME = "com.route.readers.AppPrefs"
 private const val KEY_REMEMBERED_EMAIL = "remembered_email"
 private const val KEY_REMEMBER_ID = "remember_id"
-private const val KEY_AUTO_LOGIN = "auto_login"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
-    onLoginSuccess: () -> Unit,
+    onNavigateToHome: () -> Unit,
+    onNavigateToCreateProfile: () -> Unit,
     onNavigateToSignUp: () -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    loginViewModel: LoginViewModel = viewModel()
 ) {
     val context = LocalContext.current
     val sharedPreferences = remember {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
-    var email by rememberSaveable {
+    var email by remember {
         mutableStateOf(sharedPreferences.getString(KEY_REMEMBERED_EMAIL, "") ?: "")
     }
-    var password by rememberSaveable { mutableStateOf("") }
-    var rememberId by rememberSaveable {
+    var password by remember { mutableStateOf("") }
+    var rememberId by remember {
         mutableStateOf(sharedPreferences.getBoolean(KEY_REMEMBER_ID, false))
     }
-    var autoLogin by rememberSaveable {
-        mutableStateOf(sharedPreferences.getBoolean(KEY_AUTO_LOGIN, false))
-    }
 
-    val auth: FirebaseAuth = Firebase.auth
-    var isLoading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val uiState by loginViewModel.uiState.collectAsState()
+    val isLoading = uiState is LoginUiState.Loading
 
     val darkRedColor = Color(0xFFB71C1C)
 
-    LaunchedEffect(Unit) {
-        if (autoLogin && auth.currentUser != null && auth.currentUser!!.isEmailVerified) {
-            Log.d("LoginScreen", "Auto-login condition met. Navigating to main screen.")
-            onLoginSuccess()
+    LaunchedEffect(uiState) {
+        when (val state = uiState) {
+            is LoginUiState.ExistingUser -> {
+                Toast.makeText(context, "로그인되었습니다.", Toast.LENGTH_SHORT).show()
+                onNavigateToHome()
+                loginViewModel.resetState()
+            }
+            is LoginUiState.NewUser -> {
+                onNavigateToCreateProfile()
+                loginViewModel.resetState()
+            }
+            is LoginUiState.Error -> {
+                Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
+                loginViewModel.resetState()
+            }
+            else -> { /* Idle or Loading */ }
         }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        "Readers",
-                        fontWeight = FontWeight.Bold,
-                        color = darkRedColor
-                    )
-                },
-                navigationIcon = {},
+                title = { Text("Readers", fontWeight = FontWeight.Bold, color = darkRedColor) },
                 actions = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "뒤로가기"
-                        )
+                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    actionIconContentColor = MaterialTheme.colorScheme.onBackground
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -112,7 +104,6 @@ fun LoginScreen(
                 color = darkRedColor,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
-
             Text(
                 text = "독서를 시작하세요",
                 style = MaterialTheme.typography.bodyLarge,
@@ -122,46 +113,30 @@ fun LoginScreen(
 
             OutlinedTextField(
                 value = email,
-                onValueChange = { email = it; errorMessage = null },
+                onValueChange = { email = it },
                 label = { Text("이메일") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 modifier = Modifier.fillMaxWidth(),
-                isError = errorMessage != null,
                 shape = RoundedCornerShape(12.dp)
             )
-
             Spacer(modifier = Modifier.height(16.dp))
-
             OutlinedTextField(
                 value = password,
-                onValueChange = { password = it; errorMessage = null },
+                onValueChange = { password = it },
                 label = { Text("비밀번호") },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 modifier = Modifier.fillMaxWidth(),
-                isError = errorMessage != null,
                 shape = RoundedCornerShape(12.dp)
             )
-
-            if (errorMessage != null) {
-                Text(
-                    text = errorMessage!!,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier
-                        .padding(top = 8.dp)
-                        .fillMaxWidth(),
-                    textAlign = TextAlign.Center
-                )
-            }
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Start
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -172,60 +147,22 @@ fun LoginScreen(
                     Checkbox(checked = rememberId, onCheckedChange = { rememberId = it })
                     Text(text = "아이디 저장", style = MaterialTheme.typography.bodyMedium)
                 }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { autoLogin = !autoLogin }
-                ) {
-                    Checkbox(checked = autoLogin, onCheckedChange = { autoLogin = it })
-                    Text(text = "자동 로그인", style = MaterialTheme.typography.bodyMedium)
-                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
                 onClick = {
-                    if (email.isBlank() || password.isBlank()) {
-                        errorMessage = "이메일과 비밀번호를 모두 입력해주세요."
-                        return@Button
-                    }
-                    isLoading = true
-                    errorMessage = null
-
-                    auth.signInWithEmailAndPassword(email.trim(), password)
-                        .addOnCompleteListener { task ->
-                            isLoading = false
-                            if (task.isSuccessful) {
-                                val user = auth.currentUser
-                                if (user != null && user.isEmailVerified) {
-                                    val editor = sharedPreferences.edit()
-                                    if (rememberId) {
-                                        editor.putString(KEY_REMEMBERED_EMAIL, email.trim())
-                                    } else {
-                                        editor.remove(KEY_REMEMBERED_EMAIL)
-                                    }
-                                    editor.putBoolean(KEY_REMEMBER_ID, rememberId)
-                                    editor.putBoolean(KEY_AUTO_LOGIN, autoLogin)
-                                    editor.apply()
-
-                                    Log.d("LoginScreen", "signInWithEmail:success and email verified")
-                                    Toast.makeText(context, "로그인되었습니다.", Toast.LENGTH_SHORT).show()
-                                    onLoginSuccess()
-                                } else {
-                                    Log.w("LoginScreen", "signInWithEmail:success but email not verified")
-                                    errorMessage = "이메일 인증을 먼저 완료해주세요."
-                                    auth.signOut()
-                                }
-                            } else {
-                                Log.w("LoginScreen", "signInWithEmail:failure", task.exception)
-                                val exceptionMessage = task.exception?.message
-                                errorMessage = when {
-                                    exceptionMessage?.contains("INVALID_LOGIN_CREDENTIALS") == true -> "이메일 또는 비밀번호가 잘못되었습니다."
-                                    else -> "로그인에 실패했습니다."
-                                }
-                            }
+                    sharedPreferences.edit().apply {
+                        if (rememberId) {
+                            putString(KEY_REMEMBERED_EMAIL, email.trim())
+                        } else {
+                            remove(KEY_REMEMBERED_EMAIL)
                         }
+                        putBoolean(KEY_REMEMBER_ID, rememberId)
+                        apply()
+                    }
+                    loginViewModel.login(email, password)
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -238,10 +175,7 @@ fun LoginScreen(
                 )
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = Color.White
-                    )
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
                 } else {
                     Text("로그인", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
@@ -250,32 +184,24 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             TextButton(
-                onClick = {
-                    if (!isLoading) {
-                        onNavigateToSignUp()
-                    }
-                },
+                onClick = { if (!isLoading) onNavigateToSignUp() },
                 enabled = !isLoading
             ) {
-                Text(
-                    text = "계정이 없으신가요? 회원가입",
-                    color = darkRedColor,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Text("계정이 없으신가요? 회원가입", color = darkRedColor, fontWeight = FontWeight.SemiBold)
             }
         }
     }
 }
 
-
-@Preview(showBackground = true, name = "Login Screen Preview")
+@Preview(showBackground = true)
 @Composable
 fun DefaultLoginScreenPreview() {
     MaterialTheme {
         LoginScreen(
-            onLoginSuccess = { Log.d("Preview", "Login Success Clicked") },
-            onNavigateToSignUp = { Log.d("Preview", "Navigate to Sign Up Clicked") },
-            onNavigateBack = { Log.d("Preview", "Navigate Back Clicked") }
+            onNavigateToHome = { Log.d("Preview", "Navigating to Home") },
+            onNavigateToCreateProfile = { Log.d("Preview", "Navigating to Create Profile") },
+            onNavigateToSignUp = { Log.d("Preview", "Navigating to Sign Up") },
+            onNavigateBack = { Log.d("Preview", "Navigating Back") }
         )
     }
 }

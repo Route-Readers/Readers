@@ -1,18 +1,14 @@
 package com.route.readers.ui.screens.profile
 
-import android.util.Log
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.LibraryBooks
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
@@ -21,453 +17,319 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.NavHostController
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.rememberAsyncImagePainter
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
-data class Friend(
-    val id: String,
-    val name: String,
+data class UserProfile(
+    val uid: String = "",
+    val nickname: String = "",
     val profileImageUrl: String? = null,
-    val isOnline: Boolean
+    val readingGenres: List<String> = emptyList(),
+    val level: Int = 1,
+    val followerCount: Long = 0,
+    val followingCount: Long = 0,
+    val readBookCount: Int = 0 // 이 필드는 별도로 계산해야 할 수 있습니다.
 )
 
-data class FeedItem(
-    val id: String,
-    val authorName: String,
-    val content: String,
-    val timestamp: Long,
-    val imageUrl: String? = null,
-    var isFavorite: Boolean = false
-)
+sealed class ProfileUiState {
+    object Loading : ProfileUiState()
+    data class Success(val profile: UserProfile) : ProfileUiState()
+    data class Error(val message: String) : ProfileUiState()
+}
 
-val AppTypography = Typography()
-val AppShapes = Shapes(medium = RoundedCornerShape(12.dp))
+open class ProfileViewModel : ViewModel() {
+    private val db = FirebaseFirestore.getInstance()
+    private val auth = FirebaseAuth.getInstance()
 
-private val LightPinkColorScheme = lightColorScheme(
-    primary = Color(0xFFE91E63),
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFF8BBD0),
-    onPrimaryContainer = Color.Black,
-    secondary = Color(0xFF03DAC5),
-    onSecondary = Color.Black,
-    background = Color(0xFFF0F0F0),
-    onBackground = Color.Black,
-    surface = Color.White,
-    onSurface = Color.Black,
-    surfaceVariant = Color(0xFFEDEDED),
-    onSurfaceVariant = Color.DarkGray,
-    error = Color(0xFFB00020),
-    onError = Color.White
-)
+    protected val _uiState = MutableStateFlow<ProfileUiState>(ProfileUiState.Loading)
+    val uiState: StateFlow<ProfileUiState> = _uiState
 
-@Composable
-fun ReadersProfileAppTheme(
-    content: @Composable () -> Unit
-) {
-    MaterialTheme(
-        colorScheme = LightPinkColorScheme,
-        typography = AppTypography,
-        shapes = AppShapes,
-        content = content
-    )
+    open fun fetchUserProfile(userId: String?) {
+        val targetUserId = userId ?: auth.currentUser?.uid
+        if (targetUserId == null) {
+            _uiState.value = ProfileUiState.Error("사용자 정보를 찾을 수 없습니다.")
+            return
+        }
+
+        _uiState.value = ProfileUiState.Loading
+        db.collection("users").document(targetUserId)
+            .get()
+            .addOnSuccessListener { document ->
+                if (document != null && document.exists()) {
+                    val userProfile = document.toObject(UserProfile::class.java)
+                    if (userProfile != null) {
+                        _uiState.value = ProfileUiState.Success(userProfile)
+                    } else {
+                        _uiState.value = ProfileUiState.Error("프로필 변환에 실패했습니다.")
+                    }
+                } else {
+                    _uiState.value = ProfileUiState.Error("프로필 데이터가 존재하지 않습니다.")
+                }
+            }
+            .addOnFailureListener { e ->
+                _uiState.value = ProfileUiState.Error("프로필을 불러오는 데 실패했습니다: ${e.message}")
+            }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
-    bottomNavController: NavHostController?,
-    appNavController: NavHostController?
+    onNavigateBack: () -> Unit,
+    // ▼▼▼ 1. onNavigateToSettings 파라미터를 onNavigateToLogin으로 변경 ▼▼▼
+    onNavigateToLogin: () -> Unit,
+    onFollowersClick: () -> Unit,
+    onFollowingClick: () -> Unit,
+    viewModel: ProfileViewModel = viewModel()
 ) {
-    ReadersProfileAppTheme {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text("마이 페이지", fontWeight = FontWeight.Bold) },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface),
-                    actions = {
-                        IconButton(onClick = {
-                            Log.d("ProfileScreen", "TopAppBar 설정 버튼 클릭")
-                            bottomNavController?.navigate("settings_screen_route")
-                        }) {
-                            Icon(Icons.Filled.Settings, contentDescription = "환경설정")
+    LaunchedEffect(key1 = Unit) {
+        viewModel.fetchUserProfile(null) // 자신의 프로필을 불러옴
+    }
+
+    val uiState by viewModel.uiState.collectAsState()
+    // ▼▼▼ 2. 드롭다운 메뉴 표시 상태를 관리할 변수 추가 ▼▼▼
+    var showMenu by remember { mutableStateOf(false) }
+
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("프로필") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로 가기")
+                    }
+                },
+                actions = {
+                    // ▼▼▼ 3. 설정 아이콘과 드롭다운 메뉴 구현 ▼▼▼
+                    Box {
+                        // 설정 아이콘 버튼
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Default.Settings, contentDescription = "설정")
+                        }
+
+                        // 드롭다운 메뉴
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            // 로그아웃 버튼 아이템
+                            DropdownMenuItem(
+                                text = { Text("로그아웃") },
+                                onClick = {
+                                    // 메뉴 닫고, Firebase에서 로그아웃 후, 로그인 화면으로 이동
+                                    showMenu = false
+                                    FirebaseAuth.getInstance().signOut()
+                                    onNavigateToLogin()
+                                }
+                            )
                         }
                     }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.White,
+                    titleContentColor = Color.Black
                 )
-            }
-        ) { innerPadding ->
-            ProfilePageContent(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .background(MaterialTheme.colorScheme.background)
             )
-        }
-    }
-}
-
-@Composable
-fun ProfilePageContent(modifier: Modifier = Modifier) {
-    LazyColumn(
-        modifier = modifier.padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
-    ) {
-        item { ProfileSection() }
-        item { MyActivitySection() }
-        item { MyTokenSection() }
-        item { ReadingStatsSection() }
-        item { ReadingCalendarSection() }
-        item { RecentBooksSection() }
-        item { EventSection() }
-    }
-}
-
-@Composable
-fun ProfileSection() {
-    var isMyOnlineStatus by remember { mutableStateOf(true) }
-    val friendsList = remember {
-        listOf(
-            Friend(id = "1", name = "친구A", isOnline = true),
-            Friend(id = "2", name = "친구B", isOnline = false),
-            Friend(id = "3", name = "친구C", isOnline = true),
-        )
-    }
-
-    ProfileCard(title = "프로필", icon = null, showEditButton = true, onEditClick = { Log.d("Profile", "프로필 편집 클릭") }) {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .clickable { Log.d("Profile", "프로필 사진 변경 클릭") },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Filled.PhotoCamera, contentDescription = "프로필 사진", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(40.dp))
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("홍길동님", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .size(16.dp)
-                            .clip(CircleShape)
-                            .background(if (isMyOnlineStatus) Color(0xFF4CAF50) else Color.Red)
-                            .clickable {
-                                isMyOnlineStatus = !isMyOnlineStatus
-                                Log.d("Profile", "상태 표시등 클릭: ${if (isMyOnlineStatus) "온라인" else "오프라인"}")
-                            }
-                            .border(1.dp, MaterialTheme.colorScheme.surface.copy(alpha = 0.5f), CircleShape)
-                    )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                Text("책과 함께하는 멋진 하루! 📚✨", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
-            }
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
-        Spacer(modifier = Modifier.height(16.dp))
-        Text("독서 취향", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground)
-        Spacer(modifier = Modifier.height(8.dp))
-        val genres = listOf("소설", "자기계발", "역사", "과학", "판타지", "에세이")
-        var selectedGenres by remember { mutableStateOf(setOf<String>()) }
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start)) {
-            genres.take(3).forEach { genre ->
-                GenreChip(genre, selectedGenres.contains(genre)) {
-                    selectedGenres = if (selectedGenres.contains(genre)) selectedGenres - genre else selectedGenres + genre
-                }
-            }
-            TextButton(onClick = { Log.d("Profile", "독서 취향 더보기 클릭") }) { Text("더보기", color = MaterialTheme.colorScheme.primary) }
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
-        Spacer(modifier = Modifier.height(16.dp))
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("친구 ${friendsList.size}", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground)
-            TextButton(onClick = { Log.d("Profile", "친구 추가 버튼 클릭") }) {
-                Icon(Icons.Filled.Add, contentDescription = "친구 추가", tint = MaterialTheme.colorScheme.primary)
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("추가", color = MaterialTheme.colorScheme.primary)
-            }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        if (friendsList.isEmpty()) {
-            Text("아직 친구가 없어요. 친구를 추가해보세요!", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        } else {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(end = 8.dp)) {
-                items(friendsList) { friend -> FriendItem(friend) }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun GenreChip(text: String, selected: Boolean, onChipClick: () -> Unit) {
-    FilterChip(
-        selected = selected,
-        onClick = onChipClick,
-        label = { Text(text) },
-        shape = RoundedCornerShape(16.dp),
-        colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-        )
-    )
-}
-
-@Composable
-fun FriendItem(friend: Friend) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(IntrinsicSize.Min)) {
-        Box {
-            Box(
-                modifier = Modifier
-                    .size(60.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .clickable { Log.d("Profile", "${friend.name} 프로필 클릭") },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(friend.name.firstOrNull()?.toString() ?: "?", fontSize = 24.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(18.dp)
-                    .clip(CircleShape)
-                    .background(if (friend.isOnline) Color(0xFF4CAF50) else MaterialTheme.colorScheme.outline)
-                    .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape)
-            )
-        }
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(friend.name, fontSize = 12.sp, maxLines = 1, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@Composable
-fun MyActivitySection() {
-    val myFeeds = remember {
-        listOf(
-            FeedItem("my_feed_3", "홍길동", "오늘 날씨 정말 좋다! #일상", System.currentTimeMillis() - 100000, imageUrl = "https://example.com/image3.jpg", isFavorite = true),
-            FeedItem("my_feed_2", "홍길동", "새로운 책 읽기 시작! 📚", System.currentTimeMillis() - 200000),
-            FeedItem("my_feed_1", "홍길동", "첫 번째 게시글입니다~", System.currentTimeMillis() - 300000, imageUrl = "https://example.com/image1.jpg")
-        ).sortedByDescending { it.timestamp }
-    }
-    val savedFeedsFromOthers = remember {
-        listOf(
-            FeedItem("saved_feed_2", "작가B", "인상 깊은 구절 공유합니다.", System.currentTimeMillis() - 50000, isFavorite = true),
-            FeedItem("saved_feed_1", "친구A", "이 책 추천해요! 정말 재밌음!", System.currentTimeMillis() - 150000, imageUrl = "https://example.com/image_friend.jpg", isFavorite = true)
-        ).sortedByDescending { it.timestamp }
-    }
-
-    ProfileCard(title = "나의 활동", icon = Icons.Filled.Analytics) {
-        Text("나의 피드", fontWeight = FontWeight.SemiBold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onBackground)
-        Spacer(Modifier.height(8.dp))
-        if (myFeeds.isEmpty()) {
-            Text("아직 작성한 피드가 없어요.", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        } else {
-            myFeeds.firstOrNull()?.let { FeedItemView(it, true); Spacer(Modifier.height(8.dp)) }
-            TextButton(onClick = { Log.d("MyActivity", "나의 피드 전체 보기 클릭") }, modifier = Modifier.fillMaxWidth()) { Text("내 피드 더보기", color = MaterialTheme.colorScheme.primary) }
-        }
-        Spacer(Modifier.height(16.dp)); HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)); Spacer(Modifier.height(16.dp))
-        Text("저장한 피드", fontWeight = FontWeight.SemiBold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onBackground)
-        Spacer(Modifier.height(8.dp))
-        if (savedFeedsFromOthers.isEmpty()) {
-            Text("아직 저장한 피드가 없어요.", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        } else {
-            savedFeedsFromOthers.firstOrNull()?.let { FeedItemView(it, false); Spacer(Modifier.height(8.dp)) }
-            TextButton(onClick = { Log.d("MyActivity", "저장한 피드 전체 보기 클릭") }, modifier = Modifier.fillMaxWidth()) { Text("저장한 피드 더보기", color = MaterialTheme.colorScheme.primary) }
-        }
-    }
-}
-
-@Composable
-fun FeedItemView(feed: FeedItem, isMyFeed: Boolean) {
-    var isFavoriteState by remember(feed.id) { mutableStateOf(feed.isFavorite) }
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(if (isMyFeed) "나" else feed.authorName, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
-                IconButton(
-                    onClick = {
-                        isFavoriteState = !isFavoriteState
-                        feed.isFavorite = isFavoriteState
-                        Log.d("FeedItemView", "즐겨찾기: ${feed.id}, 상태: $isFavoriteState")
-                    },
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isFavoriteState) Icons.Filled.Star else Icons.Filled.StarBorder,
-                        contentDescription = "즐겨찾기",
-                        tint = if (isFavoriteState) Color(0xFFFFC107) else MaterialTheme.colorScheme.outline,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-                Spacer(Modifier.weight(1f))
-                Text(
-                    android.text.format.DateUtils.getRelativeTimeSpanString(feed.timestamp).toString(),
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Spacer(Modifier.height(4.dp))
-            Text(feed.content, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
-            feed.imageUrl?.let {
-                Spacer(Modifier.height(8.dp))
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(150.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .clip(RoundedCornerShape(4.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("이미지 자리: $it", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun MyTokenSection() {
-    ProfileCard(
-        title = "나의 토큰",
-        icon = Icons.Filled.Redeem,
-        additionalActions = {
-            IconButton(onClick = { Log.d("MyToken", "토큰 추가/충전 버튼 클릭") }) {
-                Icon(Icons.Filled.AddCircleOutline, "토큰 충전", tint = MaterialTheme.colorScheme.primary)
-            }
-        }
-    ) {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("보유 토큰:", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
-            Spacer(Modifier.width(8.dp))
-            Text("1,250 P", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.weight(1f))
-            TextButton(onClick = { Log.d("MyToken", "토큰 내역 보기 버튼 클릭") }) { Text("내역", color = MaterialTheme.colorScheme.primary) }
-        }
-    }
-}
-
-@Composable
-fun ReadingStatsSection() {
-    ProfileCard(title = "독서 통계", icon = Icons.Filled.BarChart) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                Text("이번 달 완독", fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground)
-                Text("3 권", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
-            }
-            Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
-                Text("총 독서 시간", fontSize = 16.sp, color = MaterialTheme.colorScheme.onBackground)
-                Text("15시간 20분", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
-            }
-        }
-    }
-}
-
-@Composable
-fun ReadingCalendarSection() {
-    ProfileCard(
-        title = "독서 캘린더",
-        icon = Icons.Filled.CalendarToday,
-        additionalActions = {
-            IconButton(onClick = { Log.d("ReadingCalendar", "달력 보기 버튼 클릭") }) {
-                Icon(Icons.Filled.DateRange, contentDescription = "달력 보기", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("목표: 5권 / 완독: 3권", fontSize = 14.sp, color = MaterialTheme.colorScheme.onBackground)
-            Text("연속 독서: 7일", fontSize = 14.sp, color = MaterialTheme.colorScheme.onBackground)
-        }
-    }
-}
-
-@Composable
-fun RecentBooksSection() {
-    ProfileCard(title = "최근 읽은 책", icon = Icons.AutoMirrored.Filled.LibraryBooks) {
-        Text("최근 읽은 책 목록이 여기에 표시됩니다.", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(8.dp))
-        Column {
-            Text("- 책 제목 1 (저자 1)", color = MaterialTheme.colorScheme.onBackground)
-            Text("- 책 제목 2 (저자 2)", color = MaterialTheme.colorScheme.onBackground)
-        }
-    }
-}
-
-@Composable
-fun EventSection() {
-    ProfileCard(title = "이벤트", icon = Icons.Filled.CardGiftcard) {
-        Text("진행 중인 이벤트 정보가 여기에 표시됩니다.", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(8.dp))
-        Button(
-            onClick = { Log.d("Event", "모든 이벤트 보기 클릭") },
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+        },
+        containerColor = Color(0xFFF5F5F5)
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues),
+            contentAlignment = Alignment.Center
         ) {
-            Text("모든 이벤트 보기", color = MaterialTheme.colorScheme.onPrimary)
-        }
-    }
-}
-@Composable
-fun ProfileCard(
-    title: String,
-    icon: ImageVector? = null,
-    showEditButton: Boolean = false,
-    onEditClick: () -> Unit = {},
-    additionalActions: @Composable RowScope.() -> Unit = {},
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                    icon?.let {
-                        Icon(it, title, tint = MaterialTheme.colorScheme.primary); Spacer(Modifier.width(8.dp))
-                    }
-                    Text(title, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    additionalActions()
-                    if (showEditButton) {
-                        TextButton(onClick = onEditClick) {
-                            Icon(Icons.Filled.Edit, "편집", tint = MaterialTheme.colorScheme.primary); Spacer(Modifier.width(4.dp))
-                            Text("편집", color = MaterialTheme.colorScheme.primary)
-                        }
-                    }
+            when (val state = uiState) {
+                is ProfileUiState.Loading -> CircularProgressIndicator()
+                is ProfileUiState.Error -> Text(text = state.message)
+                is ProfileUiState.Success -> {
+                    ProfileContent(
+                        userProfile = state.profile,
+                        onFollowersClick = onFollowersClick,
+                        onFollowingClick = onFollowingClick
+                    )
                 }
             }
-            Spacer(Modifier.height(12.dp))
-            this.content()
         }
     }
 }
 
-@Preview(showBackground = true, name = "Profile Screen Full", heightDp = 1600)
 @Composable
-fun DefaultProfileScreenPreview() {
-    ReadersProfileAppTheme{
+fun ProfileContent(
+    userProfile: UserProfile,
+    onFollowersClick: () -> Unit,
+    onFollowingClick: () -> Unit
+) {
+    val primaryRed = Color(0xFFC0392B)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(vertical = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ProfileImage(
+                    imageUrl = userProfile.profileImageUrl,
+                    nickname = userProfile.nickname,
+                    size = 100.dp,
+                    backgroundColor = primaryRed
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = userProfile.nickname,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Chip(
+                    label = "레벨 ${userProfile.level}",
+                    backgroundColor = Color(0xFFF5E1DF),
+                    contentColor = primaryRed
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ProfileInfoItem(
+                        count = userProfile.followerCount.toString(),
+                        label = "팔로워",
+                        onClick = onFollowersClick
+                    )
+                    ProfileInfoItem(
+                        count = userProfile.followingCount.toString(),
+                        label = "팔로잉",
+                        onClick = onFollowingClick
+                    )
+                    ProfileInfoItem(
+                        count = userProfile.readBookCount.toString(),
+                        label = "읽은 책"
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ProfileImage(
+    imageUrl: String?,
+    nickname: String,
+    modifier: Modifier = Modifier,
+    size: androidx.compose.ui.unit.Dp = 100.dp,
+    backgroundColor: Color
+) {
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(backgroundColor),
+        contentAlignment = Alignment.Center
+    ) {
+        if (imageUrl != null) {
+            Image(
+                painter = rememberAsyncImagePainter(model = imageUrl),
+                contentDescription = "프로필 이미지",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Text(
+                text = nickname.firstOrNull()?.toString() ?: "",
+                color = Color.White,
+                fontSize = (size.value / 2.5).sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+
+@Composable
+fun ProfileInfoItem(count: String, label: String, onClick: (() -> Unit)? = null) {
+    val modifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+    ) {
+        Text(
+            text = count,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFFC0392B)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = label,
+            fontSize = 14.sp,
+            color = Color.Gray
+        )
+    }
+}
+
+@Composable
+fun Chip(label: String, backgroundColor: Color, contentColor: Color) {
+    Box(
+        modifier = Modifier
+            .background(color = backgroundColor, shape = RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+    ) {
+        Text(text = label, color = contentColor, fontSize = 12.sp)
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun ProfileScreenPreview() {
+    class FakeProfileViewModel : ProfileViewModel() {
+        override fun fetchUserProfile(userId: String?) {
+            _uiState.value = ProfileUiState.Success(
+                UserProfile(
+                    uid = "previewUser",
+                    nickname = "책벌레독서가",
+                    level = 8,
+                    followerCount = 234,
+                    followingCount = 89,
+                    readBookCount = 47
+                )
+            )
+        }
+    }
+
+    MaterialTheme {
         ProfileScreen(
-            bottomNavController = rememberNavController(),
-            appNavController = rememberNavController()
+            onNavigateBack = {},
+            // ▼▼▼ 4. Preview에서도 파라미터 이름 변경 ▼▼▼
+            onNavigateToLogin = {},
+            onFollowersClick = {},
+            onFollowingClick = {},
+            viewModel = FakeProfileViewModel()
         )
     }
 }
