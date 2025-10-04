@@ -35,7 +35,7 @@ fun CommunityScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showAddFriendDialog by remember { mutableStateOf(false) }
-    var selectedTab by remember { mutableStateOf(0) } // 0: 커뮤니티, 1: 중고책 거래
+    var selectedTab by remember { mutableStateOf(0) }
     
     Column(
         modifier = Modifier
@@ -60,7 +60,6 @@ fun CommunityScreen(
             )
         )
         
-        // 탭 영역
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -83,13 +82,12 @@ fun CommunityScreen(
             )
         }
         
-        // 탭 내용
         when (selectedTab) {
             0 -> CommunityContent(
                 uiState = uiState,
                 onNavigateToFriendsList = onNavigateToFriendsList,
                 onShowAddFriendDialog = { showAddFriendDialog = true },
-                onRemoveFriend = { friendId -> viewModel.removeFriend(friendId) }
+                onRemoveFriend = { friend -> viewModel.showDeleteConfirmation(friend) }
             )
             1 -> UsedBookTradeScreen()
         }
@@ -105,7 +103,6 @@ fun CommunityScreen(
         )
     }
     
-    // 친구 추가 결과 메시지 표시
     uiState.addFriendMessage?.let { message ->
         AlertDialog(
             onDismissRequest = { viewModel.clearAddFriendMessage() },
@@ -118,6 +115,24 @@ fun CommunityScreen(
             }
         )
     }
+    
+    uiState.friendToDelete?.let { friend ->
+        AlertDialog(
+            onDismissRequest = { viewModel.cancelDeleteFriend() },
+            title = { Text("친구 삭제") },
+            text = { Text("${friend.name}님을 친구에서 삭제하시겠습니까?") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.confirmDeleteFriend() }) {
+                    Text("삭제")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.cancelDeleteFriend() }) {
+                    Text("취소")
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -125,7 +140,7 @@ fun CommunityContent(
     uiState: CommunityUiState,
     onNavigateToFriendsList: () -> Unit,
     onShowAddFriendDialog: () -> Unit,
-    onRemoveFriend: (String) -> Unit
+    onRemoveFriend: (Friend) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -268,7 +283,7 @@ fun CommunityContent(
         items(uiState.displayedFriends) { friend ->
             FriendItemWithDelete(
                 friend = friend,
-                onDeleteClick = { onRemoveFriend(friend.id) }
+                onDeleteClick = { onRemoveFriend(friend) }
             )
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -431,6 +446,98 @@ fun CommunityContent(
 }
 
 @Composable
+fun BookClubItem(
+    title: String,
+    author: String,
+    days: String,
+    date: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .background(Color(0xFFFFE4B5), RoundedCornerShape(8.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Default.Book,
+                contentDescription = null,
+                tint = Color(0xFFFF8C00)
+            )
+        }
+        
+        Spacer(modifier = Modifier.width(12.dp))
+        
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                title,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                author,
+                fontSize = 14.sp,
+                color = Color.Gray
+            )
+            Text(
+                date,
+                fontSize = 12.sp,
+                color = Color.Gray
+            )
+        }
+        
+        Text(
+            "참여",
+            fontSize = 14.sp,
+            color = Color.Blue
+        )
+    }
+}
+
+@Composable
+fun AchievementCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                modifier = Modifier.size(32.dp),
+                tint = Color.Gray
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                title,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                subtitle,
+                fontSize = 10.sp,
+                color = Color.Gray
+            )
+        }
+    }
+}
+
+@Composable
 fun AddFriendDialog(
     onDismiss: () -> Unit,
     onAddFriend: (String) -> Unit
@@ -558,98 +665,6 @@ fun FriendItemWithDelete(
             Text(
                 friend.lastActive,
                 fontSize = 12.sp,
-                color = Color.Gray
-            )
-        }
-    }
-}
-
-@Composable
-fun BookClubItem(
-    title: String,
-    author: String,
-    days: String,
-    date: String
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .background(Color(0xFFFFE4B5), RoundedCornerShape(8.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                Icons.Default.Book,
-                contentDescription = null,
-                tint = Color(0xFFFF8C00)
-            )
-        }
-        
-        Spacer(modifier = Modifier.width(12.dp))
-        
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                title,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                author,
-                fontSize = 14.sp,
-                color = Color.Gray
-            )
-            Text(
-                date,
-                fontSize = 12.sp,
-                color = Color.Gray
-            )
-        }
-        
-        Text(
-            "참여",
-            fontSize = 14.sp,
-            color = Color.Blue
-        )
-    }
-}
-
-@Composable
-fun AchievementCard(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                modifier = Modifier.size(32.dp),
-                tint = Color.Gray
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                title,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                subtitle,
-                fontSize = 10.sp,
                 color = Color.Gray
             )
         }

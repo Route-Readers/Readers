@@ -21,7 +21,8 @@ data class CommunityUiState(
     val friends: List<Friend> = emptyList(),
     val challengeProgress: Float = 0.67f,
     val challengeParticipants: Int = 156,
-    val addFriendMessage: String? = null
+    val addFriendMessage: String? = null,
+    val friendToDelete: Friend? = null
 ) {
     val displayedFriends: List<Friend> = friends.take(5)
     val hasMoreFriends: Boolean = friends.size > 5
@@ -61,10 +62,21 @@ class CommunityViewModel : ViewModel() {
         }
     }
     
-    fun removeFriend(friendId: String) {
-        viewModelScope.launch {
-            friendsRepository.removeFriend(friendId)
+    fun showDeleteConfirmation(friend: Friend) {
+        _uiState.value = _uiState.value.copy(friendToDelete = friend)
+    }
+    
+    fun confirmDeleteFriend() {
+        _uiState.value.friendToDelete?.let { friend ->
+            viewModelScope.launch {
+                friendsRepository.removeFriend(friend.id)
+            }
         }
+        _uiState.value = _uiState.value.copy(friendToDelete = null)
+    }
+    
+    fun cancelDeleteFriend() {
+        _uiState.value = _uiState.value.copy(friendToDelete = null)
     }
     
     fun clearAddFriendMessage() {
