@@ -36,25 +36,34 @@ import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.R
 import com.route.readers.ui.theme.ReadersTheme
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignUpScreen(
     onSignUpSuccess: () -> Unit,
     onNavigateToLogin: () -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    // ▼▼▼ 1. 이미 가입된 사용자를 위한 홈 화면 이동 함수 추가 ▼▼▼
+    onNavigateToHome: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordConfirm by remember { mutableStateOf("") }
 
     val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    // ▼▼▼ 2. Firestore 인스턴스 추가 ▼▼▼
+    val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
+
     var isLoading by remember { mutableStateOf(false) }
     var isGoogleLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope() // 비동기 작업을 위한 코루틴 스코프
 
     val primaryRed = Color(0xFFC0392B)
 
@@ -66,22 +75,42 @@ fun SignUpScreen(
         GoogleSignIn.getClient(context, gso)
     }
 
+    // ▼▼▼ 3. Google 로그인 로직 수정 (Firestore 확인 기능 추가) ▼▼▼
     fun firebaseAuthWithGoogle(idToken: String) {
         val credential = GoogleAuthProvider.getCredential(idToken, null)
         isGoogleLoading = true
-        auth.signInWithCredential(credential)
-            .addOnCompleteListener { task ->
-                isGoogleLoading = false
-                if (task.isSuccessful) {
-                    Log.d("SignUpScreen", "Google signInWithCredential success")
-                    Toast.makeText(context, "Google 계정으로 로그인했습니다.", Toast.LENGTH_SHORT).show()
-                    onSignUpSuccess()
+        // 코루틴으로 비동기 작업 실행
+        coroutineScope.launch {
+            try {
+                val authResult = auth.signInWithCredential(credential).await()
+                val user = authResult.user
+                if (user != null) {
+                    Log.d("SignUpScreen", "Google signInWithCredential success. User: ${user.uid}")
+                    // Firestore에서 사용자 프로필이 있는지 확인
+                    val userDoc = firestore.collection("users").document(user.uid).get().await()
+                    if (userDoc.exists() && userDoc.getString("nickname") != null) {
+                        // 프로필이 이미 존재하면 -> 홈 화면으로 이동
+                        Log.d("SignUpScreen", "User already has a profile. Navigating to home.")
+                        Toast.makeText(context, "로그인합니다.", Toast.LENGTH_SHORT).show()
+                        onNavigateToHome()
+                    } else {
+                        // 프로필이 없으면 -> 신규 가입으로 간주하고 프로필 설정 화면으로 이동
+                        Log.d("SignUpScreen", "New user. Navigating to profile setup.")
+                        Toast.makeText(context, "Google 계정으로 가입되었습니다. 프로필을 설정해주세요.", Toast.LENGTH_SHORT).show()
+                        onSignUpSuccess()
+                    }
                 } else {
-                    Log.w("SignUpScreen", "Google signInWithCredential failure", task.exception)
-                    errorMessage = "Google 로그인에 실패했습니다. (${task.exception?.message})"
+                    throw IllegalStateException("Firebase user is null after sign in")
                 }
+            } catch (e: Exception) {
+                Log.w("SignUpScreen", "Google auth failed", e)
+                errorMessage = "Google 로그인에 실패했습니다. (${e.message})"
+            } finally {
+                isGoogleLoading = false
             }
+        }
     }
+
 
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult(),
@@ -112,7 +141,7 @@ fun SignUpScreen(
                         fontWeight = FontWeight.Bold
                     )
                 },
-                actions = {
+                navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
@@ -123,7 +152,7 @@ fun SignUpScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.White,
                     titleContentColor = primaryRed,
-                    actionIconContentColor = Color.Black
+                    navigationIconContentColor = Color.Black
                 )
             )
         },
@@ -345,7 +374,8 @@ fun DefaultSignUpScreenPreview() {
         SignUpScreen(
             onSignUpSuccess = {},
             onNavigateToLogin = {},
-            onNavigateBack = {}
+            onNavigateBack = {},
+            onNavigateToHome = {}
         )
     }
 }

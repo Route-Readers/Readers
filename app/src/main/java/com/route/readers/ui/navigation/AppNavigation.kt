@@ -16,7 +16,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.route.readers.ui.screens.feed.FeedScreen
+import com.route.readers.ui.screens.MainScreen
 import com.route.readers.ui.screens.login.LoginScreen
 import com.route.readers.ui.screens.onboarding.OnboardingScreen
 import com.route.readers.ui.screens.profilesetup.ProfileSetupScreen
@@ -66,47 +66,10 @@ fun AppNavigation(navController: NavHostController) {
             }
         }
 
-        composable("profile_setup_route") {
-            ProfileSetupScreen(
-                onSetupComplete = {
-                    navController.navigate("main_app_content_route") {
-                        popUpTo(navController.graph.id) { inclusive = true }
-                    }
-                }
-            )
-        }
-
         composable("onboarding_route") {
             OnboardingScreen(
                 onNavigateToSignUp = { navController.navigate("signup_route") },
                 onNavigateToLogin = { navController.navigate("login_route/onboarding") }
-            )
-        }
-
-        composable(
-            route = "login_route/{from}",
-            arguments = listOf(navArgument("from") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val fromScreen = backStackEntry.arguments?.getString("from")
-
-            LoginScreen(
-                onLoginSuccess = {
-                    navController.navigate("decision_route") {
-                        popUpTo(navController.graph.id) { inclusive = true }
-                    }
-                },
-                onNavigateToSignUp = {
-                    navController.navigate("signup_route")
-                },
-                onNavigateBack = {
-                    if (fromScreen == "signup") {
-                        navController.popBackStack()
-                    } else {
-                        navController.navigate("onboarding_route") {
-                            popUpTo("login_route/{from}") { inclusive = true }
-                        }
-                    }
-                }
             )
         }
 
@@ -122,12 +85,68 @@ fun AppNavigation(navController: NavHostController) {
                 },
                 onNavigateBack = {
                     navController.popBackStack()
+                },
+                onNavigateToHome = {
+                    navController.navigate("main_app_content_route") {
+                        popUpTo(navController.graph.id) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(
+            route = "login_route/{from}",
+            arguments = listOf(navArgument("from") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val fromScreen = backStackEntry.arguments?.getString("from")
+
+            LoginScreen(
+                onNavigateToHome = {
+                    navController.navigate("main_app_content_route") {
+                        popUpTo(navController.graph.id) { inclusive = true }
+                    }
+                },
+                onNavigateToCreateProfile = {
+                    navController.navigate("profile_setup_route") {
+                        popUpTo(navController.graph.id) { inclusive = true }
+                    }
+                },
+                onNavigateToSignUp = {
+                    navController.navigate("signup_route")
+                },
+                onNavigateBack = {
+                    if (fromScreen == "signup") {
+                        navController.popBackStack()
+                    } else {
+                        navController.navigate("onboarding_route") {
+                            popUpTo(navController.graph.id) { inclusive = true }
+                        }
+                    }
+                }
+            )
+        }
+
+        composable("profile_setup_route") {
+            ProfileSetupScreen(
+                onSetupComplete = {
+                    navController.navigate("main_app_content_route") {
+                        popUpTo(navController.graph.id) { inclusive = true }
+                    }
                 }
             )
         }
 
         composable("main_app_content_route") {
-            FeedScreen()
+            MainScreen(
+                onNavigateToLogin = {
+
+                    navController.navigate("login_route/logout") {
+                        popUpTo(navController.graph.id) {
+                            inclusive = true
+                        }
+                    }
+                }
+            )
         }
     }
 }
