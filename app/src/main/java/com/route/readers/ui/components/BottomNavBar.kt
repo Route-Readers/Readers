@@ -43,6 +43,7 @@ val sideNavItems = listOf(
 @Composable
 fun BottomNavBar(
     navController: NavController,
+    onProfileClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -54,7 +55,6 @@ fun BottomNavBar(
             .background(Color.White)
             .padding(vertical = 16.dp)
     ) {
-        // 중앙 플레이 버튼
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
@@ -80,7 +80,6 @@ fun BottomNavBar(
             )
         }
 
-        // 좌측 네비게이션 아이템들 (2개)
         Row(
             modifier = Modifier
                 .align(Alignment.CenterStart)
@@ -106,7 +105,6 @@ fun BottomNavBar(
             }
         }
 
-        // 우측 네비게이션 아이템들 (2개)
         Row(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
@@ -118,13 +116,17 @@ fun BottomNavBar(
                     item = screen,
                     isSelected = currentRoute == screen.route,
                     onClick = {
-                        if (currentRoute != screen.route) {
-                            navController.navigate(screen.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
+                        if (screen.route == BottomNavItem.Profile.route) {
+                            onProfileClick()
+                        } else {
+                            if (currentRoute != screen.route) {
+                                navController.navigate(screen.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
                                 }
-                                launchSingleTop = true
-                                restoreState = true
                             }
                         }
                     }
