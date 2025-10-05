@@ -19,10 +19,12 @@ class MyLibraryRepository {
             
             // 이미 있는 책인지 확인 (ISBN으로 중복 체크)
             if (!currentBooks.any { it.isbn == book.isbn }) {
-                // 페이지 정보가 있으면 그대로, 없으면 기본값 설정
-                val totalPages = if (!book.itemPage.isNullOrEmpty()) {
-                    book.itemPage.toIntOrNull() ?: 300
-                } else 300
+                // 페이지 정보 추출 (개선된 방식)
+                val totalPages = book.extractPageCount().let { pages ->
+                    if (pages > 0) pages else 0 // 페이지 정보가 없으면 0으로 설정
+                }
+                
+                Log.d("MyLibraryRepository", "Book: ${book.title}, Pages: $totalPages (itemPage: ${book.itemPage})")
                 
                 val bookWithProgress = book.copy(
                     totalPages = totalPages,

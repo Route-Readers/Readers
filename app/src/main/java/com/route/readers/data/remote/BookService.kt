@@ -17,7 +17,8 @@ interface BookService {
         @Query("start") start: Int = 1,
         @Query("SearchTarget") searchTarget: String = "Book",
         @Query("output") output: String = "js",
-        @Query("Version") version: String = "20131101"
+        @Query("Version") version: String = "20131101",
+        @Query("OptResult") optResult: String = "ebookBlazing,usedList,reviewList,subInfo"
     ): Response<BookListDTO>
 
     // 알라딘 책 목록 api
@@ -27,7 +28,8 @@ interface BookService {
         @Query("QueryType") querytype: String,
         @Query("SearchTarget") searchtarget: String,
         @Query("output") output: String,
-        @Query("Version") version: String = "20131101"
+        @Query("Version") version: String = "20131101",
+        @Query("OptResult") optResult: String = "ebookBlazing,usedList,reviewList,subInfo"
     ): Response<BookListDTO>
 
     // 알라딘 책 상세 api
@@ -37,6 +39,7 @@ interface BookService {
         @Query("ItemId") itemid: String,
         @Query("itemIdType") itemidtype: String,
         @Query("output") output: String,
-        @Query("Version") version: String = "20131101"
+        @Query("Version") version: String = "20131101",
+        @Query("OptResult") optResult: String = "ebookBlazing,usedList,reviewList,subInfo"
     ): Response<BookListDTO>
 }

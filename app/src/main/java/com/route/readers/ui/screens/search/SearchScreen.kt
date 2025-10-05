@@ -85,8 +85,16 @@ fun BookSearchTab(
     val scope = rememberCoroutineScope()
 
     fun performSearch() {
+        Log.d("SearchScreen", "=== 검색 버튼 클릭 ===")
+        Log.d("SearchScreen", "검색어: '$searchText'")
+        Log.d("SearchScreen", "검색어 길이: ${searchText.length}")
+        Log.d("SearchScreen", "검색어 trim: '${searchText.trim()}'")
+        
         if (searchText.isNotBlank() && searchText.trim().isNotEmpty()) {
+            Log.d("SearchScreen", "검색 조건 통과, ViewModel.searchBooks 호출")
             viewModel.searchBooks(searchText.trim())
+        } else {
+            Log.d("SearchScreen", "검색 조건 실패")
         }
     }
 
@@ -314,10 +322,11 @@ fun BookSearchResultCard(
                         color = DarkRed
                     )
                 }
-                if (!book.itemPage.isNullOrEmpty()) {
+                val pageCount = book.extractPageCount()
+                if (pageCount > 0) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "${book.itemPage}페이지",
+                        text = "${pageCount}페이지",
                         fontSize = 12.sp,
                         color = TextGray
                     )
