@@ -1,4 +1,4 @@
-package com.route.readers.ui.screens.onboarding
+package com.route.readers.ui.screens.login
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background

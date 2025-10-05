@@ -1,8 +1,12 @@
 package com.route.readers.ui.screens.login
 
+import android.app.Activity
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,7 +20,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -24,6 +30,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.route.readers.R
 
 private const val PREFS_NAME = "com.route.readers.AppPrefs"
 private const val KEY_REMEMBERED_EMAIL = "remembered_email"
@@ -52,9 +62,37 @@ fun LoginScreen(
     }
 
     val uiState by loginViewModel.uiState.collectAsState()
-    val isLoading = uiState is LoginUiState.Loading
+    val isLoading = uiState is LoginUiState.Loading || uiState is LoginUiState.GoogleLoading
 
     val darkRedColor = Color(0xFFB71C1C)
+
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(ApiException::class.java)
+                if (account?.idToken != null) {
+                    loginViewModel.loginWithGoogle(account.idToken!!)
+                } else {
+                    loginViewModel.resetStateToError("Google ID 토큰을 가져오지 못했습니다.")
+                }
+            } catch (e: ApiException) {
+                loginViewModel.resetStateToError("Google 로그인에 실패했습니다: ${e.statusCode}")
+            }
+        } else {
+            loginViewModel.resetState()
+        }
+    }
+
+    val googleSignInClient = remember {
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken("725580725763-a6efs546tsd56hridug8ifsav9af0lav.apps.googleusercontent.com")
+            .requestEmail()
+            .build()
+        GoogleSignIn.getClient(context, gso)
+    }
 
     LaunchedEffect(uiState) {
         when (val state = uiState) {
@@ -71,7 +109,7 @@ fun LoginScreen(
                 Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
                 loginViewModel.resetState()
             }
-            else -> { /* Idle or Loading */ }
+            else -> { }
         }
     }
 
@@ -79,7 +117,7 @@ fun LoginScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Readers", fontWeight = FontWeight.Bold, color = darkRedColor) },
-                actions = {
+                navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")
                     }
@@ -174,10 +212,42 @@ fun LoginScreen(
                     contentColor = Color.White
                 )
             ) {
-                if (isLoading) {
+                if (uiState is LoginUiState.Loading) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
                 } else {
                     Text("로그인", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Divider(modifier = Modifier.weight(1f))
+                Text(" 또는 ", modifier = Modifier.padding(horizontal = 8.dp), color = Color.Gray)
+                Divider(modifier = Modifier.weight(1f))
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = { googleSignInLauncher.launch(googleSignInClient.signInIntent) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(12.dp),
+                enabled = !isLoading,
+                contentPadding = PaddingValues(0.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
+            ) {
+                if (uiState is LoginUiState.GoogleLoading) {
+                    CircularProgressIndicator(color = darkRedColor)
+                } else {
+                    Image(
+                        painter = painterResource(id = R.mipmap.signupgoogle),
+                        contentDescription = "Google 계정으로 계속하기",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Fit
+                    )
                 }
             }
 

@@ -18,9 +18,9 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.ui.screens.MainScreen
 import com.route.readers.ui.screens.login.LoginScreen
-import com.route.readers.ui.screens.onboarding.OnboardingScreen
-import com.route.readers.ui.screens.profilesetup.ProfileSetupScreen
-import com.route.readers.ui.screens.signup.SignUpScreen
+import com.route.readers.ui.screens.login.OnboardingScreen
+import com.route.readers.ui.screens.profile.ProfileSetupScreen
+import com.route.readers.ui.screens.login.SignUpScreen
 
 @Composable
 fun AppNavigation(navController: NavHostController) {
@@ -77,7 +77,7 @@ fun AppNavigation(navController: NavHostController) {
             SignUpScreen(
                 onSignUpSuccess = {
                     navController.navigate("profile_setup_route") {
-                        popUpTo(navController.graph.id) { inclusive = true }
+                        popUpTo("signup_route") { inclusive = true }
                     }
                 },
                 onNavigateToLogin = {
@@ -132,6 +132,9 @@ fun AppNavigation(navController: NavHostController) {
                     navController.navigate("main_app_content_route") {
                         popUpTo(navController.graph.id) { inclusive = true }
                     }
+                },
+                onNavigateBack = {
+                    navController.popBackStack()
                 }
             )
         }
@@ -139,7 +142,6 @@ fun AppNavigation(navController: NavHostController) {
         composable("main_app_content_route") {
             MainScreen(
                 onNavigateToLogin = {
-
                     navController.navigate("login_route/logout") {
                         popUpTo(navController.graph.id) {
                             inclusive = true
