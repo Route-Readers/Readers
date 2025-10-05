@@ -9,6 +9,12 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 class BookRepository {
+    
+    private val gson = GsonBuilder().setLenient().create()
+    private val retrofit: Retrofit = Retrofit.Builder()
+        .baseUrl("http://www.aladin.co.kr/ttb/api/")
+        .addConverterFactory(GsonConverterFactory.create(gson))
+        .build()
 
     // Retrofit과 BookService 인스턴스를 lazy 초기화를 통해 생성합니다.
     private val bookService: BookService by lazy {
@@ -21,8 +27,12 @@ class BookRepository {
         retrofit.create(BookService::class.java)
     }
 
-    suspend fun getBookSearch(query: String, maxResults: Int = 20): List<Book> {
+    suspend fun getBookSearch(query: String, page: Int = 1, maxResults: Int = 10): List<Book> {
         return try {
+            Log.d("BookRepository", "=== API 호출 시작 ===")
+            Log.d("BookRepository", "Query: $query")
+            Log.d("BookRepository", "API Key: ${if (TTBKEY.isBlank()) "없음" else "있음"}")
+            
             if (TTBKEY.isBlank()) {
                 Log.e("BookRepository", "TTBKey is missing.")
                 return emptyList()
@@ -30,12 +40,40 @@ class BookRepository {
             // API 명세에 맞는 파라미터 이름을 사용해야 합니다. (ttbKey -> ttbkey 등)
             // BookService.kt 파일에 정의된 함수를 호출합니다.
             val response = bookService.getBookSearch(
-                ttbKey = TTBKEY,
+                ttbkey = TTBKEY,
                 query = query,
+                start = page,
                 maxResults = maxResults
             )
+           
+            Log.d("BookRepository", "API 응답 코드: ${response.code()}")
+            
             if (response.isSuccessful) {
-                response.body()?.books ?: emptyList()
+                val books = response.body()?.books ?: emptyList()
+                Log.d("BookRepository", "받은 책 개수: ${books.size}")
+                
+                // 각 책의 상세 정보를 가져와서 페이지 정보 보완
+                val booksWithPages = books.map { book ->
+                    try {
+                        if (book.isbn.isNotBlank()) {
+                            val detailBook = getBookDetail(book.isbn)
+                            if (detailBook != null && detailBook.subInfo?.itemPage != null) {
+                                Log.d("BookRepository", "${book.title}: 상세조회로 페이지 정보 획득 - ${detailBook.subInfo.itemPage}페이지")
+                                book.copy(subInfo = detailBook.subInfo)
+                            } else {
+                                Log.d("BookRepository", "${book.title}: 페이지 정보 없음")
+                                book
+                            }
+                        } else {
+                            book
+                        }
+                    } catch (e: Exception) {
+                        Log.w("BookRepository", "${book.title}: 상세조회 실패 - ${e.message}")
+                        book
+                    }
+                }
+                
+                return booksWithPages
             } else {
                 Log.e("BookRepository", "Search API Error: ${response.code()} - ${response.message()}")
                 emptyList()
