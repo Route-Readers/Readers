@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -15,20 +17,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.route.readers.R
 import com.route.readers.data.model.Book
+import com.route.readers.data.model.MyBook
 import com.route.readers.data.remote.MyLibraryRepository
+import com.route.readers.data.remote.FirestoreRepository
 import com.route.readers.ui.theme.*
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
     viewModel: BookViewModel = viewModel(),
-    libraryRepository: MyLibraryRepository = MyLibraryRepository()
+    libraryRepository: MyLibraryRepository = MyLibraryRepository(),
+    firestoreRepository: FirestoreRepository = FirestoreRepository()
 ) {
     var selectedTab by remember { mutableStateOf(0) }
 
@@ -55,7 +62,7 @@ fun SearchScreen(
         }
 
         when (selectedTab) {
-            0 -> BookSearchTab(viewModel, libraryRepository)
+            0 -> BookSearchTab(viewModel, libraryRepository, firestoreRepository)
             1 -> LibrarySearchTab()
         }
     }
@@ -65,12 +72,31 @@ fun SearchScreen(
 @Composable
 fun BookSearchTab(
     viewModel: BookViewModel,
-    libraryRepository: MyLibraryRepository
+    libraryRepository: MyLibraryRepository,
+    firestoreRepository: FirestoreRepository
 ) {
     var searchText by remember { mutableStateOf("") }
     val books by viewModel.books.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val isLoadingMore by viewModel.isLoadingMore.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val currentQuery by viewModel.currentQuery.collectAsState()
+    val hasMoreResults by viewModel.hasMoreResults.collectAsState()
+    val scope = rememberCoroutineScope()
+
+    fun performSearch() {
+        Log.d("SearchScreen", "=== 검색 버튼 클릭 ===")
+        Log.d("SearchScreen", "검색어: '$searchText'")
+        Log.d("SearchScreen", "검색어 길이: ${searchText.length}")
+        Log.d("SearchScreen", "검색어 trim: '${searchText.trim()}'")
+        
+        if (searchText.isNotBlank() && searchText.trim().isNotEmpty()) {
+            Log.d("SearchScreen", "검색 조건 통과, ViewModel.searchBooks 호출")
+            viewModel.searchBooks(searchText.trim())
+        } else {
+            Log.d("SearchScreen", "검색 조건 실패")
+        }
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -85,17 +111,13 @@ fun BookSearchTab(
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(
+                    onSearch = { performSearch() }
+                ),
                 trailingIcon = {
                     Button(
-                        onClick = {
-                            try {
-                                if (searchText.isNotBlank() && searchText.trim().isNotEmpty()) {
-                                    viewModel.searchBooks(searchText.trim())
-                                }
-                            } catch (e: Exception) {
-                                Log.e("SearchScreen", "Search button error: ${e.message}", e)
-                            }
-                        },
+                        onClick = { performSearch() },
                         enabled = searchText.isNotBlank() && !isLoading
                     ) {
                         Text("검색")
@@ -139,23 +161,71 @@ fun BookSearchTab(
             }
         }
 
-        // 검색 결과
-        if (books.isNotEmpty()) {
+        // 검색 결과 헤더
+        if (books.isNotEmpty() && currentQuery.isNotEmpty()) {
             item {
                 Text(
-                    "검색 결과 (${books.size}권)",
+                    "\"$currentQuery\" 검색 결과 (${books.size}권)",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = DarkRed
                 )
             }
+        }
 
+        // 검색 결과
+        if (books.isNotEmpty()) {
             items(books) { book ->
+                var isInLibrary by remember { mutableStateOf(false) }
+                
+                LaunchedEffect(book.isbn) {
+                    isInLibrary = libraryRepository.isBookInLibrary(book.isbn)
+                }
+                
                 BookSearchResultCard(
                     book = book,
-                    onAddToLibrary = { libraryRepository.addBookToLibrary(it) },
-                    isInLibrary = libraryRepository.isBookInLibrary(book.isbn)
+                    onAddToLibrary = { bookToAdd ->
+                        scope.launch {
+                            try {
+                                val success = libraryRepository.addBookToLibrary(bookToAdd)
+                                if (success) {
+                                    isInLibrary = true
+                                    Log.d("SearchScreen", "Book added successfully: ${bookToAdd.title}")
+                                } else {
+                                    Log.e("SearchScreen", "Failed to add book: ${bookToAdd.title}")
+                                }
+                            } catch (e: Exception) {
+                                Log.e("SearchScreen", "Error adding book: ${e.message}", e)
+                            }
+                        }
+                    },
+                    isInLibrary = isInLibrary
                 )
+            }
+
+            // 더보기 버튼
+            if (hasMoreResults && currentQuery.isNotEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isLoadingMore) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = DarkRed
+                            )
+                        } else {
+                            Button(
+                                onClick = { viewModel.loadMoreBooks() },
+                                colors = ButtonDefaults.buttonColors(containerColor = DarkRed),
+                                shape = RoundedCornerShape(20.dp)
+                            ) {
+                                Text("더보기")
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -252,10 +322,11 @@ fun BookSearchResultCard(
                         color = DarkRed
                     )
                 }
-                if (!book.itemPage.isNullOrEmpty()) {
+                val pageCount = book.extractPageCount()
+                if (pageCount > 0) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "${book.itemPage}페이지",
+                        text = "${pageCount}페이지",
                         fontSize = 12.sp,
                         color = TextGray
                     )
