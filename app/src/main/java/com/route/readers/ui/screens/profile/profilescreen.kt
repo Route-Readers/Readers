@@ -22,84 +22,28 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-
-data class UserProfile(
-    val uid: String = "",
-    val nickname: String = "",
-    val profileImageUrl: String? = null,
-    val readingGenres: List<String> = emptyList(),
-    val level: Int = 1,
-    val followerCount: Long = 0,
-    val followingCount: Long = 0,
-    val readBookCount: Int = 0 // 이 필드는 별도로 계산해야 할 수 있습니다.
-)
-
-sealed class ProfileUiState {
-    object Loading : ProfileUiState()
-    data class Success(val profile: UserProfile) : ProfileUiState()
-    data class Error(val message: String) : ProfileUiState()
-}
-
-open class ProfileViewModel : ViewModel() {
-    private val db = FirebaseFirestore.getInstance()
-    private val auth = FirebaseAuth.getInstance()
-
-    protected val _uiState = MutableStateFlow<ProfileUiState>(ProfileUiState.Loading)
-    val uiState: StateFlow<ProfileUiState> = _uiState
-
-    open fun fetchUserProfile(userId: String?) {
-        val targetUserId = userId ?: auth.currentUser?.uid
-        if (targetUserId == null) {
-            _uiState.value = ProfileUiState.Error("사용자 정보를 찾을 수 없습니다.")
-            return
-        }
-
-        _uiState.value = ProfileUiState.Loading
-        db.collection("users").document(targetUserId)
-            .get()
-            .addOnSuccessListener { document ->
-                if (document != null && document.exists()) {
-                    val userProfile = document.toObject(UserProfile::class.java)
-                    if (userProfile != null) {
-                        _uiState.value = ProfileUiState.Success(userProfile)
-                    } else {
-                        _uiState.value = ProfileUiState.Error("프로필 변환에 실패했습니다.")
-                    }
-                } else {
-                    _uiState.value = ProfileUiState.Error("프로필 데이터가 존재하지 않습니다.")
-                }
-            }
-            .addOnFailureListener { e ->
-                _uiState.value = ProfileUiState.Error("프로필을 불러오는 데 실패했습니다: ${e.message}")
-            }
-    }
-}
+import com.route.readers.data.model.User
+import com.route.readers.data.model.ProfileUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
+    userId: String? = null,
     onNavigateBack: () -> Unit,
-    // ▼▼▼ 1. onNavigateToSettings 파라미터를 onNavigateToLogin으로 변경 ▼▼▼
     onNavigateToLogin: () -> Unit,
-    onFollowersClick: () -> Unit,
-    onFollowingClick: () -> Unit,
+    onFollowersClick: (String) -> Unit,
+    onFollowingClick: (String) -> Unit,
     viewModel: ProfileViewModel = viewModel()
 ) {
-    LaunchedEffect(key1 = Unit) {
-        viewModel.fetchUserProfile(null) // 자신의 프로필을 불러옴
+    LaunchedEffect(key1 = userId) {
+        viewModel.fetchUserProfile(userId)
     }
 
     val uiState by viewModel.uiState.collectAsState()
-    // ▼▼▼ 2. 드롭다운 메뉴 표시 상태를 관리할 변수 추가 ▼▼▼
     var showMenu by remember { mutableStateOf(false) }
-
 
     Scaffold(
         topBar = {
@@ -111,28 +55,24 @@ fun ProfileScreen(
                     }
                 },
                 actions = {
-                    // ▼▼▼ 3. 설정 아이콘과 드롭다운 메뉴 구현 ▼▼▼
-                    Box {
-                        // 설정 아이콘 버튼
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Default.Settings, contentDescription = "설정")
-                        }
-
-                        // 드롭다운 메뉴
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
-                        ) {
-                            // 로그아웃 버튼 아이템
-                            DropdownMenuItem(
-                                text = { Text("로그아웃") },
-                                onClick = {
-                                    // 메뉴 닫고, Firebase에서 로그아웃 후, 로그인 화면으로 이동
-                                    showMenu = false
-                                    FirebaseAuth.getInstance().signOut()
-                                    onNavigateToLogin()
-                                }
-                            )
+                    if ((uiState as? ProfileUiState.Success)?.isMyProfile == true) {
+                        Box {
+                            IconButton(onClick = { showMenu = true }) {
+                                Icon(Icons.Default.Settings, contentDescription = "설정")
+                            }
+                            DropdownMenu(
+                                expanded = showMenu,
+                                onDismissRequest = { showMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("로그아웃") },
+                                    onClick = {
+                                        showMenu = false
+                                        FirebaseAuth.getInstance().signOut()
+                                        onNavigateToLogin()
+                                    }
+                                )
+                            }
                         }
                     }
                 },
@@ -155,9 +95,13 @@ fun ProfileScreen(
                 is ProfileUiState.Error -> Text(text = state.message)
                 is ProfileUiState.Success -> {
                     ProfileContent(
-                        userProfile = state.profile,
-                        onFollowersClick = onFollowersClick,
-                        onFollowingClick = onFollowingClick
+                        user = state.user,
+                        isMyProfile = state.isMyProfile,
+                        isFollowing = state.isFollowing,
+                        onFollowClick = { viewModel.followUser(state.user.uid) },
+                        onUnfollowClick = { viewModel.unfollowUser(state.user.uid) },
+                        onFollowersClick = { onFollowersClick(state.user.uid) },
+                        onFollowingClick = { onFollowingClick(state.user.uid) }
                     )
                 }
             }
@@ -165,9 +109,14 @@ fun ProfileScreen(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ProfileContent(
-    userProfile: UserProfile,
+    user: User,
+    isMyProfile: Boolean,
+    isFollowing: Boolean,
+    onFollowClick: () -> Unit,
+    onUnfollowClick: () -> Unit,
     onFollowersClick: () -> Unit,
     onFollowingClick: () -> Unit
 ) {
@@ -190,25 +139,17 @@ fun ProfileContent(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 ProfileImage(
-                    imageUrl = userProfile.profileImageUrl,
-                    nickname = userProfile.nickname,
+                    imageUrl = user.profileImageUrl,
+                    nickname = user.nickname,
                     size = 100.dp,
                     backgroundColor = primaryRed
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Text(
-                    text = userProfile.nickname,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Text(text = user.nickname, fontSize = 22.sp, fontWeight = FontWeight.Bold)
 
-                Chip(
-                    label = "레벨 ${userProfile.level}",
-                    backgroundColor = Color(0xFFF5E1DF),
-                    contentColor = primaryRed
-                )
+                Chip(label = "레벨 ${user.level}", backgroundColor = Color(0xFFF5E1DF), contentColor = primaryRed)
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -217,25 +158,80 @@ fun ProfileContent(
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    ProfileInfoItem(
-                        count = userProfile.followerCount.toString(),
-                        label = "팔로워",
-                        onClick = onFollowersClick
-                    )
-                    ProfileInfoItem(
-                        count = userProfile.followingCount.toString(),
-                        label = "팔로잉",
-                        onClick = onFollowingClick
-                    )
-                    ProfileInfoItem(
-                        count = userProfile.readBookCount.toString(),
-                        label = "읽은 책"
-                    )
+                    ProfileInfoItem(count = user.followerCount.toString(), label = "팔로워", onClick = onFollowersClick)
+                    ProfileInfoItem(count = user.followingCount.toString(), label = "팔로잉", onClick = onFollowingClick)
+                    ProfileInfoItem(count = user.readBookCount.toString(), label = "읽은 책")
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (!isMyProfile) {
+                    Button(
+                        onClick = { if (isFollowing) onUnfollowClick() else onFollowClick() },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 32.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isFollowing) Color.Gray else primaryRed
+                        )
+                    ) {
+                        Text(text = if (isFollowing) "언팔로우" else "팔로우")
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        if (user.readingGenres.isNotEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("선호 장르", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        user.readingGenres.forEach { genre ->
+                            Chip(label = genre, backgroundColor = Color(0xFFF5E1DF), contentColor = primaryRed)
+                        }
+                    }
+                }
+            }
+        }
+
+        // ✨✨✨ 새로 추가된 독서 스타일 카드 ✨✨✨
+        if (user.readingStyles.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("독서 스타일", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        user.readingStyles.forEach { style ->
+                            Chip(label = style, backgroundColor = Color(0xFFF5E1DF), contentColor = primaryRed)
+                        }
+                    }
                 }
             }
         }
     }
 }
+
 
 @Composable
 fun ProfileImage(
@@ -276,20 +272,11 @@ fun ProfileInfoItem(count: String, label: String, onClick: (() -> Unit)? = null)
     val modifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier
+        modifier = modifier.padding(4.dp)
     ) {
-        Text(
-            text = count,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFFC0392B)
-        )
+        Text(text = count, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFFC0392B))
         Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = label,
-            fontSize = 14.sp,
-            color = Color.Gray
-        )
+        Text(text = label, fontSize = 14.sp, color = Color.Gray)
     }
 }
 
@@ -307,29 +294,27 @@ fun Chip(label: String, backgroundColor: Color, contentColor: Color) {
 @Preview(showBackground = true)
 @Composable
 fun ProfileScreenPreview() {
-    class FakeProfileViewModel : ProfileViewModel() {
-        override fun fetchUserProfile(userId: String?) {
-            _uiState.value = ProfileUiState.Success(
-                UserProfile(
-                    uid = "previewUser",
-                    nickname = "책벌레독서가",
-                    level = 8,
-                    followerCount = 234,
-                    followingCount = 89,
-                    readBookCount = 47
-                )
-            )
-        }
-    }
+    val fakeUser = User(
+        uid = "previewUser",
+        nickname = "책벌레독서가",
+        level = 8,
+        followerCount = 234,
+        followingCount = 89,
+        readBookCount = 47,
+        readingGenres = listOf("소설", "자기계발", "역사", "SF"),
+        // Preview에도 readingStyles 추가
+        readingStyles = listOf("한 분야 깊게 파기", "천천히 음미하기")
+    )
 
     MaterialTheme {
-        ProfileScreen(
-            onNavigateBack = {},
-            // ▼▼▼ 4. Preview에서도 파라미터 이름 변경 ▼▼▼
-            onNavigateToLogin = {},
+        ProfileContent(
+            user = fakeUser,
+            isMyProfile = false,
+            isFollowing = true,
+            onFollowClick = {},
+            onUnfollowClick = {},
             onFollowersClick = {},
-            onFollowingClick = {},
-            viewModel = FakeProfileViewModel()
+            onFollowingClick = {}
         )
     }
 }

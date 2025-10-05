@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -27,9 +28,10 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.ui.screens.MainScreen
 import com.route.readers.ui.screens.login.LoginScreen
-import com.route.readers.ui.screens.onboarding.OnboardingScreen
-import com.route.readers.ui.screens.profilesetup.ProfileSetupScreen
-import com.route.readers.ui.screens.signup.SignUpScreen
+import com.route.readers.ui.screens.login.LoginViewModel
+import com.route.readers.ui.screens.login.OnboardingScreen
+import com.route.readers.ui.screens.profile.ProfileSetupScreen
+import com.route.readers.ui.screens.login.SignUpScreen
 import com.route.readers.ui.theme.ReadersTheme
 
 val LocalAppNavController = staticCompositionLocalOf<NavHostController?> { null }
@@ -74,7 +76,14 @@ fun RootAppNavigation() {
                     appNavController.navigate("onboarding_route") {
                         popUpTo("decision_route") { inclusive = true }
                     }
-                } else {
+                } else if (!currentUser.isEmailVerified) {
+                    auth.signOut()
+                    Toast.makeText(context, "이메일 인증을 완료해주세요.", Toast.LENGTH_LONG).show()
+                    appNavController.navigate("login_route/verification") {
+                        popUpTo("decision_route") { inclusive = true }
+                    }
+                }
+                else {
                     firestore.collection("users").document(currentUser.uid).get()
                         .addOnSuccessListener { document ->
                             val destination = if (document.exists() && document.getString("nickname") != null) {
@@ -127,13 +136,13 @@ fun RootAppNavigation() {
                 }
             )
         }
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
         composable(
             route = "login_route/{from}",
             arguments = listOf(navArgument("from") { type = NavType.StringType })
         ) { backStackEntry ->
             val fromScreen = backStackEntry.arguments?.getString("from")
+            val loginViewModel: LoginViewModel = viewModel()
 
             LoginScreen(
                 onNavigateToHome = {
@@ -150,14 +159,15 @@ fun RootAppNavigation() {
                     appNavController.navigate("signup_route")
                 },
                 onNavigateBack = {
-                    if (fromScreen == "signup") {
+                    if (fromScreen == "signup" || fromScreen == "verification" || fromScreen == "signup_success") {
                         appNavController.popBackStack()
                     } else {
                         appNavController.navigate("onboarding_route") {
                             popUpTo(appNavController.graph.id) { inclusive = true }
                         }
                     }
-                }
+                },
+                loginViewModel = loginViewModel
             )
         }
 
@@ -167,6 +177,9 @@ fun RootAppNavigation() {
                     appNavController.navigate("main_app_content_route") {
                         popUpTo(appNavController.graph.id) { inclusive = true }
                     }
+                },
+                onNavigateBack = {
+                    appNavController.popBackStack()
                 }
             )
         }

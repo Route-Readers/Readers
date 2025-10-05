@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.AuthResult
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,6 +14,7 @@ import kotlinx.coroutines.tasks.await
 sealed class LoginUiState {
     object Idle : LoginUiState()
     object Loading : LoginUiState()
+    object GoogleLoading : LoginUiState()
     object ExistingUser : LoginUiState()
     object NewUser : LoginUiState()
     data class Error(val message: String) : LoginUiState()
@@ -38,9 +40,11 @@ class LoginViewModel : ViewModel() {
                     val user = auth.currentUser
                     if (user != null && user.isEmailVerified) {
                         checkIfUserProfileExists(user.uid)
-                    } else {
+                    } else if (user != null && !user.isEmailVerified) {
                         _uiState.value = LoginUiState.Error("이메일 인증을 먼저 완료해주세요.")
                         auth.signOut()
+                    } else {
+                        _uiState.value = LoginUiState.Error("로그인에 실패했습니다. 사용자 정보를 확인할 수 없습니다.")
                     }
                 } else {
                     val exceptionMessage = task.exception?.message
@@ -51,6 +55,19 @@ class LoginViewModel : ViewModel() {
                     _uiState.value = LoginUiState.Error(errorMessage)
                 }
             }
+    }
+
+    fun loginWithGoogle(idToken: String) {
+        viewModelScope.launch {
+            _uiState.value = LoginUiState.GoogleLoading
+            try {
+                val credential = GoogleAuthProvider.getCredential(idToken, null)
+                val authResult = auth.signInWithCredential(credential).await()
+                handleSuccessfulAuth(authResult)
+            } catch (e: Exception) {
+                _uiState.value = LoginUiState.Error("Google 로그인 중 오류가 발생했습니다: ${e.message}")
+            }
+        }
     }
 
     fun handleSuccessfulAuth(authResult: AuthResult) {
@@ -67,7 +84,7 @@ class LoginViewModel : ViewModel() {
             _uiState.value = LoginUiState.Loading
             try {
                 val document = db.collection("users").document(uid).get().await()
-                if (document.exists()) {
+                if (document.exists() && document.getString("nickname") != null) {
                     _uiState.value = LoginUiState.ExistingUser
                 } else {
                     _uiState.value = LoginUiState.NewUser
@@ -80,5 +97,9 @@ class LoginViewModel : ViewModel() {
 
     fun resetState() {
         _uiState.value = LoginUiState.Idle
+    }
+
+    fun resetStateToError(message: String) {
+        _uiState.value = LoginUiState.Error(message)
     }
 }
