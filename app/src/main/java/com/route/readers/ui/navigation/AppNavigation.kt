@@ -9,6 +9,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -18,9 +19,12 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.ui.screens.MainScreen
 import com.route.readers.ui.screens.login.LoginScreen
+import com.route.readers.ui.screens.login.LoginViewModel
 import com.route.readers.ui.screens.login.OnboardingScreen
-import com.route.readers.ui.screens.profile.ProfileSetupScreen
 import com.route.readers.ui.screens.login.SignUpScreen
+import com.route.readers.ui.screens.profile.FollowListScreen
+import com.route.readers.ui.screens.profile.ProfileScreen
+import com.route.readers.ui.screens.profile.ProfileSetupScreen
 
 @Composable
 fun AppNavigation(navController: NavHostController) {
@@ -99,6 +103,7 @@ fun AppNavigation(navController: NavHostController) {
             arguments = listOf(navArgument("from") { type = NavType.StringType })
         ) { backStackEntry ->
             val fromScreen = backStackEntry.arguments?.getString("from")
+            val loginViewModel: LoginViewModel = viewModel()
 
             LoginScreen(
                 onNavigateToHome = {
@@ -115,14 +120,15 @@ fun AppNavigation(navController: NavHostController) {
                     navController.navigate("signup_route")
                 },
                 onNavigateBack = {
-                    if (fromScreen == "signup") {
+                    if (fromScreen == "signup" || fromScreen == "verification" || fromScreen == "signup_success") {
                         navController.popBackStack()
                     } else {
                         navController.navigate("onboarding_route") {
                             popUpTo(navController.graph.id) { inclusive = true }
                         }
                     }
-                }
+                },
+                loginViewModel = loginViewModel
             )
         }
 
@@ -140,15 +146,69 @@ fun AppNavigation(navController: NavHostController) {
         }
 
         composable("main_app_content_route") {
+            val auth = FirebaseAuth.getInstance()
             MainScreen(
-                onNavigateToLogin = {
-                    navController.navigate("login_route/logout") {
-                        popUpTo(navController.graph.id) {
-                            inclusive = true
-                        }
+                onNavigateToProfile = {
+                    val userId = auth.currentUser?.uid
+                    if (userId != null) {
+                        navController.navigate("profile_route/$userId")
                     }
+                },
+                onNavigateToOtherUserProfile = { userId ->
+                    navController.navigate("profile_route/$userId")
                 }
             )
+        }
+
+        composable(
+            route = "profile_route/{userId}",
+            arguments = listOf(navArgument("userId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId")
+            if (userId != null) {
+                ProfileScreen(
+                    userId = userId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onLogout = {
+                        FirebaseAuth.getInstance().signOut()
+                        navController.navigate("onboarding_route") {
+                            popUpTo(navController.graph.startDestinationId) {
+                                inclusive = true
+                            }
+                        }
+                    },
+                    onNavigateToFollowList = { listType, nickname ->
+                        val encodedNickname = java.net.URLEncoder.encode(nickname, "UTF-8")
+                        navController.navigate("follow_list_route/$userId/$listType/$encodedNickname")
+                    }
+                )
+            }
+        }
+
+        composable(
+            route = "follow_list_route/{userId}/{initialListType}/{nickname}",
+            arguments = listOf(
+                navArgument("userId") { type = NavType.StringType },
+                navArgument("initialListType") { type = NavType.StringType },
+                navArgument("nickname") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId")
+            val initialListType = backStackEntry.arguments?.getString("initialListType")
+            val nickname = backStackEntry.arguments?.getString("nickname")?.let {
+                java.net.URLDecoder.decode(it, "UTF-8")
+            }
+            if (userId != null && initialListType != null && nickname != null) {
+                FollowListScreen(
+                    userId = userId,
+                    initialListType = initialListType,
+                    nickname = nickname,
+                    onUserClick = { clickedUserId ->
+                        navController.navigate("profile_route/$clickedUserId")
+                    },
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
         }
     }
 }

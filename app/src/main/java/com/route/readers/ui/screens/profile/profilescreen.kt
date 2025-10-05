@@ -24,18 +24,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
-import com.google.firebase.auth.FirebaseAuth
-import com.route.readers.data.model.User
 import com.route.readers.data.model.ProfileUiState
+import com.route.readers.data.model.User
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ProfileScreen(
-    userId: String? = null,
+    userId: String,
     onNavigateBack: () -> Unit,
-    onNavigateToLogin: () -> Unit,
-    onFollowersClick: (String) -> Unit,
-    onFollowingClick: (String) -> Unit,
+    onLogout: () -> Unit,
+    onNavigateToFollowList: (listType: String, nickname: String) -> Unit,
     viewModel: ProfileViewModel = viewModel()
 ) {
     LaunchedEffect(key1 = userId) {
@@ -68,8 +66,7 @@ fun ProfileScreen(
                                     text = { Text("로그아웃") },
                                     onClick = {
                                         showMenu = false
-                                        FirebaseAuth.getInstance().signOut()
-                                        onNavigateToLogin()
+                                        onLogout()
                                     }
                                 )
                             }
@@ -100,8 +97,9 @@ fun ProfileScreen(
                         isFollowing = state.isFollowing,
                         onFollowClick = { viewModel.followUser(state.user.uid) },
                         onUnfollowClick = { viewModel.unfollowUser(state.user.uid) },
-                        onFollowersClick = { onFollowersClick(state.user.uid) },
-                        onFollowingClick = { onFollowingClick(state.user.uid) }
+                        onFollowListClick = { listType ->
+                            onNavigateToFollowList(listType, state.user.nickname)
+                        }
                     )
                 }
             }
@@ -117,8 +115,7 @@ fun ProfileContent(
     isFollowing: Boolean,
     onFollowClick: () -> Unit,
     onUnfollowClick: () -> Unit,
-    onFollowersClick: () -> Unit,
-    onFollowingClick: () -> Unit
+    onFollowListClick: (String) -> Unit
 ) {
     val primaryRed = Color(0xFFC0392B)
     Column(
@@ -158,8 +155,8 @@ fun ProfileContent(
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    ProfileInfoItem(count = user.followerCount.toString(), label = "팔로워", onClick = onFollowersClick)
-                    ProfileInfoItem(count = user.followingCount.toString(), label = "팔로잉", onClick = onFollowingClick)
+                    ProfileInfoItem(count = user.followerCount.toString(), label = "팔로워", onClick = { onFollowListClick("followers") })
+                    ProfileInfoItem(count = user.followingCount.toString(), label = "팔로잉", onClick = { onFollowListClick("following") })
                     ProfileInfoItem(count = user.readBookCount.toString(), label = "읽은 책")
                 }
 
@@ -206,7 +203,6 @@ fun ProfileContent(
             }
         }
 
-        // ✨✨✨ 새로 추가된 독서 스타일 카드 ✨✨✨
         if (user.readingStyles.isNotEmpty()) {
             Spacer(modifier = Modifier.height(16.dp))
             Card(
@@ -302,7 +298,6 @@ fun ProfileScreenPreview() {
         followingCount = 89,
         readBookCount = 47,
         readingGenres = listOf("소설", "자기계발", "역사", "SF"),
-        // Preview에도 readingStyles 추가
         readingStyles = listOf("한 분야 깊게 파기", "천천히 음미하기")
     )
 
@@ -313,8 +308,7 @@ fun ProfileScreenPreview() {
             isFollowing = true,
             onFollowClick = {},
             onUnfollowClick = {},
-            onFollowersClick = {},
-            onFollowingClick = {}
+            onFollowListClick = {}
         )
     }
 }
