@@ -4,42 +4,44 @@ import android.util.Log
 import com.google.gson.GsonBuilder
 import com.route.readers.BuildConfig
 import com.route.readers.data.model.Book
+import com.route.readers.data.model.BookListDTO
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.converter.scalars.ScalarsConverterFactory
 
 class BookRepository {
-    
-    private val gson = GsonBuilder().setLenient().create()
-    private val retrofit: Retrofit = Retrofit.Builder()
-        .baseUrl("http://www.aladin.co.kr/ttb/api/")
-        .addConverterFactory(ScalarsConverterFactory.create())
-        .addConverterFactory(GsonConverterFactory.create(gson))
-        .build()
 
-    private val bookService = retrofit.create(BookService::class.java)
+    // Retrofit과 BookService 인스턴스를 lazy 초기화를 통해 생성합니다.
+    private val bookService: BookService by lazy {
+        val gson = GsonBuilder().setLenient().create()
+        val retrofit = Retrofit.Builder()
+            .baseUrl("http://www.aladin.co.kr/ttb/api/")
+            .addConverterFactory(GsonConverterFactory.create(gson))
+            .build()
+        // 별도의 파일에 정의된 BookService 인터페이스를 사용합니다.
+        retrofit.create(BookService::class.java)
+    }
 
-    suspend fun getBookSearch(query: String): List<Book> {
+    suspend fun getBookSearch(query: String, maxResults: Int = 20): List<Book> {
         return try {
             if (TTBKEY.isBlank()) {
-                Log.e("BookRepository", "API Key is missing")
+                Log.e("BookRepository", "TTBKey is missing.")
                 return emptyList()
             }
-            
+            // API 명세에 맞는 파라미터 이름을 사용해야 합니다. (ttbKey -> ttbkey 등)
+            // BookService.kt 파일에 정의된 함수를 호출합니다.
             val response = bookService.getBookSearch(
-                ttbkey = TTBKEY,
-                query = query
+                ttbKey = TTBKEY,
+                query = query,
+                maxResults = maxResults
             )
-            Log.d("BookRepository", "Search response: ${response.body()}")
-            
             if (response.isSuccessful) {
                 response.body()?.books ?: emptyList()
             } else {
-                Log.e("BookRepository", "API Error: ${response.code()} - ${response.message()}")
+                Log.e("BookRepository", "Search API Error: ${response.code()} - ${response.message()}")
                 emptyList()
             }
         } catch (e: Exception) {
-            Log.e("BookRepository", "Search error: ${e.message}", e)
+            Log.e("BookRepository", "Search failed: ${e.message}", e)
             emptyList()
         }
     }
@@ -47,45 +49,52 @@ class BookRepository {
     suspend fun getBookList(): List<Book> {
         return try {
             if (TTBKEY.isBlank()) {
-                Log.e("BookRepository", "API Key is missing")
+                Log.e("BookRepository", "TTBKey is missing.")
                 return emptyList()
             }
-            
             val response = bookService.getBookList(
-                ttbkey = TTBKEY,
-                querytype = QUERY_TYPE,
-                searchtarget = SEARCH_TARGET,
+                ttbKey = TTBKEY,
+                queryType = QUERY_TYPE,
+                searchTarget = SEARCH_TARGET,
                 output = OUTPUT
             )
-            Log.d("BookRepository", "List response: ${response.body()}")
-            
             if (response.isSuccessful) {
                 response.body()?.books ?: emptyList()
             } else {
-                Log.e("BookRepository", "API Error: ${response.code()} - ${response.message()}")
+                Log.e("BookRepository", "List API Error: ${response.code()} - ${response.message()}")
                 emptyList()
             }
         } catch (e: Exception) {
-            Log.e("BookRepository", "List error: ${e.message}", e)
+            Log.e("BookRepository", "Get list failed: ${e.message}", e)
             emptyList()
         }
     }
 
     suspend fun getBookDetail(itemid: String): Book? {
         return try {
+            if (TTBKEY.isBlank()) {
+                Log.e("BookRepository", "TTBKey is missing.")
+                return null
+            }
             val response = bookService.getBookDetail(
-                ttbkey = TTBKEY,
-                itemid = itemid,
-                itemidtype = ITEM_ID_TYPE,
+                ttbKey = TTBKEY,
+                itemId = itemid,
+                itemIdType = ITEM_ID_TYPE,
                 output = OUTPUT
             )
-            response.body()?.books?.firstOrNull()
+            if (response.isSuccessful) {
+                response.body()?.books?.firstOrNull()
+            } else {
+                Log.e("BookRepository", "Detail API Error: ${response.code()} - ${response.message()}")
+                null
+            }
         } catch (e: Exception) {
-            Log.e("BookRepository", "Detail error: ${e.message}")
+            Log.e("BookRepository", "Get detail failed: ${e.message}", e)
             null
         }
     }
 
+    // companion object는 API 키와 같은 상수들을 보관합니다.
     private companion object {
         private val TTBKEY = BuildConfig.ALADIN_TTB_KEY
         private const val QUERY_TYPE = "ItemNewSpecial"

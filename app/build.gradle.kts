@@ -1,11 +1,12 @@
-
 import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.gms.google-services")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+
 android {
     namespace = "com.route.readers"
     compileSdk = 35
@@ -30,22 +31,22 @@ android {
             "ALADIN_TTB_KEY",
             "\"${localProperties.getProperty("ALADIN_TTB_KEY", "")}\""
         )
-
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
     kotlinOptions {
         jvmTarget = "17"
     }
+
     buildFeatures {
         compose = true
         buildConfig = true
     }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.8"
-    }
+
 }
 
 dependencies {
@@ -61,15 +62,19 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation("androidx.navigation:navigation-compose:2.7.7")
+    implementation("androidx.core:core-splashscreen:1.0.1")
+
+    
+    implementation("androidx.compose.foundation:foundation-layout:1.6.8")
 
     // --- Firebase ---
     implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
     implementation("com.google.android.gms:play-services-auth:21.4.0")
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth")
+    // firestore 중복 선언 제거됨
     implementation("com.google.firebase:firebase-firestore")
-    implementation("androidx.core:core-splashscreen:1.0.1")
-    implementation("com.google.firebase:firebase-firestore")
+
     // --- Retrofit ---
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")

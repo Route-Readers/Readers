@@ -7,36 +7,40 @@ import retrofit2.http.Query
 
 interface BookService {
 
-    // 알라딘 책 검색 api
     @GET("ItemSearch.aspx")
     suspend fun getBookSearch(
-        @Query("ttbkey") ttbkey: String,
+        @Query("TTBKey") ttbKey: String, // 파라미터명 대문자 TTBKey로 수정
         @Query("Query") query: String,
-        @Query("QueryType") queryType: String = "Title",
-        @Query("MaxResults") maxResults: Int = 10,
-        @Query("start") start: Int = 1,
+        @Query("QueryType") queryType: String = "Keyword", // "Title" -> "Keyword"로 변경
+        @Query("MaxResults") maxResults: Int = 20, // 기본값을 20으로 변경
+        @Query("Start") start: Int = 1, // 파라미터명 대문자 Start로 수정
         @Query("SearchTarget") searchTarget: String = "Book",
-        @Query("output") output: String = "js",
+        @Query("Output") output: String = "js", // 파라미터명 소문자 output으로 수정
         @Query("Version") version: String = "20131101"
     ): Response<BookListDTO>
 
-    // 알라딘 책 목록 api
+    /**
+     * 알라딘 도서 목록 API (신간, 베스트셀러 등)
+     */
     @GET("ItemList.aspx")
     suspend fun getBookList(
-        @Query("ttbkey") ttbkey: String,
-        @Query("QueryType") querytype: String,
-        @Query("SearchTarget") searchtarget: String,
-        @Query("output") output: String,
+        @Query("TTBKey") ttbKey: String, // 파라미터명 대문자 TTBKey로 수정
+        @Query("QueryType") queryType: String, // 파라미터명 queryType으로 통일
+        @Query("MaxResults") maxResults: Int = 20,
+        @Query("SearchTarget") searchTarget: String, // 파라미터명 searchTarget으로 통일
+        @Query("Output") output: String, // 파라미터명 소문자 output으로 수정
         @Query("Version") version: String = "20131101"
     ): Response<BookListDTO>
 
-    // 알라딘 책 상세 api
+    /**
+     * 알라딘 도서 상세 정보 API
+     */
     @GET("ItemLookUp.aspx")
     suspend fun getBookDetail(
-        @Query("ttbkey") ttbkey: String,
-        @Query("ItemId") itemid: String,
-        @Query("itemIdType") itemidtype: String,
-        @Query("output") output: String,
+        @Query("TTBKey") ttbKey: String, // 파라미터명 대문자 TTBKey로 수정
+        @Query("ItemId") itemId: String, // 파라미터명 itemId로 통일
+        @Query("ItemIdType") itemIdType: String, // 파라미터명 itemIdType으로 통일
+        @Query("Output") output: String, // 파라미터명 소문자 output으로 수정
         @Query("Version") version: String = "20131101"
     ): Response<BookListDTO>
 }
