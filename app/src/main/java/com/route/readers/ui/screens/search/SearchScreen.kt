@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -15,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -75,8 +78,17 @@ fun BookSearchTab(
     var searchText by remember { mutableStateOf("") }
     val books by viewModel.books.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val isLoadingMore by viewModel.isLoadingMore.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val currentQuery by viewModel.currentQuery.collectAsState()
+    val hasMoreResults by viewModel.hasMoreResults.collectAsState()
     val scope = rememberCoroutineScope()
+
+    fun performSearch() {
+        if (searchText.isNotBlank() && searchText.trim().isNotEmpty()) {
+            viewModel.searchBooks(searchText.trim())
+        }
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -91,17 +103,13 @@ fun BookSearchTab(
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(
+                    onSearch = { performSearch() }
+                ),
                 trailingIcon = {
                     Button(
-                        onClick = {
-                            try {
-                                if (searchText.isNotBlank() && searchText.trim().isNotEmpty()) {
-                                    viewModel.searchBooks(searchText.trim())
-                                }
-                            } catch (e: Exception) {
-                                Log.e("SearchScreen", "Search button error: ${e.message}", e)
-                            }
-                        },
+                        onClick = { performSearch() },
                         enabled = searchText.isNotBlank() && !isLoading
                     ) {
                         Text("검색")
@@ -145,21 +153,23 @@ fun BookSearchTab(
             }
         }
 
-        // 검색 결과
-        if (books.isNotEmpty()) {
+        // 검색 결과 헤더
+        if (books.isNotEmpty() && currentQuery.isNotEmpty()) {
             item {
                 Text(
-                    "검색 결과 (${books.size}권)",
+                    "\"$currentQuery\" 검색 결과 (${books.size}권)",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = DarkRed
                 )
             }
+        }
 
+        // 검색 결과
+        if (books.isNotEmpty()) {
             items(books) { book ->
                 var isInLibrary by remember { mutableStateOf(false) }
                 
-                // 책이 서재에 있는지 확인
                 LaunchedEffect(book.isbn) {
                     isInLibrary = libraryRepository.isBookInLibrary(book.isbn)
                 }
@@ -183,6 +193,31 @@ fun BookSearchTab(
                     },
                     isInLibrary = isInLibrary
                 )
+            }
+
+            // 더보기 버튼
+            if (hasMoreResults && currentQuery.isNotEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isLoadingMore) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = DarkRed
+                            )
+                        } else {
+                            Button(
+                                onClick = { viewModel.loadMoreBooks() },
+                                colors = ButtonDefaults.buttonColors(containerColor = DarkRed),
+                                shape = RoundedCornerShape(20.dp)
+                            ) {
+                                Text("더보기")
+                            }
+                        }
+                    }
+                }
             }
         }
 

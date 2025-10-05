@@ -19,7 +19,7 @@ class BookRepository {
 
     private val bookService = retrofit.create(BookService::class.java)
 
-    suspend fun getBookSearch(query: String): List<Book> {
+    suspend fun getBookSearch(query: String, page: Int = 1, maxResults: Int = 10): List<Book> {
         return try {
             if (TTBKEY.isBlank()) {
                 Log.e("BookRepository", "API Key is missing")
@@ -28,7 +28,9 @@ class BookRepository {
             
             val response = bookService.getBookSearch(
                 ttbkey = TTBKEY,
-                query = query
+                query = query,
+                start = page,
+                maxResults = maxResults
             )
             Log.d("BookRepository", "Search response: ${response.body()}")
             
