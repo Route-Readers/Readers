@@ -21,14 +21,18 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.route.readers.R
 import com.route.readers.data.model.Book
+import com.route.readers.data.model.MyBook
 import com.route.readers.data.remote.MyLibraryRepository
+import com.route.readers.data.remote.FirestoreRepository
 import com.route.readers.ui.theme.*
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
     viewModel: BookViewModel = viewModel(),
-    libraryRepository: MyLibraryRepository = MyLibraryRepository()
+    libraryRepository: MyLibraryRepository = MyLibraryRepository(),
+    firestoreRepository: FirestoreRepository = FirestoreRepository()
 ) {
     var selectedTab by remember { mutableStateOf(0) }
 
@@ -55,7 +59,7 @@ fun SearchScreen(
         }
 
         when (selectedTab) {
-            0 -> BookSearchTab(viewModel, libraryRepository)
+            0 -> BookSearchTab(viewModel, libraryRepository, firestoreRepository)
             1 -> LibrarySearchTab()
         }
     }
@@ -65,12 +69,14 @@ fun SearchScreen(
 @Composable
 fun BookSearchTab(
     viewModel: BookViewModel,
-    libraryRepository: MyLibraryRepository
+    libraryRepository: MyLibraryRepository,
+    firestoreRepository: FirestoreRepository
 ) {
     var searchText by remember { mutableStateOf("") }
     val books by viewModel.books.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val scope = rememberCoroutineScope()
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -151,10 +157,31 @@ fun BookSearchTab(
             }
 
             items(books) { book ->
+                var isInLibrary by remember { mutableStateOf(false) }
+                
+                // 책이 서재에 있는지 확인
+                LaunchedEffect(book.isbn) {
+                    isInLibrary = libraryRepository.isBookInLibrary(book.isbn)
+                }
+                
                 BookSearchResultCard(
                     book = book,
-                    onAddToLibrary = { libraryRepository.addBookToLibrary(it) },
-                    isInLibrary = libraryRepository.isBookInLibrary(book.isbn)
+                    onAddToLibrary = { bookToAdd ->
+                        scope.launch {
+                            try {
+                                val success = libraryRepository.addBookToLibrary(bookToAdd)
+                                if (success) {
+                                    isInLibrary = true
+                                    Log.d("SearchScreen", "Book added successfully: ${bookToAdd.title}")
+                                } else {
+                                    Log.e("SearchScreen", "Failed to add book: ${bookToAdd.title}")
+                                }
+                            } catch (e: Exception) {
+                                Log.e("SearchScreen", "Error adding book: ${e.message}", e)
+                            }
+                        }
+                    },
+                    isInLibrary = isInLibrary
                 )
             }
         }

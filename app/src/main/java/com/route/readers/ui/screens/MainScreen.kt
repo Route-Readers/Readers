@@ -44,7 +44,10 @@ fun MainScreen(
                 MyLibraryScreen()
             }
             composable(BottomNavItem.Search.route) {
-                SearchScreen()
+                SearchScreen(
+                    libraryRepository = com.route.readers.data.remote.MyLibraryRepository(),
+                    firestoreRepository = com.route.readers.data.remote.FirestoreRepository()
+                )
             }
             composable(BottomNavItem.Community.route) {
                 CommunityScreen(
