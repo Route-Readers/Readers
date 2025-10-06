@@ -31,6 +31,13 @@ android {
             "ALADIN_TTB_KEY",
             "\"${localProperties.getProperty("ALADIN_TTB_KEY", "")}\""
         )
+
+        // ▼▼▼ 여기에 도서관 API 키를 위한 buildConfigField를 추가했습니다. ▼▼▼
+        buildConfigField(
+            "String",
+            "DATA_GO_KR_API_KEY",
+            "\"${localProperties.getProperty("DATA_GO_KR_API_KEY", "")}\""
+        )
     }
 
     compileOptions {
@@ -64,7 +71,7 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("androidx.core:core-splashscreen:1.0.1")
 
-    
+
     implementation("androidx.compose.foundation:foundation-layout:1.6.8")
 
     // --- Firebase ---
@@ -82,4 +89,7 @@ dependencies {
 
     // --- Coil for image loading ---
     implementation("io.coil-kt:coil-compose:2.4.0")
+    // 위치
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+
 }

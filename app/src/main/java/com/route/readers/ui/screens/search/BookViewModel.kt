@@ -141,4 +141,12 @@ class BookViewModel : ViewModel() {
             }
         }
     }
+
+    fun clearSearchResults() {
+        _books.value = emptyList()
+        _currentQuery.value = ""
+        _errorMessage.value = null
+        _hasMoreResults.value = false
+        currentPage = 1
+    }
 }
