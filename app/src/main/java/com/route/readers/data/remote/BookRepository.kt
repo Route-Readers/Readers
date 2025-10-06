@@ -4,27 +4,25 @@ import android.util.Log
 import com.google.gson.GsonBuilder
 import com.route.readers.BuildConfig
 import com.route.readers.data.model.Book
-import com.route.readers.data.model.BookListDTO
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 class BookRepository {
     
-    private val gson = GsonBuilder().setLenient().create()
-    private val retrofit: Retrofit = Retrofit.Builder()
-        .baseUrl("http://www.aladin.co.kr/ttb/api/")
-        .addConverterFactory(GsonConverterFactory.create(gson))
-        .build()
-
-
-    // Retrofit과 BookService 인스턴스를 lazy 초기화를 통해 생성합니다.
+    companion object {
+        private val TTBKEY = BuildConfig.ALADIN_TTB_KEY
+        private const val QUERY_TYPE = "ItemNewSpecial"
+        private const val SEARCH_TARGET = "Book"
+        private const val ITEM_ID_TYPE = "ISBN"
+        private const val OUTPUT = "js"
+    }
+    
     private val bookService: BookService by lazy {
         val gson = GsonBuilder().setLenient().create()
         val retrofit = Retrofit.Builder()
             .baseUrl("http://www.aladin.co.kr/ttb/api/")
             .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
-        // 별도의 파일에 정의된 BookService 인터페이스를 사용합니다.
         retrofit.create(BookService::class.java)
     }
 
@@ -37,10 +35,9 @@ class BookRepository {
                 Log.e("BookRepository", "TTBKey is missing.")
                 return emptyList()
             }
-            // API 명세에 맞는 파라미터 이름을 사용해야 합니다. (ttbKey -> ttbkey 등)
-            // BookService.kt 파일에 정의된 함수를 호출합니다.
+            
             val response = bookService.getBookSearch(
-                ttbkey = TTBKEY,
+                ttbKey = TTBKEY,
                 query = query,
                 start = page,
                 maxResults = maxResults
@@ -52,28 +49,25 @@ class BookRepository {
                 val books = response.body()?.books ?: emptyList()
                 Log.d("BookRepository", "받은 책 개수: ${books.size}")
                 
-                // 각 책의 상세 정보를 가져와서 페이지 정보 보완
+                // 각 책의 페이지 정보를 상세 조회로 보완
                 val booksWithPages = books.map { book ->
-                    try {
-                        if (book.isbn.isNotBlank()) {
-                            Log.d("BookRepository", "${book.title}: 상세조회 시작")
+                    if (book.isbn.isNotBlank()) {
+                        Log.d("BookRepository", "${book.title}: ISBN=${book.isbn}")
+                        try {
                             val detailBook = getBookDetail(book.isbn)
-                            
-                            if (detailBook != null && detailBook.subInfo?.itemPage != null) {
-                                Log.d("BookRepository", "${book.title}: 상세조회로 페이지 정보 획득 - ${detailBook.subInfo.itemPage}페이지")
-                                val updatedBook = book.copy(subInfo = detailBook.subInfo)
-                                Log.d("BookRepository", "${book.title}: 최종 extractPageCount = ${updatedBook.extractPageCount()}")
-                                updatedBook
+                            if (detailBook?.subInfo?.itemPage != null) {
+                                Log.d("BookRepository", "${book.title}: 페이지 정보 획득 - ${detailBook.subInfo.itemPage}")
+                                book.copy(subInfo = detailBook.subInfo)
                             } else {
-                                Log.d("BookRepository", "${book.title}: 페이지 정보 없음 (detailBook=$detailBook, subInfo=${detailBook?.subInfo})")
+                                Log.d("BookRepository", "${book.title}: 페이지 정보 없음")
                                 book
                             }
-                        } else {
-                            Log.d("BookRepository", "${book.title}: ISBN 없음")
+                        } catch (e: Exception) {
+                            Log.w("BookRepository", "${book.title}: 상세조회 실패 - ${e.message}")
                             book
                         }
-                    } catch (e: Exception) {
-                        Log.w("BookRepository", "${book.title}: 상세조회 실패 - ${e.message}")
+                    } else {
+                        Log.d("BookRepository", "${book.title}: ISBN 없음")
                         book
                     }
                 }
@@ -134,8 +128,6 @@ class BookRepository {
                 Log.d("BookRepository", "Detail API subInfo: ${book?.subInfo}")
                 Log.d("BookRepository", "Detail API itemPage: ${book?.subInfo?.itemPage}")
                 book
-            if (response.isSuccessful) {
-                response.body()?.books?.firstOrNull()
             } else {
                 Log.e("BookRepository", "Detail API Error: ${response.code()} - ${response.message()}")
                 null
@@ -144,14 +136,5 @@ class BookRepository {
             Log.e("BookRepository", "Get detail failed: ${e.message}", e)
             null
         }
-    }
-
-    // companion object는 API 키와 같은 상수들을 보관합니다.
-    private companion object {
-        private val TTBKEY = BuildConfig.ALADIN_TTB_KEY
-        private const val QUERY_TYPE = "ItemNewSpecial"
-        private const val SEARCH_TARGET = "Book"
-        private const val ITEM_ID_TYPE = "ISBN13"
-        private const val OUTPUT = "js"
     }
 }
