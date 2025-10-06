@@ -9,38 +9,32 @@ interface BookService {
 
     @GET("ItemSearch.aspx")
     suspend fun getBookSearch(
-        @Query("TTBKey") ttbKey: String, // 파라미터명 대문자 TTBKey로 수정
+        @Query("TTBKey") ttbKey: String,
         @Query("Query") query: String,
-        @Query("QueryType") queryType: String = "Keyword", // "Title" -> "Keyword"로 변경
-        @Query("MaxResults") maxResults: Int = 20, // 기본값을 20으로 변경
-        @Query("Start") start: Int = 1, // 파라미터명 대문자 Start로 수정
+        @Query("QueryType") queryType: String = "Keyword",
+        @Query("MaxResults") maxResults: Int = 20,
+        @Query("Start") start: Int = 1,
         @Query("SearchTarget") searchTarget: String = "Book",
         @Query("output") output: String = "js",
         @Query("Version") version: String = "20131101",
         @Query("OptResult") optResult: String = "ebookBlazing,usedList,reviewList,subInfo"
     ): Response<BookListDTO>
 
-    /**
-     * 알라딘 도서 목록 API (신간, 베스트셀러 등)
-     */
     @GET("ItemList.aspx")
     suspend fun getBookList(
-        @Query("ttbkey") ttbkey: String,
-        @Query("QueryType") querytype: String,
-        @Query("SearchTarget") searchtarget: String,
+        @Query("TTBKey") ttbKey: String,
+        @Query("QueryType") queryType: String,
+        @Query("SearchTarget") searchTarget: String,
         @Query("output") output: String,
         @Query("Version") version: String = "20131101",
         @Query("OptResult") optResult: String = "ebookBlazing,usedList,reviewList,subInfo"
     ): Response<BookListDTO>
 
-    /**
-     * 알라딘 도서 상세 정보 API
-     */
     @GET("ItemLookUp.aspx")
     suspend fun getBookDetail(
-        @Query("ttbkey") ttbkey: String,
-        @Query("ItemId") itemid: String,
-        @Query("itemIdType") itemidtype: String,
+        @Query("TTBKey") ttbKey: String,
+        @Query("ItemId") itemId: String,
+        @Query("itemIdType") itemIdType: String,
         @Query("output") output: String,
         @Query("Version") version: String = "20131101",
         @Query("OptResult") optResult: String = "ebookBlazing,usedList,reviewList,subInfo"
