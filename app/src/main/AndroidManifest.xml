@@ -5,6 +5,10 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- ▼▼▼ 여기에 위치 정보 접근 권한을 추가했습니다 ▼▼▼ -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -27,16 +31,15 @@
             </intent-filter>
 
             <intent-filter android:autoVerify="true">
-            <action android:name="android.intent.action.VIEW" />
-            <category android:name="android.intent.category.DEFAULT" />
-            <category android:name="android.intent.category.BROWSABLE" />
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
 
-            <data
-                android:scheme="https"
-                android:host="readers-6b510.web.app" />
+                <data
+                    android:scheme="https"
+                    android:host="readers-6b510.web.app" />
             </intent-filter>
         </activity>
-
 
     </application>
 </manifest>
