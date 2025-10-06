@@ -16,7 +16,15 @@ class BookRepository {
         .addConverterFactory(GsonConverterFactory.create(gson))
         .build()
 
+
+    // Retrofit과 BookService 인스턴스를 lazy 초기화를 통해 생성합니다.
     private val bookService: BookService by lazy {
+        val gson = GsonBuilder().setLenient().create()
+        val retrofit = Retrofit.Builder()
+            .baseUrl("http://www.aladin.co.kr/ttb/api/")
+            .addConverterFactory(GsonConverterFactory.create(gson))
+            .build()
+        // 별도의 파일에 정의된 BookService 인터페이스를 사용합니다.
         retrofit.create(BookService::class.java)
     }
 
@@ -29,7 +37,8 @@ class BookRepository {
                 Log.e("BookRepository", "TTBKey is missing.")
                 return emptyList()
             }
-            
+            // API 명세에 맞는 파라미터 이름을 사용해야 합니다. (ttbKey -> ttbkey 등)
+            // BookService.kt 파일에 정의된 함수를 호출합니다.
             val response = bookService.getBookSearch(
                 ttbkey = TTBKEY,
                 query = query,
@@ -87,9 +96,9 @@ class BookRepository {
                 return emptyList()
             }
             val response = bookService.getBookList(
-                ttbkey = TTBKEY,
-                querytype = QUERY_TYPE,
-                searchtarget = SEARCH_TARGET,
+                ttbKey = TTBKEY,
+                queryType = QUERY_TYPE,
+                searchTarget = SEARCH_TARGET,
                 output = OUTPUT
             )
             if (response.isSuccessful) {
@@ -106,16 +115,14 @@ class BookRepository {
 
     suspend fun getBookDetail(itemid: String): Book? {
         return try {
-            Log.d("BookRepository", "=== getBookDetail 호출: $itemid ===")
             if (TTBKEY.isBlank()) {
                 Log.e("BookRepository", "TTBKey is missing.")
                 return null
             }
-            
             val response = bookService.getBookDetail(
-                ttbkey = TTBKEY,
-                itemid = itemid,
-                itemidtype = ITEM_ID_TYPE,
+                ttbKey = TTBKEY,
+                itemId = itemid,
+                itemIdType = ITEM_ID_TYPE,
                 output = OUTPUT
             )
             
@@ -127,6 +134,8 @@ class BookRepository {
                 Log.d("BookRepository", "Detail API subInfo: ${book?.subInfo}")
                 Log.d("BookRepository", "Detail API itemPage: ${book?.subInfo?.itemPage}")
                 book
+            if (response.isSuccessful) {
+                response.body()?.books?.firstOrNull()
             } else {
                 Log.e("BookRepository", "Detail API Error: ${response.code()} - ${response.message()}")
                 null
@@ -137,6 +146,7 @@ class BookRepository {
         }
     }
 
+    // companion object는 API 키와 같은 상수들을 보관합니다.
     private companion object {
         private val TTBKEY = BuildConfig.ALADIN_TTB_KEY
         private const val QUERY_TYPE = "ItemNewSpecial"

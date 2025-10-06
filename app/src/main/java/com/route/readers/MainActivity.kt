@@ -30,8 +30,10 @@ import com.route.readers.ui.screens.MainScreen
 import com.route.readers.ui.screens.login.LoginScreen
 import com.route.readers.ui.screens.login.LoginViewModel
 import com.route.readers.ui.screens.login.OnboardingScreen
-import com.route.readers.ui.screens.profile.ProfileSetupScreen
 import com.route.readers.ui.screens.login.SignUpScreen
+import com.route.readers.ui.screens.profile.FollowListScreen
+import com.route.readers.ui.screens.profile.ProfileScreen
+import com.route.readers.ui.screens.profile.ProfileSetupScreen
 import com.route.readers.ui.theme.ReadersTheme
 
 val LocalAppNavController = staticCompositionLocalOf<NavHostController?> { null }
@@ -82,8 +84,7 @@ fun RootAppNavigation() {
                     appNavController.navigate("login_route/verification") {
                         popUpTo("decision_route") { inclusive = true }
                     }
-                }
-                else {
+                } else {
                     firestore.collection("users").document(currentUser.uid).get()
                         .addOnSuccessListener { document ->
                             val destination = if (document.exists() && document.getString("nickname") != null) {
@@ -96,7 +97,8 @@ fun RootAppNavigation() {
                             }
                         }
                         .addOnFailureListener {
-                            Toast.makeText(context, "사용자 정보 확인에 실패했습니다. 다시 로그인해주세요.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "사용자 정보 확인에 실패했습니다. 다시 로그인해주세요.", Toast.LENGTH_SHORT)
+                                .show()
                             auth.signOut()
                             appNavController.navigate("onboarding_route") {
                                 popUpTo("decision_route") { inclusive = true }
@@ -185,15 +187,69 @@ fun RootAppNavigation() {
         }
 
         composable("main_app_content_route") {
+            val auth = FirebaseAuth.getInstance()
             MainScreen(
-                onNavigateToLogin = {
-                    appNavController.navigate("login_route/logout") {
-                        popUpTo(appNavController.graph.id) {
-                            inclusive = true
-                        }
+                onNavigateToProfile = {
+                    val userId = auth.currentUser?.uid
+                    if (userId != null) {
+                        appNavController.navigate("profile_route/$userId")
                     }
+                },
+                onNavigateToOtherUserProfile = { userId ->
+                    appNavController.navigate("profile_route/$userId")
                 }
             )
+        }
+
+        composable(
+            route = "profile_route/{userId}",
+            arguments = listOf(navArgument("userId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId")
+            if (userId != null) {
+                ProfileScreen(
+                    userId = userId,
+                    onNavigateBack = { appNavController.popBackStack() },
+                    onLogout = {
+                        FirebaseAuth.getInstance().signOut()
+                        appNavController.navigate("onboarding_route") {
+                            popUpTo(appNavController.graph.startDestinationId) {
+                                inclusive = true
+                            }
+                        }
+                    },
+                    onNavigateToFollowList = { listType, nickname ->
+                        val encodedNickname = java.net.URLEncoder.encode(nickname, "UTF-8")
+                        appNavController.navigate("follow_list_route/$userId/$listType/$encodedNickname")
+                    }
+                )
+            }
+        }
+
+        composable(
+            route = "follow_list_route/{userId}/{initialListType}/{nickname}",
+            arguments = listOf(
+                navArgument("userId") { type = NavType.StringType },
+                navArgument("initialListType") { type = NavType.StringType },
+                navArgument("nickname") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId")
+            val initialListType = backStackEntry.arguments?.getString("initialListType")
+            val nickname = backStackEntry.arguments?.getString("nickname")?.let {
+                java.net.URLDecoder.decode(it, "UTF-8")
+            }
+            if (userId != null && initialListType != null && nickname != null) {
+                FollowListScreen(
+                    userId = userId,
+                    initialListType = initialListType,
+                    nickname = nickname,
+                    onUserClick = { clickedUserId ->
+                        appNavController.navigate("profile_route/$clickedUserId")
+                    },
+                    onNavigateBack = { appNavController.popBackStack() }
+                )
+            }
         }
     }
 }

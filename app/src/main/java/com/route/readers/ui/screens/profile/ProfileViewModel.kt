@@ -1,16 +1,23 @@
 package com.route.readers.ui.screens.profile
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.route.readers.data.model.Book
 import com.route.readers.data.model.User
-import com.route.readers.data.model.ProfileUiState
+import com.route.readers.data.remote.BookRepository
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope // 'coroutineScope'를 import 합니다.
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+
+// ProfileUiState는 별도 파일로 분리되었거나, 이 파일 위에 정의되어 있어야 합니다.
 
 sealed class ProfileSetupState {
     object Idle : ProfileSetupState()
@@ -22,6 +29,7 @@ sealed class ProfileSetupState {
 open class ProfileViewModel : ViewModel() {
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
+    private val bookRepository = BookRepository()
     private val currentUserId = auth.currentUser?.uid
 
     protected val _uiState = MutableStateFlow<ProfileUiState>(ProfileUiState.Loading)
@@ -102,12 +110,20 @@ open class ProfileViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val document = db.collection("users").document(targetUserId).get().await()
-                if (document != null && document.exists()) {
-                    val user = document.toObject(User::class.java)
+                if (document.exists()) {
+                    // 변수에 타입을 명시하여 toObject의 타입 추론을 돕습니다.
+                    val user: User? = document.toObject(User::class.java)
                     if (user != null) {
                         val isMyProfile = targetUserId == currentUserId
                         val isFollowing = user.followers.contains(currentUserId)
-                        _uiState.value = ProfileUiState.Success(user, isFollowing, isMyProfile)
+                        val recommendedBooks = fetchRecommendedBooks(user.readingGenres)
+
+                        _uiState.value = ProfileUiState.Success(
+                            user = user,
+                            isFollowing = isFollowing,
+                            isMyProfile = isMyProfile,
+                            recommendedBooks = recommendedBooks
+                        )
                     } else {
                         _uiState.value = ProfileUiState.Error("프로필 정보를 변환하는 데 실패했습니다.")
                     }
@@ -116,7 +132,30 @@ open class ProfileViewModel : ViewModel() {
                 }
             } catch (e: Exception) {
                 _uiState.value = ProfileUiState.Error("프로필을 불러오는 중 오류가 발생했습니다: ${e.message}")
+                Log.e("ProfileViewModel", "fetchUserProfile failed", e)
             }
+        }
+    }
+
+    private suspend fun fetchRecommendedBooks(genres: List<String>): List<Book> {
+        if (genres.isEmpty()) {
+            return emptyList()
+        }
+
+        return try {
+            coroutineScope {
+                val deferredBookLists = genres.map { genre ->
+                    async {
+                        bookRepository.getBookSearch(genre, 3)
+                    }
+                }
+                deferredBookLists.awaitAll()
+                    .flatMap { it }
+                    .distinctBy { it.isbn }
+            }
+        } catch (e: Exception) {
+            Log.e("ProfileViewModel", "추천 도서 API 호출 실패", e)
+            emptyList()
         }
     }
 
@@ -159,8 +198,8 @@ open class ProfileViewModel : ViewModel() {
     }
 
     private fun refreshUiStateForFollow(targetUserId: String, nowFollowing: Boolean) {
-        if (_uiState.value is ProfileUiState.Success) {
-            val currentState = _uiState.value as ProfileUiState.Success
+        val currentState = _uiState.value
+        if (currentState is ProfileUiState.Success) {
             val user = currentState.user
 
             if (!currentState.isMyProfile) {
@@ -171,7 +210,8 @@ open class ProfileViewModel : ViewModel() {
                 }
                 _uiState.value = currentState.copy(
                     isFollowing = nowFollowing,
-                    user = user.copy(followerCount = newFollowerCount)
+                    user = user.copy(followerCount = newFollowerCount),
+                    recommendedBooks = currentState.recommendedBooks
                 )
             } else {
                 val newFollowingCount = if (nowFollowing) {
@@ -180,7 +220,8 @@ open class ProfileViewModel : ViewModel() {
                     (user.followingCount - 1).coerceAtLeast(0)
                 }
                 _uiState.value = currentState.copy(
-                    user = user.copy(followingCount = newFollowingCount)
+                    user = user.copy(followingCount = newFollowingCount),
+                    recommendedBooks = currentState.recommendedBooks
                 )
             }
         } else {
