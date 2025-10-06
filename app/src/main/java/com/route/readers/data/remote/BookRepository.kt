@@ -16,6 +16,7 @@ class BookRepository {
         .addConverterFactory(GsonConverterFactory.create(gson))
         .build()
 
+
     // Retrofit과 BookService 인스턴스를 lazy 초기화를 통해 생성합니다.
     private val bookService: BookService by lazy {
         val gson = GsonBuilder().setLenient().create()
@@ -31,7 +32,6 @@ class BookRepository {
         return try {
             Log.d("BookRepository", "=== API 호출 시작 ===")
             Log.d("BookRepository", "Query: $query")
-            Log.d("BookRepository", "API Key: ${if (TTBKEY.isBlank()) "없음" else "있음"}")
             
             if (TTBKEY.isBlank()) {
                 Log.e("BookRepository", "TTBKey is missing.")
@@ -56,15 +56,20 @@ class BookRepository {
                 val booksWithPages = books.map { book ->
                     try {
                         if (book.isbn.isNotBlank()) {
+                            Log.d("BookRepository", "${book.title}: 상세조회 시작")
                             val detailBook = getBookDetail(book.isbn)
+                            
                             if (detailBook != null && detailBook.subInfo?.itemPage != null) {
                                 Log.d("BookRepository", "${book.title}: 상세조회로 페이지 정보 획득 - ${detailBook.subInfo.itemPage}페이지")
-                                book.copy(subInfo = detailBook.subInfo)
+                                val updatedBook = book.copy(subInfo = detailBook.subInfo)
+                                Log.d("BookRepository", "${book.title}: 최종 extractPageCount = ${updatedBook.extractPageCount()}")
+                                updatedBook
                             } else {
-                                Log.d("BookRepository", "${book.title}: 페이지 정보 없음")
+                                Log.d("BookRepository", "${book.title}: 페이지 정보 없음 (detailBook=$detailBook, subInfo=${detailBook?.subInfo})")
                                 book
                             }
                         } else {
+                            Log.d("BookRepository", "${book.title}: ISBN 없음")
                             book
                         }
                     } catch (e: Exception) {
@@ -120,6 +125,15 @@ class BookRepository {
                 itemIdType = ITEM_ID_TYPE,
                 output = OUTPUT
             )
+            
+            Log.d("BookRepository", "Detail API 응답 코드: ${response.code()}")
+            
+            if (response.isSuccessful) {
+                val book = response.body()?.books?.firstOrNull()
+                Log.d("BookRepository", "Detail API 결과: title=${book?.title}")
+                Log.d("BookRepository", "Detail API subInfo: ${book?.subInfo}")
+                Log.d("BookRepository", "Detail API itemPage: ${book?.subInfo?.itemPage}")
+                book
             if (response.isSuccessful) {
                 response.body()?.books?.firstOrNull()
             } else {
