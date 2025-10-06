@@ -1,5 +1,6 @@
 package com.route.readers.ui.components
 
+import com.route.readers.data.model.MyBook
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -44,6 +45,8 @@ val sideNavItems = listOf(
 fun BottomNavBar(
     navController: NavController,
     onProfileClick: () -> Unit,
+    selectedBook: MyBook? = null,
+    onStartReading: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -60,21 +63,25 @@ fun BottomNavBar(
                 .align(Alignment.Center)
                 .size(64.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF4285F4))
+                .background(if (selectedBook != null) Color(0xFF4285F4) else Color.Gray)
                 .clickable {
-                    navController.navigate(BottomNavItem.MyLibrary.route) {
-                        popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
+                    if (selectedBook != null) {
+                        onStartReading()
+                    } else {
+                        navController.navigate(BottomNavItem.MyLibrary.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
                         }
-                        launchSingleTop = true
-                        restoreState = true
                     }
                 },
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Filled.PlayArrow,
-                contentDescription = "독서 시작",
+                contentDescription = if (selectedBook != null) "독서 시작" else "내 서재",
                 tint = Color.White,
                 modifier = Modifier.size(32.dp)
             )
