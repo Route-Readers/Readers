@@ -1,5 +1,6 @@
 package com.route.readers.data.model
 
+import com.google.firebase.firestore.Exclude
 import com.google.gson.annotations.SerializedName
 
 data class SubInfo(
@@ -17,18 +18,18 @@ data class Book(
     @SerializedName("subInfo") val subInfo: SubInfo? = null,
     @SerializedName("publisher") val publisher: String? = null,
     @SerializedName("pubDate") val pubDate: String? = null,
-    // 독서 진행 상황 관련 필드들 (로컬 데이터)
     val currentPage: Int = 0,
     val totalPages: Int = 0,
-    val progress: Int = 0
+    val progress: Int = 0,
+
+    // isFavorite를 주 생성자로 이동하고 val로 변경
+    @get:Exclude
+    val isFavorite: Boolean = false
 ) {
-    // 페이지 정보 추출 - subInfo.itemPage가 가장 정확함
     fun extractPageCount(): Int {
-        // subInfo의 itemPage를 우선 사용 (가장 정확한 정보)
         return subInfo?.itemPage ?: 0
     }
-    
-    // 페이지 정보가 유효한지 확인
+
     fun hasValidPageInfo(): Boolean {
         return extractPageCount() > 0
     }
