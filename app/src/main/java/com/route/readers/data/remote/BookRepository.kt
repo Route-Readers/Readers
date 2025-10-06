@@ -4,19 +4,22 @@ import android.util.Log
 import com.google.gson.GsonBuilder
 import com.route.readers.BuildConfig
 import com.route.readers.data.model.Book
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 class BookRepository {
-    
+
     companion object {
         private val TTBKEY = BuildConfig.ALADIN_TTB_KEY
-        private const val QUERY_TYPE = "ItemNewSpecial"
+        private const val QUERY_TYPE = "ItemNewAll"
         private const val SEARCH_TARGET = "Book"
         private const val ITEM_ID_TYPE = "ISBN"
         private const val OUTPUT = "js"
+        private const val VERSION = "20131101"
     }
-    
+
     private val bookService: BookService by lazy {
         val gson = GsonBuilder().setLenient().create()
         val retrofit = Retrofit.Builder()
@@ -28,51 +31,33 @@ class BookRepository {
 
     suspend fun getBookSearch(query: String, page: Int = 1, maxResults: Int = 10): List<Book> {
         return try {
-            Log.d("BookRepository", "=== API 호출 시작 ===")
-            Log.d("BookRepository", "Query: $query")
-            
             if (TTBKEY.isBlank()) {
                 Log.e("BookRepository", "TTBKey is missing.")
                 return emptyList()
             }
-            
+
             val response = bookService.getBookSearch(
                 ttbKey = TTBKEY,
                 query = query,
                 start = page,
-                maxResults = maxResults
+                maxResults = maxResults,
+                output = OUTPUT,
+                version = VERSION
             )
-           
-            Log.d("BookRepository", "API 응답 코드: ${response.code()}")
-            
+
             if (response.isSuccessful) {
                 val books = response.body()?.books ?: emptyList()
-                Log.d("BookRepository", "받은 책 개수: ${books.size}")
-                
-                // 각 책의 페이지 정보를 상세 조회로 보완
-                val booksWithPages = books.map { book ->
-                    if (book.isbn.isNotBlank()) {
-                        Log.d("BookRepository", "${book.title}: ISBN=${book.isbn}")
-                        try {
-                            val detailBook = getBookDetail(book.isbn)
-                            if (detailBook?.subInfo?.itemPage != null) {
-                                Log.d("BookRepository", "${book.title}: 페이지 정보 획득 - ${detailBook.subInfo.itemPage}")
-                                book.copy(subInfo = detailBook.subInfo)
+                coroutineScope {
+                    books.map { book ->
+                        async {
+                            if (book.isbn.isNotBlank()) {
+                                getBookDetail(book.isbn) ?: book
                             } else {
-                                Log.d("BookRepository", "${book.title}: 페이지 정보 없음")
                                 book
                             }
-                        } catch (e: Exception) {
-                            Log.w("BookRepository", "${book.title}: 상세조회 실패 - ${e.message}")
-                            book
                         }
-                    } else {
-                        Log.d("BookRepository", "${book.title}: ISBN 없음")
-                        book
-                    }
+                    }.map { it.await() }
                 }
-                
-                return booksWithPages
             } else {
                 Log.e("BookRepository", "Search API Error: ${response.code()} - ${response.message()}")
                 emptyList()
@@ -89,14 +74,29 @@ class BookRepository {
                 Log.e("BookRepository", "TTBKey is missing.")
                 return emptyList()
             }
+
             val response = bookService.getBookList(
                 ttbKey = TTBKEY,
                 queryType = QUERY_TYPE,
                 searchTarget = SEARCH_TARGET,
-                output = OUTPUT
+                output = OUTPUT,
+                version = VERSION
             )
+
             if (response.isSuccessful) {
-                response.body()?.books ?: emptyList()
+                val basicBookList = response.body()?.books ?: emptyList()
+                Log.d("BookRepository", "신간 리스트에서 ${basicBookList.size}권의 책을 받았습니다.")
+                coroutineScope {
+                    basicBookList.map { book ->
+                        async {
+                            if (book.isbn.isNotBlank()) {
+                                getBookDetail(book.isbn) ?: book
+                            } else {
+                                book
+                            }
+                        }
+                    }.map { it.await() }
+                }
             } else {
                 Log.e("BookRepository", "List API Error: ${response.code()} - ${response.message()}")
                 emptyList()
@@ -107,7 +107,7 @@ class BookRepository {
         }
     }
 
-    suspend fun getBookDetail(itemid: String): Book? {
+    suspend fun getBookDetail(isbn: String): Book? {
         return try {
             if (TTBKEY.isBlank()) {
                 Log.e("BookRepository", "TTBKey is missing.")
@@ -115,18 +115,16 @@ class BookRepository {
             }
             val response = bookService.getBookDetail(
                 ttbKey = TTBKEY,
-                itemId = itemid,
+                itemId = isbn,
                 itemIdType = ITEM_ID_TYPE,
-                output = OUTPUT
+                output = OUTPUT,
+                version = VERSION,
+                optResult = "subInfo"
             )
-            
-            Log.d("BookRepository", "Detail API 응답 코드: ${response.code()}")
-            
+
             if (response.isSuccessful) {
                 val book = response.body()?.books?.firstOrNull()
-                Log.d("BookRepository", "Detail API 결과: title=${book?.title}")
-                Log.d("BookRepository", "Detail API subInfo: ${book?.subInfo}")
-                Log.d("BookRepository", "Detail API itemPage: ${book?.subInfo?.itemPage}")
+                Log.d("BookRepository", "상세 조회 [${book?.title}]: 페이지 정보 -> ${book?.subInfo?.itemPage}")
                 book
             } else {
                 Log.e("BookRepository", "Detail API Error: ${response.code()} - ${response.message()}")
