@@ -1,11 +1,14 @@
 package com.route.readers.data.remote
 
 import android.util.Log
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.gson.GsonBuilder
 import com.route.readers.BuildConfig
 import com.route.readers.data.model.Book
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.tasks.await
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
@@ -19,6 +22,11 @@ class BookRepository {
         private const val OUTPUT = "js"
         private const val VERSION = "20131101"
     }
+
+    private val db = FirebaseFirestore.getInstance()
+    private val auth = FirebaseAuth.getInstance()
+    private val userId: String
+        get() = auth.currentUser?.uid ?: ""
 
     private val bookService: BookService by lazy {
         val gson = GsonBuilder().setLenient().create()
@@ -47,7 +55,7 @@ class BookRepository {
 
             if (response.isSuccessful) {
                 val books = response.body()?.books ?: emptyList()
-                coroutineScope {
+                val detailedBooks = coroutineScope {
                     books.map { book ->
                         async {
                             if (book.isbn.isNotBlank()) {
@@ -58,8 +66,12 @@ class BookRepository {
                         }
                     }.map { it.await() }
                 }
+                applyFavoriteStatus(detailedBooks)
             } else {
-                Log.e("BookRepository", "Search API Error: ${response.code()} - ${response.message()}")
+                Log.e(
+                    "BookRepository",
+                    "Search API Error: ${response.code()} - ${response.message()}"
+                )
                 emptyList()
             }
         } catch (e: Exception) {
@@ -86,7 +98,7 @@ class BookRepository {
             if (response.isSuccessful) {
                 val basicBookList = response.body()?.books ?: emptyList()
                 Log.d("BookRepository", "신간 리스트에서 ${basicBookList.size}권의 책을 받았습니다.")
-                coroutineScope {
+                val detailedBooks = coroutineScope {
                     basicBookList.map { book ->
                         async {
                             if (book.isbn.isNotBlank()) {
@@ -97,8 +109,12 @@ class BookRepository {
                         }
                     }.map { it.await() }
                 }
+                applyFavoriteStatus(detailedBooks)
             } else {
-                Log.e("BookRepository", "List API Error: ${response.code()} - ${response.message()}")
+                Log.e(
+                    "BookRepository",
+                    "List API Error: ${response.code()} - ${response.message()}"
+                )
                 emptyList()
             }
         } catch (e: Exception) {
@@ -123,16 +139,59 @@ class BookRepository {
             )
 
             if (response.isSuccessful) {
-                val book = response.body()?.books?.firstOrNull()
-                Log.d("BookRepository", "상세 조회 [${book?.title}]: 페이지 정보 -> ${book?.subInfo?.itemPage}")
-                book
+                response.body()?.books?.firstOrNull()
             } else {
-                Log.e("BookRepository", "Detail API Error: ${response.code()} - ${response.message()}")
+                Log.e(
+                    "BookRepository",
+                    "Detail API Error: ${response.code()} - ${response.message()}"
+                )
                 null
             }
         } catch (e: Exception) {
             Log.e("BookRepository", "Get detail failed: ${e.message}", e)
             null
+        }
+    }
+
+    suspend fun toggleFavoriteStatus(book: Book) {
+        if (userId.isBlank() || book.isbn.isBlank()) return
+
+        val favoriteRef = db.collection("users").document(userId)
+            .collection("favorites").document(book.isbn)
+
+        if (book.isFavorite) {
+            val bookData = book.copy(isFavorite = false)
+            favoriteRef.set(bookData).await()
+        } else {
+            favoriteRef.delete().await()
+        }
+    }
+
+    suspend fun getFavoriteBooks(): List<Book> {
+        if (userId.isBlank()) return emptyList()
+
+        return try {
+            val snapshot = db.collection("users").document(userId)
+                .collection("favorites").get().await()
+            snapshot.documents.mapNotNull { document ->
+                document.toObject(Book::class.java)?.copy(isFavorite = true)
+            }
+        } catch (e: Exception) {
+            Log.e("BookRepository", "Failed to get favorite books", e)
+            emptyList()
+        }
+    }
+
+    private suspend fun applyFavoriteStatus(books: List<Book>): List<Book> {
+        if (userId.isBlank()) return books
+
+        val favoriteIsbns = getFavoriteBooks().map { it.isbn }.toSet()
+        return books.map { book ->
+            if (favoriteIsbns.contains(book.isbn)) {
+                book.copy(isFavorite = true)
+            } else {
+                book
+            }
         }
     }
 }

@@ -11,13 +11,11 @@ import com.route.readers.data.model.User
 import com.route.readers.data.remote.BookRepository
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope // 'coroutineScope'를 import 합니다.
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-
-// ProfileUiState는 별도 파일로 분리되었거나, 이 파일 위에 정의되어 있어야 합니다.
 
 sealed class ProfileSetupState {
     object Idle : ProfileSetupState()
@@ -46,7 +44,8 @@ open class ProfileViewModel : ViewModel() {
         _setupState.value = ProfileSetupState.Loading
         viewModelScope.launch {
             try {
-                val documents = db.collection("users").whereEqualTo("nickname", nickname).get().await()
+                val documents =
+                    db.collection("users").whereEqualTo("nickname", nickname).get().await()
                 if (documents.isEmpty) {
                     _setupState.value = ProfileSetupState.Error("사용 가능한 닉네임입니다.")
                 } else {
@@ -109,9 +108,13 @@ open class ProfileViewModel : ViewModel() {
         _uiState.value = ProfileUiState.Loading
         viewModelScope.launch {
             try {
-                val document = db.collection("users").document(targetUserId).get().await()
+                val userDocumentDeferred = async { db.collection("users").document(targetUserId).get().await() }
+                val favoriteBooksDeferred = async { bookRepository.getFavoriteBooks() }
+
+                val document = userDocumentDeferred.await()
+                val favoriteBooks = favoriteBooksDeferred.await()
+
                 if (document.exists()) {
-                    // 변수에 타입을 명시하여 toObject의 타입 추론을 돕습니다.
                     val user: User? = document.toObject(User::class.java)
                     if (user != null) {
                         val isMyProfile = targetUserId == currentUserId
@@ -122,7 +125,8 @@ open class ProfileViewModel : ViewModel() {
                             user = user,
                             isFollowing = isFollowing,
                             isMyProfile = isMyProfile,
-                            recommendedBooks = recommendedBooks
+                            recommendedBooks = recommendedBooks,
+                            favoriteBooks = favoriteBooks
                         )
                     } else {
                         _uiState.value = ProfileUiState.Error("프로필 정보를 변환하는 데 실패했습니다.")
@@ -146,7 +150,7 @@ open class ProfileViewModel : ViewModel() {
             coroutineScope {
                 val deferredBookLists = genres.map { genre ->
                     async {
-                        bookRepository.getBookSearch(genre, 3)
+                        bookRepository.getBookSearch(query = genre, maxResults = 3)
                     }
                 }
                 deferredBookLists.awaitAll()
@@ -186,9 +190,17 @@ open class ProfileViewModel : ViewModel() {
                 val targetUserRef = db.collection("users").document(targetUserId)
                 val currentUserRef = db.collection("users").document(currentUserId)
                 db.runBatch { batch ->
-                    batch.update(targetUserRef, "followers", FieldValue.arrayRemove(currentUserId))
+                    batch.update(
+                        targetUserRef,
+                        "followers",
+                        FieldValue.arrayRemove(currentUserId)
+                    )
                     batch.update(targetUserRef, "followerCount", FieldValue.increment(-1))
-                    batch.update(currentUserRef, "following", FieldValue.arrayRemove(targetUserId))
+                    batch.update(
+                        currentUserRef,
+                        "following",
+                        FieldValue.arrayRemove(targetUserId)
+                    )
                     batch.update(currentUserRef, "followingCount", FieldValue.increment(-1))
                 }.await()
             } catch (e: Exception) {
@@ -210,8 +222,7 @@ open class ProfileViewModel : ViewModel() {
                 }
                 _uiState.value = currentState.copy(
                     isFollowing = nowFollowing,
-                    user = user.copy(followerCount = newFollowerCount),
-                    recommendedBooks = currentState.recommendedBooks
+                    user = user.copy(followerCount = newFollowerCount)
                 )
             } else {
                 val newFollowingCount = if (nowFollowing) {
@@ -220,8 +231,7 @@ open class ProfileViewModel : ViewModel() {
                     (user.followingCount - 1).coerceAtLeast(0)
                 }
                 _uiState.value = currentState.copy(
-                    user = user.copy(followingCount = newFollowingCount),
-                    recommendedBooks = currentState.recommendedBooks
+                    user = user.copy(followingCount = newFollowingCount)
                 )
             }
         } else {

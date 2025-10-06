@@ -31,6 +31,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.route.readers.data.model.Book
 import com.route.readers.data.model.User
+import com.route.readers.ui.theme.DarkRed
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,6 +102,7 @@ fun ProfileScreen(
                         isMyProfile = state.isMyProfile,
                         isFollowing = state.isFollowing,
                         recommendedBooks = state.recommendedBooks,
+                        favoriteBooks = state.favoriteBooks,
                         onFollowClick = { viewModel.followUser(state.user.uid) },
                         onUnfollowClick = { viewModel.unfollowUser(state.user.uid) },
                         onFollowListClick = { listType ->
@@ -113,7 +115,6 @@ fun ProfileScreen(
     }
 }
 
-// ▼▼▼ 2. FlowRow가 실험적 API임을 알리는 OptIn 어노테이션을 추가합니다. ▼▼▼
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ProfileContent(
@@ -121,6 +122,7 @@ fun ProfileContent(
     isMyProfile: Boolean,
     isFollowing: Boolean,
     recommendedBooks: List<Book>,
+    favoriteBooks: List<Book>,
     onFollowClick: () -> Unit,
     onUnfollowClick: () -> Unit,
     onFollowListClick: (String) -> Unit
@@ -145,9 +147,8 @@ fun ProfileContent(
         if (user.readingGenres.isNotEmpty()) {
             item {
                 ProfileDetailCard("선호 장르") {
-                    // 이제 이 FlowRow는 경고를 발생시키지 않습니다.
                     FlowRow(
-                        modifier = Modifier.fillMaxWidth(), // 가로를 꽉 채우도록 수정
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -162,7 +163,6 @@ fun ProfileContent(
         if (user.readingStyles.isNotEmpty()) {
             item {
                 ProfileDetailCard("독서 스타일") {
-                    // 이 FlowRow도 마찬가지입니다.
                     FlowRow(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -180,7 +180,16 @@ fun ProfileContent(
             item {
                 RecommendedBooksSection(
                     books = recommendedBooks,
-                    onBookClick = { /* TODO: 도서 상세 페이지로 이동 */ }
+                    onBookClick = { }
+                )
+            }
+        }
+
+        if (favoriteBooks.isNotEmpty()) {
+            item {
+                FavoriteBooksSection(
+                    books = favoriteBooks,
+                    onBookClick = { }
                 )
             }
         }
@@ -196,7 +205,6 @@ fun ProfileInfoSection(
     onUnfollowClick: () -> Unit,
     onFollowListClick: (String) -> Unit
 ) {
-    val primaryRed = Color(0xFFC0392B)
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -232,7 +240,7 @@ fun ProfileInfoSection(
                         .padding(horizontal = 32.dp),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isFollowing) Color.Gray else primaryRed
+                        containerColor = if (isFollowing) Color.Gray else DarkRed
                     )
                 ) {
                     Text(text = if (isFollowing) "언팔로우" else "팔로우")
@@ -274,14 +282,37 @@ fun RecommendedBooksSection(
             contentPadding = PaddingValues(horizontal = 4.dp)
         ) {
             items(books, key = { it.isbn }) { book ->
-                BookRecommendationItem(book = book, onClick = { onBookClick(book) })
+                BookCardItem(book = book, onClick = { onBookClick(book) })
             }
         }
     }
 }
 
 @Composable
-fun BookRecommendationItem(book: Book, onClick: () -> Unit) {
+fun FavoriteBooksSection(
+    books: List<Book>,
+    onBookClick: (Book) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = "관심 도서",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = 4.dp, bottom = 16.dp)
+        )
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(horizontal = 4.dp)
+        ) {
+            items(books, key = { it.isbn }) { book ->
+                BookCardItem(book = book, onClick = { onBookClick(book) })
+            }
+        }
+    }
+}
+
+@Composable
+fun BookCardItem(book: Book, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .width(120.dp)
@@ -325,12 +356,11 @@ fun BookRecommendationItem(book: Book, onClick: () -> Unit) {
 
 @Composable
 fun ProfileImage(imageUrl: String?, nickname: String) {
-    val primaryRed = Color(0xFFC0392B)
     Box(
         modifier = Modifier
             .size(100.dp)
             .clip(CircleShape)
-            .background(primaryRed),
+            .background(DarkRed),
         contentAlignment = Alignment.Center
     ) {
         if (!imageUrl.isNullOrBlank()) {
@@ -354,12 +384,11 @@ fun ProfileImage(imageUrl: String?, nickname: String) {
     }
 }
 
-
 @Composable
 fun ProfileInfoItem(count: String, label: String, onClick: (() -> Unit)? = null) {
     val modifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier.padding(4.dp)) {
-        Text(text = count, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFFC0392B))
+        Text(text = count, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = DarkRed)
         Spacer(modifier = Modifier.height(4.dp))
         Text(text = label, fontSize = 14.sp, color = Color.Gray)
     }
@@ -367,17 +396,16 @@ fun ProfileInfoItem(count: String, label: String, onClick: (() -> Unit)? = null)
 
 @Composable
 fun Chip(label: String) {
-    val primaryRed = Color(0xFFC0392B)
     Box(
         modifier = Modifier
             .background(color = Color(0xFFF5E1DF), shape = RoundedCornerShape(12.dp))
             .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
-        Text(text = label, color = primaryRed, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        Text(text = label, color = DarkRed, fontSize = 13.sp, fontWeight = FontWeight.Medium)
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class) // Preview에서도 OptIn이 필요합니다.
+@OptIn(ExperimentalLayoutApi::class)
 @Preview(showBackground = true)
 @Composable
 fun ProfileScreenPreview() {
@@ -396,6 +424,10 @@ fun ProfileScreenPreview() {
         Book(title = "세이노의 가르침", author = "세이노", cover = ""),
         Book(title = "역행자", author = "자청", cover = "")
     )
+    val favoriteBooks = listOf(
+        Book(title = "코스모스", author = "칼 세이건", cover = ""),
+        Book(title = "사피엔스", author = "유발 하라리", cover = "")
+    )
 
     MaterialTheme {
         ProfileContent(
@@ -403,6 +435,7 @@ fun ProfileScreenPreview() {
             isMyProfile = false,
             isFollowing = true,
             recommendedBooks = fakeBooks,
+            favoriteBooks = favoriteBooks,
             onFollowClick = {},
             onUnfollowClick = {},
             onFollowListClick = {}
