@@ -3,6 +3,7 @@ package com.route.readers.ui.screens.mylibrary
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -31,14 +32,29 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun MyLibraryScreen(
-    firestoreRepository: FirestoreRepository = FirestoreRepository()
+    firestoreRepository: FirestoreRepository = FirestoreRepository(),
+    onBookSelected: (MyBook?) -> Unit = {},
+    showProgressDialog: Boolean = false,
+    onProgressDialogDismiss: () -> Unit = {}
 ) {
     var books by remember { mutableStateOf<List<MyBook>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
-    var showProgressDialog by remember { mutableStateOf<MyBook?>(null) }
+    var showProgressDialogBook by remember { mutableStateOf<MyBook?>(null) }
     var showDeleteDialog by remember { mutableStateOf<MyBook?>(null) }
+    var selectedBook by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    // 외부에서 다이얼로그 표시 요청이 있을 때 처리
+    LaunchedEffect(showProgressDialog) {
+        if (showProgressDialog) {
+            val book = books.find { it.isbn == selectedBook }
+            book?.let {
+                showProgressDialogBook = it
+                onProgressDialogDismiss()
+            }
+        }
+    }
 
     // 책 목록 새로고침 함수
     fun refreshBooks() {
@@ -205,7 +221,18 @@ fun MyLibraryScreen(
                 items(books) { book ->
                     MyBookCard(
                         book = book,
-                        onProgressClick = { showProgressDialog = book },
+                        isSelected = selectedBook == book.isbn,
+                        onProgressClick = { 
+                            if (selectedBook == book.isbn) {
+                                // 이미 선택된 책을 다시 클릭하면 선택 해제
+                                selectedBook = null
+                                onBookSelected(null)
+                            } else {
+                                // 새로운 책 선택
+                                selectedBook = book.isbn
+                                onBookSelected(book)
+                            }
+                        },
                         onDeleteClick = { showDeleteDialog = book }
                     )
                 }
@@ -214,10 +241,10 @@ fun MyLibraryScreen(
     }
 
     // 진도 업데이트 다이얼로그
-    showProgressDialog?.let { book ->
+    showProgressDialogBook?.let { book ->
         ProgressUpdateDialog(
             book = book,
-            onDismiss = { showProgressDialog = null },
+            onDismiss = { showProgressDialogBook = null },
             onUpdate = { currentPage ->
                 scope.launch {
                     Log.d("MyLibraryScreen", "Updating progress: ${book.title} to page $currentPage")
@@ -229,7 +256,7 @@ fun MyLibraryScreen(
                     } else {
                         Toast.makeText(context, "업데이트 실패. 다시 시도해주세요", Toast.LENGTH_SHORT).show()
                     }
-                    showProgressDialog = null
+                    showProgressDialogBook = null
                 }
             }
         )
@@ -261,14 +288,28 @@ fun MyLibraryScreen(
 @Composable
 fun MyBookCard(
     book: MyBook,
+    isSelected: Boolean = false,
     onProgressClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onProgressClick() },
-        colors = CardDefaults.cardColors(containerColor = White),
+            .clickable { onProgressClick() }
+            .then(
+                if (isSelected) Modifier.border(
+                    3.dp, 
+                    DarkRed, 
+                    RoundedCornerShape(12.dp)
+                ) else Modifier
+            ),
+        colors = CardDefaults.cardColors(
+            containerColor = when {
+                isSelected -> DarkRed.copy(alpha = 0.1f)
+                book.currentPage > 0 && book.currentPage < book.totalPages -> ReadingGreen.copy(alpha = 0.1f)
+                else -> White
+            }
+        ),
         shape = RoundedCornerShape(12.dp)
     ) {
         Row(

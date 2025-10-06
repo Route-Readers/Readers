@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.EmojiEvents
@@ -25,6 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.route.readers.data.model.BookClub
+import com.route.readers.data.model.ChatMessage
 import com.route.readers.ui.community.used_trade.UsedBookTradeScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,7 +38,29 @@ fun CommunityScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showAddFriendDialog by remember { mutableStateOf(false) }
+    var showCreateBookClubDialog by remember { mutableStateOf(false) }
+    var showChatScreen by remember { mutableStateOf<BookClub?>(null) }
     var selectedTab by remember { mutableStateOf(0) }
+    var bookClubs by remember { mutableStateOf(listOf(
+        BookClub(
+            id = "1",
+            name = "개발자 북클럽",
+            description = "개발 관련 도서를 함께 읽어요",
+            currentBook = "클린 아키텍처",
+            currentBookAuthor = "로버트 C. 마틴",
+            nextMeetingDate = "2024.01.20",
+            memberCount = 12
+        ),
+        BookClub(
+            id = "2", 
+            name = "자기계발 모임",
+            description = "자기계발서를 통해 성장해요",
+            currentBook = "7가지 습관",
+            currentBookAuthor = "스티븐 코비",
+            nextMeetingDate = "2024.01.22",
+            memberCount = 8
+        )
+    )) }
     
     Column(
         modifier = Modifier
@@ -83,12 +108,22 @@ fun CommunityScreen(
         }
         
         when (selectedTab) {
-            0 -> CommunityContent(
-                uiState = uiState,
-                onNavigateToFriendsList = onNavigateToFriendsList,
-                onShowAddFriendDialog = { showAddFriendDialog = true },
-                onRemoveFriend = { friend -> viewModel.showDeleteConfirmation(friend) }
-            )
+            0 -> {
+                showChatScreen?.let { bookClub ->
+                    BookClubChatScreen(
+                        bookClub = bookClub,
+                        onBack = { showChatScreen = null }
+                    )
+                } ?: CommunityContent(
+                    uiState = uiState,
+                    bookClubs = bookClubs,
+                    onNavigateToFriendsList = onNavigateToFriendsList,
+                    onShowAddFriendDialog = { showAddFriendDialog = true },
+                    onRemoveFriend = { friend -> viewModel.showDeleteConfirmation(friend) },
+                    onShowCreateBookClubDialog = { showCreateBookClubDialog = true },
+                    onJoinBookClub = { bookClub -> showChatScreen = bookClub }
+                )
+            }
             1 -> UsedBookTradeScreen()
         }
     }
@@ -99,6 +134,25 @@ fun CommunityScreen(
             onAddFriend = { friendId ->
                 viewModel.addFriend(friendId)
                 showAddFriendDialog = false
+            }
+        )
+    }
+    
+    if (showCreateBookClubDialog) {
+        CreateBookClubDialog(
+            onDismiss = { showCreateBookClubDialog = false },
+            onCreateBookClub = { name, description, currentBook, author, meetingDate ->
+                val newBookClub = BookClub(
+                    id = (bookClubs.size + 1).toString(),
+                    name = name,
+                    description = description,
+                    currentBook = currentBook,
+                    currentBookAuthor = author,
+                    nextMeetingDate = meetingDate,
+                    memberCount = 1
+                )
+                bookClubs = bookClubs + newBookClub
+                showCreateBookClubDialog = false
             }
         )
     }
@@ -138,9 +192,12 @@ fun CommunityScreen(
 @Composable
 fun CommunityContent(
     uiState: CommunityUiState,
+    bookClubs: List<BookClub>,
     onNavigateToFriendsList: () -> Unit,
     onShowAddFriendDialog: () -> Unit,
-    onRemoveFriend: (Friend) -> Unit
+    onRemoveFriend: (Friend) -> Unit,
+    onShowCreateBookClubDialog: () -> Unit,
+    onJoinBookClub: (BookClub) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -149,6 +206,7 @@ fun CommunityContent(
         item {
             Spacer(modifier = Modifier.height(16.dp))
             
+            // 주간 독서 챌린지
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -240,6 +298,7 @@ fun CommunityContent(
             
             Spacer(modifier = Modifier.height(24.dp))
             
+            // 친구 섹션
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -291,6 +350,7 @@ fun CommunityContent(
         item {
             Spacer(modifier = Modifier.height(24.dp))
             
+            // 북클럽 섹션
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -309,27 +369,19 @@ fun CommunityContent(
             }
             
             Spacer(modifier = Modifier.height(16.dp))
-            
+        }
+        
+        items(bookClubs) { bookClub ->
             BookClubItem(
-                title = "개발자 북클럽",
-                author = "현재 도서: 클린 아키텍처",
-                days = "24일",
-                date = "다음 모임: 2024.01.20"
+                bookClub = bookClub,
+                onJoinClick = { onJoinBookClub(bookClub) }
             )
-            
             Spacer(modifier = Modifier.height(12.dp))
-            
-            BookClubItem(
-                title = "자기계발 모임",
-                author = "현재 도서: 7가지 습관",
-                days = "18일",
-                date = "다음 모임: 2024.01.22"
-            )
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
+        }
+        
+        item {
             TextButton(
-                onClick = { /* 새 북클럽 만들기 */ },
+                onClick = onShowCreateBookClubDialog,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("새 북클럽 만들기")
@@ -337,6 +389,7 @@ fun CommunityContent(
             
             Spacer(modifier = Modifier.height(32.dp))
             
+            // 나의 업적 섹션
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -396,6 +449,7 @@ fun CommunityContent(
             
             Spacer(modifier = Modifier.height(32.dp))
             
+            // 친구에게 독서 알림 보내기
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -447,10 +501,8 @@ fun CommunityContent(
 
 @Composable
 fun BookClubItem(
-    title: String,
-    author: String,
-    days: String,
-    date: String
+    bookClub: BookClub,
+    onJoinClick: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -473,66 +525,287 @@ fun BookClubItem(
         
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                title,
+                bookClub.name,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium
             )
             Text(
-                author,
+                "현재 도서: ${bookClub.currentBook}",
                 fontSize = 14.sp,
                 color = Color.Gray
             )
             Text(
-                date,
+                "다음 모임: ${bookClub.nextMeetingDate}",
                 fontSize = 12.sp,
                 color = Color.Gray
             )
         }
         
-        Text(
-            "참여",
-            fontSize = 14.sp,
-            color = Color.Blue
-        )
+        TextButton(onClick = onJoinClick) {
+            Text(
+                "참여",
+                fontSize = 14.sp,
+                color = Color.Blue
+            )
+        }
     }
 }
 
 @Composable
-fun AchievementCard(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String,
-    modifier: Modifier = Modifier
+fun CreateBookClubDialog(
+    onDismiss: () -> Unit,
+    onCreateBookClub: (String, String, String, String, String) -> Unit
 ) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
-    ) {
-        Column(
+    var name by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var currentBook by remember { mutableStateOf("") }
+    var author by remember { mutableStateOf("") }
+    var meetingDate by remember { mutableStateOf("") }
+    
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            shape = RoundedCornerShape(16.dp)
         ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                modifier = Modifier.size(32.dp),
-                tint = Color.Gray
+            Column(
+                modifier = Modifier.padding(24.dp)
+            ) {
+                Text(
+                    "새 북클럽 만들기",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("북클럽 이름") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("설명") },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 2
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                OutlinedTextField(
+                    value = currentBook,
+                    onValueChange = { currentBook = it },
+                    label = { Text("현재 읽을 책") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                OutlinedTextField(
+                    value = author,
+                    onValueChange = { author = it },
+                    label = { Text("저자") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                OutlinedTextField(
+                    value = meetingDate,
+                    onValueChange = { meetingDate = it },
+                    label = { Text("다음 모임 날짜 (예: 2024.01.20)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("취소")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = { 
+                            if (name.isNotBlank() && currentBook.isNotBlank()) {
+                                onCreateBookClub(name, description, currentBook, author, meetingDate)
+                            }
+                        }
+                    ) {
+                        Text("만들기")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BookClubChatScreen(
+    bookClub: BookClub,
+    onBack: () -> Unit
+) {
+    var messages by remember { mutableStateOf(listOf(
+        ChatMessage(
+            id = "1",
+            bookClubId = bookClub.id,
+            senderId = "user1",
+            senderName = "김독서",
+            message = "안녕하세요! 오늘 3장까지 읽었어요",
+            timestamp = System.currentTimeMillis() - 3600000
+        ),
+        ChatMessage(
+            id = "2", 
+            bookClubId = bookClub.id,
+            senderId = "user2",
+            senderName = "이책벌레",
+            message = "저도 방금 3장 끝냈습니다. 정말 흥미로운 내용이네요!",
+            timestamp = System.currentTimeMillis() - 1800000
+        )
+    )) }
+    var newMessage by remember { mutableStateOf("") }
+    
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)
+    ) {
+        TopAppBar(
+            title = { 
+                Column {
+                    Text(
+                        bookClub.name,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "${bookClub.currentBook} - ${bookClub.memberCount}명",
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+                }
+            },
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "뒤로가기")
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = Color.White
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                title,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                textAlign = TextAlign.Center
+        )
+        
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(vertical = 8.dp)
+        ) {
+            items(messages) { message ->
+                ChatMessageItem(message = message)
+            }
+        }
+        
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = newMessage,
+                onValueChange = { newMessage = it },
+                placeholder = { Text("메시지를 입력하세요...") },
+                modifier = Modifier.weight(1f),
+                maxLines = 3
             )
-            Text(
-                subtitle,
-                fontSize = 10.sp,
-                color = Color.Gray
-            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Button(
+                onClick = {
+                    if (newMessage.isNotBlank()) {
+                        val message = ChatMessage(
+                            id = (messages.size + 1).toString(),
+                            bookClubId = bookClub.id,
+                            senderId = "currentUser",
+                            senderName = "나",
+                            message = newMessage,
+                            timestamp = System.currentTimeMillis()
+                        )
+                        messages = messages + message
+                        newMessage = ""
+                    }
+                }
+            ) {
+                Icon(Icons.Default.Send, contentDescription = "전송")
+            }
+        }
+    }
+}
+
+@Composable
+fun ChatMessageItem(message: ChatMessage) {
+    val isMyMessage = message.senderId == "currentUser"
+    
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = if (isMyMessage) Arrangement.End else Arrangement.Start
+    ) {
+        if (!isMyMessage) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .background(Color.Gray, RoundedCornerShape(16.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    message.senderName.first().toString(),
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+        
+        Column(
+            modifier = Modifier.widthIn(max = 280.dp)
+        ) {
+            if (!isMyMessage) {
+                Text(
+                    message.senderName,
+                    fontSize = 12.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(bottom = 2.dp)
+                )
+            }
+            
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isMyMessage) Color(0xFF4285F4) else Color(0xFFF5F5F5)
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    message.message,
+                    modifier = Modifier.padding(12.dp),
+                    color = if (isMyMessage) Color.White else Color.Black
+                )
+            }
         }
     }
 }
@@ -665,6 +938,46 @@ fun FriendItemWithDelete(
             Text(
                 friend.lastActive,
                 fontSize = 12.sp,
+                color = Color.Gray
+            )
+        }
+    }
+}
+
+@Composable
+fun AchievementCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                modifier = Modifier.size(32.dp),
+                tint = Color.Gray
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                title,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                subtitle,
+                fontSize = 10.sp,
                 color = Color.Gray
             )
         }
