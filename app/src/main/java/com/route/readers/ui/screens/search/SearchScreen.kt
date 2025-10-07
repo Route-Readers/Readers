@@ -270,7 +270,7 @@ fun BookSearchResultCard(
             verticalAlignment = Alignment.Top
         ) {
             AsyncImage(
-                model = book.cover.ifEmpty { R.mipmap.readerslogo },
+                model = book.getHighQualityImageUrl().ifEmpty { R.mipmap.readerslogo },
                 contentDescription = "책 표지",
                 modifier = Modifier
                     .size(80.dp, 100.dp)
@@ -506,7 +506,7 @@ fun SimpleBookCard(book: Book, onClick: () -> Unit) {
     ) {
         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(
-                model = book.cover.ifEmpty { R.mipmap.readerslogo },
+                model = book.getHighQualityImageUrl().ifEmpty { R.mipmap.readerslogo },
                 contentDescription = "책 표지",
                 modifier = Modifier
                     .size(40.dp, 60.dp)

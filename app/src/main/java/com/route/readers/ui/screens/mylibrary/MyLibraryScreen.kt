@@ -23,27 +23,28 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
 import com.route.readers.R
 import com.route.readers.data.model.MyBook
-import com.route.readers.data.remote.FirestoreRepository
+import com.route.readers.data.remote.MyLibraryRepository
 import com.route.readers.ui.theme.*
 import kotlinx.coroutines.launch
 
 @Composable
 fun MyLibraryScreen(
-    firestoreRepository: FirestoreRepository = FirestoreRepository(),
     onBookSelected: (MyBook?) -> Unit = {},
     showProgressDialog: Boolean = false,
     onProgressDialogDismiss: () -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val myLibraryRepository = remember { MyLibraryRepository() }
     var books by remember { mutableStateOf<List<MyBook>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var showProgressDialogBook by remember { mutableStateOf<MyBook?>(null) }
     var showDeleteDialog by remember { mutableStateOf<MyBook?>(null) }
     var selectedBook by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
 
     // 외부에서 다이얼로그 표시 요청이 있을 때 처리
     LaunchedEffect(showProgressDialog) {
@@ -61,7 +62,7 @@ fun MyLibraryScreen(
         scope.launch {
             isLoading = true
             try {
-                books = firestoreRepository.getMyBooks()
+                books = myLibraryRepository.getMyBooks()
                 Log.d("MyLibraryScreen", "Books loaded: ${books.size}")
             } catch (e: Exception) {
                 Log.e("MyLibraryScreen", "Error loading books: ${e.message}", e)
@@ -83,7 +84,7 @@ fun MyLibraryScreen(
             kotlinx.coroutines.delay(5000) // 5초마다 새로고침
             if (!isLoading) {
                 scope.launch {
-                    val newBooks = firestoreRepository.getMyBooks()
+                    val newBooks = myLibraryRepository.getMyBooks()
                     if (newBooks.size != books.size) {
                         books = newBooks
                         Log.d("MyLibraryScreen", "Books updated: ${books.size}")
@@ -248,7 +249,7 @@ fun MyLibraryScreen(
             onUpdate = { currentPage ->
                 scope.launch {
                     Log.d("MyLibraryScreen", "Updating progress: ${book.title} to page $currentPage")
-                    val success = firestoreRepository.updateReadingProgress(book.isbn, currentPage)
+                    val success = myLibraryRepository.updateReadingProgress(book.isbn, currentPage)
                     Log.d("MyLibraryScreen", "Update result: $success")
                     if (success) {
                         refreshBooks() // 새로고침
@@ -270,7 +271,7 @@ fun MyLibraryScreen(
             onConfirm = {
                 scope.launch {
                     Log.d("MyLibraryScreen", "Deleting book: ${book.title}")
-                    val success = firestoreRepository.removeBookFromLibrary(book.isbn)
+                    val success = myLibraryRepository.removeBookFromLibrary(book.isbn)
                     Log.d("MyLibraryScreen", "Delete result: $success")
                     if (success) {
                         refreshBooks() // 새로고침
@@ -316,7 +317,7 @@ fun MyBookCard(
             modifier = Modifier.padding(16.dp)
         ) {
             AsyncImage(
-                model = book.cover.ifEmpty { null },
+                model = book.getHighQualityImageUrl().ifEmpty { null },
                 contentDescription = "책 표지",
                 modifier = Modifier
                     .size(80.dp, 100.dp)

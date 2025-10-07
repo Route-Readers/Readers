@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_container"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="12dp"
+    android:background="@drawable/widget_background">
+
+    <!-- 책 표지 이미지 -->
+    <ImageView
+        android:id="@+id/widget_book_cover"
+        android:layout_width="48dp"
+        android:layout_height="64dp"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true"
+        android:scaleType="centerCrop"
+        android:background="@drawable/book_cover_placeholder"
+        android:contentDescription="책 표지" />
+
+    <!-- 책 정보 영역 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_toEndOf="@id/widget_book_cover"
+        android:layout_marginStart="12dp"
+        android:layout_alignTop="@id/widget_book_cover"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/widget_book_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="책 제목"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textColor="#1A1A1A"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:lineSpacingExtra="2dp" />
+
+        <TextView
+            android:id="@+id/widget_book_author"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="작가명"
+            android:textSize="11sp"
+            android:textColor="#666666"
+            android:layout_marginTop="2dp"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/widget_page_info"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="120 / 300 페이지"
+            android:textSize="10sp"
+            android:textColor="#888888"
+            android:layout_marginTop="4dp" />
+
+    </LinearLayout>
+
+    <!-- 진도 영역 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/widget_book_cover"
+        android:layout_marginTop="12dp"
+        android:orientation="vertical">
+
+        <!-- 진도율과 진도바 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <ProgressBar
+                android:id="@+id/widget_progress_bar"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="0dp"
+                android:layout_height="6dp"
+                android:layout_weight="1"
+                android:progressDrawable="@drawable/progress_bar_style"
+                android:background="@drawable/progress_background" />
+
+            <TextView
+                android:id="@+id/widget_progress"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="75%"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="#4CAF50"
+                android:layout_marginStart="12dp"
+                android:minWidth="40dp"
+                android:gravity="end" />
+
+        </LinearLayout>
+
+        <!-- 하단 텍스트 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="📚 탭하여 독서 계속하기"
+            android:textSize="9sp"
+            android:textColor="#999999"
+            android:gravity="center"
+            android:layout_marginTop="8dp" />
+
+    </LinearLayout>
+
+</RelativeLayout>
