@@ -66,11 +66,36 @@ class ReadingProgressWidget : AppWidgetProvider() {
                         views.setTextViewText(R.id.widget_book_author, currentBook.author)
                         views.setTextViewText(R.id.widget_progress, "${currentBook.progress}%")
                         views.setProgressBar(R.id.widget_progress_bar, 100, currentBook.progress, false)
+                        
+                        // 페이지 정보 표시
+                        val pageInfo = if (currentBook.totalPages > 0) {
+                            "${currentBook.currentPage} / ${currentBook.totalPages} 페이지"
+                        } else {
+                            "페이지 정보 없음"
+                        }
+                        views.setTextViewText(R.id.widget_page_info, pageInfo)
+                        
+                        // 책 표지 이미지 로드
+                        if (currentBook.cover.isNotEmpty()) {
+                            CoroutineScope(Dispatchers.IO).launch {
+                                val bitmap = WidgetImageLoader.loadBitmap(context, currentBook.cover)
+                                CoroutineScope(Dispatchers.Main).launch {
+                                    if (bitmap != null) {
+                                        views.setImageViewBitmap(R.id.widget_book_cover, bitmap)
+                                    }
+                                    appWidgetManager.updateAppWidget(appWidgetId, views)
+                                }
+                            }
+                        } else {
+                            appWidgetManager.updateAppWidget(appWidgetId, views)
+                        }
                     } else {
-                        views.setTextViewText(R.id.widget_book_title, "읽고 있는 책이 없습니다")
-                        views.setTextViewText(R.id.widget_book_author, "")
+                        views.setTextViewText(R.id.widget_book_title, "📖 읽고 있는 책이 없습니다")
+                        views.setTextViewText(R.id.widget_book_author, "새로운 책을 추가해보세요!")
                         views.setTextViewText(R.id.widget_progress, "0%")
+                        views.setTextViewText(R.id.widget_page_info, "")
                         views.setProgressBar(R.id.widget_progress_bar, 100, 0, false)
+                        appWidgetManager.updateAppWidget(appWidgetId, views)
                     }
                     
                     appWidgetManager.updateAppWidget(appWidgetId, views)
@@ -80,6 +105,7 @@ class ReadingProgressWidget : AppWidgetProvider() {
                     views.setTextViewText(R.id.widget_book_title, "데이터 로드 실패")
                     views.setTextViewText(R.id.widget_book_author, "")
                     views.setTextViewText(R.id.widget_progress, "0%")
+                    views.setTextViewText(R.id.widget_page_info, "")
                     appWidgetManager.updateAppWidget(appWidgetId, views)
                 }
             }
