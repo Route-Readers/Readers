@@ -11,10 +11,13 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.google.firebase.auth.FirebaseAuth
 import com.route.readers.data.model.MyBook
 import com.route.readers.ui.components.BottomNavBar
 import com.route.readers.ui.components.BottomNavItem
@@ -23,12 +26,14 @@ import com.route.readers.ui.screens.community.CommunityScreen
 import com.route.readers.ui.screens.community.CommunityViewModel
 import com.route.readers.ui.screens.feed.FeedScreen
 import com.route.readers.ui.screens.mylibrary.MyLibraryScreen
+import com.route.readers.ui.screens.profile.ProfileScreen
+import com.route.readers.ui.screens.profile.ProfileViewModel
 import com.route.readers.ui.screens.search.SearchScreen
+import java.net.URLEncoder
 
 @Composable
 fun MainScreen(
     navController: NavHostController,
-    onNavigateToProfile: () -> Unit,
     onNavigateToOtherUserProfile: (String) -> Unit
 ) {
     val bottomNavController = rememberNavController()
@@ -40,10 +45,27 @@ fun MainScreen(
         bottomBar = {
             val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
             val currentRoute = navBackStackEntry?.destination?.route
-            if (currentRoute != "friends_list") {
+
+            val routesWithBottomBar = listOf(
+                BottomNavItem.Feed.route,
+                BottomNavItem.MyLibrary.route,
+                BottomNavItem.Search.route,
+                BottomNavItem.Community.route,
+                "profile_route/{userId}"
+            )
+
+            if (currentRoute in routesWithBottomBar) {
                 BottomNavBar(
                     navController = bottomNavController,
-                    onProfileClick = onNavigateToProfile,
+                    onProfileClick = {
+                        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+                        currentUserId?.let {
+                            bottomNavController.navigate("profile_route/$it") {
+                                popUpTo(bottomNavController.graph.findStartDestination().id)
+                                launchSingleTop = true
+                            }
+                        }
+                    },
                     selectedBook = selectedBook,
                     onStartReading = {
                         selectedBook?.let { book ->
@@ -100,8 +122,31 @@ fun MainScreen(
                     onUserClick = onNavigateToOtherUserProfile
                 )
             }
-            composable(BottomNavItem.Profile.route) {
-                onNavigateToProfile()
+            composable(
+                route = "profile_route/{userId}",
+                arguments = listOf(navArgument("userId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val userId = backStackEntry.arguments?.getString("userId")
+                if (userId != null) {
+                    val profileViewModel: ProfileViewModel = viewModel()
+                    ProfileScreen(
+                        userId = userId,
+                        viewModel = profileViewModel,
+                        onLogout = {
+                            FirebaseAuth.getInstance().signOut()
+                            navController.navigate("onboarding_route") {
+                                popUpTo(navController.graph.id) { inclusive = true }
+                            }
+                        },
+                        onNavigateToFollowList = { listType, nickname ->
+                            val encodedNickname = URLEncoder.encode(nickname, "UTF-8")
+                            navController.navigate("follow_list_route/$userId/$listType/$encodedNickname")
+                        },
+                        onNavigateBack = {
+                            bottomNavController.popBackStack()
+                        }
+                    )
+                }
             }
         }
     }

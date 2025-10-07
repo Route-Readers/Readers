@@ -1,7 +1,10 @@
 package com.route.readers.ui.screens.profile
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -10,6 +13,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,24 +30,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.route.readers.data.model.Book
 import com.route.readers.data.model.User
-import com.route.readers.ui.components.BottomNavBar
 import com.route.readers.ui.theme.DarkRed
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     userId: String,
-    navController: NavController,
     onNavigateBack: () -> Unit,
     onLogout: () -> Unit,
     onNavigateToFollowList: (listType: String, nickname: String) -> Unit,
-    viewModel: ProfileViewModel = viewModel()
+    viewModel: ProfileViewModel
 ) {
     LaunchedEffect(key1 = userId) {
         viewModel.fetchUserProfile(userId)
@@ -51,54 +52,53 @@ fun ProfileScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showMenu by remember { mutableStateOf(false) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("프로필") },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로 가기")
-                    }
-                },
-                actions = {
-                    if ((uiState as? ProfileUiState.Success)?.isMyProfile == true) {
-                        Box {
-                            IconButton(onClick = { showMenu = true }) {
-                                Icon(Icons.Default.Settings, contentDescription = "설정")
-                            }
-                            DropdownMenu(
-                                expanded = showMenu,
-                                onDismissRequest = { showMenu = false }
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text("로그아웃") },
-                                    onClick = {
-                                        showMenu = false
-                                        onLogout()
-                                    }
-                                )
-                            }
+    val isSelectionModeActive = (uiState as? ProfileUiState.Success)?.isSelectionMode == true
+    BackHandler(enabled = isSelectionModeActive) {
+        viewModel.clearSelectionMode()
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        TopAppBar(
+            title = {
+                val nickname = (uiState as? ProfileUiState.Success)?.user?.nickname
+                Text(text = nickname ?: "프로필")
+            },
+            navigationIcon = {
+                IconButton(onClick = onNavigateBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로 가기")
+                }
+            },
+            actions = {
+                if ((uiState as? ProfileUiState.Success)?.isMyProfile == true) {
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Default.Settings, contentDescription = "설정")
+                        }
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("로그아웃") },
+                                onClick = {
+                                    showMenu = false
+                                    onLogout()
+                                }
+                            )
                         }
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
-                    titleContentColor = Color.Black
-                )
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = Color.White,
+                titleContentColor = Color.Black
             )
-        },
-        bottomBar = {
-            BottomNavBar(
-                navController = navController,
-                onProfileClick = { /* 프로필 화면에서는 아무것도 안 함 */ }
-            )
-        },
-        containerColor = Color(0xFFF5F5F5)
-    ) { paddingValues ->
+        )
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
+                .background(Color(0xFFF5F5F5)),
             contentAlignment = Alignment.Center
         ) {
             when (val state = uiState) {
@@ -106,16 +106,13 @@ fun ProfileScreen(
                 is ProfileUiState.Error -> Text(text = state.message)
                 is ProfileUiState.Success -> {
                     ProfileContent(
-                        user = state.user,
-                        isMyProfile = state.isMyProfile,
-                        isFollowing = state.isFollowing,
-                        recommendedBooks = state.recommendedBooks,
-                        favoriteBooks = state.favoriteBooks,
+                        state = state,
                         onFollowClick = { viewModel.followUser(state.user.uid) },
                         onUnfollowClick = { viewModel.unfollowUser(state.user.uid) },
                         onFollowListClick = { listType ->
                             onNavigateToFollowList(listType, state.user.nickname)
-                        }
+                        },
+                        viewModel = viewModel
                     )
                 }
             }
@@ -126,15 +123,13 @@ fun ProfileScreen(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ProfileContent(
-    user: User,
-    isMyProfile: Boolean,
-    isFollowing: Boolean,
-    recommendedBooks: List<Book>,
-    favoriteBooks: List<Book>,
+    state: ProfileUiState.Success,
     onFollowClick: () -> Unit,
     onUnfollowClick: () -> Unit,
-    onFollowListClick: (String) -> Unit
+    onFollowListClick: (String) -> Unit,
+    viewModel: ProfileViewModel
 ) {
+    val user = state.user
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -144,8 +139,8 @@ fun ProfileContent(
         item {
             ProfileInfoSection(
                 user = user,
-                isMyProfile = isMyProfile,
-                isFollowing = isFollowing,
+                isMyProfile = state.isMyProfile,
+                isFollowing = state.isFollowing,
                 onFollowClick = onFollowClick,
                 onUnfollowClick = onUnfollowClick,
                 onFollowListClick = onFollowListClick
@@ -160,9 +155,7 @@ fun ProfileContent(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        user.readingGenres.forEach { genre ->
-                            Chip(label = genre)
-                        }
+                        user.readingGenres.forEach { genre -> Chip(label = genre) }
                     }
                 }
             }
@@ -176,27 +169,30 @@ fun ProfileContent(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        user.readingStyles.forEach { style ->
-                            Chip(label = style)
-                        }
+                        user.readingStyles.forEach { style -> Chip(label = style) }
                     }
                 }
             }
         }
 
-        if (recommendedBooks.isNotEmpty()) {
+        if (state.recommendedBooks.isNotEmpty()) {
             item {
                 RecommendedBooksSection(
-                    books = recommendedBooks,
+                    books = state.recommendedBooks,
                     onBookClick = { }
                 )
             }
         }
 
-        if (favoriteBooks.isNotEmpty()) {
+        if (state.favoriteBooks.isNotEmpty()) {
             item {
                 FavoriteBooksSection(
-                    books = favoriteBooks,
+                    books = state.favoriteBooks,
+                    isSelectionMode = state.isSelectionMode,
+                    selectedBookIds = state.selectedBookIds,
+                    onToggleSelection = viewModel::toggleBookSelection,
+                    onStartSelectionMode = viewModel::startSelectionMode,
+                    onDeleteClick = viewModel::deleteSelectedFavoriteBooks,
                     onBookClick = { }
                 )
             }
@@ -290,56 +286,141 @@ fun RecommendedBooksSection(
             contentPadding = PaddingValues(horizontal = 4.dp)
         ) {
             items(books, key = { it.isbn }) { book ->
-                BookCardItem(book = book, onClick = { onBookClick(book) })
+                BookCardItem(
+                    book = book,
+                    onClick = { onBookClick(book) }
+                )
             }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FavoriteBooksSection(
     books: List<Book>,
+    isSelectionMode: Boolean,
+    selectedBookIds: Set<String>,
+    onToggleSelection: (String) -> Unit,
+    onStartSelectionMode: (String) -> Unit,
+    onDeleteClick: () -> Unit,
     onBookClick: (Book) -> Unit
 ) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = "관심 도서",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(start = 4.dp, bottom = 16.dp)
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 4.dp, bottom = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "관심 도서",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+            if (isSelectionMode) {
+                IconButton(onClick = { if (selectedBookIds.isNotEmpty()) showDeleteDialog = true }) {
+                    Icon(Icons.Default.Delete, contentDescription = "선택한 도서 삭제")
+                }
+            }
+        }
+
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(horizontal = 4.dp)
         ) {
             items(books, key = { it.isbn }) { book ->
-                BookCardItem(book = book, onClick = { onBookClick(book) })
+                BookCardItem(
+                    book = book,
+                    isSelected = book.isbn in selectedBookIds,
+                    modifier = Modifier.combinedClickable(
+                        onClick = {
+                            if (isSelectionMode) {
+                                onToggleSelection(book.isbn)
+                            } else {
+                                onBookClick(book)
+                            }
+                        },
+                        onLongClick = {
+                            if (!isSelectionMode) {
+                                onStartSelectionMode(book.isbn)
+                            }
+                        }
+                    )
+                )
             }
         }
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("관심 도서 삭제") },
+            text = { Text("선택한 ${selectedBookIds.size}개의 도서를 관심 도서에서 삭제하시겠습니까?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteClick()
+                        showDeleteDialog = false
+                    }
+                ) {
+                    Text("삭제")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("취소")
+                }
+            }
+        )
     }
 }
 
 @Composable
-fun BookCardItem(book: Book, onClick: () -> Unit) {
+fun BookCardItem(
+    book: Book,
+    modifier: Modifier = Modifier,
+    isSelected: Boolean = false,
+    onClick: (() -> Unit)? = null
+) {
+    val finalModifier = if (onClick != null) modifier.clickable { onClick() } else modifier
     Column(
-        modifier = Modifier
-            .width(120.dp)
-            .clickable(onClick = onClick),
+        modifier = finalModifier.width(120.dp),
         horizontalAlignment = Alignment.Start
     ) {
         Card(shape = RoundedCornerShape(8.dp), elevation = CardDefaults.cardElevation(2.dp)) {
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(book.cover)
-                    .crossfade(true)
-                    .build(),
-                contentDescription = book.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .width(120.dp)
-                    .height(170.dp)
-                    .background(Color.LightGray)
-            )
+            Box {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(book.cover)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = book.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .width(120.dp)
+                        .height(170.dp)
+                        .background(Color.LightGray)
+                )
+                if (isSelected) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(Color.Black.copy(alpha = 0.6f))
+                    )
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = "선택됨",
+                        tint = Color.White,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .size(40.dp)
+                    )
+                }
+            }
         }
         Spacer(modifier = Modifier.height(8.dp))
         Text(

@@ -23,7 +23,6 @@ import com.route.readers.ui.screens.login.LoginViewModel
 import com.route.readers.ui.screens.login.OnboardingScreen
 import com.route.readers.ui.screens.login.SignUpScreen
 import com.route.readers.ui.screens.profile.FollowListScreen
-import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.profile.ProfileSetupScreen
 import java.net.URLDecoder
 import java.net.URLEncoder
@@ -148,45 +147,12 @@ fun AppNavigation(navController: NavHostController) {
         }
 
         composable("main_app_content_route") {
-            val auth = FirebaseAuth.getInstance()
             MainScreen(
                 navController = navController,
-                onNavigateToProfile = {
-                    val userId = auth.currentUser?.uid
-                    if (userId != null) {
-                        navController.navigate("profile_route/$userId")
-                    }
-                },
                 onNavigateToOtherUserProfile = { userId ->
                     navController.navigate("profile_route/$userId")
                 }
             )
-        }
-
-        composable(
-            route = "profile_route/{userId}",
-            arguments = listOf(navArgument("userId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val userId = backStackEntry.arguments?.getString("userId")
-            if (userId != null) {
-                ProfileScreen(
-                    userId = userId,
-                    navController = navController,
-                    onNavigateBack = { navController.popBackStack() },
-                    onLogout = {
-                        FirebaseAuth.getInstance().signOut()
-                        navController.navigate("onboarding_route") {
-                            popUpTo(navController.graph.startDestinationId) {
-                                inclusive = true
-                            }
-                        }
-                    },
-                    onNavigateToFollowList = { listType, nickname ->
-                        val encodedNickname = URLEncoder.encode(nickname, "UTF-8")
-                        navController.navigate("follow_list_route/$userId/$listType/$encodedNickname")
-                    }
-                )
-            }
         }
 
         composable(

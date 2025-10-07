@@ -38,7 +38,6 @@ import com.route.readers.ui.screens.login.LoginViewModel
 import com.route.readers.ui.screens.login.OnboardingScreen
 import com.route.readers.ui.screens.login.SignUpScreen
 import com.route.readers.ui.screens.profile.FollowListScreen
-import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.profile.ProfileSetupScreen
 import com.route.readers.ui.theme.ReadersTheme
 import com.route.readers.widget.WidgetUpdateHelper
@@ -211,45 +210,12 @@ fun RootAppNavigation() {
         }
 
         composable("main_app_content_route") {
-            val auth = FirebaseAuth.getInstance()
             MainScreen(
                 navController = appNavController,
-                onNavigateToProfile = {
-                    val userId = auth.currentUser?.uid
-                    if (userId != null) {
-                        appNavController.navigate("profile_route/$userId")
-                    }
-                },
                 onNavigateToOtherUserProfile = { userId ->
-                    appNavController.navigate("profile_route/$userId")
+                    appNavController.navigate("follow_list_route/$userId/followers/${""}")
                 }
             )
-        }
-
-        composable(
-            route = "profile_route/{userId}",
-            arguments = listOf(navArgument("userId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val userId = backStackEntry.arguments?.getString("userId")
-            if (userId != null) {
-                ProfileScreen(
-                    userId = userId,
-                    navController = appNavController,
-                    onNavigateBack = { appNavController.popBackStack() },
-                    onLogout = {
-                        FirebaseAuth.getInstance().signOut()
-                        appNavController.navigate("onboarding_route") {
-                            popUpTo(appNavController.graph.startDestinationId) {
-                                inclusive = true
-                            }
-                        }
-                    },
-                    onNavigateToFollowList = { listType, nickname ->
-                        val encodedNickname = URLEncoder.encode(nickname, "UTF-8")
-                        appNavController.navigate("follow_list_route/$userId/$listType/$encodedNickname")
-                    }
-                )
-            }
         }
 
         composable(
@@ -257,7 +223,7 @@ fun RootAppNavigation() {
             arguments = listOf(
                 navArgument("userId") { type = NavType.StringType },
                 navArgument("initialListType") { type = NavType.StringType },
-                navArgument("nickname") { type = NavType.StringType }
+                navArgument("nickname") { type = NavType.StringType; nullable = true }
             )
         ) { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId")
@@ -265,11 +231,11 @@ fun RootAppNavigation() {
             val nickname = backStackEntry.arguments?.getString("nickname")?.let {
                 URLDecoder.decode(it, "UTF-8")
             }
-            if (userId != null && initialListType != null && nickname != null) {
+            if (userId != null && initialListType != null) {
                 FollowListScreen(
                     userId = userId,
                     initialListType = initialListType,
-                    nickname = nickname,
+                    nickname = nickname ?: "",
                     onUserClick = { clickedUserId ->
                         appNavController.navigate("profile_route/$clickedUserId")
                     },

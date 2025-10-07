@@ -40,7 +40,6 @@ class BookRepository {
     suspend fun getBookSearch(query: String, page: Int = 1, maxResults: Int = 10): List<Book> {
         return try {
             if (TTBKEY.isBlank()) {
-                Log.e("BookRepository", "TTBKey is missing.")
                 return emptyList()
             }
 
@@ -68,14 +67,9 @@ class BookRepository {
                 }
                 applyFavoriteStatus(detailedBooks)
             } else {
-                Log.e(
-                    "BookRepository",
-                    "Search API Error: ${response.code()} - ${response.message()}"
-                )
                 emptyList()
             }
         } catch (e: Exception) {
-            Log.e("BookRepository", "Search failed: ${e.message}", e)
             emptyList()
         }
     }
@@ -83,7 +77,6 @@ class BookRepository {
     suspend fun getBookList(): List<Book> {
         return try {
             if (TTBKEY.isBlank()) {
-                Log.e("BookRepository", "TTBKey is missing.")
                 return emptyList()
             }
 
@@ -97,7 +90,6 @@ class BookRepository {
 
             if (response.isSuccessful) {
                 val basicBookList = response.body()?.books ?: emptyList()
-                Log.d("BookRepository", "신간 리스트에서 ${basicBookList.size}권의 책을 받았습니다.")
                 val detailedBooks = coroutineScope {
                     basicBookList.map { book ->
                         async {
@@ -111,14 +103,9 @@ class BookRepository {
                 }
                 applyFavoriteStatus(detailedBooks)
             } else {
-                Log.e(
-                    "BookRepository",
-                    "List API Error: ${response.code()} - ${response.message()}"
-                )
                 emptyList()
             }
         } catch (e: Exception) {
-            Log.e("BookRepository", "Get list failed: ${e.message}", e)
             emptyList()
         }
     }
@@ -126,7 +113,6 @@ class BookRepository {
     suspend fun getBookDetail(isbn: String): Book? {
         return try {
             if (TTBKEY.isBlank()) {
-                Log.e("BookRepository", "TTBKey is missing.")
                 return null
             }
             val response = bookService.getBookDetail(
@@ -141,14 +127,9 @@ class BookRepository {
             if (response.isSuccessful) {
                 response.body()?.books?.firstOrNull()
             } else {
-                Log.e(
-                    "BookRepository",
-                    "Detail API Error: ${response.code()} - ${response.message()}"
-                )
                 null
             }
         } catch (e: Exception) {
-            Log.e("BookRepository", "Get detail failed: ${e.message}", e)
             null
         }
     }
@@ -177,7 +158,6 @@ class BookRepository {
                 document.toObject(Book::class.java)?.copy(isFavorite = true)
             }
         } catch (e: Exception) {
-            Log.e("BookRepository", "Failed to get favorite books", e)
             emptyList()
         }
     }
@@ -193,5 +173,18 @@ class BookRepository {
                 book
             }
         }
+    }
+
+    suspend fun deleteFavoriteBooks(userId: String, bookIds: List<String>) {
+        if (userId.isBlank() || bookIds.isEmpty()) return
+
+        val favoriteCollectionRef = db.collection("users").document(userId).collection("favorites")
+        val batch = db.batch()
+
+        bookIds.forEach { bookId ->
+            batch.delete(favoriteCollectionRef.document(bookId))
+        }
+
+        batch.commit().await()
     }
 }
