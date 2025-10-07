@@ -3,14 +3,12 @@ package com.route.readers.data.remote
 import android.location.Location
 import android.util.Log
 import com.route.readers.BuildConfig
-import com.route.readers.ui.screens.search.LibraryApiService
 import com.route.readers.ui.screens.search.LibraryInfo
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.withContext
 
-// 도서관 검색 결과를 나타내는 데이터 클래스
 data class LibrarySearchResult(
     val libraryInfo: LibraryInfo,
     val distance: Float, // 미터(m) 단위
@@ -19,88 +17,111 @@ data class LibrarySearchResult(
 
 class LibraryRepository {
 
-    private val authKey = BuildConfig.DATA_GO_KR_API_KEY // API 인증키
+    private val authKey = BuildConfig.DATA_GO_KR_API_KEY
+    private val apiService = RetrofitClient.libraryApiService
 
-    private val libraryApiService: LibraryApiService by lazy {
-        Retrofit.Builder()
-            .baseUrl("http://data4library.kr/")
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(LibraryApiService::class.java)
-    }
+    // ▼▼▼ 여기에 전국 모든 지역 코드를 추가했습니다! ▼▼▼
+    private val regions = listOf(
+        "11", // 서울
+        "21", // 부산
+        "22", // 대구
+        "23", // 인천
+        "24", // 광주
+        "25", // 대전
+        "26", // 울산
+        "29", // 세종
+        "31", // 경기
+        "32", // 강원
+        "33", // 충북
+        "34", // 충남
+        "35", // 전북
+        "36", // 전남
+        "37", // 경북
+        "38", // 경남
+        "39"  // 제주
+    )
 
-    /**
-     * 특정 책(ISBN)을 가지고 있는 도서관 목록과 대출 가능 여부를 거리순으로 정렬하여 반환합니다.
-     */
     suspend fun getNearbyLibrariesWithBook(
         isbn: String,
         userLatitude: Double,
-        userLongitude: Double,
-        region: String = "11" // 예: 서울 지역 코드
-    ): List<LibrarySearchResult> {
+        userLongitude: Double
+    ): List<LibrarySearchResult> = withContext(Dispatchers.IO) {
         if (authKey.isBlank()) {
             Log.e("LibraryRepository", "API Key is missing.")
-            return emptyList()
+            return@withContext emptyList()
         }
 
-        // 1. 책을 소장한 도서관 목록을 가져옵니다.
-        val libraryResponse = try {
-            libraryApiService.searchLibrariesByBook(authKey, isbn, region)
-        } catch (e: Exception) {
-            Log.e("LibraryRepository", "Failed to fetch libraries by book: ${e.message}", e)
-            return emptyList()
-        }
-
-        if (!libraryResponse.isSuccessful) {
-            Log.e("LibraryRepository", "API Error: ${libraryResponse.code()} - ${libraryResponse.message()}")
-            return emptyList()
-        }
-
-        val libraries = libraryResponse.body()?.response?.libs ?: return emptyList()
-
-        // 2. 각 도서관의 대출 가능 여부를 비동기적으로 확인하고, 거리를 계산합니다.
-        return coroutineScope {
-            val results = libraries.map { libInfo ->
+        try {
+            // 여러 지역을 병렬로 검색하여 결과를 모두 합칩니다.
+            val allLibraries = regions.map { regionCode ->
                 async {
-                    // 대출 가능 여부 확인
-                    val availabilityResponse = try {
-                        libraryApiService.getBookAvailability(authKey, libInfo.libCode, isbn)
+                    try {
+                        val response = apiService.searchLibrariesByBook(authKey, isbn, regionCode)
+                        if (response.isSuccessful) {
+                            response.body()?.response?.libs ?: emptyList()
+                        } else {
+                            emptyList()
+                        }
                     } catch (e: Exception) {
-                        null
+                        emptyList()
                     }
-                    val isAvailable = availabilityResponse?.body()?.response?.result?.loanAvailable == "Y"
+                }
+            }.awaitAll().flatten().distinctBy { it.libCode } // 중복 제거
 
-                    // 사용자 위치와 도서관 거리 계산
+            if (allLibraries.isEmpty()) {
+                Log.w("LibraryRepository", "No libraries found for ISBN: $isbn in any monitored region.")
+                return@withContext emptyList()
+            }
+
+            // 각 도서관의 대출 가능 여부와 거리를 계산합니다.
+            val results = allLibraries.map { libInfo ->
+                async {
+                    val isAvailable = getBookLoanAvailability(libInfo.libCode, isbn)
                     val distance = calculateDistance(
                         userLatitude, userLongitude,
                         libInfo.latitude.toDoubleOrNull() ?: 0.0,
                         libInfo.longitude.toDoubleOrNull() ?: 0.0
                     )
-
-                    LibrarySearchResult(
-                        libraryInfo = libInfo,
-                        distance = distance,
-                        isLoanAvailable = isAvailable
-                    )
+                    LibrarySearchResult(libInfo, distance, isAvailable)
                 }
-            }.map { it.await() }
+            }.awaitAll()
 
-            // 3. 거리가 가까운 순으로 정렬하여 반환합니다.
-            results.sortedBy { it.distance }
+            // 유효한 거리의 도서관만 필터링하여 거리순으로 정렬합니다.
+            return@withContext results.filter { it.distance != Float.MAX_VALUE }.sortedBy { it.distance }
+
+        } catch (e: Exception) {
+            Log.e("LibraryRepository", "Failed to get nearby libraries: ${e.message}", e)
+            return@withContext emptyList()
         }
     }
 
-    /**
-     * 두 지점 간의 거리를 미터(m) 단위로 계산합니다.
-     */
+    // getBookLoanAvailability, calculateDistance 함수는 기존과 동일하게 유지
+    // ... (이하 코드는 변경 없음) ...
+    private suspend fun getBookLoanAvailability(libCode: String, isbn: String): Boolean {
+        return try {
+            val response = apiService.getBookAvailability(authKey, libCode, isbn)
+            if (response.isSuccessful) {
+                val result = response.body()?.response?.result
+                result?.hasBook == "Y" && result.loanAvailable == "Y"
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Float {
-        val results = FloatArray(1)
-        try {
-            Location.distanceBetween(lat1, lon1, lat2, lon2, results)
-        } catch (e: IllegalArgumentException) {
-            Log.e("LibraryRepository", "Invalid location data for distance calculation.", e)
+        if (lat1 == 0.0 || lon1 == 0.0 || lat2 == 0.0 || lon2 == 0.0) {
             return Float.MAX_VALUE
         }
-        return results[0]
+        val results = FloatArray(1)
+        return try {
+            Location.distanceBetween(lat1, lon1, lat2, lon2, results)
+            results[0]
+        } catch (e: IllegalArgumentException) {
+            Log.e("LibraryRepository", "Invalid location data for distance calculation.", e)
+            Float.MAX_VALUE
+        }
     }
 }
