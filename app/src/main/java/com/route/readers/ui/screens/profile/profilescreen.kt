@@ -23,20 +23,22 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.route.readers.data.model.Book
 import com.route.readers.data.model.User
+import com.route.readers.ui.components.BottomNavBar
 import com.route.readers.ui.theme.DarkRed
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     userId: String,
+    navController: NavController,
     onNavigateBack: () -> Unit,
     onLogout: () -> Unit,
     onNavigateToFollowList: (listType: String, nickname: String) -> Unit,
@@ -83,6 +85,12 @@ fun ProfileScreen(
                     containerColor = Color.White,
                     titleContentColor = Color.Black
                 )
+            )
+        },
+        bottomBar = {
+            BottomNavBar(
+                navController = navController,
+                onProfileClick = { /* 프로필 화면에서는 아무것도 안 함 */ }
             )
         },
         containerColor = Color(0xFFF5F5F5)
@@ -402,43 +410,5 @@ fun Chip(label: String) {
             .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         Text(text = label, color = DarkRed, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Preview(showBackground = true)
-@Composable
-fun ProfileScreenPreview() {
-    val fakeUser = User(
-        uid = "previewUser",
-        nickname = "책벌레독서가",
-        level = 8,
-        followerCount = 234,
-        followingCount = 89,
-        readBookCount = 47,
-        readingGenres = listOf("소설", "자기계발", "역사", "SF", "에세이", "고전"),
-        readingStyles = listOf("한 분야 깊게 파기", "천천히 음미하기", "다양하게 맛보기")
-    )
-    val fakeBooks = listOf(
-        Book(title = "불편한 편의점", author = "김호연", cover = ""),
-        Book(title = "세이노의 가르침", author = "세이노", cover = ""),
-        Book(title = "역행자", author = "자청", cover = "")
-    )
-    val favoriteBooks = listOf(
-        Book(title = "코스모스", author = "칼 세이건", cover = ""),
-        Book(title = "사피엔스", author = "유발 하라리", cover = "")
-    )
-
-    MaterialTheme {
-        ProfileContent(
-            user = fakeUser,
-            isMyProfile = false,
-            isFollowing = true,
-            recommendedBooks = fakeBooks,
-            favoriteBooks = favoriteBooks,
-            onFollowClick = {},
-            onUnfollowClick = {},
-            onFollowListClick = {}
-        )
     }
 }

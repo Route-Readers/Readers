@@ -25,6 +25,8 @@ import com.route.readers.ui.screens.login.SignUpScreen
 import com.route.readers.ui.screens.profile.FollowListScreen
 import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.profile.ProfileSetupScreen
+import java.net.URLDecoder
+import java.net.URLEncoder
 
 @Composable
 fun AppNavigation(navController: NavHostController) {
@@ -148,6 +150,7 @@ fun AppNavigation(navController: NavHostController) {
         composable("main_app_content_route") {
             val auth = FirebaseAuth.getInstance()
             MainScreen(
+                navController = navController,
                 onNavigateToProfile = {
                     val userId = auth.currentUser?.uid
                     if (userId != null) {
@@ -168,6 +171,7 @@ fun AppNavigation(navController: NavHostController) {
             if (userId != null) {
                 ProfileScreen(
                     userId = userId,
+                    navController = navController,
                     onNavigateBack = { navController.popBackStack() },
                     onLogout = {
                         FirebaseAuth.getInstance().signOut()
@@ -178,7 +182,7 @@ fun AppNavigation(navController: NavHostController) {
                         }
                     },
                     onNavigateToFollowList = { listType, nickname ->
-                        val encodedNickname = java.net.URLEncoder.encode(nickname, "UTF-8")
+                        val encodedNickname = URLEncoder.encode(nickname, "UTF-8")
                         navController.navigate("follow_list_route/$userId/$listType/$encodedNickname")
                     }
                 )
@@ -196,7 +200,7 @@ fun AppNavigation(navController: NavHostController) {
             val userId = backStackEntry.arguments?.getString("userId")
             val initialListType = backStackEntry.arguments?.getString("initialListType")
             val nickname = backStackEntry.arguments?.getString("nickname")?.let {
-                java.net.URLDecoder.decode(it, "UTF-8")
+                URLDecoder.decode(it, "UTF-8")
             }
             if (userId != null && initialListType != null && nickname != null) {
                 FollowListScreen(
