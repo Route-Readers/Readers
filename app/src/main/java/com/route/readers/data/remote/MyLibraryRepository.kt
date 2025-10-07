@@ -3,6 +3,7 @@ package com.route.readers.data.remote
 import android.util.Log
 import com.route.readers.data.model.Book
 import com.route.readers.data.model.MyBook
+import com.route.readers.widget.WidgetUpdateHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -50,6 +51,9 @@ class MyLibraryRepository {
                 val firestoreSuccess = firestoreRepository.addBookToLibrary(myBook)
                 Log.d("MyLibraryRepository", "Book added to Firestore: $firestoreSuccess")
                 
+                // 위젯 업데이트
+                WidgetUpdateHelper.updateAllWidgets()
+                
                 return firestoreSuccess
             }
             true
@@ -76,6 +80,9 @@ class MyLibraryRepository {
                 )
                 _myBooks.value = currentBooks
                 
+                // 위젯 업데이트
+                WidgetUpdateHelper.updateAllWidgets()
+                
                 // Firestore에도 업데이트
                 return firestoreRepository.updateReadingProgress(isbn, currentPage)
             }
@@ -91,6 +98,9 @@ class MyLibraryRepository {
             val currentBooks = _myBooks.value.toMutableList()
             currentBooks.removeAll { it.isbn == isbn }
             _myBooks.value = currentBooks
+            
+            // 위젯 업데이트
+            WidgetUpdateHelper.updateAllWidgets()
             
             // Firestore에서도 삭제
             return firestoreRepository.removeBookFromLibrary(isbn)
@@ -136,6 +146,15 @@ class MyLibraryRepository {
             Log.d("MyLibraryRepository", "Synced ${memoryBooks.size} books from Firestore")
         } catch (e: Exception) {
             Log.e("MyLibraryRepository", "Error syncing with Firestore: ${e.message}", e)
+        }
+    }
+
+    suspend fun getMyBooks(): List<MyBook> {
+        return try {
+            firestoreRepository.getMyBooks()
+        } catch (e: Exception) {
+            Log.e("MyLibraryRepository", "Error getting books: ${e.message}", e)
+            emptyList()
         }
     }
 }

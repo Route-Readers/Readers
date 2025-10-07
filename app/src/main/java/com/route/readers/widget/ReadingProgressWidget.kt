@@ -52,7 +52,7 @@ class ReadingProgressWidget : AppWidgetProvider() {
     ) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val repository = MyLibraryRepository()
+                val repository = MyLibraryRepository() // 위젯에서는 Context 없이 사용
                 repository.syncWithFirestore()
                 val books = repository.myBooks.value
                 
