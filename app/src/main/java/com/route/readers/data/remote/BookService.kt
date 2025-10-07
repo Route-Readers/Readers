@@ -17,6 +17,7 @@ interface BookService {
         @Query("SearchTarget") searchTarget: String = "Book",
         @Query("output") output: String = "js",
         @Query("Version") version: String = "20131101",
+        @Query("Cover") cover: String = "Big",
         @Query("OptResult") optResult: String = "ebookBlazing,usedList,reviewList,subInfo"
     ): Response<BookListDTO>
 
@@ -27,6 +28,7 @@ interface BookService {
         @Query("SearchTarget") searchTarget: String,
         @Query("output") output: String,
         @Query("Version") version: String = "20131101",
+        @Query("Cover") cover: String = "Big",
         @Query("OptResult") optResult: String = "ebookBlazing,usedList,reviewList,subInfo"
     ): Response<BookListDTO>
 
@@ -37,6 +39,7 @@ interface BookService {
         @Query("itemIdType") itemIdType: String,
         @Query("output") output: String,
         @Query("Version") version: String = "20131101",
+        @Query("Cover") cover: String = "Big",
         @Query("OptResult") optResult: String = "ebookBlazing,usedList,reviewList,subInfo"
     ): Response<BookListDTO>
 }

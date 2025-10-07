@@ -78,7 +78,7 @@ class ReadingProgressWidget : AppWidgetProvider() {
                         // 책 표지 이미지 로드
                         if (currentBook.cover.isNotEmpty()) {
                             CoroutineScope(Dispatchers.IO).launch {
-                                val bitmap = WidgetImageLoader.loadBitmap(context, currentBook.cover)
+                                val bitmap = WidgetImageLoader.loadBitmap(context, currentBook.getHighQualityImageUrl())
                                 CoroutineScope(Dispatchers.Main).launch {
                                     if (bitmap != null) {
                                         views.setImageViewBitmap(R.id.widget_book_cover, bitmap)

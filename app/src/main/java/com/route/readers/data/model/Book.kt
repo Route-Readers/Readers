@@ -33,4 +33,9 @@ data class Book(
     fun hasValidPageInfo(): Boolean {
         return extractPageCount() > 0
     }
+
+    fun getHighQualityImageUrl(): String {
+        // API에서 이미 Cover=Big 파라미터로 큰 이미지를 받아오므로 그대로 사용
+        return cover
+    }
 }

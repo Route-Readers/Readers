@@ -17,22 +17,34 @@ object WidgetImageLoader {
             try {
                 if (imageUrl.isEmpty()) return@withContext null
                 
+                Log.d("WidgetImageLoader", "Loading image: $imageUrl")
+                
                 val url = URL(imageUrl)
                 val connection = url.openConnection() as HttpURLConnection
                 connection.doInput = true
                 connection.connect()
                 
                 val inputStream: InputStream = connection.inputStream
-                val bitmap = BitmapFactory.decodeStream(inputStream)
+                
+                // BitmapFactory 옵션 설정으로 품질 개선
+                val options = BitmapFactory.Options().apply {
+                    inPreferredConfig = Bitmap.Config.ARGB_8888 // 고품질 설정
+                    inDither = false
+                    inScaled = false
+                }
+                
+                val bitmap = BitmapFactory.decodeStream(inputStream, null, options)
                 inputStream.close()
                 connection.disconnect()
                 
-                // 위젯용으로 크기 조정 (48x64dp)
-                val density = context.resources.displayMetrics.density
-                val targetWidth = (48 * density).toInt()
-                val targetHeight = (64 * density).toInt()
-                
-                Bitmap.createScaledBitmap(bitmap, targetWidth, targetHeight, true)
+                bitmap?.let {
+                    // 위젯용으로 크기 조정 (고품질 스케일링)
+                    val density = context.resources.displayMetrics.density
+                    val targetWidth = (48 * density).toInt()
+                    val targetHeight = (64 * density).toInt()
+                    
+                    Bitmap.createScaledBitmap(it, targetWidth, targetHeight, true)
+                }
             } catch (e: Exception) {
                 Log.e("WidgetImageLoader", "Failed to load image: ${e.message}")
                 null

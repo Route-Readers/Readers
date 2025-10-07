@@ -316,7 +316,7 @@ fun MyBookCard(
             modifier = Modifier.padding(16.dp)
         ) {
             AsyncImage(
-                model = book.cover.ifEmpty { null },
+                model = book.getHighQualityImageUrl().ifEmpty { null },
                 contentDescription = "책 표지",
                 modifier = Modifier
                     .size(80.dp, 100.dp)
