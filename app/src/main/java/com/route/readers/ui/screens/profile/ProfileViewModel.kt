@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
+
 sealed class ProfileSetupState {
     object Idle : ProfileSetupState()
     object Loading : ProfileSetupState()
@@ -108,7 +109,8 @@ open class ProfileViewModel : ViewModel() {
         _uiState.value = ProfileUiState.Loading
         viewModelScope.launch {
             try {
-                val userDocumentDeferred = async { db.collection("users").document(targetUserId).get().await() }
+                val userDocumentDeferred =
+                    async { db.collection("users").document(targetUserId).get().await() }
                 val favoriteBooksDeferred = async { bookRepository.getFavoriteBooks() }
 
                 val document = userDocumentDeferred.await()
@@ -236,6 +238,63 @@ open class ProfileViewModel : ViewModel() {
             }
         } else {
             fetchUserProfile(targetUserId)
+        }
+    }
+
+    fun toggleBookSelection(bookId: String) {
+        (_uiState.value as? ProfileUiState.Success)?.let { currentState ->
+            val currentSelectedIds = currentState.selectedBookIds
+            val newSelectedIds = if (currentSelectedIds.contains(bookId)) {
+                currentSelectedIds - bookId
+            } else {
+                currentSelectedIds + bookId
+            }
+            _uiState.value = currentState.copy(selectedBookIds = newSelectedIds)
+
+            if (newSelectedIds.isEmpty()) {
+                _uiState.value = currentState.copy(isSelectionMode = false, selectedBookIds = emptySet())
+            }
+        }
+    }
+
+    fun startSelectionMode(bookId: String) {
+        (_uiState.value as? ProfileUiState.Success)?.let { currentState ->
+            _uiState.value = currentState.copy(
+                isSelectionMode = true,
+                selectedBookIds = setOf(bookId)
+            )
+        }
+    }
+
+    fun clearSelectionMode() {
+        (_uiState.value as? ProfileUiState.Success)?.let { currentState ->
+            _uiState.value = currentState.copy(
+                isSelectionMode = false,
+                selectedBookIds = emptySet()
+            )
+        }
+    }
+
+    fun deleteSelectedFavoriteBooks() {
+        val currentState = (_uiState.value as? ProfileUiState.Success) ?: return
+        val bookIdsToDelete = currentState.selectedBookIds
+        val userId = currentUserId ?: return
+
+        if (bookIdsToDelete.isEmpty()) return
+
+        viewModelScope.launch {
+            try {
+                bookRepository.deleteFavoriteBooks(userId, bookIdsToDelete.toList())
+
+                val updatedBooks = currentState.favoriteBooks.filterNot { it.isbn in bookIdsToDelete }
+                _uiState.value = currentState.copy(
+                    favoriteBooks = updatedBooks,
+                    isSelectionMode = false,
+                    selectedBookIds = emptySet()
+                )
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Failed to delete favorite books", e)
+            }
         }
     }
 }
