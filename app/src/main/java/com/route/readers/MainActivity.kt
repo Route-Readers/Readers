@@ -1,5 +1,9 @@
 package com.route.readers
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -17,8 +21,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.route.readers.widget.WidgetUpdateHelper
+import com.route.readers.notification.ReadingNotificationService
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -44,6 +50,20 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         WidgetUpdateHelper.init(this)
+        
+        // 알림 권한 체크 및 서비스 시작
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) 
+                == PackageManager.PERMISSION_GRANTED) {
+                val notificationServiceIntent = Intent(this, ReadingNotificationService::class.java)
+                startService(notificationServiceIntent)
+            } else {
+                requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
+            }
+        } else {
+            val notificationServiceIntent = Intent(this, ReadingNotificationService::class.java)
+            startService(notificationServiceIntent)
+        }
         setContent {
             val appNavController = rememberNavController()
             ReadersTheme {
