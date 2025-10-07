@@ -25,7 +25,7 @@ class BookRepository {
 
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
-    private val userId: String
+    private val currentUserId: String
         get() = auth.currentUser?.uid ?: ""
 
     private val bookService: BookService by lazy {
@@ -135,9 +135,9 @@ class BookRepository {
     }
 
     suspend fun toggleFavoriteStatus(book: Book) {
-        if (userId.isBlank() || book.isbn.isBlank()) return
+        if (currentUserId.isBlank() || book.isbn.isBlank()) return
 
-        val favoriteRef = db.collection("users").document(userId)
+        val favoriteRef = db.collection("users").document(currentUserId)
             .collection("favorites").document(book.isbn)
 
         if (book.isFavorite) {
@@ -148,7 +148,7 @@ class BookRepository {
         }
     }
 
-    suspend fun getFavoriteBooks(): List<Book> {
+    suspend fun getFavoriteBooks(userId: String): List<Book> {
         if (userId.isBlank()) return emptyList()
 
         return try {
@@ -163,9 +163,9 @@ class BookRepository {
     }
 
     private suspend fun applyFavoriteStatus(books: List<Book>): List<Book> {
-        if (userId.isBlank()) return books
+        if (currentUserId.isBlank()) return books
 
-        val favoriteIsbns = getFavoriteBooks().map { it.isbn }.toSet()
+        val favoriteIsbns = getFavoriteBooks(currentUserId).map { it.isbn }.toSet()
         return books.map { book ->
             if (favoriteIsbns.contains(book.isbn)) {
                 book.copy(isFavorite = true)

@@ -1,11 +1,13 @@
 package com.route.readers.ui.screens.profile
 
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 import com.route.readers.data.model.Book
 import com.route.readers.data.model.User
 import com.route.readers.data.remote.BookRepository
@@ -16,18 +18,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-
-
-sealed class ProfileSetupState {
-    object Idle : ProfileSetupState()
-    object Loading : ProfileSetupState()
-    object Success : ProfileSetupState()
-    data class Error(val message: String) : ProfileSetupState()
-}
+import java.util.UUID
 
 open class ProfileViewModel : ViewModel() {
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
+    private val storage = FirebaseStorage.getInstance()
     private val bookRepository = BookRepository()
     private val currentUserId = auth.currentUser?.uid
 
@@ -60,6 +56,7 @@ open class ProfileViewModel : ViewModel() {
 
     fun createOrUpdateUserProfile(
         nickname: String,
+        profileImageUri: Uri?,
         genres: List<String>,
         styles: List<String>
     ) {
@@ -67,13 +64,38 @@ open class ProfileViewModel : ViewModel() {
             _setupState.value = ProfileSetupState.Error("사용자 인증 정보가 없습니다. 다시 로그인해주세요.")
             return
         }
-
         _setupState.value = ProfileSetupState.Loading
+
+        viewModelScope.launch {
+            try {
+                val imageUrl = if (profileImageUri != null) {
+                    uploadProfileImage(profileImageUri)
+                } else {
+                    null
+                }
+                saveUserData(nickname, imageUrl, genres, styles)
+            } catch (e: Exception) {
+                _setupState.value = ProfileSetupState.Error("프로필 설정에 실패했습니다: ${e.message}")
+            }
+        }
+    }
+
+    private suspend fun uploadProfileImage(imageUri: Uri): String {
+        val storageRef = storage.reference
+        val imageFileName = "${currentUserId}-${UUID.randomUUID()}.jpg"
+        val imagesRef = storageRef.child("profile_images/$imageFileName")
+        imagesRef.putFile(imageUri).await()
+        return imagesRef.downloadUrl.await().toString()
+    }
+
+    private suspend fun saveUserData(nickname: String, profileImageUrl: String?, genres: List<String>, styles: List<String>) {
+        if (currentUserId == null) throw IllegalStateException("Current User ID is null")
 
         val userProfileData = mapOf(
             "uid" to currentUserId,
             "nickname" to nickname,
             "email" to auth.currentUser?.email,
+            "profileImageUrl" to profileImageUrl,
             "readingGenres" to genres,
             "readingStyles" to styles,
             "level" to 1,
@@ -82,20 +104,13 @@ open class ProfileViewModel : ViewModel() {
             "readBookCount" to 0,
             "followers" to emptyList<String>(),
             "following" to emptyList<String>(),
-            "isCurrentlyReading" to false,
-            "profileImageUrl" to null
+            "isCurrentlyReading" to false
         )
 
-        viewModelScope.launch {
-            try {
-                db.collection("users").document(currentUserId)
-                    .set(userProfileData)
-                    .await()
-                _setupState.value = ProfileSetupState.Success
-            } catch (e: Exception) {
-                _setupState.value = ProfileSetupState.Error("프로필 저장에 실패했습니다: ${e.message}")
-            }
-        }
+        db.collection("users").document(currentUserId)
+            .set(userProfileData)
+            .await()
+        _setupState.value = ProfileSetupState.Success
     }
 
     open fun fetchUserProfile(userId: String?) {
@@ -109,19 +124,20 @@ open class ProfileViewModel : ViewModel() {
         _uiState.value = ProfileUiState.Loading
         viewModelScope.launch {
             try {
-                val userDocumentDeferred =
-                    async { db.collection("users").document(targetUserId).get().await() }
-                val favoriteBooksDeferred = async { bookRepository.getFavoriteBooks() }
+                val userDocument = db.collection("users").document(targetUserId).get().await()
 
-                val document = userDocumentDeferred.await()
-                val favoriteBooks = favoriteBooksDeferred.await()
-
-                if (document.exists()) {
-                    val user: User? = document.toObject(User::class.java)
+                if (userDocument.exists()) {
+                    val user: User? = userDocument.toObject(User::class.java)
                     if (user != null) {
                         val isMyProfile = targetUserId == currentUserId
                         val isFollowing = user.followers.contains(currentUserId)
-                        val recommendedBooks = fetchRecommendedBooks(user.readingGenres)
+
+                        // 병렬로 데이터 가져오기
+                        val recommendedBooksDeferred = async { fetchRecommendedBooks(user.readingGenres) }
+                        val favoriteBooksDeferred = async { bookRepository.getFavoriteBooks(targetUserId!!) }
+
+                        val recommendedBooks = recommendedBooksDeferred.await()
+                        val favoriteBooks = favoriteBooksDeferred.await()
 
                         _uiState.value = ProfileUiState.Success(
                             user = user,
@@ -139,6 +155,27 @@ open class ProfileViewModel : ViewModel() {
             } catch (e: Exception) {
                 _uiState.value = ProfileUiState.Error("프로필을 불러오는 중 오류가 발생했습니다: ${e.message}")
                 Log.e("ProfileViewModel", "fetchUserProfile failed", e)
+            }
+        }
+    }
+
+    fun updateProfileImage(imageUri: Uri) {
+        if (currentUserId == null) return
+        val currentState = _uiState.value
+        if (currentState !is ProfileUiState.Success || !currentState.isMyProfile) return
+
+        viewModelScope.launch {
+            try {
+                val imageUrl = uploadProfileImage(imageUri)
+                db.collection("users").document(currentUserId)
+                    .update("profileImageUrl", imageUrl)
+                    .await()
+
+                val updatedUser = currentState.user.copy(profileImageUrl = imageUrl)
+                _uiState.value = currentState.copy(user = updatedUser)
+
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Failed to update profile image", e)
             }
         }
     }
