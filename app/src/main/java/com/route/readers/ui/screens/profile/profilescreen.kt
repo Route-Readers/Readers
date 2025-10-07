@@ -1,6 +1,9 @@
 package com.route.readers.ui.screens.profile
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -112,6 +116,9 @@ fun ProfileScreen(
                         onFollowListClick = { listType ->
                             onNavigateToFollowList(listType, state.user.nickname)
                         },
+                        onUpdateProfileImage = { imageUri ->
+                            viewModel.updateProfileImage(imageUri)
+                        },
                         viewModel = viewModel
                     )
                 }
@@ -127,6 +134,7 @@ fun ProfileContent(
     onFollowClick: () -> Unit,
     onUnfollowClick: () -> Unit,
     onFollowListClick: (String) -> Unit,
+    onUpdateProfileImage: (android.net.Uri) -> Unit,
     viewModel: ProfileViewModel
 ) {
     val user = state.user
@@ -143,7 +151,8 @@ fun ProfileContent(
                 isFollowing = state.isFollowing,
                 onFollowClick = onFollowClick,
                 onUnfollowClick = onUnfollowClick,
-                onFollowListClick = onFollowListClick
+                onFollowListClick = onFollowListClick,
+                onUpdateProfileImage = onUpdateProfileImage
             )
         }
 
@@ -207,8 +216,17 @@ fun ProfileInfoSection(
     isFollowing: Boolean,
     onFollowClick: () -> Unit,
     onUnfollowClick: () -> Unit,
-    onFollowListClick: (String) -> Unit
+    onFollowListClick: (String) -> Unit,
+    onUpdateProfileImage: (android.net.Uri) -> Unit
 ) {
+
+    val singlePhotoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri ->
+            uri?.let { onUpdateProfileImage(it) }
+        }
+    )
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -220,7 +238,16 @@ fun ProfileInfoSection(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            ProfileImage(imageUrl = user.profileImageUrl, nickname = user.nickname)
+            ProfileImage(
+                imageUrl = user.profileImageUrl,
+                nickname = user.nickname,
+                isMyProfile = isMyProfile,
+                onImageClick = {
+                    singlePhotoPickerLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                }
+            )
             Spacer(modifier = Modifier.height(8.dp))
             Text(text = user.nickname, fontSize = 22.sp, fontWeight = FontWeight.Bold)
             Chip(label = "레벨 ${user.level}")
@@ -442,11 +469,21 @@ fun BookCardItem(
     }
 }
 
-
 @Composable
-fun ProfileImage(imageUrl: String?, nickname: String) {
+fun ProfileImage(
+    imageUrl: String?,
+    nickname: String,
+    isMyProfile: Boolean,
+    onImageClick: () -> Unit
+) {
+    val modifier = if (isMyProfile) {
+        Modifier.clickable(onClick = onImageClick)
+    } else {
+        Modifier
+    }
+
     Box(
-        modifier = Modifier
+        modifier = modifier
             .size(100.dp)
             .clip(CircleShape)
             .background(DarkRed),
@@ -469,6 +506,22 @@ fun ProfileImage(imageUrl: String?, nickname: String) {
                 fontSize = 40.sp,
                 fontWeight = FontWeight.Bold
             )
+        }
+        if (isMyProfile) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(Color.Black.copy(alpha = 0.3f))
+                    .padding(8.dp),
+                contentAlignment = Alignment.BottomEnd
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "프로필 사진 변경",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
         }
     }
 }

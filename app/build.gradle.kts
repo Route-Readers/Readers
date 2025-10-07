@@ -81,6 +81,8 @@ dependencies {
     implementation("com.google.firebase:firebase-auth")
     // firestore 중복 선언 제거됨
     implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-storage")
+    implementation("com.google.accompanist:accompanist-permissions:0.34.0")
 
     // --- Retrofit ---
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
