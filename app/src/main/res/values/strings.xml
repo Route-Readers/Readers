@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Readers</string>
+    <string name="widget_description">현재 읽고 있는 책의 진행률을 표시합니다</string>
 </resources>
