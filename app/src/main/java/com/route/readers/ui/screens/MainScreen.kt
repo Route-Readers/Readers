@@ -25,6 +25,7 @@ import com.route.readers.ui.screens.community.CommunityViewModel
 import com.route.readers.ui.screens.feed.FeedScreen
 import com.route.readers.ui.screens.mylibrary.MyLibraryScreen
 import com.route.readers.ui.screens.search.SearchScreen
+import com.route.readers.ui.screens.NotificationTestScreen
 
 @Composable
 fun MainScreen(
@@ -100,6 +101,10 @@ fun MainScreen(
                     },
                     onUserClick = onNavigateToOtherUserProfile
                 )
+            }
+            composable(BottomNavItem.Profile.route) {
+                selectedBook = null // 다른 탭으로 이동 시 선택 해제
+                NotificationTestScreen()
             }
         }
     }
