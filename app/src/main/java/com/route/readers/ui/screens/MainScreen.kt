@@ -9,14 +9,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.route.readers.data.model.MyBook
-import com.route.readers.data.remote.FirestoreRepository
-import com.route.readers.data.remote.MyLibraryRepository
 import com.route.readers.ui.components.BottomNavBar
 import com.route.readers.ui.components.BottomNavItem
 import com.route.readers.ui.screens.community.AllUsersScreen
@@ -25,10 +24,10 @@ import com.route.readers.ui.screens.community.CommunityViewModel
 import com.route.readers.ui.screens.feed.FeedScreen
 import com.route.readers.ui.screens.mylibrary.MyLibraryScreen
 import com.route.readers.ui.screens.search.SearchScreen
-import com.route.readers.ui.screens.NotificationTestScreen
 
 @Composable
 fun MainScreen(
+    navController: NavHostController,
     onNavigateToProfile: () -> Unit,
     onNavigateToOtherUserProfile: (String) -> Unit
 ) {
@@ -48,7 +47,6 @@ fun MainScreen(
                     selectedBook = selectedBook,
                     onStartReading = {
                         selectedBook?.let { book ->
-                            // 내 서재로 이동하고 다이얼로그 표시
                             bottomNavController.navigate(BottomNavItem.MyLibrary.route) {
                                 popUpTo(bottomNavController.graph.findStartDestination().id) {
                                     saveState = true
@@ -69,7 +67,7 @@ fun MainScreen(
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(BottomNavItem.Feed.route) {
-                selectedBook = null // 다른 탭으로 이동 시 선택 해제
+                selectedBook = null
                 FeedScreen()
             }
             composable(BottomNavItem.MyLibrary.route) {
@@ -82,11 +80,11 @@ fun MainScreen(
                 )
             }
             composable(BottomNavItem.Search.route) {
-                selectedBook = null // 다른 탭으로 이동 시 선택 해제
+                selectedBook = null
                 SearchScreen()
             }
             composable(BottomNavItem.Community.route) {
-                selectedBook = null // 다른 탭으로 이동 시 선택 해제
+                selectedBook = null
                 CommunityScreen(
                     onNavigateToFriendsList = {
                         bottomNavController.navigate("friends_list")
@@ -103,8 +101,7 @@ fun MainScreen(
                 )
             }
             composable(BottomNavItem.Profile.route) {
-                selectedBook = null // 다른 탭으로 이동 시 선택 해제
-                NotificationTestScreen()
+                onNavigateToProfile()
             }
         }
     }

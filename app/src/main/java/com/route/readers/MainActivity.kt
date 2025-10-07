@@ -20,11 +20,9 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.route.readers.widget.WidgetUpdateHelper
-import com.route.readers.notification.ReadingNotificationService
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -33,6 +31,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.route.readers.notification.ReadingNotificationService
 import com.route.readers.ui.screens.MainScreen
 import com.route.readers.ui.screens.login.LoginScreen
 import com.route.readers.ui.screens.login.LoginViewModel
@@ -42,6 +41,9 @@ import com.route.readers.ui.screens.profile.FollowListScreen
 import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.profile.ProfileSetupScreen
 import com.route.readers.ui.theme.ReadersTheme
+import com.route.readers.widget.WidgetUpdateHelper
+import java.net.URLDecoder
+import java.net.URLEncoder
 
 val LocalAppNavController = staticCompositionLocalOf<NavHostController?> { null }
 
@@ -50,11 +52,11 @@ class MainActivity : ComponentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         WidgetUpdateHelper.init(this)
-        
-        // 알림 권한 체크 및 서비스 시작
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) 
-                == PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                == PackageManager.PERMISSION_GRANTED
+            ) {
                 val notificationServiceIntent = Intent(this, ReadingNotificationService::class.java)
                 startService(notificationServiceIntent)
             } else {
@@ -211,6 +213,7 @@ fun RootAppNavigation() {
         composable("main_app_content_route") {
             val auth = FirebaseAuth.getInstance()
             MainScreen(
+                navController = appNavController,
                 onNavigateToProfile = {
                     val userId = auth.currentUser?.uid
                     if (userId != null) {
@@ -231,6 +234,7 @@ fun RootAppNavigation() {
             if (userId != null) {
                 ProfileScreen(
                     userId = userId,
+                    navController = appNavController,
                     onNavigateBack = { appNavController.popBackStack() },
                     onLogout = {
                         FirebaseAuth.getInstance().signOut()
@@ -241,7 +245,7 @@ fun RootAppNavigation() {
                         }
                     },
                     onNavigateToFollowList = { listType, nickname ->
-                        val encodedNickname = java.net.URLEncoder.encode(nickname, "UTF-8")
+                        val encodedNickname = URLEncoder.encode(nickname, "UTF-8")
                         appNavController.navigate("follow_list_route/$userId/$listType/$encodedNickname")
                     }
                 )
@@ -259,7 +263,7 @@ fun RootAppNavigation() {
             val userId = backStackEntry.arguments?.getString("userId")
             val initialListType = backStackEntry.arguments?.getString("initialListType")
             val nickname = backStackEntry.arguments?.getString("nickname")?.let {
-                java.net.URLDecoder.decode(it, "UTF-8")
+                URLDecoder.decode(it, "UTF-8")
             }
             if (userId != null && initialListType != null && nickname != null) {
                 FollowListScreen(
