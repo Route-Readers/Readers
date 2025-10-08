@@ -9,6 +9,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.route.readers.data.model.Book
+import com.route.readers.data.model.Challenge
 import com.route.readers.data.model.User
 import com.route.readers.data.remote.BookRepository
 import kotlinx.coroutines.async
@@ -132,19 +133,24 @@ open class ProfileViewModel : ViewModel() {
                         val isMyProfile = targetUserId == currentUserId
                         val isFollowing = user.followers.contains(currentUserId)
 
-                        // 병렬로 데이터 가져오기
                         val recommendedBooksDeferred = async { fetchRecommendedBooks(user.readingGenres) }
-                        val favoriteBooksDeferred = async { bookRepository.getFavoriteBooks(targetUserId!!) }
+                        val favoriteBooksDeferred = async { bookRepository.getFavoriteBooks(targetUserId) }
+                        val challengesDeferred = async { fetchUserChallenges(targetUserId) }
 
                         val recommendedBooks = recommendedBooksDeferred.await()
                         val favoriteBooks = favoriteBooksDeferred.await()
+                        val allChallenges = challengesDeferred.await()
+
+                        val (ongoing, completed) = allChallenges.partition { !it.isCompleted }
 
                         _uiState.value = ProfileUiState.Success(
                             user = user,
                             isFollowing = isFollowing,
                             isMyProfile = isMyProfile,
                             recommendedBooks = recommendedBooks,
-                            favoriteBooks = favoriteBooks
+                            favoriteBooks = favoriteBooks,
+                            ongoingChallenges = ongoing,
+                            completedChallenges = completed
                         )
                     } else {
                         _uiState.value = ProfileUiState.Error("프로필 정보를 변환하는 데 실패했습니다.")
@@ -157,6 +163,14 @@ open class ProfileViewModel : ViewModel() {
                 Log.e("ProfileViewModel", "fetchUserProfile failed", e)
             }
         }
+    }
+
+    private suspend fun fetchUserChallenges(userId: String): List<Challenge> {
+        return listOf(
+            Challenge("c1", "소설 5권 읽기", "한 달 동안 소설 5권 읽기에 도전하세요.", 60, 100, false),
+            Challenge("c2", "자기계발서 정복", "올해 안에 자기계발서 10권 읽기", 20, 100, false),
+            Challenge("c3", "2024년 상반기 독서왕", "상반기 동안 30권 읽기 챌린지", 100, 100, true)
+        )
     }
 
     fun updateProfileImage(imageUri: Uri) {

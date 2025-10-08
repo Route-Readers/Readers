@@ -59,16 +59,19 @@ fun MainScreen(
                     navController = bottomNavController,
                     onProfileClick = {
                         val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
-                        currentUserId?.let {
-                            bottomNavController.navigate("profile_route/$it") {
-                                popUpTo(bottomNavController.graph.findStartDestination().id)
+                        if (currentUserId != null) {
+                            bottomNavController.navigate("profile_route/$currentUserId") {
+                                popUpTo(bottomNavController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
                                 launchSingleTop = true
+                                restoreState = true
                             }
                         }
                     },
                     selectedBook = selectedBook,
                     onStartReading = {
-                        selectedBook?.let { book ->
+                        selectedBook?.let {
                             bottomNavController.navigate(BottomNavItem.MyLibrary.route) {
                                 popUpTo(bottomNavController.graph.findStartDestination().id) {
                                     saveState = true
@@ -141,6 +144,15 @@ fun MainScreen(
                         onNavigateToFollowList = { listType, nickname ->
                             val encodedNickname = URLEncoder.encode(nickname, "UTF-8")
                             navController.navigate("follow_list_route/$userId/$listType/$encodedNickname")
+                        },
+                        onNavigateToSearch = {
+                            bottomNavController.navigate(BottomNavItem.Search.route) {
+                                popUpTo(bottomNavController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
                         },
                         onNavigateBack = {
                             bottomNavController.popBackStack()
