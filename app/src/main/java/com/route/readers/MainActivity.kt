@@ -38,7 +38,9 @@ import com.route.readers.ui.screens.login.LoginViewModel
 import com.route.readers.ui.screens.login.OnboardingScreen
 import com.route.readers.ui.screens.login.SignUpScreen
 import com.route.readers.ui.screens.profile.FollowListScreen
+import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.profile.ProfileSetupScreen
+import com.route.readers.ui.screens.profile.ProfileViewModel
 import com.route.readers.ui.theme.ReadersTheme
 import com.route.readers.widget.WidgetUpdateHelper
 import java.net.URLDecoder
@@ -213,31 +215,55 @@ fun RootAppNavigation() {
             MainScreen(
                 navController = appNavController,
                 onNavigateToOtherUserProfile = { userId ->
-                    appNavController.navigate("follow_list_route/$userId/followers/${""}")
+                    appNavController.navigate("profile_route/$userId")
                 }
             )
         }
 
         composable(
-            route = "follow_list_route/{userId}/{initialListType}/{nickname}",
+            route = "profile_route/{userId}",
+            arguments = listOf(navArgument("userId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId")
+            if (userId != null) {
+                val profileViewModel: ProfileViewModel = viewModel()
+                ProfileScreen(
+                    userId = userId,
+                    viewModel = profileViewModel,
+                    onNavigateToFollowList = { listType, nickname ->
+                        val encodedNickname = URLEncoder.encode(nickname, "UTF-8")
+                        appNavController.navigate("follow_list_route/$userId/$listType/$encodedNickname")
+                    },
+                    onNavigateToSearch = {
+                        appNavController.navigate("search_route")
+                    }
+                )
+            }
+        }
+
+        composable(
+            route = "follow_list_route/{userId}/{listType}/{nickname}",
             arguments = listOf(
                 navArgument("userId") { type = NavType.StringType },
-                navArgument("initialListType") { type = NavType.StringType },
-                navArgument("nickname") { type = NavType.StringType; nullable = true }
+                navArgument("listType") { type = NavType.StringType },
+                navArgument("nickname") { type = NavType.StringType }
             )
         ) { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId")
-            val initialListType = backStackEntry.arguments?.getString("initialListType")
+            val listType = backStackEntry.arguments?.getString("listType")
             val nickname = backStackEntry.arguments?.getString("nickname")?.let {
                 URLDecoder.decode(it, "UTF-8")
             }
-            if (userId != null && initialListType != null) {
+
+            if (userId != null && listType != null && nickname != null) {
                 FollowListScreen(
                     userId = userId,
-                    initialListType = initialListType,
-                    nickname = nickname ?: "",
-                    onUserClick = { clickedUserId ->
-                        appNavController.navigate("profile_route/$clickedUserId")
+                    initialListType = listType,
+                    nickname = nickname,
+                    onUserClick = { otherUserId ->
+                        appNavController.navigate("profile_route/$otherUserId") {
+                            launchSingleTop = true
+                        }
                     },
                     onNavigateBack = { appNavController.popBackStack() }
                 )

@@ -1,15 +1,16 @@
 package com.route.readers.ui.screens.profile
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -17,109 +18,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.rememberAsyncImagePainter
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.data.model.User
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
-
-sealed class FollowListUiState {
-    object Loading : FollowListUiState()
-    data class Success(val users: List<User>, val currentUserFollowingIds: Set<String>) : FollowListUiState()
-    data class Error(val message: String) : FollowListUiState()
-}
-
-class FollowViewModel : ViewModel() {
-    private val db = FirebaseFirestore.getInstance()
-    private val auth = FirebaseAuth.getInstance()
-    private val currentUserId = auth.currentUser?.uid
-
-    private val _uiState = MutableStateFlow<FollowListUiState>(FollowListUiState.Loading)
-    val uiState: StateFlow<FollowListUiState> = _uiState
-
-    fun fetchFollowList(userId: String, listType: String) {
-        viewModelScope.launch {
-            _uiState.value = FollowListUiState.Loading
-            if (currentUserId == null) {
-                _uiState.value = FollowListUiState.Error("로그인이 필요합니다.")
-                return@launch
-            }
-
-            try {
-                val currentUserDoc = db.collection("users").document(currentUserId).get().await()
-                val currentUserFollowingIds = (currentUserDoc.get("following") as? List<String>)?.toSet() ?: emptySet()
-
-                val targetUserDoc = db.collection("users").document(userId).get().await()
-                if (!targetUserDoc.exists()) {
-                    _uiState.value = FollowListUiState.Error("사용자를 찾을 수 없습니다.")
-                    return@launch
-                }
-
-                val userIds = targetUserDoc.get(listType) as? List<String>
-
-                if (userIds.isNullOrEmpty()) {
-                    _uiState.value = FollowListUiState.Success(emptyList(), currentUserFollowingIds)
-                    return@launch
-                }
-
-                val userList = mutableListOf<User>()
-                userIds.chunked(10).forEach { chunk ->
-                    val usersSnapshot = db.collection("users").whereIn("uid", chunk).get().await()
-                    userList.addAll(usersSnapshot.toObjects(User::class.java))
-                }
-                _uiState.value = FollowListUiState.Success(userList, currentUserFollowingIds)
-            } catch (e: Exception) {
-                _uiState.value = FollowListUiState.Error("목록을 불러오는 데 실패했습니다: ${e.message}")
-            }
-        }
-    }
-
-    fun toggleFollow(targetUserId: String) {
-        viewModelScope.launch {
-            if (currentUserId == null || currentUserId == targetUserId) return@launch
-
-            val currentUserRef = db.collection("users").document(currentUserId)
-            val targetUserRef = db.collection("users").document(targetUserId)
-            val currentState = (uiState.value as? FollowListUiState.Success) ?: return@launch
-            val isCurrentlyFollowing = currentState.currentUserFollowingIds.contains(targetUserId)
-
-            db.runTransaction { transaction ->
-                if (isCurrentlyFollowing) {
-                    transaction.update(currentUserRef, "following", FieldValue.arrayRemove(targetUserId))
-                    transaction.update(currentUserRef, "followingCount", FieldValue.increment(-1))
-                    transaction.update(targetUserRef, "followers", FieldValue.arrayRemove(currentUserId))
-                    transaction.update(targetUserRef, "followerCount", FieldValue.increment(-1))
-                } else {
-                    transaction.update(currentUserRef, "following", FieldValue.arrayUnion(targetUserId))
-                    transaction.update(currentUserRef, "followingCount", FieldValue.increment(1))
-                    transaction.update(targetUserRef, "followers", FieldValue.arrayUnion(currentUserId))
-                    transaction.update(targetUserRef, "followerCount", FieldValue.increment(1))
-                }
-            }.await()
-
-            val updatedFollowingIds = if (isCurrentlyFollowing) {
-                currentState.currentUserFollowingIds - targetUserId
-            } else {
-                currentState.currentUserFollowingIds + targetUserId
-            }
-            _uiState.value = currentState.copy(currentUserFollowingIds = updatedFollowingIds)
-        }
-    }
-}
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -129,19 +36,23 @@ fun FollowListScreen(
     nickname: String,
     onUserClick: (String) -> Unit,
     onNavigateBack: () -> Unit,
-    viewModel: FollowViewModel = viewModel()
+    viewModel: FollowListViewModel = viewModel()
 ) {
-    val tabs = listOf("팔로워", "팔로잉")
+    // ▼▼▼ "사용자" 탭 추가 ▼▼▼
+    val tabs = listOf("팔로워", "팔로잉", "사용자")
     var selectedTabIndex by remember { mutableIntStateOf(if (initialListType == "followers") 0 else 1) }
-    var searchQuery by remember { mutableStateOf("") }
     val darkRedColor = Color(0xFFB71C1C)
 
-    LaunchedEffect(key1 = userId, key2 = selectedTabIndex) {
-        val listType = if (selectedTabIndex == 0) "followers" else "following"
-        viewModel.fetchFollowList(userId, listType)
-    }
-
+    val searchQuery by viewModel.searchQuery.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
+    val searchedUsers by viewModel.searchedUsers.collectAsState()
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val isAllUsersTab = selectedTabIndex == 2 // "사용자" 탭인지 확인하는 변수
+
+    // ▼▼▼ ViewModel의 새로운 통합 함수 호출 ▼▼▼
+    LaunchedEffect(key1 = userId, key2 = selectedTabIndex) {
+        viewModel.loadListForTab(userId, selectedTabIndex)
+    }
 
     Scaffold(
         topBar = {
@@ -153,6 +64,17 @@ fun FollowListScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "뒤로 가기"
                         )
+                    }
+                },
+                actions = {
+                    // ▼▼▼ "사용자" 탭이 아닐 때만 새로고침 버튼 표시 ▼▼▼
+                    if (!isAllUsersTab) {
+                        IconButton(onClick = { viewModel.refresh() }) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "새로고침"
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -188,23 +110,34 @@ fun FollowListScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text("검색") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "검색 아이콘") },
-                shape = RoundedCornerShape(24.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color.Transparent,
-                    unfocusedBorderColor = Color.Transparent,
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(24.dp))
-            )
+            // ▼▼▼ "사용자" 탭이 아닐 때만 검색창 표시 ▼▼▼
+            if (!isAllUsersTab) {
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { viewModel.onSearchQueryChanged(it) },
+                    placeholder = { Text("검색") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "검색 아이콘") },
+                    shape = RoundedCornerShape(24.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color.Transparent,
+                        unfocusedBorderColor = Color.Transparent,
+                    ),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions.Default.copy(
+                        imeAction = ImeAction.Search
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onSearch = {
+                            keyboardController?.hide()
+                        }
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(24.dp))
+                )
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -220,18 +153,22 @@ fun FollowListScreen(
                     }
                 }
                 is FollowListUiState.Success -> {
-                    val filteredUsers = state.users.filter { it.nickname.contains(searchQuery, ignoreCase = true) }
-                    if (state.users.isEmpty()) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(text = "아직 ${tabs[selectedTabIndex]} 목록이 없습니다.")
+                    val listToDisplay = if (isAllUsersTab) state.allUsers else searchedUsers
+
+                    if (listToDisplay.isEmpty()) {
+                        val emptyMessage = if (isAllUsersTab) {
+                            "사용자가 없습니다."
+                        } else if (searchQuery.isNotBlank()) {
+                            "검색 결과가 없습니다."
+                        } else {
+                            "아직 ${tabs[selectedTabIndex]} 목록이 없습니다."
                         }
-                    } else if (filteredUsers.isEmpty()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(text = "검색 결과가 없습니다.")
+                            Text(text = emptyMessage)
                         }
                     } else {
                         LazyColumn(modifier = Modifier.fillMaxSize()) {
-                            items(filteredUsers, key = { it.uid }) { user ->
+                            items(listToDisplay, key = { it.uid }) { user ->
                                 val isFollowing = state.currentUserFollowingIds.contains(user.uid)
                                 UserItem(
                                     user = user,
@@ -264,16 +201,6 @@ fun UserItem(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Image(
-            painter = rememberAsyncImagePainter(model = user.profileImageUrl),
-            contentDescription = "${user.nickname}의 프로필 이미지",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(Color.LightGray)
-        )
-        Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = user.nickname,
@@ -291,6 +218,8 @@ fun UserItem(
                 }
             }
         }
+
+        Spacer(modifier = Modifier.width(16.dp))
 
         if (user.uid != currentUserId) {
             Button(
