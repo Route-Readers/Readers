@@ -16,12 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
@@ -44,12 +39,9 @@ import com.route.readers.data.model.Challenge
 import com.route.readers.data.model.User
 import com.route.readers.ui.theme.DarkRed
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     userId: String,
-    onNavigateBack: () -> Unit,
-    onLogout: () -> Unit,
     onNavigateToFollowList: (listType: String, nickname: String) -> Unit,
     onNavigateToSearch: () -> Unit,
     viewModel: ProfileViewModel
@@ -59,79 +51,40 @@ fun ProfileScreen(
     }
 
     val uiState by viewModel.uiState.collectAsState()
-    var showMenu by remember { mutableStateOf(false) }
 
     val isSelectionModeActive = (uiState as? ProfileUiState.Success)?.isSelectionMode == true
     BackHandler(enabled = isSelectionModeActive) {
         viewModel.clearSelectionMode()
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        TopAppBar(
-            title = {
-                val nickname = (uiState as? ProfileUiState.Success)?.user?.nickname
-                Text(text = nickname ?: "프로필")
-            },
-            navigationIcon = {
-                IconButton(onClick = onNavigateBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로 가기")
-                }
-            },
-            actions = {
-                if ((uiState as? ProfileUiState.Success)?.isMyProfile == true) {
-                    Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Default.Settings, contentDescription = "설정")
-                        }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("로그아웃") },
-                                onClick = {
-                                    showMenu = false
-                                    onLogout()
-                                }
-                            )
-                        }
-                    }
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = Color.White,
-                titleContentColor = Color.Black
-            )
-        )
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFFF5F5F5)),
-            contentAlignment = Alignment.Center
-        ) {
-            when (val state = uiState) {
-                is ProfileUiState.Loading -> CircularProgressIndicator()
-                is ProfileUiState.Error -> Text(text = state.message)
-                is ProfileUiState.Success -> {
-                    ProfileContent(
-                        state = state,
-                        onFollowClick = { viewModel.followUser(state.user.uid) },
-                        onUnfollowClick = { viewModel.unfollowUser(state.user.uid) },
-                        onFollowListClick = { listType ->
-                            onNavigateToFollowList(listType, state.user.nickname)
-                        },
-                        onUpdateProfileImage = { imageUri ->
-                            viewModel.updateProfileImage(imageUri)
-                        },
-                        onNavigateToSearch = onNavigateToSearch,
-                        viewModel = viewModel
-                    )
-                }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF5F5F5)),
+        contentAlignment = Alignment.Center
+    ) {
+        when (val state = uiState) {
+            is ProfileUiState.Loading -> CircularProgressIndicator()
+            is ProfileUiState.Error -> Text(text = state.message)
+            is ProfileUiState.Success -> {
+                ProfileContent(
+                    state = state,
+                    onFollowClick = { viewModel.followUser(state.user.uid) },
+                    onUnfollowClick = { viewModel.unfollowUser(state.user.uid) },
+                    onFollowListClick = { listType ->
+                        onNavigateToFollowList(listType, state.user.nickname)
+                    },
+                    onUpdateProfileImage = { imageUri ->
+                        viewModel.updateProfileImage(imageUri)
+                    },
+                    onNavigateToSearch = onNavigateToSearch,
+                    viewModel = viewModel
+                )
             }
         }
     }
 }
+
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -145,6 +98,7 @@ fun ProfileContent(
     viewModel: ProfileViewModel
 ) {
     val user = state.user
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -234,7 +188,6 @@ fun ProfileInfoSection(
     onFollowListClick: (String) -> Unit,
     onUpdateProfileImage: (android.net.Uri) -> Unit
 ) {
-
     val singlePhotoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
         onResult = { uri ->

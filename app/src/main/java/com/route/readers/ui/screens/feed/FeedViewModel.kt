@@ -6,7 +6,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.Date
 
-// 화면에 보여줄 데이터의 상태를 정의
 sealed class FeedUiState {
     object Loading : FeedUiState()
     data class Success(val items: List<FeedItem>) : FeedUiState()
@@ -18,13 +17,11 @@ class FeedViewModel : ViewModel() {
     val uiState = _uiState.asStateFlow()
 
     init {
-        // ViewModel이 만들어질 때, 예시 데이터를 불러오는 함수를 호출
         loadMockFeedData()
     }
 
     private fun loadMockFeedData() {
-        // 새로운 FeedItem 구조에 맞게 예시 데이터를 수정
-        val now = Timestamp(Date()) // 현재 시간을 기준으로 Timestamp 생성
+        val now = Timestamp(Date())
         val mockItems = listOf(
             FeedItem.Follow(
                 follower = "김독서",
@@ -57,8 +54,6 @@ class FeedViewModel : ViewModel() {
                 timestamp = now
             )
         )
-        // Success 상태에 담아 UI로 전달
         _uiState.value = FeedUiState.Success(mockItems)
     }
 }
-
