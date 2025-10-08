@@ -1,8 +1,12 @@
 package com.route.readers.ui.screens
 
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,6 +29,7 @@ import com.route.readers.ui.screens.community.AllUsersScreen
 import com.route.readers.ui.screens.community.CommunityScreen
 import com.route.readers.ui.screens.community.CommunityViewModel
 import com.route.readers.ui.screens.feed.FeedScreen
+import com.route.readers.ui.screens.feed.FeedTopAppBar
 import com.route.readers.ui.screens.mylibrary.MyLibraryScreen
 import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.profile.ProfileViewModel
@@ -38,22 +43,60 @@ fun MainScreen(
 ) {
     val bottomNavController = rememberNavController()
     val communityViewModel: CommunityViewModel = viewModel()
+    val mainViewModel: MainViewModel = viewModel()
+
     var selectedBook by remember { mutableStateOf<MyBook?>(null) }
     var showProgressDialog by remember { mutableStateOf(false) }
 
+    val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    var showLogoutDialog by remember { mutableStateOf(false) }
+
+    val routesWithFeedTopBar = listOf(
+        BottomNavItem.Feed.route,
+        BottomNavItem.MyLibrary.route,
+        BottomNavItem.Search.route,
+        BottomNavItem.Community.route,
+        "profile_route/{userId}"
+    )
+
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = { Text("로그아웃") },
+            text = { Text("정말 로그아웃 하시겠습니까?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showLogoutDialog = false
+                        FirebaseAuth.getInstance().signOut()
+                        navController.navigate("onboarding_route") {
+                            popUpTo(navController.graph.id) { inclusive = true }
+                        }
+                    }
+                ) { Text("로그아웃") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutDialog = false }) {
+                    Text("취소")
+                }
+            }
+        )
+    }
+
     Scaffold(
+        topBar = {
+            if (currentRoute in routesWithFeedTopBar) {
+                val consecutiveDays by mainViewModel.consecutiveDays.collectAsState()
+                FeedTopAppBar(
+                    consecutiveDays = consecutiveDays,
+                    onSettingsClick = { showLogoutDialog = true }
+                )
+            }
+        },
         bottomBar = {
-            val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
-            val currentRoute = navBackStackEntry?.destination?.route
-
-            val routesWithBottomBar = listOf(
-                BottomNavItem.Feed.route,
-                BottomNavItem.MyLibrary.route,
-                BottomNavItem.Search.route,
-                BottomNavItem.Community.route,
-                "profile_route/{userId}"
-            )
-
+            val routesWithBottomBar = routesWithFeedTopBar
             if (currentRoute in routesWithBottomBar) {
                 BottomNavBar(
                     navController = bottomNavController,
@@ -135,12 +178,6 @@ fun MainScreen(
                     ProfileScreen(
                         userId = userId,
                         viewModel = profileViewModel,
-                        onLogout = {
-                            FirebaseAuth.getInstance().signOut()
-                            navController.navigate("onboarding_route") {
-                                popUpTo(navController.graph.id) { inclusive = true }
-                            }
-                        },
                         onNavigateToFollowList = { listType, nickname ->
                             val encodedNickname = URLEncoder.encode(nickname, "UTF-8")
                             navController.navigate("follow_list_route/$userId/$listType/$encodedNickname")
@@ -153,9 +190,6 @@ fun MainScreen(
                                 launchSingleTop = true
                                 restoreState = true
                             }
-                        },
-                        onNavigateBack = {
-                            bottomNavController.popBackStack()
                         }
                     )
                 }

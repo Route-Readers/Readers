@@ -58,19 +58,19 @@ fun FeedScreen(feedViewModel: FeedViewModel = viewModel()) {
 fun ActualFeedContent(feedItems: List<FeedItem>) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(feedItems) { item ->
-            FeedCard(item = item)
+            FeedCard(item = item, modifier = Modifier.padding(horizontal = 16.dp))
         }
     }
 }
 
 @Composable
-fun FeedCard(item: FeedItem) {
+fun FeedCard(item: FeedItem, modifier: Modifier = Modifier) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -115,8 +115,7 @@ fun FeedCard(item: FeedItem) {
                 is FeedItem.ChallengeStart -> {
                     Text(text = item.description, fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(8.dp))
-                    // ▼▼▼ 오류 수정: 람다({}) 제거 ▼▼▼
-                    LinearProgressIndicator(progress = 0.1f, modifier = Modifier.fillMaxWidth(), color = DarkRed)
+                    LinearProgressIndicator(progress = { 0.1f }, modifier = Modifier.fillMaxWidth(), color = DarkRed)
                     Text("10% 완료", fontSize = 12.sp, color = TextGray)
                 }
                 is FeedItem.ChallengeSuccess -> {
@@ -132,9 +131,8 @@ fun FeedCard(item: FeedItem) {
                     Text(text = item.description, fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(8.dp))
                     if (item.totalPages > 0) {
-                        // ▼▼▼ 오류 수정: 람다({}) 제거 ▼▼▼
                         LinearProgressIndicator(
-                            progress = item.currentPage.toFloat() / item.totalPages,
+                            progress = { item.currentPage.toFloat() / item.totalPages },
                             modifier = Modifier.fillMaxWidth(),
                             color = ReadingGreen
                         )
