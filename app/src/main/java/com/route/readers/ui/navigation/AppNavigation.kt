@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -23,9 +24,9 @@ import com.route.readers.ui.screens.login.LoginViewModel
 import com.route.readers.ui.screens.login.OnboardingScreen
 import com.route.readers.ui.screens.login.SignUpScreen
 import com.route.readers.ui.screens.profile.FollowListScreen
+import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.profile.ProfileSetupScreen
 import java.net.URLDecoder
-import java.net.URLEncoder
 
 @Composable
 fun AppNavigation(navController: NavHostController) {
@@ -156,25 +157,29 @@ fun AppNavigation(navController: NavHostController) {
         }
 
         composable(
-            route = "follow_list_route/{userId}/{initialListType}/{nickname}",
+            route = "follow_list_route/{userId}/{listType}/{nickname}",
             arguments = listOf(
                 navArgument("userId") { type = NavType.StringType },
-                navArgument("initialListType") { type = NavType.StringType },
+                navArgument("listType") { type = NavType.StringType },
                 navArgument("nickname") { type = NavType.StringType }
             )
         ) { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId")
-            val initialListType = backStackEntry.arguments?.getString("initialListType")
+            val listType = backStackEntry.arguments?.getString("listType")
             val nickname = backStackEntry.arguments?.getString("nickname")?.let {
                 URLDecoder.decode(it, "UTF-8")
             }
-            if (userId != null && initialListType != null && nickname != null) {
+
+            if (userId != null && listType != null && nickname != null) {
                 FollowListScreen(
                     userId = userId,
-                    initialListType = initialListType,
+                    initialListType = listType,
                     nickname = nickname,
-                    onUserClick = { clickedUserId ->
-                        navController.navigate("profile_route/$clickedUserId")
+                    onUserClick = { otherUserId ->
+                        navController.navigate("profile_route/$otherUserId") {
+                            // FollowList에서 프로필로 갈 때 MainContent는 유지하고 그 위로 쌓이도록 수정
+                            launchSingleTop = true
+                        }
                     },
                     onNavigateBack = { navController.popBackStack() }
                 )
