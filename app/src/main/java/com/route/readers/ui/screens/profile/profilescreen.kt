@@ -104,6 +104,28 @@ fun ProfileContent(
 ) {
     val user = state.user
 
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var feedToDelete by remember { mutableStateOf<String?>(null) }
+
+    if (showDeleteDialog && feedToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("피드 삭제") },
+            text = { Text("피드를 정말 지우시겠습니까?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        feedToDelete?.let { viewModel.deleteFeed(it) }
+                        showDeleteDialog = false
+                    }
+                ) { Text("예", color = DarkRed) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) { Text("아니요", color = Color.Gray) }
+            }
+        )
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -189,7 +211,15 @@ fun ProfileContent(
             PostsSection(
                 myPosts = state.myPosts,
                 savedPosts = state.savedPosts,
-                isMyProfile = state.isMyProfile
+                isMyProfile = state.isMyProfile,
+                likedFeedIds = state.likedFeedIds,
+                savedFeedIds = state.savedFeedIds,
+                onLikeClick = viewModel::toggleLike,
+                onSaveClick = viewModel::toggleSave,
+                onDeleteClick = { feedId ->
+                    feedToDelete = feedId
+                    showDeleteDialog = true
+                }
             )
         }
     }
@@ -200,7 +230,12 @@ fun ProfileContent(
 fun PostsSection(
     myPosts: List<FeedItem>,
     savedPosts: List<FeedItem>,
-    isMyProfile: Boolean
+    isMyProfile: Boolean,
+    likedFeedIds: Set<String>,
+    savedFeedIds: Set<String>,
+    onLikeClick: (feedId: String, isLiked: Boolean) -> Unit,
+    onSaveClick: (feedId: String, isSaved: Boolean) -> Unit,
+    onDeleteClick: (feedId: String) -> Unit
 ) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = if (isMyProfile) listOf("내가 쓴 글", "저장한 글") else listOf("작성한 글")
@@ -250,12 +285,15 @@ fun PostsSection(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 postsToShow.forEach { post ->
+                    val isLiked = likedFeedIds.contains(post.id)
+                    val isSaved = savedFeedIds.contains(post.id)
                     FeedCard(
                         item = post,
-                        isLiked = false,
-                        isSaved = false,
-                        onLikeClick = { },
-                        onSaveClick = { }
+                        isLiked = isLiked,
+                        isSaved = isSaved,
+                        onLikeClick = { onLikeClick(post.id, isLiked) },
+                        onSaveClick = { onSaveClick(post.id, isSaved) },
+                        onDeleteClick = { onDeleteClick(post.id) }
                     )
                 }
             }

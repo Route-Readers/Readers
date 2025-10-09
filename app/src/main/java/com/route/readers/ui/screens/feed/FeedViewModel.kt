@@ -76,8 +76,6 @@ class FeedViewModel : ViewModel() {
                             val feeds = snapshots.mapNotNull { doc ->
                                 when (doc.getString("type")) {
                                     "BOOK_REVIEW" -> doc.toObject(FeedItem.BookReview::class.java)
-                                    "FOLLOW" -> doc.toObject(FeedItem.Follow::class.java)
-                                    "CHALLENGE_START" -> doc.toObject(FeedItem.ChallengeStart::class.java)
                                     else -> null
                                 }
                             }
@@ -141,6 +139,16 @@ class FeedViewModel : ViewModel() {
                 }
             } catch (e: Exception) {
                 Log.e("FeedViewModel", "Error toggling save for feed $feedId", e)
+            }
+        }
+    }
+
+    fun deleteFeed(feedId: String) {
+        viewModelScope.launch {
+            try {
+                db.collection("feeds").document(feedId).delete().await()
+            } catch (e: Exception) {
+                Log.e("FeedViewModel", "Error deleting feed $feedId", e)
             }
         }
     }

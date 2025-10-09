@@ -2,6 +2,8 @@ package com.route.readers.ui.screens.profile
 
 import android.net.Uri
 import android.util.Log
+import androidx.compose.animation.core.copy
+import androidx.compose.ui.geometry.isEmpty
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
@@ -129,43 +131,48 @@ open class ProfileViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val userDocument = db.collection("users").document(targetUserId).get().await()
+                val user: User? = userDocument.toObject(User::class.java)
 
-                if (userDocument.exists()) {
-                    val user: User? = userDocument.toObject(User::class.java)
-                    if (user != null) {
-                        val isMyProfile = targetUserId == currentUserId
-                        val isFollowing = user.followers.contains(currentUserId)
+                if (user != null) {
+                    val isMyProfile = targetUserId == currentUserId
+                    val isFollowing = user.followers.contains(currentUserId)
 
-                        val recommendedBooksDeferred = async { fetchRecommendedBooks(user.readingGenres) }
-                        val favoriteBooksDeferred = async { bookRepository.getFavoriteBooks(targetUserId) }
-                        val challengesDeferred = async { fetchUserChallenges(targetUserId) }
-                        val myPostsDeferred = async { fetchMyPosts(targetUserId) }
-                        val savedPostsDeferred = async { fetchSavedPosts(targetUserId, isMyProfile) }
+                    val recommendedBooksDeferred = async { fetchRecommendedBooks(user.readingGenres) }
+                    val favoriteBooksDeferred = async { bookRepository.getFavoriteBooks(targetUserId) }
+                    val challengesDeferred = async { fetchUserChallenges(targetUserId) }
+                    val myPostsDeferred = async { fetchMyPosts(targetUserId) }
 
-                        val recommendedBooks = recommendedBooksDeferred.await()
-                        val favoriteBooks = favoriteBooksDeferred.await()
-                        val allChallenges = challengesDeferred.await()
-                        val myPosts = myPostsDeferred.await()
-                        val savedPosts = savedPostsDeferred.await()
+                    val savedPostsResult = async {
+                        if (isMyProfile) fetchSavedPosts(targetUserId)
+                        else emptyList()
+                    }.await()
 
-                        val (ongoing, completed) = allChallenges.partition { !it.isCompleted }
+                    val allPosts = (myPostsDeferred.await() + savedPostsResult).distinctBy { it.id }
+                    val likedFeedIds = allPosts
+                        .filterIsInstance<FeedItem.BookReview>()
+                        .filter { it.likedBy.contains(currentUserId) }
+                        .map { it.id }
+                        .toSet()
 
-                        _uiState.value = ProfileUiState.Success(
-                            user = user,
-                            isFollowing = isFollowing,
-                            isMyProfile = isMyProfile,
-                            recommendedBooks = recommendedBooks,
-                            favoriteBooks = favoriteBooks,
-                            ongoingChallenges = ongoing,
-                            completedChallenges = completed,
-                            myPosts = myPosts,
-                            savedPosts = savedPosts
-                        )
-                    } else {
-                        _uiState.value = ProfileUiState.Error("프로필 정보를 변환하는 데 실패했습니다.")
-                    }
+                    val savedFeedIds = user.savedFeeds.toSet()
+
+                    val (ongoing, completed) = challengesDeferred.await().partition { !it.isCompleted }
+
+                    _uiState.value = ProfileUiState.Success(
+                        user = user,
+                        isFollowing = isFollowing,
+                        isMyProfile = isMyProfile,
+                        recommendedBooks = recommendedBooksDeferred.await(),
+                        favoriteBooks = favoriteBooksDeferred.await(),
+                        ongoingChallenges = ongoing,
+                        completedChallenges = completed,
+                        myPosts = myPostsDeferred.await(),
+                        savedPosts = savedPostsResult,
+                        likedFeedIds = likedFeedIds,
+                        savedFeedIds = savedFeedIds
+                    )
                 } else {
-                    _uiState.value = ProfileUiState.Error("프로필 데이터가 존재하지 않습니다.")
+                    _uiState.value = ProfileUiState.Error("프로필 정보를 변환하는 데 실패했습니다.")
                 }
             } catch (e: Exception) {
                 _uiState.value = ProfileUiState.Error("프로필을 불러오는 중 오류가 발생했습니다: ${e.message}")
@@ -186,8 +193,7 @@ open class ProfileViewModel : ViewModel() {
         }
     }
 
-    private suspend fun fetchSavedPosts(userId: String, isMyProfile: Boolean): List<FeedItem> {
-        if (!isMyProfile) return emptyList()
+    private suspend fun fetchSavedPosts(userId: String): List<FeedItem> {
         return try {
             val userDoc = db.collection("users").document(userId).get().await()
             val savedFeedIds = userDoc.get("savedFeeds") as? List<String> ?: emptyList()
@@ -384,6 +390,71 @@ open class ProfileViewModel : ViewModel() {
                 )
             } catch (e: Exception) {
                 Log.e("ProfileViewModel", "Failed to delete favorite books", e)
+            }
+        }
+    }
+
+    fun toggleLike(feedId: String, isCurrentlyLiked: Boolean) {
+        val currentUserId = auth.currentUser?.uid ?: return
+        viewModelScope.launch {
+            val feedRef = db.collection("feeds").document(feedId)
+            try {
+                val operation = if (isCurrentlyLiked) {
+                    FieldValue.arrayRemove(currentUserId) to FieldValue.increment(-1)
+                } else {
+                    FieldValue.arrayUnion(currentUserId) to FieldValue.increment(1)
+                }
+                feedRef.update(
+                    "likedBy", operation.first,
+                    "likeCount", operation.second
+                ).await()
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Error toggling like for feed $feedId", e)
+            }
+        }
+    }
+
+    fun toggleSave(feedId: String, isCurrentlySaved: Boolean) {
+        val currentUserId = auth.currentUser?.uid ?: return
+        viewModelScope.launch {
+            val userRef = db.collection("users").document(currentUserId)
+            try {
+                val operation = if (isCurrentlySaved) {
+                    FieldValue.arrayRemove(feedId)
+                } else {
+                    FieldValue.arrayUnion(feedId)
+                }
+                userRef.update("savedFeeds", operation).await()
+
+                val currentState = _uiState.value
+                if (currentState is ProfileUiState.Success) {
+                    val newSavedIds = if (isCurrentlySaved) {
+                        currentState.savedFeedIds - feedId
+                    } else {
+                        currentState.savedFeedIds + feedId
+                    }
+                    _uiState.value = currentState.copy(savedFeedIds = newSavedIds)
+                }
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Error toggling save for feed $feedId", e)
+            }
+        }
+    }
+
+    fun deleteFeed(feedId: String) {
+        viewModelScope.launch {
+            try {
+                db.collection("feeds").document(feedId).delete().await()
+
+                val currentState = (_uiState.value as? ProfileUiState.Success) ?: return@launch
+                val newMyPosts = currentState.myPosts.filterNot { it.id == feedId }
+                val newSavedPosts = currentState.savedPosts.filterNot { it.id == feedId }
+                _uiState.value = currentState.copy(
+                    myPosts = newMyPosts,
+                    savedPosts = newSavedPosts
+                )
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Error deleting feed $feedId", e)
             }
         }
     }
