@@ -1,18 +1,40 @@
 package com.route.readers.ui.screens.feed
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,32 +44,53 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.firebase.Timestamp
-import com.route.readers.ui.theme.CreamBackground
+import com.google.firebase.firestore.DocumentSnapshot
 import com.route.readers.ui.theme.DarkRed
-import com.route.readers.ui.theme.ReadingGreen
 import com.route.readers.ui.theme.TextGray
 import com.route.readers.ui.theme.White
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Locale
 
 @Composable
-fun FeedScreen(feedViewModel: FeedViewModel = viewModel()) {
+fun FeedScreen(
+    onNavigateToAddFeed: () -> Unit,
+    feedViewModel: FeedViewModel = viewModel()
+) {
     val uiState by feedViewModel.uiState.collectAsState()
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(CreamBackground),
-        contentAlignment = Alignment.Center
-    ) {
-        when (val state = uiState) {
-            is FeedUiState.Loading -> CircularProgressIndicator()
-            is FeedUiState.Error -> Text(text = state.message)
-            is FeedUiState.Success -> {
-                if (state.items.isEmpty()) {
-                    Text("표시할 피드가 없습니다.")
-                } else {
-                    ActualFeedContent(feedItems = state.items)
+    Scaffold(
+        floatingActionButton = {
+            FloatingActionButton(onClick = onNavigateToAddFeed, containerColor = DarkRed) {
+                Icon(Icons.Default.Add, contentDescription = "피드 추가", tint = White)
+            }
+        },
+        containerColor = Color(0xFFF7F7FF)
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            when (val state = uiState) {
+                is FeedUiState.Loading -> CircularProgressIndicator()
+                is FeedUiState.Error -> Text(text = state.message)
+                is FeedUiState.Success -> {
+                    if (state.items.isEmpty()) {
+                        Text("표시할 피드가 없습니다.")
+                    } else {
+                        ActualFeedContent(
+                            feedItems = state.items,
+                            likedFeedIds = state.likedFeedIds,
+                            savedFeedIds = state.savedFeedIds,
+                            onLikeClick = { feedId, isLiked ->
+                                feedViewModel.toggleLike(feedId, isLiked)
+                            },
+                            onSaveClick = { feedId, isSaved ->
+                                feedViewModel.toggleSave(feedId, isSaved)
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -55,20 +98,42 @@ fun FeedScreen(feedViewModel: FeedViewModel = viewModel()) {
 }
 
 @Composable
-fun ActualFeedContent(feedItems: List<FeedItem>) {
+fun ActualFeedContent(
+    feedItems: List<FeedItem>,
+    likedFeedIds: Set<String>,
+    savedFeedIds: Set<String>,
+    onLikeClick: (String, Boolean) -> Unit,
+    onSaveClick: (String, Boolean) -> Unit
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(feedItems) { item ->
-            FeedCard(item = item, modifier = Modifier.padding(horizontal = 16.dp))
+        items(feedItems, key = { it.id }) { item ->
+            val isLiked = likedFeedIds.contains(item.id)
+            val isSaved = savedFeedIds.contains(item.id)
+            FeedCard(
+                item = item,
+                isLiked = isLiked,
+                isSaved = isSaved,
+                onLikeClick = { onLikeClick(item.id, isLiked) },
+                onSaveClick = { onSaveClick(item.id, isSaved) },
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
         }
     }
 }
 
 @Composable
-fun FeedCard(item: FeedItem, modifier: Modifier = Modifier) {
+fun FeedCard(
+    item: FeedItem,
+    isLiked: Boolean,
+    isSaved: Boolean,
+    onLikeClick: () -> Unit,
+    onSaveClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -105,40 +170,6 @@ fun FeedCard(item: FeedItem, modifier: Modifier = Modifier) {
             Spacer(modifier = Modifier.height(12.dp))
 
             when (item) {
-                is FeedItem.Follow -> {
-                    Text(text = "${item.follower}님이 ${item.following}님을 팔로우합니다.", fontSize = 14.sp)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(onClick = {}, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = DarkRed)) {
-                        Text("맞팔하기", color = White)
-                    }
-                }
-                is FeedItem.ChallengeStart -> {
-                    Text(text = item.description, fontSize = 14.sp)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    LinearProgressIndicator(progress = { 0.1f }, modifier = Modifier.fillMaxWidth(), color = DarkRed)
-                    Text("10% 완료", fontSize = 12.sp, color = TextGray)
-                }
-                is FeedItem.ChallengeSuccess -> {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("🎉", fontSize = 20.sp)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = item.description, fontSize = 14.sp, color = DarkRed, fontWeight = FontWeight.Medium)
-                    }
-                }
-                is FeedItem.ReadingProgress -> {
-                    Text(text = "📖 ${item.bookTitle}", fontWeight = FontWeight.Medium, color = DarkRed)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = item.description, fontSize = 14.sp)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    if (item.totalPages > 0) {
-                        LinearProgressIndicator(
-                            progress = { item.currentPage.toFloat() / item.totalPages },
-                            modifier = Modifier.fillMaxWidth(),
-                            color = ReadingGreen
-                        )
-                        Text("${item.currentPage}/${item.totalPages}페이지", fontSize = 12.sp, color = TextGray)
-                    }
-                }
                 is FeedItem.BookReview -> {
                     Text(text = "📚 ${item.bookTitle}", fontWeight = FontWeight.Medium, color = DarkRed)
                     Spacer(modifier = Modifier.height(4.dp))
@@ -152,21 +183,40 @@ fun FeedCard(item: FeedItem, modifier: Modifier = Modifier) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(text = item.review, fontSize = 14.sp)
                 }
+                is FeedItem.Follow -> {
+                    Text(text = "${item.userName}님이 ${item.following}님을 팔로우하기 시작했습니다.", fontSize = 14.sp)
+                }
+                is FeedItem.ChallengeStart -> {
+                    Text(text = "${item.userName}님이 챌린지를 시작했습니다: ${item.description}", fontSize = 14.sp)
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                var isLiked by remember { mutableStateOf(false) }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                    IconButton(onClick = { isLiked = !isLiked }) {
-                        Icon(imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder, contentDescription = "좋아요", tint = if (isLiked) DarkRed else TextGray)
+                    IconButton(onClick = onLikeClick) {
+                        Icon(
+                            imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                            contentDescription = "좋아요",
+                            tint = if (isLiked) DarkRed else TextGray
+                        )
                     }
                     Text(text = item.likeCount.toString(), fontSize = 14.sp, color = TextGray)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                    TextButton(onClick = {}) {
+                    TextButton(onClick = { }) {
                         Text("💬 ${item.commentCount}", fontSize = 14.sp, color = TextGray)
+                    }
+                }
+                Spacer(modifier = Modifier.weight(8f))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onSaveClick) {
+                        Icon(
+                            imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+                            contentDescription = "저장",
+                            tint = if (isSaved) DarkRed else TextGray
+                        )
                     }
                 }
             }
@@ -175,6 +225,7 @@ fun FeedCard(item: FeedItem, modifier: Modifier = Modifier) {
 }
 
 sealed class FeedItem(
+    open val id: String = "",
     open val userName: String = "",
     open val timestamp: Timestamp = Timestamp.now(),
     open val likeCount: Int = 0,
@@ -182,39 +233,31 @@ sealed class FeedItem(
     open val type: String = ""
 ) {
     data class Follow(
+        override val id: String = "",
         val follower: String = "",
         val following: String = "",
         override val timestamp: Timestamp = Timestamp.now()
-    ) : FeedItem(userName = follower, timestamp = timestamp, type = "FOLLOW")
+    ) : FeedItem(id = id, userName = follower, timestamp = timestamp, type = "FOLLOW")
 
     data class ChallengeStart(
+        override val id: String = "",
         val users: String = "",
         val description: String = "",
         override val timestamp: Timestamp = Timestamp.now()
-    ) : FeedItem(userName = users, timestamp = timestamp, type = "CHALLENGE_START")
-
-    data class ChallengeSuccess(
-        val users: String = "",
-        val description: String = "",
-        override val timestamp: Timestamp = Timestamp.now()
-    ) : FeedItem(userName = users, timestamp = timestamp, type = "CHALLENGE_SUCCESS")
-
-    data class ReadingProgress(
-        val user: String = "",
-        val bookTitle: String = "",
-        val currentPage: Int = 0,
-        val totalPages: Int = 0,
-        val description: String = "",
-        override val timestamp: Timestamp = Timestamp.now()
-    ) : FeedItem(userName = user, timestamp = timestamp, type = "READING_PROGRESS")
+    ) : FeedItem(id = id, userName = users, timestamp = timestamp, type = "CHALLENGE_START")
 
     data class BookReview(
-        val user: String = "",
+        override val id: String = "",
+        val authorId: String = "",
+        override val userName: String = "",
         val bookTitle: String = "",
-        val rating: Int = 0,
         val review: String = "",
-        override val timestamp: Timestamp = Timestamp.now()
-    ) : FeedItem(userName = user, timestamp = timestamp, type = "BOOK_REVIEW")
+        val rating: Int = 0,
+        val likedBy: List<String> = emptyList(),
+        override val timestamp: Timestamp = Timestamp.now(),
+        override val likeCount: Int = 0,
+        override val commentCount: Int = 0
+    ) : FeedItem(id, userName, timestamp, likeCount, commentCount, "BOOK_REVIEW")
 }
 
 fun formatTimestamp(timestamp: Timestamp): String {
@@ -224,5 +267,15 @@ fun formatTimestamp(timestamp: Timestamp): String {
         diff < 3600 -> "${diff / 60}분 전"
         diff < 86400 -> "${diff / 3600}시간 전"
         else -> SimpleDateFormat("M월 d일", Locale.getDefault()).format(timestamp.toDate())
+    }
+}
+
+fun DocumentSnapshot.toFeedItem(): FeedItem? {
+    val type = getString("type") ?: return null
+    return when (type) {
+        "BOOK_REVIEW" -> this.toObject(FeedItem.BookReview::class.java)
+        "FOLLOW" -> this.toObject(FeedItem.Follow::class.java)
+        "CHALLENGE_START" -> this.toObject(FeedItem.ChallengeStart::class.java)
+        else -> null
     }
 }

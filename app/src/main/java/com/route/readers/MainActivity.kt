@@ -33,6 +33,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.notification.ReadingNotificationService
 import com.route.readers.ui.screens.MainScreen
+import com.route.readers.ui.screens.feed.AddFeedScreen
 import com.route.readers.ui.screens.login.LoginScreen
 import com.route.readers.ui.screens.login.LoginViewModel
 import com.route.readers.ui.screens.login.OnboardingScreen
@@ -216,6 +217,9 @@ fun RootAppNavigation() {
                 navController = appNavController,
                 onNavigateToOtherUserProfile = { userId ->
                     appNavController.navigate("profile_route/$userId")
+                },
+                onNavigateToAddFeed = {
+                    appNavController.navigate("add_feed_route")
                 }
             )
         }
@@ -268,6 +272,12 @@ fun RootAppNavigation() {
                     onNavigateBack = { appNavController.popBackStack() }
                 )
             }
+        }
+
+        composable("add_feed_route") {
+            AddFeedScreen(
+                onNavigateBack = { appNavController.popBackStack() }
+            )
         }
     }
 }

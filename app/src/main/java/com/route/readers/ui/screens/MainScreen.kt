@@ -39,7 +39,8 @@ import java.net.URLEncoder
 @Composable
 fun MainScreen(
     navController: NavHostController,
-    onNavigateToOtherUserProfile: (String) -> Unit
+    onNavigateToOtherUserProfile: (String) -> Unit,
+    onNavigateToAddFeed: () -> Unit
 ) {
     val bottomNavController = rememberNavController()
     val communityViewModel: CommunityViewModel = viewModel()
@@ -136,7 +137,9 @@ fun MainScreen(
         ) {
             composable(BottomNavItem.Feed.route) {
                 selectedBook = null
-                FeedScreen()
+                FeedScreen(
+                    onNavigateToAddFeed = onNavigateToAddFeed
+                )
             }
             composable(BottomNavItem.MyLibrary.route) {
                 MyLibraryScreen(
@@ -165,7 +168,9 @@ fun MainScreen(
                     onNavigateBack = {
                         bottomNavController.popBackStack()
                     },
-                    onUserClick = onNavigateToOtherUserProfile
+                    onUserClick = { userId ->
+                        bottomNavController.navigate("profile_route/$userId")
+                    }
                 )
             }
             composable(

@@ -12,6 +12,8 @@ import com.route.readers.data.model.Book
 import com.route.readers.data.model.Challenge
 import com.route.readers.data.model.User
 import com.route.readers.data.remote.BookRepository
+import com.route.readers.ui.screens.feed.FeedItem
+import com.route.readers.ui.screens.feed.toFeedItem
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -99,6 +101,7 @@ open class ProfileViewModel : ViewModel() {
             "profileImageUrl" to profileImageUrl,
             "readingGenres" to genres,
             "readingStyles" to styles,
+            "savedFeeds" to emptyList<String>(),
             "level" to 1,
             "followerCount" to 0,
             "followingCount" to 0,
@@ -136,10 +139,14 @@ open class ProfileViewModel : ViewModel() {
                         val recommendedBooksDeferred = async { fetchRecommendedBooks(user.readingGenres) }
                         val favoriteBooksDeferred = async { bookRepository.getFavoriteBooks(targetUserId) }
                         val challengesDeferred = async { fetchUserChallenges(targetUserId) }
+                        val myPostsDeferred = async { fetchMyPosts(targetUserId) }
+                        val savedPostsDeferred = async { fetchSavedPosts(targetUserId, isMyProfile) }
 
                         val recommendedBooks = recommendedBooksDeferred.await()
                         val favoriteBooks = favoriteBooksDeferred.await()
                         val allChallenges = challengesDeferred.await()
+                        val myPosts = myPostsDeferred.await()
+                        val savedPosts = savedPostsDeferred.await()
 
                         val (ongoing, completed) = allChallenges.partition { !it.isCompleted }
 
@@ -150,7 +157,9 @@ open class ProfileViewModel : ViewModel() {
                             recommendedBooks = recommendedBooks,
                             favoriteBooks = favoriteBooks,
                             ongoingChallenges = ongoing,
-                            completedChallenges = completed
+                            completedChallenges = completed,
+                            myPosts = myPosts,
+                            savedPosts = savedPosts
                         )
                     } else {
                         _uiState.value = ProfileUiState.Error("프로필 정보를 변환하는 데 실패했습니다.")
@@ -162,6 +171,36 @@ open class ProfileViewModel : ViewModel() {
                 _uiState.value = ProfileUiState.Error("프로필을 불러오는 중 오류가 발생했습니다: ${e.message}")
                 Log.e("ProfileViewModel", "fetchUserProfile failed", e)
             }
+        }
+    }
+    private suspend fun fetchMyPosts(userId: String): List<FeedItem> {
+        return try {
+            val snapshot = db.collection("feeds")
+                .whereEqualTo("authorId", userId)
+                .get()
+                .await()
+            snapshot.documents.mapNotNull { it.toFeedItem() }
+        } catch (e: Exception) {
+            Log.e("ProfileViewModel", "Failed to fetch my posts", e)
+            emptyList()
+        }
+    }
+
+    private suspend fun fetchSavedPosts(userId: String, isMyProfile: Boolean): List<FeedItem> {
+        if (!isMyProfile) return emptyList()
+        return try {
+            val userDoc = db.collection("users").document(userId).get().await()
+            val savedFeedIds = userDoc.get("savedFeeds") as? List<String> ?: emptyList()
+
+            if (savedFeedIds.isEmpty()) {
+                emptyList()
+            } else {
+                val snapshot = db.collection("feeds").whereIn("id", savedFeedIds).get().await()
+                snapshot.documents.mapNotNull { it.toFeedItem() }
+            }
+        } catch (e: Exception) {
+            Log.e("ProfileViewModel", "Failed to fetch saved posts", e)
+            emptyList()
         }
     }
 
