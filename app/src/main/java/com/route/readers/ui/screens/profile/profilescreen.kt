@@ -37,6 +37,8 @@ import coil.request.ImageRequest
 import com.route.readers.data.model.Book
 import com.route.readers.data.model.Challenge
 import com.route.readers.data.model.User
+import com.route.readers.ui.screens.feed.FeedCard
+import com.route.readers.ui.screens.feed.FeedItem
 import com.route.readers.ui.theme.DarkRed
 
 @Composable
@@ -57,36 +59,39 @@ fun ProfileScreen(
         viewModel.clearSelectionMode()
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF5F5F5)),
-        contentAlignment = Alignment.Center
-    ) {
-        when (val state = uiState) {
-            is ProfileUiState.Loading -> CircularProgressIndicator()
-            is ProfileUiState.Error -> Text(text = state.message)
-            is ProfileUiState.Success -> {
-                ProfileContent(
-                    state = state,
-                    onFollowClick = { viewModel.followUser(state.user.uid) },
-                    onUnfollowClick = { viewModel.unfollowUser(state.user.uid) },
-                    onFollowListClick = { listType ->
-                        onNavigateToFollowList(listType, state.user.nickname)
-                    },
-                    onUpdateProfileImage = { imageUri ->
-                        viewModel.updateProfileImage(imageUri)
-                    },
-                    onNavigateToSearch = onNavigateToSearch,
-                    viewModel = viewModel
-                )
+    Scaffold(
+        containerColor = Color(0xFFF5F5F5)
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            when (val state = uiState) {
+                is ProfileUiState.Loading -> CircularProgressIndicator()
+                is ProfileUiState.Error -> Text(text = state.message)
+                is ProfileUiState.Success -> {
+                    ProfileContent(
+                        state = state,
+                        onFollowClick = { viewModel.followUser(state.user.uid) },
+                        onUnfollowClick = { viewModel.unfollowUser(state.user.uid) },
+                        onFollowListClick = { listType ->
+                            onNavigateToFollowList(listType, state.user.nickname)
+                        },
+                        onUpdateProfileImage = { imageUri ->
+                            viewModel.updateProfileImage(imageUri)
+                        },
+                        onNavigateToSearch = onNavigateToSearch,
+                        viewModel = viewModel
+                    )
+                }
             }
         }
     }
 }
 
-
-@OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun ProfileContent(
     state: ProfileUiState.Success,
@@ -101,79 +106,159 @@ fun ProfileContent(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         item {
-            ProfileInfoSection(
-                user = user,
-                isMyProfile = state.isMyProfile,
-                isFollowing = state.isFollowing,
-                onFollowClick = onFollowClick,
-                onUnfollowClick = onUnfollowClick,
-                onFollowListClick = onFollowListClick,
-                onUpdateProfileImage = onUpdateProfileImage
-            )
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
-        if (user.readingGenres.isNotEmpty()) {
-            item {
-                ProfileDetailCard("선호 장르") {
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        user.readingGenres.forEach { genre -> Chip(label = genre) }
+        item {
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                ProfileInfoSection(
+                    user = user,
+                    isMyProfile = state.isMyProfile,
+                    isFollowing = state.isFollowing,
+                    onFollowClick = onFollowClick,
+                    onUnfollowClick = onUnfollowClick,
+                    onFollowListClick = onFollowListClick,
+                    onUpdateProfileImage = onUpdateProfileImage
+                )
+
+                if (user.readingGenres.isNotEmpty()) {
+                    ProfileDetailCard("선호 장르") {
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            user.readingGenres.forEach { genre -> Chip(label = genre) }
+                        }
+                    }
+                }
+
+                if (user.readingStyles.isNotEmpty()) {
+                    ProfileDetailCard("독서 스타일") {
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            user.readingStyles.forEach { style -> Chip(label = style) }
+                        }
                     }
                 }
             }
         }
 
-        if (user.readingStyles.isNotEmpty()) {
-            item {
-                ProfileDetailCard("독서 스타일") {
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        user.readingStyles.forEach { style -> Chip(label = style) }
-                    }
+        item {
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(32.dp),
+            ) {
+                if (state.recommendedBooks.isNotEmpty()) {
+                    RecommendedBooksSection(
+                        books = state.recommendedBooks,
+                        onBookClick = { }
+                    )
                 }
-            }
-        }
 
-        if (state.recommendedBooks.isNotEmpty()) {
-            item {
-                RecommendedBooksSection(
-                    books = state.recommendedBooks,
-                    onBookClick = { /* 도서 상세 화면으로 이동 */ }
+                FavoriteBooksSection(
+                    books = state.favoriteBooks,
+                    isSelectionMode = state.isSelectionMode,
+                    selectedBookIds = state.selectedBookIds,
+                    onToggleSelection = viewModel::toggleBookSelection,
+                    onStartSelectionMode = viewModel::startSelectionMode,
+                    onDeleteClick = viewModel::deleteSelectedFavoriteBooks,
+                    onBookClick = { },
+                    onNavigateToSearch = onNavigateToSearch
+                )
+
+                ChallengesSection(
+                    ongoingChallenges = state.ongoingChallenges,
+                    completedChallenges = state.completedChallenges,
+                    onChallengeClick = { }
                 )
             }
         }
 
         item {
-            FavoriteBooksSection(
-                books = state.favoriteBooks,
-                isSelectionMode = state.isSelectionMode,
-                selectedBookIds = state.selectedBookIds,
-                onToggleSelection = viewModel::toggleBookSelection,
-                onStartSelectionMode = viewModel::startSelectionMode,
-                onDeleteClick = viewModel::deleteSelectedFavoriteBooks,
-                onBookClick = { /* 도서 상세 화면으로 이동 */ },
-                onNavigateToSearch = onNavigateToSearch
+            PostsSection(
+                myPosts = state.myPosts,
+                savedPosts = state.savedPosts,
+                isMyProfile = state.isMyProfile
             )
         }
+    }
+}
 
-        item {
-            Spacer(modifier = Modifier.height(24.dp))
-            ChallengesSection(
-                ongoingChallenges = state.ongoingChallenges,
-                completedChallenges = state.completedChallenges,
-                onChallengeClick = { /* 챌린지 상세 화면으로 이동 */ }
-            )
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PostsSection(
+    myPosts: List<FeedItem>,
+    savedPosts: List<FeedItem>,
+    isMyProfile: Boolean
+) {
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
+    val tabs = if (isMyProfile) listOf("내가 쓴 글", "저장한 글") else listOf("작성한 글")
+
+    Column(Modifier.background(Color(0xFFF5F5F5))) {
+        SecondaryTabRow(
+            selectedTabIndex = selectedTabIndex,
+            containerColor = Color.Transparent,
+            contentColor = DarkRed,
+            indicator = {
+                TabRowDefaults.Indicator(
+                    modifier = Modifier.tabIndicatorOffset(selectedTabIndex),
+                    color = DarkRed
+                )
+            }
+        ) {
+            tabs.forEachIndexed { index, title ->
+                Tab(
+                    selected = selectedTabIndex == index,
+                    onClick = { selectedTabIndex = index },
+                    text = { Text(text = title) }
+                )
+            }
+        }
+
+        val postsToShow = when {
+            selectedTabIndex == 0 -> myPosts
+            selectedTabIndex == 1 && isMyProfile -> savedPosts
+            else -> emptyList()
+        }
+
+        if (postsToShow.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 48.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (selectedTabIndex == 0) "작성한 글이 없습니다." else "저장한 글이 없습니다.",
+                    color = Color.Gray
+                )
+            }
+        } else {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                postsToShow.forEach { post ->
+                    FeedCard(
+                        item = post,
+                        isLiked = false,
+                        isSaved = false,
+                        onLikeClick = { },
+                        onSaveClick = { }
+                    )
+                }
+            }
         }
     }
 }

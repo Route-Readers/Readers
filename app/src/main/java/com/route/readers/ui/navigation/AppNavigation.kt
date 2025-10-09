@@ -10,7 +10,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -19,12 +18,12 @@ import androidx.navigation.navArgument
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.ui.screens.MainScreen
+import com.route.readers.ui.screens.feed.AddFeedScreen
 import com.route.readers.ui.screens.login.LoginScreen
 import com.route.readers.ui.screens.login.LoginViewModel
 import com.route.readers.ui.screens.login.OnboardingScreen
 import com.route.readers.ui.screens.login.SignUpScreen
 import com.route.readers.ui.screens.profile.FollowListScreen
-import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.profile.ProfileSetupScreen
 import java.net.URLDecoder
 
@@ -152,6 +151,9 @@ fun AppNavigation(navController: NavHostController) {
                 navController = navController,
                 onNavigateToOtherUserProfile = { userId ->
                     navController.navigate("profile_route/$userId")
+                },
+                onNavigateToAddFeed = {
+                    navController.navigate("add_feed_route")
                 }
             )
         }
@@ -177,13 +179,20 @@ fun AppNavigation(navController: NavHostController) {
                     nickname = nickname,
                     onUserClick = { otherUserId ->
                         navController.navigate("profile_route/$otherUserId") {
-                            // FollowList에서 프로필로 갈 때 MainContent는 유지하고 그 위로 쌓이도록 수정
                             launchSingleTop = true
                         }
                     },
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
+        }
+
+        composable("add_feed_route") {
+            AddFeedScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
         }
     }
 }
