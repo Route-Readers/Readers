@@ -19,7 +19,9 @@ sealed class ProfileUiState {
         val myPosts: List<FeedItem>,
         val savedPosts: List<FeedItem>,
         val isSelectionMode: Boolean = false,
-        val selectedBookIds: Set<String> = emptySet()
+        val selectedBookIds: Set<String> = emptySet(),
+        val likedFeedIds: Set<String> = emptySet(),
+        val savedFeedIds: Set<String> = emptySet()
     ) : ProfileUiState()
 
     data class Error(val message: String) : ProfileUiState()
