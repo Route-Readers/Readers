@@ -18,14 +18,17 @@ import androidx.navigation.navArgument
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.ui.screens.MainScreen
-import com.route.readers.ui.screens.feed.AddFeedScreen
+import com.route.readers.ui.screens.add_feed.AddFeedScreen
 import com.route.readers.ui.screens.login.LoginScreen
 import com.route.readers.ui.screens.login.LoginViewModel
 import com.route.readers.ui.screens.login.OnboardingScreen
 import com.route.readers.ui.screens.login.SignUpScreen
 import com.route.readers.ui.screens.profile.FollowListScreen
+import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.profile.ProfileSetupScreen
+import com.route.readers.ui.screens.profile.ProfileViewModel
 import java.net.URLDecoder
+import java.net.URLEncoder
 
 @Composable
 fun AppNavigation(navController: NavHostController) {
@@ -47,17 +50,22 @@ fun AppNavigation(navController: NavHostController) {
                 } else {
                     firestore.collection("users").document(currentUser.uid).get()
                         .addOnSuccessListener { document ->
-                            val destination = if (document.exists() && document.getString("nickname") != null) {
-                                "main_app_content_route"
-                            } else {
-                                "profile_setup_route"
-                            }
+                            val destination =
+                                if (document.exists() && document.getString("nickname") != null) {
+                                    "main_app_content_route"
+                                } else {
+                                    "profile_setup_route"
+                                }
                             navController.navigate(destination) {
                                 popUpTo("decision_route") { inclusive = true }
                             }
                         }
                         .addOnFailureListener {
-                            Toast.makeText(context, "사용자 정보 확인에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                context,
+                                "사용자 정보 확인에 실패했습니다.",
+                                Toast.LENGTH_SHORT
+                            ).show()
                             auth.signOut()
                             navController.navigate("onboarding_route") {
                                 popUpTo("decision_route") { inclusive = true }
@@ -156,6 +164,27 @@ fun AppNavigation(navController: NavHostController) {
                     navController.navigate("add_feed_route")
                 }
             )
+        }
+
+        composable(
+            route = "profile_route/{userId}",
+            arguments = listOf(navArgument("userId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId")
+            if (userId != null) {
+                val profileViewModel: ProfileViewModel = viewModel()
+                ProfileScreen(
+                    userId = userId,
+                    viewModel = profileViewModel,
+                    onNavigateToFollowList = { listType, nickname ->
+                        val encodedNickname = URLEncoder.encode(nickname, "UTF-8")
+                        navController.navigate("follow_list_route/$userId/$listType/$encodedNickname")
+                    },
+                    onNavigateToSearch = {
+                        navController.navigate("search_route")
+                    }
+                )
+            }
         }
 
         composable(

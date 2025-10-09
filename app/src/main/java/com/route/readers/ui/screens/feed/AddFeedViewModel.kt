@@ -1,13 +1,16 @@
-package com.route.readers.ui.screens.feed
+package com.route.readers.ui.screens.add_feed
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.route.readers.data.model.User
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import com.route.readers.data.model.Book
+import com.route.readers.data.remote.BookRepository
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -20,55 +23,108 @@ sealed class AddFeedUiState {
 
 class AddFeedViewModel : ViewModel() {
 
-    private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
+    private val db = FirebaseFirestore.getInstance()
+    private val bookRepository = BookRepository()
+    private var searchJob: Job? = null
 
-    private val _uiState = MutableStateFlow<AddFeedUiState>(AddFeedUiState.Idle)
-    val uiState = _uiState.asStateFlow()
+    var uiState by mutableStateOf<AddFeedUiState>(AddFeedUiState.Idle)
+        private set
 
-    fun addFeed(bookTitle: String, review: String, rating: Int) {
+    var searchText by mutableStateOf("")
+        private set
+    var searchedBooks by mutableStateOf<List<Book>>(emptyList())
+        private set
+    var selectedBook by mutableStateOf<Book?>(null)
+        private set
+    var isSearching by mutableStateOf(false)
+        private set
+
+    var reviewText by mutableStateOf("")
+    var rating by mutableStateOf(0)
+
+    fun onSearchTextChanged(text: String) {
+        searchText = text
+        if (text.isNotBlank()) {
+            searchJob?.cancel()
+            searchJob = viewModelScope.launch {
+                delay(500L)
+                isSearching = true
+                searchedBooks = try {
+                    bookRepository.getBookSearch(query = text, maxResults = 10)
+                } catch (e: Exception) {
+                    emptyList()
+                } finally {
+                    isSearching = false
+                }
+            }
+        } else {
+            searchedBooks = emptyList()
+        }
+    }
+
+    fun onBookSelected(book: Book) {
+        selectedBook = book
+        searchedBooks = emptyList()
+        searchText = book.title
+    }
+
+    fun clearSelectedBook() {
+        selectedBook = null
+        searchText = ""
+        reviewText = ""
+        rating = 0
+    }
+
+    fun submitFeed() {
+        val currentUserId = auth.currentUser?.uid
+        if (currentUserId == null) {
+            uiState = AddFeedUiState.Error("로그인이 필요합니다.")
+            return
+        }
+
+        val book = selectedBook
+        if (book == null) {
+            uiState = AddFeedUiState.Error("리뷰를 작성할 책을 선택해주세요.")
+            return
+        }
+        if (reviewText.isBlank()) {
+            uiState = AddFeedUiState.Error("리뷰 내용을 입력해주세요.")
+            return
+        }
+        if (rating == 0) {
+            uiState = AddFeedUiState.Error("별점을 매겨주세요.")
+            return
+        }
+
+        uiState = AddFeedUiState.Loading
+
         viewModelScope.launch {
-            _uiState.value = AddFeedUiState.Loading
-            val currentUserId = auth.currentUser?.uid
-            if (currentUserId == null) {
-                _uiState.value = AddFeedUiState.Error("로그인이 필요합니다.")
-                return@launch
-            }
-
-            if (bookTitle.isBlank() || review.isBlank()) {
-                _uiState.value = AddFeedUiState.Error("책 이름과 후기를 모두 입력해주세요.")
-                return@launch
-            }
-
             try {
                 val userDoc = db.collection("users").document(currentUserId).get().await()
-                val user = userDoc.toObject(User::class.java)
-                if (user == null) {
-                    _uiState.value = AddFeedUiState.Error("사용자 정보를 가져올 수 없습니다.")
-                    return@launch
-                }
+                val currentUserNickname = userDoc.getString("nickname") ?: "익명"
 
-                val feedDocRef = db.collection("feeds").document()
-
-                val newFeed = FeedItem.BookReview(
-                    id = feedDocRef.id,
-                    authorId = currentUserId,
-                    userName = user.nickname,
-                    bookTitle = bookTitle,
-                    review = review,
-                    rating = rating,
-                    likedBy = emptyList(),
-                    // ▼▼▼ 여기가 수정된 부분입니다 ▼▼▼
-                    timestamp = Timestamp.now(),
-                    likeCount = 0,
-                    commentCount = 0
+                val feedRef = db.collection("feeds").document()
+                val feedData = hashMapOf(
+                    "id" to feedRef.id,
+                    "authorId" to currentUserId,
+                    "userName" to currentUserNickname,
+                    "type" to "BOOK_REVIEW",
+                    "bookTitle" to book.title,
+                    "bookAuthor" to book.author,
+                    "bookCover" to book.cover,
+                    "review" to reviewText,
+                    "rating" to rating,
+                    "timestamp" to com.google.firebase.Timestamp.now(),
+                    "likeCount" to 0,
+                    "commentCount" to 0,
+                    "likedBy" to emptyList<String>()
                 )
 
-                feedDocRef.set(newFeed).await()
-
-                _uiState.value = AddFeedUiState.Success
+                feedRef.set(feedData).await()
+                uiState = AddFeedUiState.Success
             } catch (e: Exception) {
-                _uiState.value = AddFeedUiState.Error("피드 저장 중 오류가 발생했습니다: ${e.message}")
+                uiState = AddFeedUiState.Error("피드 저장에 실패했습니다: ${e.message}")
             }
         }
     }

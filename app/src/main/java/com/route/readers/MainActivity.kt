@@ -33,7 +33,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.notification.ReadingNotificationService
 import com.route.readers.ui.screens.MainScreen
-import com.route.readers.ui.screens.feed.AddFeedScreen
+import com.route.readers.ui.screens.add_feed.AddFeedScreen
 import com.route.readers.ui.screens.login.LoginScreen
 import com.route.readers.ui.screens.login.LoginViewModel
 import com.route.readers.ui.screens.login.OnboardingScreen
