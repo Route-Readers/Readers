@@ -45,20 +45,22 @@ class BookClubViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(showCreateDialog = false)
     }
     
-    fun createBookClub(name: String, bookTitle: String) {
-        val newClub = BookClub(
-            id = System.currentTimeMillis().toString(),
-            name = name,
-            bookTitle = bookTitle,
-            memberCount = 1,
-            isJoined = true
-        )
-        
-        val updatedClubs = _uiState.value.bookClubs + newClub
-        _uiState.value = _uiState.value.copy(
-            bookClubs = updatedClubs,
-            showCreateDialog = false
-        )
+    fun createBookClub(name: String, book: com.route.readers.data.model.Book?) {
+        book?.let {
+            val newClub = BookClub(
+                id = System.currentTimeMillis().toString(),
+                name = name,
+                bookTitle = it.title,
+                memberCount = 1,
+                isJoined = true
+            )
+            
+            val updatedClubs = _uiState.value.bookClubs + newClub
+            _uiState.value = _uiState.value.copy(
+                bookClubs = updatedClubs,
+                showCreateDialog = false
+            )
+        }
     }
     
     fun joinBookClub(clubId: String) {
