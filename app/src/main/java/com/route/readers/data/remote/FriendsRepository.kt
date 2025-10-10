@@ -22,10 +22,75 @@ class FriendsRepository {
     private val _friends = MutableStateFlow<List<Friend>>(emptyList())
     val friends: StateFlow<List<Friend>> = _friends.asStateFlow()
     
+    private var friendsListener: com.google.firebase.firestore.ListenerRegistration? = null
+    
     private val currentUserId: String?
         get() = auth.currentUser?.uid
     
+    init {
+        startListeningToFriends()
+    }
+    
+    private fun startListeningToFriends() {
+        currentUserId?.let { userId ->
+            friendsListener = firestore.collection("users")
+                .document(userId)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        error.printStackTrace()
+                        return@addSnapshotListener
+                    }
+                    
+                    if (snapshot != null && snapshot.exists()) {
+                        val friendIds = snapshot.get("friends") as? List<String> ?: emptyList()
+                        loadFriendsData(friendIds)
+                    }
+                }
+        }
+    }
+    
+    private fun loadFriendsData(friendIds: List<String>) {
+        if (friendIds.isEmpty()) {
+            _friends.value = emptyList()
+            return
+        }
+        
+        val friendsList = mutableListOf<Friend>()
+        var loadedCount = 0
+        
+        friendIds.forEach { friendId ->
+            firestore.collection("users")
+                .document(friendId)
+                .get()
+                .addOnSuccessListener { friendDoc ->
+                    if (friendDoc.exists()) {
+                        val friend = Friend(
+                            id = friendId,
+                            name = friendDoc.getString("nickname") ?: "알 수 없음",
+                            currentBook = "최근 본 책: 독서 중",
+                            isOnline = false,
+                            lastActive = "최근 활동"
+                        )
+                        friendsList.add(friend)
+                    }
+                    
+                    loadedCount++
+                    if (loadedCount == friendIds.size) {
+                        _friends.value = friendsList.sortedBy { it.name }
+                    }
+                }
+                .addOnFailureListener { e ->
+                    e.printStackTrace()
+                    loadedCount++
+                    if (loadedCount == friendIds.size) {
+                        _friends.value = friendsList.sortedBy { it.name }
+                    }
+                }
+        }
+    }
+    
     suspend fun loadFriends() {
+        // 이제 실시간 리스너가 있으므로 이 메서드는 초기 로드용으로만 사용
         currentUserId?.let { userId ->
             try {
                 val userDoc = firestore.collection("users")
@@ -34,36 +99,7 @@ class FriendsRepository {
                     .await()
                 
                 val friendIds = userDoc.get("friends") as? List<String> ?: emptyList()
-                
-                if (friendIds.isNotEmpty()) {
-                    val friendsList = mutableListOf<Friend>()
-                    
-                    for (friendId in friendIds) {
-                        try {
-                            val friendDoc = firestore.collection("users")
-                                .document(friendId)
-                                .get()
-                                .await()
-                            
-                            if (friendDoc.exists()) {
-                                val friend = Friend(
-                                    id = friendId,
-                                    name = friendDoc.getString("nickname") ?: "알 수 없음",
-                                    currentBook = "최근 본 책: 독서 중",
-                                    isOnline = false,
-                                    lastActive = "최근 활동"
-                                )
-                                friendsList.add(friend)
-                            }
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                    }
-                    
-                    _friends.value = friendsList
-                } else {
-                    _friends.value = emptyList()
-                }
+                loadFriendsData(friendIds)
             } catch (e: Exception) {
                 e.printStackTrace()
                 _friends.value = emptyList()
@@ -71,46 +107,15 @@ class FriendsRepository {
         }
     }
     
+    fun stopListening() {
+        friendsListener?.remove()
+        friendsListener = null
+    }
+    
     suspend fun addFriend(friendNickname: String): AddFriendResult {
-        return currentUserId?.let { userId ->
-            try {
-                val querySnapshot = firestore.collection("users")
-                    .whereEqualTo("nickname", friendNickname)
-                    .get()
-                    .await()
-                
-                if (querySnapshot.isEmpty) {
-                    return@let AddFriendResult.UserNotFound
-                }
-                
-                val friendDoc = querySnapshot.documents.first()
-                val friendId = friendDoc.id
-                
-                val currentUserDoc = firestore.collection("users")
-                    .document(userId)
-                    .get()
-                    .await()
-                
-                val currentFriends = currentUserDoc.get("friends") as? MutableList<String> ?: mutableListOf()
-                
-                if (currentFriends.contains(friendId)) {
-                    return@let AddFriendResult.AlreadyFriend
-                }
-                
-                currentFriends.add(friendId)
-                
-                firestore.collection("users")
-                    .document(userId)
-                    .update("friends", currentFriends)
-                    .await()
-                
-                loadFriends()
-                AddFriendResult.Success
-            } catch (e: Exception) {
-                e.printStackTrace()
-                AddFriendResult.Error(e.message ?: "알 수 없는 오류")
-            }
-        } ?: AddFriendResult.Error("로그인이 필요합니다")
+        // 이제 FriendRequestRepository를 사용하여 친구 요청을 보냄
+        val friendRequestRepository = FriendRequestRepository()
+        return friendRequestRepository.sendFriendRequest(friendNickname)
     }
     
     suspend fun removeFriend(friendId: String) {
