@@ -1,17 +1,25 @@
 package com.route.readers.ui.screens.bookclub
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import com.route.readers.data.model.Book
 import com.route.readers.ui.components.BookClubCard
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,10 +69,36 @@ fun BookClubScreen(
 @Composable
 fun CreateBookClubDialog(
     onDismiss: () -> Unit,
-    onCreate: (String, String) -> Unit
+    onCreate: (String, Book?) -> Unit
 ) {
     var clubName by remember { mutableStateOf("") }
     var bookTitle by remember { mutableStateOf("") }
+    var selectedBook by remember { mutableStateOf<Book?>(null) }
+    var searchResults by remember { mutableStateOf<List<Book>>(emptyList()) }
+    var isSearching by remember { mutableStateOf(false) }
+    var showDropdown by remember { mutableStateOf(false) }
+    
+    val bookRepository = remember { com.route.readers.data.remote.BookRepository() }
+    
+    // 책 검색 함수
+    LaunchedEffect(bookTitle) {
+        if (bookTitle.length >= 2) {
+            isSearching = true
+            delay(500) // 디바운싱
+            try {
+                val results = bookRepository.getBookSearch(bookTitle, maxResults = 5)
+                searchResults = results
+                showDropdown = results.isNotEmpty()
+            } catch (e: Exception) {
+                searchResults = emptyList()
+                showDropdown = false
+            }
+            isSearching = false
+        } else {
+            searchResults = emptyList()
+            showDropdown = false
+        }
+    }
     
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -74,20 +108,103 @@ fun CreateBookClubDialog(
                 OutlinedTextField(
                     value = clubName,
                     onValueChange = { clubName = it },
-                    label = { Text("클럽 이름") }
+                    label = { Text("클럽 이름") },
+                    modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = bookTitle,
-                    onValueChange = { bookTitle = it },
-                    label = { Text("읽을 책") }
-                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // 책 검색 필드
+                Column {
+                    OutlinedTextField(
+                        value = bookTitle,
+                        onValueChange = { 
+                            bookTitle = it
+                            if (it != selectedBook?.title) {
+                                selectedBook = null
+                            }
+                        },
+                        label = { Text("현재 읽을 책") },
+                        modifier = Modifier.fillMaxWidth(),
+                        trailingIcon = {
+                            if (isSearching) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            }
+                        }
+                    )
+                    
+                    // 검색 결과 드롭다운
+                    if (showDropdown && searchResults.isNotEmpty()) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 200.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                        ) {
+                            LazyColumn {
+                                items(searchResults) { book ->
+                                    BookSearchItem(
+                                        book = book,
+                                        onClick = {
+                                            selectedBook = book
+                                            bookTitle = book.title
+                                            showDropdown = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // 선택된 책 정보 표시
+                selectedBook?.let { book ->
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AsyncImage(
+                                model = book.cover,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(60.dp)
+                                    .clip(RoundedCornerShape(4.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                            
+                            Spacer(modifier = Modifier.width(12.dp))
+                            
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = book.title,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = book.author,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
             TextButton(
-                onClick = { onCreate(clubName, bookTitle) },
-                enabled = clubName.isNotBlank() && bookTitle.isNotBlank()
+                onClick = { onCreate(clubName, selectedBook) },
+                enabled = clubName.isNotBlank() && selectedBook != null
             ) {
                 Text("만들기")
             }
@@ -98,4 +215,42 @@ fun CreateBookClubDialog(
             }
         }
     )
+}
+
+@Composable
+fun BookSearchItem(
+    book: Book,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AsyncImage(
+            model = book.cover,
+            contentDescription = null,
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(4.dp)),
+            contentScale = ContentScale.Crop
+        )
+        
+        Spacer(modifier = Modifier.width(12.dp))
+        
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = book.title,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = book.author,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
 }
