@@ -28,6 +28,7 @@ import com.route.readers.ui.components.BottomNavItem
 import com.route.readers.ui.screens.community.AllUsersScreen
 import com.route.readers.ui.screens.community.CommunityScreen
 import com.route.readers.ui.screens.community.CommunityViewModel
+import com.route.readers.ui.screens.community.NotificationScreen
 import com.route.readers.ui.screens.feed.FeedScreen
 import com.route.readers.ui.screens.feed.FeedTopAppBar
 import com.route.readers.ui.screens.mylibrary.MyLibraryScreen
@@ -160,6 +161,9 @@ fun MainScreen(
                     onNavigateToFriendsList = {
                         bottomNavController.navigate("friends_list")
                     },
+                    onNavigateToNotifications = {
+                        bottomNavController.navigate("notifications")
+                    },
                     viewModel = communityViewModel
                 )
             }
@@ -198,6 +202,13 @@ fun MainScreen(
                         }
                     )
                 }
+            }
+            composable("notifications") {
+                NotificationScreen(
+                    onNavigateBack = {
+                        bottomNavController.popBackStack()
+                    }
+                )
             }
         }
     }

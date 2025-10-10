@@ -82,4 +82,9 @@ class CommunityViewModel : ViewModel() {
     fun clearAddFriendMessage() {
         _uiState.value = _uiState.value.copy(addFriendMessage = null)
     }
+    
+    override fun onCleared() {
+        super.onCleared()
+        friendsRepository.stopListening()
+    }
 }

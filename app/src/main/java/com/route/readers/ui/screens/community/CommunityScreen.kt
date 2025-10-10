@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -29,11 +30,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.route.readers.data.model.BookClub
 import com.route.readers.data.model.ChatMessage
 import com.route.readers.ui.community.used_trade.UsedBookTradeScreen
+import com.route.readers.ui.components.NotificationIconWithBadge
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CommunityScreen(
     onNavigateToFriendsList: () -> Unit = {},
+    onNavigateToNotifications: () -> Unit = {},
     viewModel: CommunityViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -76,9 +79,9 @@ fun CommunityScreen(
                 ) 
             },
             actions = {
-                IconButton(onClick = { /* 알림 */ }) {
-                    Icon(Icons.Default.Notifications, contentDescription = "알림")
-                }
+                NotificationIconWithBadge(
+                    onClick = onNavigateToNotifications
+                )
             },
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = Color.White

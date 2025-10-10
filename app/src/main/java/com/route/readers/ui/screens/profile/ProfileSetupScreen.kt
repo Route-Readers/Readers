@@ -280,8 +280,6 @@ fun ProfileSetupScreen(
                     onClick = {
                         if (selectedGenres.isEmpty()) {
                             Toast.makeText(context, "선호 장르를 1개 이상 선택해주세요.", Toast.LENGTH_SHORT).show()
-                        } else if (imageUri == null) {
-                            Toast.makeText(context, "프로필 사진을 선택해주세요.", Toast.LENGTH_SHORT).show()
                         } else {
                             viewModel.createOrUpdateUserProfile(
                                 nickname = nickname,
