@@ -13,7 +13,7 @@ class ReadingNotificationService : Service() {
     private var notificationRunnable: Runnable? = null
     
     companion object {
-        const val NOTIFICATION_INTERVAL = 10_000L // 10초
+        const val NOTIFICATION_INTERVAL = 86_400_000L // 1일 (24 * 60 * 60 * 1000)
     }
     
     override fun onCreate() {
