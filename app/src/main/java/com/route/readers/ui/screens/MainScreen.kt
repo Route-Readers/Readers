@@ -32,6 +32,7 @@ import com.route.readers.ui.screens.community.NotificationScreen
 import com.route.readers.ui.screens.feed.FeedScreen
 import com.route.readers.ui.screens.feed.FeedTopAppBar
 import com.route.readers.ui.screens.mylibrary.MyLibraryScreen
+import com.route.readers.ui.screens.profile.BlockedUserScreen
 import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.profile.ProfileViewModel
 import com.route.readers.ui.screens.search.SearchScreen
@@ -93,7 +94,12 @@ fun MainScreen(
                 val consecutiveDays by mainViewModel.consecutiveDays.collectAsState()
                 FeedTopAppBar(
                     consecutiveDays = consecutiveDays,
-                    onSettingsClick = { showLogoutDialog = true }
+                    onBlockListClick = {
+                        bottomNavController.navigate("blockList")
+                    },
+                    onLogoutClick = {
+                        showLogoutDialog = true
+                    }
                 )
             }
         },
@@ -209,6 +215,9 @@ fun MainScreen(
                         bottomNavController.popBackStack()
                     }
                 )
+            }
+            composable("blockList") {
+                BlockedUserScreen(onNavigateBack = { bottomNavController.popBackStack() })
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.route.readers.ui.screens
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
@@ -27,38 +28,57 @@ class MainViewModel : ViewModel() {
     }
 
     private fun checkAndUpdateAttendance() {
-        if (currentUserId == null) return
+        if (currentUserId == null) {
+            _consecutiveDays.value = 0
+            return
+        }
 
         viewModelScope.launch {
             try {
                 val userRef = db.collection("users").document(currentUserId)
                 val userDoc = userRef.get().await()
-                val user = userDoc.toObject(User::class.java) ?: return@launch
+                val user = userDoc.toObject(User::class.java)
 
-                val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                if (user == null) {
+                    _consecutiveDays.value = 0
+                    return@launch
+                }
 
-                if (user.lastLoginDate == today) {
+                val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                val todayStr = sdf.format(Date())
+
+                if (user.lastLoginDate == todayStr) {
                     _consecutiveDays.value = user.consecutiveDays
                     return@launch
                 }
 
-                val lastLoginDate = user.lastLoginDate
                 var newConsecutiveDays = 1
+                val lastLoginDateStr = user.lastLoginDate
 
-                if (lastLoginDate.isNotEmpty()) {
-                    val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                    val lastDate = sdf.parse(lastLoginDate)
-                    val yesterday = Calendar.getInstance().apply { add(Calendar.DATE, -1) }.time
-                    val yesterdayStr = sdf.format(yesterday)
+                if (lastLoginDateStr.isNotEmpty()) {
+                    try {
+                        val lastLoginCalendar = Calendar.getInstance().apply {
+                            time = sdf.parse(lastLoginDateStr) ?: Date()
+                        }
+                        val yesterdayCalendar = Calendar.getInstance().apply {
+                            add(Calendar.DATE, -1)
+                        }
 
-                    if (lastLoginDate == yesterdayStr) {
-                        newConsecutiveDays = user.consecutiveDays + 1
+                        val isYesterday = lastLoginCalendar.get(Calendar.YEAR) == yesterdayCalendar.get(Calendar.YEAR) &&
+                                lastLoginCalendar.get(Calendar.DAY_OF_YEAR) == yesterdayCalendar.get(Calendar.DAY_OF_YEAR)
+
+                        if (isYesterday) {
+                            newConsecutiveDays = user.consecutiveDays + 1
+                        }
+                    } catch (e: Exception) {
+                        Log.e("MainViewModel", "Error parsing lastLoginDate: $lastLoginDateStr", e)
+                        newConsecutiveDays = 1
                     }
                 }
 
                 userRef.update(
                     mapOf(
-                        "lastLoginDate" to today,
+                        "lastLoginDate" to todayStr,
                         "consecutiveDays" to newConsecutiveDays
                     )
                 ).await()
@@ -66,6 +86,7 @@ class MainViewModel : ViewModel() {
                 _consecutiveDays.value = newConsecutiveDays
 
             } catch (e: Exception) {
+                Log.e("MainViewModel", "Failed to check or update attendance", e)
                 _consecutiveDays.value = 0
             }
         }
