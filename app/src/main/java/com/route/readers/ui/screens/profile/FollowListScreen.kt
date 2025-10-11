@@ -38,7 +38,6 @@ fun FollowListScreen(
     onNavigateBack: () -> Unit,
     viewModel: FollowListViewModel = viewModel()
 ) {
-    // ▼▼▼ "사용자" 탭 추가 ▼▼▼
     val tabs = listOf("팔로워", "팔로잉", "사용자")
     var selectedTabIndex by remember { mutableIntStateOf(if (initialListType == "followers") 0 else 1) }
     val darkRedColor = Color(0xFFB71C1C)
@@ -47,9 +46,7 @@ fun FollowListScreen(
     val uiState by viewModel.uiState.collectAsState()
     val searchedUsers by viewModel.searchedUsers.collectAsState()
     val keyboardController = LocalSoftwareKeyboardController.current
-    val isAllUsersTab = selectedTabIndex == 2 // "사용자" 탭인지 확인하는 변수
 
-    // ▼▼▼ ViewModel의 새로운 통합 함수 호출 ▼▼▼
     LaunchedEffect(key1 = userId, key2 = selectedTabIndex) {
         viewModel.loadListForTab(userId, selectedTabIndex)
     }
@@ -67,14 +64,11 @@ fun FollowListScreen(
                     }
                 },
                 actions = {
-                    // ▼▼▼ "사용자" 탭이 아닐 때만 새로고침 버튼 표시 ▼▼▼
-                    if (!isAllUsersTab) {
-                        IconButton(onClick = { viewModel.refresh() }) {
-                            Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = "새로고침"
-                            )
-                        }
+                    IconButton(onClick = { viewModel.refresh() }) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "새로고침"
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -110,34 +104,31 @@ fun FollowListScreen(
                 }
             }
 
-            // ▼▼▼ "사용자" 탭이 아닐 때만 검색창 표시 ▼▼▼
-            if (!isAllUsersTab) {
-                Spacer(modifier = Modifier.height(16.dp))
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { viewModel.onSearchQueryChanged(it) },
-                    placeholder = { Text("검색") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "검색 아이콘") },
-                    shape = RoundedCornerShape(24.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color.Transparent,
-                        unfocusedBorderColor = Color.Transparent,
-                    ),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions.Default.copy(
-                        imeAction = ImeAction.Search
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onSearch = {
-                            keyboardController?.hide()
-                        }
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(24.dp))
-                )
-            }
+            Spacer(modifier = Modifier.height(16.dp))
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { viewModel.onSearchQueryChanged(it) },
+                placeholder = { Text("검색") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "검색 아이콘") },
+                shape = RoundedCornerShape(24.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent,
+                ),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions.Default.copy(
+                    imeAction = ImeAction.Search
+                ),
+                keyboardActions = KeyboardActions(
+                    onSearch = {
+                        keyboardController?.hide()
+                    }
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(24.dp))
+            )
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -153,26 +144,33 @@ fun FollowListScreen(
                     }
                 }
                 is FollowListUiState.Success -> {
-                    val listToDisplay = if (isAllUsersTab) state.allUsers else searchedUsers
+                    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+                    val finalList = if (selectedTabIndex == 2 && searchQuery.isBlank()) {
+                        val currentUser = searchedUsers.find { it.uid == currentUserId }
+                        val otherUsers = searchedUsers.filter { it.uid != currentUserId }
+                        listOfNotNull(currentUser) + otherUsers
+                    } else {
+                        searchedUsers
+                    }
 
-                    if (listToDisplay.isEmpty()) {
-                        val emptyMessage = if (isAllUsersTab) {
-                            "사용자가 없습니다."
-                        } else if (searchQuery.isNotBlank()) {
+                    if (finalList.isEmpty()) {
+                        val emptyMessage = if (searchQuery.isNotBlank()) {
                             "검색 결과가 없습니다."
                         } else {
-                            "아직 ${tabs[selectedTabIndex]} 목록이 없습니다."
+                            if (selectedTabIndex == 2) "사용자가 없습니다." else "아직 ${tabs[selectedTabIndex]} 목록이 없습니다."
                         }
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text(text = emptyMessage)
                         }
                     } else {
                         LazyColumn(modifier = Modifier.fillMaxSize()) {
-                            items(listToDisplay, key = { it.uid }) { user ->
+                            items(finalList, key = { it.uid }) { user ->
                                 val isFollowing = state.currentUserFollowingIds.contains(user.uid)
                                 UserItem(
                                     user = user,
                                     isFollowing = isFollowing,
+                                    selectedTab = selectedTabIndex,
+                                    isMyProfile = userId == currentUserId,
                                     onUserClick = { onUserClick(user.uid) },
                                     onFollowClick = { viewModel.toggleFollow(user.uid) }
                                 )
@@ -190,33 +188,61 @@ fun FollowListScreen(
 fun UserItem(
     user: User,
     isFollowing: Boolean,
+    selectedTab: Int,
+    isMyProfile: Boolean,
     onUserClick: () -> Unit,
     onFollowClick: () -> Unit
 ) {
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+
+    // 버튼의 텍스트와 색상을 결정하는 로직
+    val (buttonText, buttonColors) = if (isMyProfile) {
+        // 내 프로필의 팔로워/팔로잉 목록을 볼 때
+        when (selectedTab) {
+            0 -> { // '팔로워' 탭
+                if (isFollowing) {
+                    "언팔로우" to ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                } else {
+                    // '팔로워' 탭에서 팔로우가 필요할 때 '맞팔로우' 텍스트 표시
+                    "맞팔로우" to ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                }
+            }
+            1 -> { // '팔로잉' 탭
+                "언팔로우" to ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            }
+            else -> { // '사용자' 탭
+                if (isFollowing) {
+                    "언팔로우" to ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                } else {
+                    "팔로우" to ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                }
+            }
+        }
+    } else {
+        // 다른 사람의 프로필 목록을 볼 때 (항상 '나' 기준)
+        if (isFollowing) {
+            "언팔로우" to ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        } else {
+            "팔로우" to ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+        }
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onUserClick)
+            .defaultMinSize(minHeight = 56.dp)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
             Text(
                 text = user.nickname,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp
             )
-            user.bio?.let {
-                if (it.isNotBlank()) {
-                    Text(
-                        text = it,
-                        color = Color.Gray,
-                        fontSize = 14.sp,
-                        maxLines = 1
-                    )
-                }
-            }
         }
 
         Spacer(modifier = Modifier.width(16.dp))
@@ -225,12 +251,9 @@ fun UserItem(
             Button(
                 onClick = onFollowClick,
                 shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isFollowing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = if (isFollowing) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer
-                )
+                colors = buttonColors
             ) {
-                Text(if (isFollowing) "팔로잉" else "팔로우")
+                Text(buttonText)
             }
         }
     }

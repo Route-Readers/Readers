@@ -24,6 +24,7 @@ import com.route.readers.ui.screens.login.LoginViewModel
 import com.route.readers.ui.screens.login.OnboardingScreen
 import com.route.readers.ui.screens.login.SignUpScreen
 import com.route.readers.ui.screens.profile.FollowListScreen
+import com.route.readers.ui.screens.profile.FollowListViewModel
 import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.profile.ProfileSetupScreen
 import com.route.readers.ui.screens.profile.ProfileViewModel
@@ -202,6 +203,7 @@ fun AppNavigation(navController: NavHostController) {
             }
 
             if (userId != null && listType != null && nickname != null) {
+                val followListViewModel: FollowListViewModel = viewModel()
                 FollowListScreen(
                     userId = userId,
                     initialListType = listType,
@@ -211,7 +213,8 @@ fun AppNavigation(navController: NavHostController) {
                             launchSingleTop = true
                         }
                     },
-                    onNavigateBack = { navController.popBackStack() }
+                    onNavigateBack = { navController.popBackStack() },
+                    viewModel = followListViewModel
                 )
             }
         }
