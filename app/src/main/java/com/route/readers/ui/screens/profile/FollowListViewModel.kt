@@ -18,8 +18,10 @@ sealed class FollowListUiState {
     data object Loading : FollowListUiState()
     data class Success(
         val allUsers: List<User>,
-        val currentUserFollowingIds: Set<String>
+        val currentUserFollowingIds: Set<String>,
+        val currentUserFollowerIds: Set<String>
     ) : FollowListUiState()
+
     data class Error(val message: String) : FollowListUiState()
 }
 
@@ -32,7 +34,7 @@ class FollowListViewModel : ViewModel() {
     val uiState = _uiState.asStateFlow()
 
     private var currentListOwnerId: String? = null
-    private var currentListType: String? = null // "followers", "following", "all"
+    private var currentListType: String? = null
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
@@ -60,12 +62,11 @@ class FollowListViewModel : ViewModel() {
         _searchQuery.value = query
     }
 
-    // 탭 인덱스에 따라 적절한 데이터 로딩 함수를 호출하는 통합 함수
     fun loadListForTab(userId: String, tabIndex: Int) {
         when (tabIndex) {
-            0 -> loadFollowList(userId, "followers") // 팔로워
-            1 -> loadFollowList(userId, "following") // 팔로잉
-            2 -> loadAllUsers()                     // 전체 사용자
+            0 -> loadFollowList(userId, "followers")
+            1 -> loadFollowList(userId, "following")
+            2 -> loadAllUsers()
         }
     }
 
@@ -85,6 +86,7 @@ class FollowListViewModel : ViewModel() {
             try {
                 val currentUserDoc = db.collection("users").document(loggedInUserId).get().await()
                 val currentUserFollowingIds = (currentUserDoc.get("following") as? List<String>)?.toSet() ?: emptySet()
+                val currentUserFollowerIds = (currentUserDoc.get("followers") as? List<String>)?.toSet() ?: emptySet()
 
                 val targetUserDoc = db.collection("users").document(userId).get().await()
                 if (!targetUserDoc.exists()) {
@@ -95,7 +97,7 @@ class FollowListViewModel : ViewModel() {
                 val userIds = targetUserDoc.get(listType) as? List<String>
 
                 if (userIds.isNullOrEmpty()) {
-                    _uiState.value = FollowListUiState.Success(emptyList(), currentUserFollowingIds)
+                    _uiState.value = FollowListUiState.Success(emptyList(), currentUserFollowingIds, currentUserFollowerIds)
                     return@launch
                 }
 
@@ -103,10 +105,10 @@ class FollowListViewModel : ViewModel() {
                 userIds.chunked(30).forEach { chunk ->
                     val usersQuery = db.collection("users").whereIn("uid", chunk).get().await()
                     val users = usersQuery.toObjects(User::class.java)
-                    fetchedUsers.addAll(users)
+                    fetchedUsers.addAll(users.filter { it.nickname.isNotBlank() })
                 }
 
-                _uiState.value = FollowListUiState.Success(fetchedUsers, currentUserFollowingIds)
+                _uiState.value = FollowListUiState.Success(fetchedUsers, currentUserFollowingIds, currentUserFollowerIds)
 
             } catch (e: Exception) {
                 _uiState.value = FollowListUiState.Error("목록을 불러오는 중 오류가 발생했습니다: ${e.message}")
@@ -114,7 +116,6 @@ class FollowListViewModel : ViewModel() {
         }
     }
 
-    // 모든 사용자를 불러오는 새로운 함수
     private fun loadAllUsers() {
         this.currentListOwnerId = null
         this.currentListType = "all"
@@ -131,51 +132,71 @@ class FollowListViewModel : ViewModel() {
             try {
                 val currentUserDoc = db.collection("users").document(loggedInUserId).get().await()
                 val currentUserFollowingIds = (currentUserDoc.get("following") as? List<String>)?.toSet() ?: emptySet()
+                val currentUserFollowerIds = (currentUserDoc.get("followers") as? List<String>)?.toSet() ?: emptySet()
 
-                val allUsersQuery = db.collection("users").limit(100).get().await() // 성능을 위해 100명으로 제한
+                val allUsersQuery = db.collection("users").limit(100).get().await()
                 val allUsers = allUsersQuery.toObjects(User::class.java)
 
-                _uiState.value = FollowListUiState.Success(allUsers, currentUserFollowingIds)
+                val filteredUsers = allUsers.filter { it.nickname.isNotBlank() }
+
+                _uiState.value = FollowListUiState.Success(filteredUsers, currentUserFollowingIds, currentUserFollowerIds)
             } catch (e: Exception) {
                 _uiState.value = FollowListUiState.Error("전체 사용자 목록을 불러오는 중 오류가 발생했습니다: ${e.message}")
             }
         }
     }
 
-
     fun refresh() {
-        // "사용자" 탭에서는 새로고침이 동작하지 않도록 함
         val uid = currentListOwnerId
         val type = currentListType
-        if (uid != null && type != null && type != "all") {
+        if (type == "all") {
+            loadAllUsers()
+        } else if (uid != null && type != null) {
             loadFollowList(uid, type)
         }
     }
 
     fun toggleFollow(targetUserId: String) {
         viewModelScope.launch {
-            val loggedInUserId = auth.currentUser?.uid
-            if (loggedInUserId == null || loggedInUserId == targetUserId) {
-                return@launch
-            }
+            val loggedInUserId = auth.currentUser?.uid ?: return@launch
+            if (loggedInUserId == targetUserId) return@launch
 
-            val currentState = uiState.value
-            if (currentState !is FollowListUiState.Success) {
-                return@launch
-            }
+            val currentState = uiState.value as? FollowListUiState.Success ?: return@launch
 
             val isCurrentlyFollowing = currentState.currentUserFollowingIds.contains(targetUserId)
+
+            // --- UI 즉시 업데이트 로직 ---
+            val newFollowingIds = if (isCurrentlyFollowing) {
+                currentState.currentUserFollowingIds - targetUserId
+            } else {
+                currentState.currentUserFollowingIds + targetUserId
+            }
+
+            // '팔로잉' 탭에서 언팔로우 시 목록에서 즉시 제거
+            val newUsersList = if (isCurrentlyFollowing && currentListType == "following" && currentListOwnerId == loggedInUserId) {
+                currentState.allUsers.filterNot { it.uid == targetUserId }
+            } else {
+                currentState.allUsers
+            }
+
+            _uiState.value = currentState.copy(
+                allUsers = newUsersList,
+                currentUserFollowingIds = newFollowingIds
+            )
+            // --- UI 즉시 업데이트 로직 끝 ---
+
+            // --- 서버 데이터 업데이트 로직 (백그라운드) ---
             val currentUserRef = db.collection("users").document(loggedInUserId)
             val targetUserRef = db.collection("users").document(targetUserId)
 
             try {
                 db.runTransaction { transaction ->
-                    if (isCurrentlyFollowing) {
+                    if (isCurrentlyFollowing) { // 언팔로우
                         transaction.update(currentUserRef, "following", FieldValue.arrayRemove(targetUserId))
                         transaction.update(currentUserRef, "followingCount", FieldValue.increment(-1))
                         transaction.update(targetUserRef, "followers", FieldValue.arrayRemove(loggedInUserId))
                         transaction.update(targetUserRef, "followerCount", FieldValue.increment(-1))
-                    } else {
+                    } else { // 팔로우
                         transaction.update(currentUserRef, "following", FieldValue.arrayUnion(targetUserId))
                         transaction.update(currentUserRef, "followingCount", FieldValue.increment(1))
                         transaction.update(targetUserRef, "followers", FieldValue.arrayUnion(loggedInUserId))
@@ -183,17 +204,11 @@ class FollowListViewModel : ViewModel() {
                     }
                     null
                 }.await()
-
-                val updatedFollowingIds = if (isCurrentlyFollowing) {
-                    currentState.currentUserFollowingIds - targetUserId
-                } else {
-                    currentState.currentUserFollowingIds + targetUserId
-                }
-                _uiState.value = currentState.copy(currentUserFollowingIds = updatedFollowingIds)
-
             } catch (e: Exception) {
-                // 오류 처리
+                // 서버 업데이트 실패 시 UI 롤백
+                _uiState.value = currentState
             }
+            // --- 서버 데이터 업데이트 로직 끝 ---
         }
     }
 }
