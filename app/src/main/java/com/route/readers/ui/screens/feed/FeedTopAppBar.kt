@@ -9,6 +9,10 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -17,15 +21,18 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.route.readers.R // Make sure your R file is imported correctly
+import com.route.readers.R
 import com.route.readers.ui.theme.DarkRed
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FeedTopAppBar(
     consecutiveDays: Int,
-    onSettingsClick: () -> Unit
+    onBlockListClick: () -> Unit,
+    onLogoutClick: () -> Unit
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
     TopAppBar(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -45,12 +52,35 @@ fun FeedTopAppBar(
         },
         actions = {
             AttendanceBadge(days = consecutiveDays)
-            IconButton(onClick = onSettingsClick) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "설정",
-                    tint = Color.Gray
-                )
+
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "설정",
+                        tint = Color.Gray
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("차단 목록") },
+                        onClick = {
+                            menuExpanded = false
+                            onBlockListClick()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("로그아웃") },
+                        onClick = {
+                            menuExpanded = false
+                            onLogoutClick()
+                        }
+                    )
+                }
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
