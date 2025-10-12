@@ -1,6 +1,7 @@
 package com.route.readers.ui.screens.feed
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable // ✨ clickable import 추가
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -60,6 +61,7 @@ import java.util.Locale
 @Composable
 fun FeedScreen(
     onNavigateToAddFeed: () -> Unit,
+    onNavigateToOtherUserProfile: (String) -> Unit, // ✨ 1. 파라미터 추가
     feedViewModel: FeedViewModel = viewModel()
 ) {
     val uiState by feedViewModel.uiState.collectAsState()
@@ -95,9 +97,10 @@ fun FeedScreen(
                             onSaveClick = { feedId, isSaved ->
                                 feedViewModel.toggleSave(feedId, isSaved)
                             },
-                            onDeleteFeed = { feedId -> // 삭제 콜백 전달
+                            onDeleteFeed = { feedId ->
                                 feedViewModel.deleteFeed(feedId)
-                            }
+                            },
+                            onNavigateToOtherUserProfile = onNavigateToOtherUserProfile // ✨ 2. 콜백 전달
                         )
                     }
                 }
@@ -113,9 +116,9 @@ fun ActualFeedContent(
     savedFeedIds: Set<String>,
     onLikeClick: (String, Boolean) -> Unit,
     onSaveClick: (String, Boolean) -> Unit,
-    onDeleteFeed: (String) -> Unit // onDeleteFeed 파라미터 추가
+    onDeleteFeed: (String) -> Unit,
+    onNavigateToOtherUserProfile: (String) -> Unit // ✨ 3. 파라미터 추가
 ) {
-    // ▼▼▼▼▼ 삭제 확인 대화상자 상태 관리 ▼▼▼▼▼
     var showDeleteDialog by remember { mutableStateOf(false) }
     var feedToDelete by remember { mutableStateOf<String?>(null) }
 
@@ -150,7 +153,6 @@ fun ActualFeedContent(
             }
         )
     }
-    // ▲▲▲▲▲ 삭제 확인 대화상자 상태 관리 ▲▲▲▲▲
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -166,9 +168,15 @@ fun ActualFeedContent(
                 isSaved = isSaved,
                 onLikeClick = { onLikeClick(item.id, isLiked) },
                 onSaveClick = { onSaveClick(item.id, isSaved) },
-                onDeleteClick = { // 삭제 버튼 클릭 시
+                onDeleteClick = {
                     feedToDelete = item.id
                     showDeleteDialog = true
+                },
+                onUserClick = { // ✨ 4. 사용자 클릭 이벤트 처리
+                    // FeedItem이 authorId를 가지고 있는지 확인
+                    if (item is FeedItem.BookReview) {
+                        onNavigateToOtherUserProfile(item.authorId)
+                    }
                 },
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
@@ -183,10 +191,10 @@ fun FeedCard(
     isSaved: Boolean,
     onLikeClick: () -> Unit,
     onSaveClick: () -> Unit,
-    onDeleteClick: () -> Unit, // onDeleteClick 파라미터 추가
+    onDeleteClick: () -> Unit,
+    onUserClick: () -> Unit, // ✨ 5. 파라미터 추가
     modifier: Modifier = Modifier
 ) {
-    // 현재 사용자 ID 가져오기
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
 
     Card(
@@ -201,7 +209,12 @@ fun FeedCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f, fill = false)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .clickable(onClick = onUserClick) // ✨ 6. 프로필 사진, 닉네임 영역에 클릭 이벤트 적용
+                ) {
                     Box(
                         modifier = Modifier
                             .size(40.dp)
@@ -252,12 +265,10 @@ fun FeedCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // ▼▼▼▼▼ 수정된 하단 부분 (삭제 버튼 추가) ▼▼▼▼▼
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 좋아요 버튼과 카운트 (왼쪽)
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -271,10 +282,8 @@ fun FeedCard(
                     Text(text = item.likeCount.toString(), fontSize = 14.sp, color = TextGray)
                 }
 
-                // 중간 공백
                 Spacer(modifier = Modifier.weight(1f))
 
-                // 삭제 버튼 (오른쪽, 자신의 피드에만 보임)
                 if (item is FeedItem.BookReview && item.authorId == currentUserId) {
                     IconButton(onClick = onDeleteClick) {
                         Icon(
@@ -285,13 +294,12 @@ fun FeedCard(
                     }
                 }
             }
-            // ▲▲▲▲▲ 수정된 하단 부분 ▲▲▲▲▲
         }
     }
 }
 
 
-// Sealed Class 및 확장 함수 (이전과 동일, 수정 없음)
+// Sealed Class 및 확장 함수 (기존 코드와 동일)
 sealed class FeedItem(
     open val id: String = "",
     open val userName: String = "",
@@ -331,3 +339,4 @@ fun DocumentSnapshot.toFeedItem(): FeedItem? {
         else -> null
     }
 }
+

@@ -293,7 +293,8 @@ fun PostsSection(
                         isSaved = isSaved,
                         onLikeClick = { onLikeClick(post.id, isLiked) },
                         onSaveClick = { onSaveClick(post.id, isSaved) },
-                        onDeleteClick = { onDeleteClick(post.id) }
+                        onDeleteClick = { onDeleteClick(post.id) },
+                        onUserClick = { }
                     )
                 }
             }
