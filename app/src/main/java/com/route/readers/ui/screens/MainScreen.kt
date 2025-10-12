@@ -41,7 +41,7 @@ import java.net.URLEncoder
 @Composable
 fun MainScreen(
     navController: NavHostController,
-    onNavigateToOtherUserProfile: (String) -> Unit,
+    onNavigateToOtherUserProfile: (String) -> Unit, // 이 파라미터는 AppNavigation과의 계약을 위해 유지합니다.
     onNavigateToAddFeed: () -> Unit
 ) {
     val bottomNavController = rememberNavController()
@@ -145,7 +145,10 @@ fun MainScreen(
             composable(BottomNavItem.Feed.route) {
                 selectedBook = null
                 FeedScreen(
-                    onNavigateToAddFeed = onNavigateToAddFeed
+                    onNavigateToAddFeed = onNavigateToAddFeed,
+                    onNavigateToOtherUserProfile = { userId ->
+                        bottomNavController.navigate("profile_route/$userId")
+                    }
                 )
             }
             composable(BottomNavItem.MyLibrary.route) {
