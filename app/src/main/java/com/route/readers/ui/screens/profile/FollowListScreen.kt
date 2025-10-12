@@ -38,18 +38,22 @@ fun FollowListScreen(
     onNavigateBack: () -> Unit,
     viewModel: FollowListViewModel = viewModel()
 ) {
-    // ▼▼▼ "사용자" 탭 추가 ▼▼▼
     val tabs = listOf("팔로워", "팔로잉", "사용자")
-    var selectedTabIndex by remember { mutableIntStateOf(if (initialListType == "followers") 0 else 1) }
+    // "사용자" 탭으로 직접 진입하는 경우를 고려하여 초기 인덱스 설정
+    val initialIndex = when(initialListType) {
+        "followers" -> 0
+        "following" -> 1
+        "all" -> 2 // "all" 타입으로 진입 시 "사용자" 탭 선택
+        else -> 1
+    }
+    var selectedTabIndex by remember { mutableIntStateOf(initialIndex) }
     val darkRedColor = Color(0xFFB71C1C)
 
     val searchQuery by viewModel.searchQuery.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     val searchedUsers by viewModel.searchedUsers.collectAsState()
     val keyboardController = LocalSoftwareKeyboardController.current
-    val isAllUsersTab = selectedTabIndex == 2 // "사용자" 탭인지 확인하는 변수
 
-    // ▼▼▼ ViewModel의 새로운 통합 함수 호출 ▼▼▼
     LaunchedEffect(key1 = userId, key2 = selectedTabIndex) {
         viewModel.loadListForTab(userId, selectedTabIndex)
     }
@@ -67,14 +71,14 @@ fun FollowListScreen(
                     }
                 },
                 actions = {
-                    // ▼▼▼ "사용자" 탭이 아닐 때만 새로고침 버튼 표시 ▼▼▼
-                    if (!isAllUsersTab) {
-                        IconButton(onClick = { viewModel.refresh() }) {
-                            Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = "새로고침"
-                            )
-                        }
+                    // ✨ 항상 새로고침 버튼 표시
+                    IconButton(onClick = {
+                        if (selectedTabIndex == 2) viewModel.loadAllUsers() else viewModel.refresh()
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "새로고침"
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -110,38 +114,37 @@ fun FollowListScreen(
                 }
             }
 
-            // ▼▼▼ "사용자" 탭이 아닐 때만 검색창 표시 ▼▼▼
-            if (!isAllUsersTab) {
-                Spacer(modifier = Modifier.height(16.dp))
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { viewModel.onSearchQueryChanged(it) },
-                    placeholder = { Text("검색") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "검색 아이콘") },
-                    shape = RoundedCornerShape(24.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color.Transparent,
-                        unfocusedBorderColor = Color.Transparent,
-                    ),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions.Default.copy(
-                        imeAction = ImeAction.Search
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onSearch = {
-                            keyboardController?.hide()
-                        }
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(24.dp))
-                )
-            }
+            // ✨ 항상 검색창 표시
+            Spacer(modifier = Modifier.height(16.dp))
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { viewModel.onSearchQueryChanged(it) },
+                placeholder = { Text("닉네임으로 검색") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "검색 아이콘") },
+                shape = RoundedCornerShape(24.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
+                ),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions.Default.copy(
+                    imeAction = ImeAction.Search
+                ),
+                keyboardActions = KeyboardActions(
+                    onSearch = {
+                        keyboardController?.hide()
+                    }
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            )
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            when (val state = uiState) {
+            when (uiState) {
                 is FollowListUiState.Loading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
@@ -149,27 +152,24 @@ fun FollowListScreen(
                 }
                 is FollowListUiState.Error -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(text = state.message)
+                        Text(text = (uiState as FollowListUiState.Error).message)
                     }
                 }
                 is FollowListUiState.Success -> {
-                    val listToDisplay = if (isAllUsersTab) state.allUsers else searchedUsers
-
-                    if (listToDisplay.isEmpty()) {
-                        val emptyMessage = if (isAllUsersTab) {
-                            "사용자가 없습니다."
-                        } else if (searchQuery.isNotBlank()) {
+                    // ✨ searchedUsers를 직접 사용하여 목록 표시
+                    if (searchedUsers.isEmpty()) {
+                        val emptyMessage = if (searchQuery.isNotBlank()) {
                             "검색 결과가 없습니다."
                         } else {
-                            "아직 ${tabs[selectedTabIndex]} 목록이 없습니다."
+                            "목록이 비어있습니다."
                         }
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text(text = emptyMessage)
                         }
                     } else {
                         LazyColumn(modifier = Modifier.fillMaxSize()) {
-                            items(listToDisplay, key = { it.uid }) { user ->
-                                val isFollowing = state.currentUserFollowingIds.contains(user.uid)
+                            items(searchedUsers, key = { it.uid }) { user ->
+                                val isFollowing = (uiState as FollowListUiState.Success).currentUserFollowingIds.contains(user.uid)
                                 UserItem(
                                     user = user,
                                     isFollowing = isFollowing,
@@ -186,6 +186,7 @@ fun FollowListScreen(
     }
 }
 
+// UserItem Composable은 수정할 필요 없습니다.
 @Composable
 fun UserItem(
     user: User,
