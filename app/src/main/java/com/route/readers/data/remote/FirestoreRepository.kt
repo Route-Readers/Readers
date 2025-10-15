@@ -1,16 +1,18 @@
 package com.route.readers.data.remote
 
 import android.util.Log
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.data.model.MyBook
 import kotlinx.coroutines.tasks.await
 
 class FirestoreRepository {
     private val firestore = FirebaseFirestore.getInstance()
+    private val auth = FirebaseAuth.getInstance()
     
     private fun getUserBooksCollection() = 
         firestore.collection("users")
-            .document("test_user") // 테스트용 고정 사용자 ID
+            .document(auth.currentUser?.uid ?: "anonymous")
             .collection("books")
 
     suspend fun addBookToLibrary(book: MyBook): Boolean {
