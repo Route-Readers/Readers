@@ -72,7 +72,7 @@ fun FeedScreen(
                 Icon(Icons.Default.Add, contentDescription = "피드 추가", tint = White)
             }
         },
-        containerColor = Color(0xFFF7F7FF)
+        containerColor = Color(0xFFF5F5F5)
     ) { paddingValues ->
         Box(
             modifier = Modifier
