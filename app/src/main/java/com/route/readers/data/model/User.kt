@@ -16,6 +16,7 @@ data class User(
     val readingGenres: List<String> = emptyList(),
     val readingStyles: List<String> = emptyList(),
     val savedFeeds: List<String> = emptyList(),
+    val blockedUsers: List<String> = emptyList(),
     val level: Int = 1,
 
     val followers: List<String> = emptyList(),
