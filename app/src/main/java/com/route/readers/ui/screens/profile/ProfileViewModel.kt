@@ -485,18 +485,28 @@ open class ProfileViewModel : ViewModel() {
     }
 
     fun unblockUser(userIdToUnblock: String) {
-        if (currentUserId == null) return
+        val currentUserId = this.currentUserId ?: return
+
+        val originalBlockedUsers = _blockedUsers.value
+        val originalUiState = _uiState.value
+
+        _blockedUsers.value = _blockedUsers.value.filterNot { it.uid == userIdToUnblock }
+        if (originalUiState is ProfileUiState.Success && originalUiState.user.uid == userIdToUnblock) {
+            _uiState.value = originalUiState.copy(isBlocked = false)
+        }
+
         viewModelScope.launch {
             try {
                 db.collection("users").document(currentUserId)
                     .update("blockedUsers", FieldValue.arrayRemove(userIdToUnblock))
                     .await()
-                val currentState = _uiState.value
-                if (currentState is ProfileUiState.Success) {
-                    _uiState.value = currentState.copy(isBlocked = false)
-                }
             } catch (e: Exception) {
                 Log.e("ProfileViewModel", "Error unblocking user $userIdToUnblock", e)
+                _blockedUsers.value = originalBlockedUsers
+                if (originalUiState is ProfileUiState.Success && originalUiState.user.uid == userIdToUnblock) {
+                    _uiState.value = originalUiState
+                }
+                fetchBlockedUsers()
             }
         }
     }
