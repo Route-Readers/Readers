@@ -32,7 +32,6 @@ android {
             "\"${localProperties.getProperty("ALADIN_TTB_KEY", "")}\""
         )
 
-        // ▼▼▼ 여기에 도서관 API 키를 위한 buildConfigField를 추가했습니다. ▼▼▼
         buildConfigField(
             "String",
             "DATA_GO_KR_API_KEY",
@@ -63,14 +62,15 @@ dependencies {
     implementation(platform("androidx.compose:compose-bom:2024.06.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.material3:material3")
+    // ▼▼▼ 수정된 부분 ▼▼▼
+    // 중복된 material3 의존성을 제거하고 버전을 명시적으로 지정합니다.
+    implementation("androidx.compose.material3:material3:1.3.1")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
     implementation("androidx.compose.runtime:runtime-livedata")
     implementation("androidx.compose.material:material-icons-extended")
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("androidx.core:core-splashscreen:1.0.1")
-
 
     implementation("androidx.compose.foundation:foundation-layout:1.6.8")
 
@@ -79,7 +79,6 @@ dependencies {
     implementation("com.google.android.gms:play-services-auth:21.4.0")
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth")
-    // firestore 중복 선언 제거됨
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-storage")
     implementation("com.google.accompanist:accompanist-permissions:0.34.0")

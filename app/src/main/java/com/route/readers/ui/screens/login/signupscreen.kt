@@ -122,7 +122,6 @@ fun SignUpScreen(
         }
     }
 
-
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult(),
         onResult = { result ->
@@ -227,9 +226,9 @@ fun SignUpScreen(
                     shape = RoundedCornerShape(16.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     isError = errorMessage?.contains("이메일") == true,
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        focusedBorderColor = primaryRed,
-                        unfocusedBorderColor = Color.LightGray,
+                    colors = TextFieldDefaults.colors(
+                        focusedIndicatorColor = primaryRed,
+                        unfocusedIndicatorColor = Color.LightGray,
                         cursorColor = primaryRed
                     )
                 )
@@ -244,9 +243,9 @@ fun SignUpScreen(
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     isError = errorMessage?.contains("비밀번호") == true,
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        focusedBorderColor = primaryRed,
-                        unfocusedBorderColor = Color.LightGray,
+                    colors = TextFieldDefaults.colors(
+                        focusedIndicatorColor = primaryRed,
+                        unfocusedIndicatorColor = Color.LightGray,
                         cursorColor = primaryRed
                     )
                 )
@@ -261,9 +260,9 @@ fun SignUpScreen(
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     isError = errorMessage?.contains("일치하지 않습니다") == true,
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        focusedBorderColor = primaryRed,
-                        unfocusedBorderColor = Color.LightGray,
+                    colors = TextFieldDefaults.colors(
+                        focusedIndicatorColor = primaryRed,
+                        unfocusedIndicatorColor = Color.LightGray,
                         cursorColor = primaryRed
                     )
                 )

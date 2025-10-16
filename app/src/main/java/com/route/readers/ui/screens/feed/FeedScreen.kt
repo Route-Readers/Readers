@@ -1,7 +1,7 @@
 package com.route.readers.ui.screens.feed
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable // ✨ clickable import 추가
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,12 +29,15 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -58,13 +61,17 @@ import com.route.readers.ui.theme.White
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FeedScreen(
     onNavigateToAddFeed: () -> Unit,
-    onNavigateToOtherUserProfile: (String) -> Unit, // ✨ 1. 파라미터 추가
+    onNavigateToOtherUserProfile: (String) -> Unit,
     feedViewModel: FeedViewModel = viewModel()
 ) {
     val uiState by feedViewModel.uiState.collectAsState()
+    val isRefreshing by feedViewModel.isRefreshing.collectAsState()
+    val pullToRefreshState = rememberPullToRefreshState()
+
 
     Scaffold(
         floatingActionButton = {
@@ -74,34 +81,41 @@ fun FeedScreen(
         },
         containerColor = Color(0xFFF7F7FF)
     ) { paddingValues ->
-        Box(
+        PullToRefreshBox(
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize(),
-            contentAlignment = Alignment.Center
+            state = pullToRefreshState,
+            isRefreshing = isRefreshing,
+            onRefresh = { feedViewModel.refreshFeeds() }
         ) {
-            when (val state = uiState) {
-                is FeedUiState.Loading -> CircularProgressIndicator()
-                is FeedUiState.Error -> Text(text = state.message)
-                is FeedUiState.Success -> {
-                    if (state.items.isEmpty()) {
-                        Text("표시할 피드가 없습니다.")
-                    } else {
-                        ActualFeedContent(
-                            feedItems = state.items,
-                            likedFeedIds = state.likedFeedIds,
-                            savedFeedIds = state.savedFeedIds,
-                            onLikeClick = { feedId, isLiked ->
-                                feedViewModel.toggleLike(feedId, isLiked)
-                            },
-                            onSaveClick = { feedId, isSaved ->
-                                feedViewModel.toggleSave(feedId, isSaved)
-                            },
-                            onDeleteFeed = { feedId ->
-                                feedViewModel.deleteFeed(feedId)
-                            },
-                            onNavigateToOtherUserProfile = onNavigateToOtherUserProfile // ✨ 2. 콜백 전달
-                        )
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                when (val state = uiState) {
+                    is FeedUiState.Loading -> CircularProgressIndicator()
+                    is FeedUiState.Error -> Text(text = state.message)
+                    is FeedUiState.Success -> {
+                        if (state.items.isEmpty()) {
+                            Text("표시할 피드가 없습니다.")
+                        } else {
+                            ActualFeedContent(
+                                feedItems = state.items,
+                                likedFeedIds = state.likedFeedIds,
+                                savedFeedIds = state.savedFeedIds,
+                                onLikeClick = { feedId, isLiked ->
+                                    feedViewModel.toggleLike(feedId, isLiked)
+                                },
+                                onSaveClick = { feedId, isSaved ->
+                                    feedViewModel.toggleSave(feedId, isSaved)
+                                },
+                                onDeleteFeed = { feedId ->
+                                    feedViewModel.deleteFeed(feedId)
+                                },
+                                onNavigateToOtherUserProfile = onNavigateToOtherUserProfile
+                            )
+                        }
                     }
                 }
             }
@@ -117,7 +131,7 @@ fun ActualFeedContent(
     onLikeClick: (String, Boolean) -> Unit,
     onSaveClick: (String, Boolean) -> Unit,
     onDeleteFeed: (String) -> Unit,
-    onNavigateToOtherUserProfile: (String) -> Unit // ✨ 3. 파라미터 추가
+    onNavigateToOtherUserProfile: (String) -> Unit
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var feedToDelete by remember { mutableStateOf<String?>(null) }
@@ -172,8 +186,7 @@ fun ActualFeedContent(
                     feedToDelete = item.id
                     showDeleteDialog = true
                 },
-                onUserClick = { // ✨ 4. 사용자 클릭 이벤트 처리
-                    // FeedItem이 authorId를 가지고 있는지 확인
+                onUserClick = {
                     if (item is FeedItem.BookReview) {
                         onNavigateToOtherUserProfile(item.authorId)
                     }
@@ -192,7 +205,7 @@ fun FeedCard(
     onLikeClick: () -> Unit,
     onSaveClick: () -> Unit,
     onDeleteClick: () -> Unit,
-    onUserClick: () -> Unit, // ✨ 5. 파라미터 추가
+    onUserClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
@@ -213,7 +226,7 @@ fun FeedCard(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .weight(1f, fill = false)
-                        .clickable(onClick = onUserClick) // ✨ 6. 프로필 사진, 닉네임 영역에 클릭 이벤트 적용
+                        .clickable(onClick = onUserClick)
                 ) {
                     Box(
                         modifier = Modifier
@@ -299,7 +312,6 @@ fun FeedCard(
 }
 
 
-// Sealed Class 및 확장 함수 (기존 코드와 동일)
 sealed class FeedItem(
     open val id: String = "",
     open val userName: String = "",
@@ -339,4 +351,3 @@ fun DocumentSnapshot.toFeedItem(): FeedItem? {
         else -> null
     }
 }
-
