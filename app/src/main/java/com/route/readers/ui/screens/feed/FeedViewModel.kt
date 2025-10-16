@@ -31,11 +31,18 @@ class FeedViewModel : ViewModel() {
     private val _uiState = MutableStateFlow<FeedUiState>(FeedUiState.Loading)
     val uiState = _uiState.asStateFlow()
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing = _isRefreshing.asStateFlow()
+
     init {
-        loadFeeds()
+        loadFeeds(isRefresh = false)
     }
 
-    private fun loadFeeds() {
+    fun refreshFeeds() {
+        loadFeeds(isRefresh = true)
+    }
+
+    private fun loadFeeds(isRefresh: Boolean) {
         val currentUserId = auth.currentUser?.uid
         if (currentUserId == null) {
             _uiState.value = FeedUiState.Error("로그인이 필요합니다.")
@@ -43,59 +50,56 @@ class FeedViewModel : ViewModel() {
         }
 
         viewModelScope.launch {
-            _uiState.value = FeedUiState.Loading
+            if (isRefresh) {
+                _isRefreshing.value = true
+            } else {
+                _uiState.value = FeedUiState.Loading
+            }
+
             try {
                 val userDoc = db.collection("users").document(currentUserId).get().await()
                 val user = userDoc.toObject(User::class.java)
                 val followingList = user?.following ?: emptyList()
-                // 1. 현재 사용자의 차단 목록을 가져옵니다.
                 val blockedUserList = user?.blockedUsers ?: emptyList()
                 val feedAuthors = (followingList + currentUserId).distinct()
 
                 if (feedAuthors.isEmpty()) {
                     _uiState.value = FeedUiState.Success(emptyList(), emptySet(), emptySet())
+                    if (isRefresh) _isRefreshing.value = false
                     return@launch
                 }
 
                 val savedFeedIdsFromUser = user?.savedFeeds?.toSet() ?: emptySet()
 
-                db.collection("feeds")
+                val querySnapshot = db.collection("feeds")
                     .whereIn("authorId", feedAuthors.take(30))
                     .orderBy("timestamp", Query.Direction.DESCENDING)
                     .limit(20)
-                    .addSnapshotListener { snapshots, e ->
-                        if (e != null) {
-                            val errorMessage = e.message ?: "알 수 없는 오류"
-                            if (errorMessage.contains("FAILED_PRECONDITION")) {
-                                _uiState.value = FeedUiState.Error("피드를 불러오는데 필요한 데이터베이스 색인이 없습니다. Firebase 콘솔에서 색인을 생성해주세요.")
-                            } else {
-                                _uiState.value = FeedUiState.Error("피드 로딩 실패: $errorMessage")
-                            }
-                            Log.e("FeedViewModel", "Snapshot listener error", e)
-                            return@addSnapshotListener
-                        }
+                    .get()
+                    .await()
 
-                        if (snapshots != null) {
-                            val feeds = snapshots.mapNotNull { doc ->
-                                when (doc.getString("type")) {
-                                    "BOOK_REVIEW" -> doc.toObject(FeedItem.BookReview::class.java)
-                                    else -> null
-                                }
-                            }
-                                // 2. 가져온 피드 목록에서 차단된 사용자의 게시물을 필터링합니다.
-                                .filterNot { it.authorId in blockedUserList }
-
-                            val likedFeedIds = feeds
-                                .filterIsInstance<FeedItem.BookReview>()
-                                .filter { it.likedBy.contains(currentUserId) }
-                                .map { it.id }
-                                .toSet()
-                            _uiState.value = FeedUiState.Success(feeds, likedFeedIds, savedFeedIdsFromUser)
-                        }
+                val feeds = querySnapshot.mapNotNull { doc ->
+                    when (doc.getString("type")) {
+                        "BOOK_REVIEW" -> doc.toObject(FeedItem.BookReview::class.java)
+                        else -> null
                     }
+                }.filterNot { it.authorId in blockedUserList }
+
+                val likedFeedIds = feeds
+                    .filterIsInstance<FeedItem.BookReview>()
+                    .filter { it.likedBy.contains(currentUserId) }
+                    .map { it.id }
+                    .toSet()
+
+                _uiState.value = FeedUiState.Success(feeds, likedFeedIds, savedFeedIdsFromUser)
+
             } catch (e: Exception) {
-                Log.e("FeedViewModel", "Error loading initial user data", e)
+                Log.e("FeedViewModel", "Error loading feeds", e)
                 _uiState.value = FeedUiState.Error("피드 로딩 실패: ${e.message}")
+            } finally {
+                if (isRefresh) {
+                    _isRefreshing.value = false
+                }
             }
         }
     }
