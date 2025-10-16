@@ -46,7 +46,10 @@ class FeedViewModel : ViewModel() {
             _uiState.value = FeedUiState.Loading
             try {
                 val userDoc = db.collection("users").document(currentUserId).get().await()
-                val followingList = userDoc.toObject(User::class.java)?.following ?: emptyList()
+                val user = userDoc.toObject(User::class.java)
+                val followingList = user?.following ?: emptyList()
+                // 1. 현재 사용자의 차단 목록을 가져옵니다.
+                val blockedUserList = user?.blockedUsers ?: emptyList()
                 val feedAuthors = (followingList + currentUserId).distinct()
 
                 if (feedAuthors.isEmpty()) {
@@ -54,7 +57,7 @@ class FeedViewModel : ViewModel() {
                     return@launch
                 }
 
-                val savedFeedIdsFromUser = userDoc.toObject(User::class.java)?.savedFeeds?.toSet() ?: emptySet()
+                val savedFeedIdsFromUser = user?.savedFeeds?.toSet() ?: emptySet()
 
                 db.collection("feeds")
                     .whereIn("authorId", feedAuthors.take(30))
@@ -79,6 +82,9 @@ class FeedViewModel : ViewModel() {
                                     else -> null
                                 }
                             }
+                                // 2. 가져온 피드 목록에서 차단된 사용자의 게시물을 필터링합니다.
+                                .filterNot { it.authorId in blockedUserList }
+
                             val likedFeedIds = feeds
                                 .filterIsInstance<FeedItem.BookReview>()
                                 .filter { it.likedBy.contains(currentUserId) }

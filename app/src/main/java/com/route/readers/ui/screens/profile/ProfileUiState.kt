@@ -12,6 +12,7 @@ sealed class ProfileUiState {
         val user: User,
         val isFollowing: Boolean,
         val isMyProfile: Boolean,
+        val isBlocked: Boolean,
         val recommendedBooks: List<Book>,
         val favoriteBooks: List<Book>,
         val ongoingChallenges: List<Challenge>,

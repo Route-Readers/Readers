@@ -2,8 +2,6 @@ package com.route.readers.ui.screens.profile
 
 import android.net.Uri
 import android.util.Log
-import androidx.compose.animation.core.copy
-import androidx.compose.ui.geometry.isEmpty
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
@@ -21,6 +19,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
@@ -37,6 +36,9 @@ open class ProfileViewModel : ViewModel() {
 
     private val _setupState = MutableStateFlow<ProfileSetupState>(ProfileSetupState.Idle)
     val setupState: StateFlow<ProfileSetupState> = _setupState
+
+    private val _blockedUsers = MutableStateFlow<List<User>>(emptyList())
+    val blockedUsers: StateFlow<List<User>> = _blockedUsers.asStateFlow()
 
     fun checkNicknameAvailability(nickname: String) {
         if (nickname.length !in 2..12) {
@@ -104,6 +106,7 @@ open class ProfileViewModel : ViewModel() {
             "readingGenres" to genres,
             "readingStyles" to styles,
             "savedFeeds" to emptyList<String>(),
+            "blockedUsers" to emptyList<String>(),
             "level" to 1,
             "followerCount" to 0,
             "followingCount" to 0,
@@ -130,12 +133,16 @@ open class ProfileViewModel : ViewModel() {
         _uiState.value = ProfileUiState.Loading
         viewModelScope.launch {
             try {
+                val currentUserDoc = currentUserId?.let { db.collection("users").document(it).get().await() }
+                val currentUserBlocked = currentUserDoc?.toObject(User::class.java)?.blockedUsers ?: emptyList()
+
                 val userDocument = db.collection("users").document(targetUserId).get().await()
                 val user: User? = userDocument.toObject(User::class.java)
 
                 if (user != null) {
                     val isMyProfile = targetUserId == currentUserId
                     val isFollowing = user.followers.contains(currentUserId)
+                    val isBlocked = currentUserBlocked.contains(targetUserId)
 
                     val recommendedBooksDeferred = async { fetchRecommendedBooks(user.readingGenres) }
                     val favoriteBooksDeferred = async { bookRepository.getFavoriteBooks(targetUserId) }
@@ -162,6 +169,7 @@ open class ProfileViewModel : ViewModel() {
                         user = user,
                         isFollowing = isFollowing,
                         isMyProfile = isMyProfile,
+                        isBlocked = isBlocked,
                         recommendedBooks = recommendedBooksDeferred.await(),
                         favoriteBooks = favoriteBooksDeferred.await(),
                         ongoingChallenges = ongoing,
@@ -455,6 +463,63 @@ open class ProfileViewModel : ViewModel() {
                 )
             } catch (e: Exception) {
                 Log.e("ProfileViewModel", "Error deleting feed $feedId", e)
+            }
+        }
+    }
+
+    fun blockUser(userIdToBlock: String) {
+        if (currentUserId == null) return
+        viewModelScope.launch {
+            try {
+                db.collection("users").document(currentUserId)
+                    .update("blockedUsers", FieldValue.arrayUnion(userIdToBlock))
+                    .await()
+                val currentState = _uiState.value
+                if (currentState is ProfileUiState.Success) {
+                    _uiState.value = currentState.copy(isBlocked = true)
+                }
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Error blocking user $userIdToBlock", e)
+            }
+        }
+    }
+
+    fun unblockUser(userIdToUnblock: String) {
+        if (currentUserId == null) return
+        viewModelScope.launch {
+            try {
+                db.collection("users").document(currentUserId)
+                    .update("blockedUsers", FieldValue.arrayRemove(userIdToUnblock))
+                    .await()
+                val currentState = _uiState.value
+                if (currentState is ProfileUiState.Success) {
+                    _uiState.value = currentState.copy(isBlocked = false)
+                }
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Error unblocking user $userIdToUnblock", e)
+            }
+        }
+    }
+
+    fun fetchBlockedUsers() {
+        if (currentUserId == null) return
+        viewModelScope.launch {
+            try {
+                val userDoc = db.collection("users").document(currentUserId).get().await()
+                val blockedUserIds = userDoc.toObject(User::class.java)?.blockedUsers ?: emptyList()
+
+                if (blockedUserIds.isNotEmpty()) {
+                    val blockedUsersList = db.collection("users")
+                        .whereIn("uid", blockedUserIds)
+                        .get()
+                        .await()
+                        .toObjects(User::class.java)
+                    _blockedUsers.value = blockedUsersList
+                } else {
+                    _blockedUsers.value = emptyList()
+                }
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Error fetching blocked users", e)
             }
         }
     }

@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -74,6 +75,7 @@ fun ProfileScreen(
                 is ProfileUiState.Success -> {
                     ProfileContent(
                         state = state,
+                        viewModel = viewModel,
                         onFollowClick = { viewModel.followUser(state.user.uid) },
                         onUnfollowClick = { viewModel.unfollowUser(state.user.uid) },
                         onFollowListClick = { listType ->
@@ -83,7 +85,8 @@ fun ProfileScreen(
                             viewModel.updateProfileImage(imageUri)
                         },
                         onNavigateToSearch = onNavigateToSearch,
-                        viewModel = viewModel
+                        onBlockUser = { viewModel.blockUser(state.user.uid) },
+                        onUnblockUser = { viewModel.unblockUser(state.user.uid) }
                     )
                 }
             }
@@ -95,12 +98,14 @@ fun ProfileScreen(
 @Composable
 fun ProfileContent(
     state: ProfileUiState.Success,
+    viewModel: ProfileViewModel,
     onFollowClick: () -> Unit,
     onUnfollowClick: () -> Unit,
     onFollowListClick: (String) -> Unit,
     onUpdateProfileImage: (android.net.Uri) -> Unit,
     onNavigateToSearch: () -> Unit,
-    viewModel: ProfileViewModel
+    onBlockUser: () -> Unit,
+    onUnblockUser: () -> Unit
 ) {
     val user = state.user
 
@@ -137,90 +142,114 @@ fun ProfileContent(
         item {
             Column(
                 modifier = Modifier.padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 ProfileInfoSection(
                     user = user,
                     isMyProfile = state.isMyProfile,
                     isFollowing = state.isFollowing,
+                    isBlocked = state.isBlocked,
                     onFollowClick = onFollowClick,
                     onUnfollowClick = onUnfollowClick,
                     onFollowListClick = onFollowListClick,
-                    onUpdateProfileImage = onUpdateProfileImage
+                    onUpdateProfileImage = onUpdateProfileImage,
+                    onBlockUser = onBlockUser,
+                    onUnblockUser = onUnblockUser
                 )
+            }
+        }
 
-                if (user.readingGenres.isNotEmpty()) {
-                    ProfileDetailCard("선호 장르") {
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            user.readingGenres.forEach { genre -> Chip(label = genre) }
+        if (state.isBlocked) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 48.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("차단된 사용자입니다.", color = Color.Gray)
+                }
+            }
+        } else {
+            item {
+                Column(
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .padding(top = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(24.dp),
+                ) {
+                    if (user.readingGenres.isNotEmpty()) {
+                        ProfileDetailCard("선호 장르") {
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                user.readingGenres.forEach { genre -> Chip(label = genre) }
+                            }
                         }
                     }
-                }
 
-                if (user.readingStyles.isNotEmpty()) {
-                    ProfileDetailCard("독서 스타일") {
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            user.readingStyles.forEach { style -> Chip(label = style) }
+                    if (user.readingStyles.isNotEmpty()) {
+                        ProfileDetailCard("독서 스타일") {
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                user.readingStyles.forEach { style -> Chip(label = style) }
+                            }
                         }
                     }
                 }
             }
-        }
 
-        item {
-            Column(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(32.dp),
-            ) {
-                if (state.recommendedBooks.isNotEmpty()) {
-                    RecommendedBooksSection(
-                        books = state.recommendedBooks,
-                        onBookClick = { }
+            item {
+                Column(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(32.dp),
+                ) {
+                    if (state.recommendedBooks.isNotEmpty()) {
+                        RecommendedBooksSection(
+                            books = state.recommendedBooks,
+                            onBookClick = { }
+                        )
+                    }
+
+                    FavoriteBooksSection(
+                        books = state.favoriteBooks,
+                        isSelectionMode = state.isSelectionMode,
+                        selectedBookIds = state.selectedBookIds,
+                        onToggleSelection = viewModel::toggleBookSelection,
+                        onStartSelectionMode = viewModel::startSelectionMode,
+                        onDeleteClick = viewModel::deleteSelectedFavoriteBooks,
+                        onBookClick = { },
+                        onNavigateToSearch = onNavigateToSearch
+                    )
+
+                    ChallengesSection(
+                        ongoingChallenges = state.ongoingChallenges,
+                        completedChallenges = state.completedChallenges,
+                        onChallengeClick = { }
                     )
                 }
+            }
 
-                FavoriteBooksSection(
-                    books = state.favoriteBooks,
-                    isSelectionMode = state.isSelectionMode,
-                    selectedBookIds = state.selectedBookIds,
-                    onToggleSelection = viewModel::toggleBookSelection,
-                    onStartSelectionMode = viewModel::startSelectionMode,
-                    onDeleteClick = viewModel::deleteSelectedFavoriteBooks,
-                    onBookClick = { },
-                    onNavigateToSearch = onNavigateToSearch
-                )
-
-                ChallengesSection(
-                    ongoingChallenges = state.ongoingChallenges,
-                    completedChallenges = state.completedChallenges,
-                    onChallengeClick = { }
+            item {
+                PostsSection(
+                    myPosts = state.myPosts,
+                    savedPosts = state.savedPosts,
+                    isMyProfile = state.isMyProfile,
+                    likedFeedIds = state.likedFeedIds,
+                    savedFeedIds = state.savedFeedIds,
+                    onLikeClick = viewModel::toggleLike,
+                    onSaveClick = viewModel::toggleSave,
+                    onDeleteClick = { feedId ->
+                        feedToDelete = feedId
+                        showDeleteDialog = true
+                    }
                 )
             }
-        }
-
-        item {
-            PostsSection(
-                myPosts = state.myPosts,
-                savedPosts = state.savedPosts,
-                isMyProfile = state.isMyProfile,
-                likedFeedIds = state.likedFeedIds,
-                savedFeedIds = state.savedFeedIds,
-                onLikeClick = viewModel::toggleLike,
-                onSaveClick = viewModel::toggleSave,
-                onDeleteClick = { feedId ->
-                    feedToDelete = feedId
-                    showDeleteDialog = true
-                }
-            )
         }
     }
 }
@@ -307,10 +336,13 @@ fun ProfileInfoSection(
     user: User,
     isMyProfile: Boolean,
     isFollowing: Boolean,
+    isBlocked: Boolean,
     onFollowClick: () -> Unit,
     onUnfollowClick: () -> Unit,
     onFollowListClick: (String) -> Unit,
-    onUpdateProfileImage: (android.net.Uri) -> Unit
+    onUpdateProfileImage: (android.net.Uri) -> Unit,
+    onBlockUser: () -> Unit,
+    onUnblockUser: () -> Unit
 ) {
     val singlePhotoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
@@ -356,17 +388,43 @@ fun ProfileInfoSection(
             }
             if (!isMyProfile) {
                 Spacer(modifier = Modifier.height(16.dp))
-                Button(
-                    onClick = { if (isFollowing) onUnfollowClick() else onFollowClick() },
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 32.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isFollowing) Color.Gray else DarkRed
-                    )
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(text = if (isFollowing) "언팔로우" else "팔로우")
+                    if (isBlocked) {
+                        Button(
+                            onClick = onUnblockUser,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = DarkRed
+                            )
+                        ) {
+                            Text(text = "차단 해제")
+                        }
+                    } else {
+                        Button(
+                            onClick = { if (isFollowing) onUnfollowClick() else onFollowClick() },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isFollowing) Color.Gray else DarkRed
+                            )
+                        ) {
+                            Text(text = if (isFollowing) "언팔로우" else "팔로우")
+                        }
+                        OutlinedButton(
+                            onClick = onBlockUser,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, Color.Gray)
+                        ) {
+                            Text(text = "차단하기", color = Color.Gray)
+                        }
+                    }
                 }
             }
         }

@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.route.readers.data.manager.BlockedUserManager
 import com.route.readers.data.model.User
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,50 +29,59 @@ class BlockedUserViewModel : ViewModel() {
         fetchBlockedUsers()
     }
 
-    fun fetchBlockedUsers() {
+    private fun fetchBlockedUsers() {
         if (currentUserId == null) {
             _uiState.value = BlockedUserUiState.Error("로그인이 필요합니다.")
             return
         }
+
         viewModelScope.launch {
             _uiState.value = BlockedUserUiState.Loading
             try {
-                val blockedIds = BlockedUserManager.blockedUserIds.value
-                if (blockedIds.isEmpty()) {
+                // 1. 현재 사용자의 문서에서 'blockedUsers' 필드(ID 목록)를 가져옵니다.
+                val userDoc = db.collection("users").document(currentUserId).get().await()
+                val blockedUserIds = userDoc.get("blockedUsers") as? List<String> ?: emptyList()
+
+                if (blockedUserIds.isEmpty()) {
+                    // 2. 차단한 사용자가 없으면 빈 목록으로 Success 상태를 설정합니다.
                     _uiState.value = BlockedUserUiState.Success(emptyList())
-                    return@launch
+                } else {
+                    // 3. 차단된 사용자 ID 목록을 사용하여 사용자 정보(User 객체)를 가져옵니다.
+                    // Firestore 'whereIn' 쿼리는 한 번에 30개까지의 ID만 처리할 수 있으므로, 10개 또는 30개 단위로 나누어 요청하는 것이 안전합니다.
+                    val users = blockedUserIds.chunked(30).flatMap { chunk ->
+                        db.collection("users").whereIn("uid", chunk).get().await().toObjects(User::class.java)
+                    }
+                    _uiState.value = BlockedUserUiState.Success(users)
                 }
-
-                val chunkedBlockedIds = blockedIds.toList().chunked(10)
-                val users = mutableListOf<User>()
-
-                for (chunk in chunkedBlockedIds) {
-                    val usersSnapshot = db.collection("users").whereIn("uid", chunk).get().await()
-                    users.addAll(usersSnapshot.toObjects(User::class.java))
-                }
-
-                _uiState.value = BlockedUserUiState.Success(users)
-
             } catch (e: Exception) {
-                _uiState.value = BlockedUserUiState.Error("차단 목록을 불러오는데 실패했습니다.")
+                _uiState.value = BlockedUserUiState.Error("차단 목록을 불러오는 데 실패했습니다: ${e.message}")
             }
         }
     }
 
     fun unblockUser(targetUserId: String) {
-        if (currentUserId == null) return
+        if (currentUserId == null) {
+            _uiState.value = BlockedUserUiState.Error("로그인이 필요합니다.")
+            return
+        }
+
         viewModelScope.launch {
             try {
+                // 1. Firestore에서 해당 사용자를 'blockedUsers' 배열에서 제거합니다.
                 db.collection("users").document(currentUserId)
                     .update("blockedUsers", FieldValue.arrayRemove(targetUserId))
                     .await()
 
-                // 전역 차단 목록에서 제거하고 현재 화면 갱신
-                // BlockedUserManager.unblockUser(targetUserId) // 이 함수가 없으므로 주석 처리
-                fetchBlockedUsers()
+                // 2. UI 상태를 즉시 갱신하여 차단 해제된 사용자를 목록에서 제거합니다.
+                if (_uiState.value is BlockedUserUiState.Success) {
+                    val currentUsers = (_uiState.value as BlockedUserUiState.Success).users
+                    val updatedUsers = currentUsers.filterNot { it.uid == targetUserId }
+                    _uiState.value = BlockedUserUiState.Success(updatedUsers)
+                }
 
             } catch (e: Exception) {
-                // 오류 처리 (예: 스낵바 메시지 표시)
+                // 필요 시 에러 상태를 UI에 표시할 수 있습니다.
+                // _uiState.value = BlockedUserUiState.Error("차단 해제에 실패했습니다: ${e.message}")
             }
         }
     }
