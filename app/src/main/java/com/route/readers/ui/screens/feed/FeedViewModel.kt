@@ -10,6 +10,7 @@ import com.google.firebase.firestore.Query
 import com.route.readers.data.model.User
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -106,22 +107,47 @@ class FeedViewModel : ViewModel() {
 
     fun toggleLike(feedId: String, isCurrentlyLiked: Boolean) {
         val currentUserId = auth.currentUser?.uid ?: return
-        viewModelScope.launch {
-            val feedRef = db.collection("feeds").document(feedId)
-            try {
-                if (isCurrentlyLiked) {
-                    feedRef.update(
-                        "likedBy", FieldValue.arrayRemove(currentUserId),
-                        "likeCount", FieldValue.increment(-1)
-                    )
-                } else {
-                    feedRef.update(
-                        "likedBy", FieldValue.arrayUnion(currentUserId),
-                        "likeCount", FieldValue.increment(1)
-                    )
+
+        _uiState.update { currentState ->
+            if (currentState is FeedUiState.Success) {
+                val updatedItems = currentState.items.map { item ->
+                    if (item.id == feedId && item is FeedItem.BookReview) {
+                        val newLikeCount = if (isCurrentlyLiked) (item.likeCount - 1).coerceAtLeast(0) else item.likeCount + 1
+                        item.copy(
+                            likeCount = newLikeCount,
+                            likedBy = if (isCurrentlyLiked) item.likedBy - currentUserId else item.likedBy + currentUserId
+                        )
+                    } else {
+                        item
+                    }
                 }
+                currentState.copy(
+                    items = updatedItems,
+                    likedFeedIds = if (isCurrentlyLiked) currentState.likedFeedIds - feedId else currentState.likedFeedIds + feedId
+                )
+            } else {
+                currentState
+            }
+        }
+
+        viewModelScope.launch {
+            try {
+                val feedRef = db.collection("feeds").document(feedId)
+                val operation = if (isCurrentlyLiked) {
+                    FieldValue.arrayRemove(currentUserId)
+                } else {
+                    FieldValue.arrayUnion(currentUserId)
+                }
+                feedRef.update("likedBy", operation).await()
+
+                val document = feedRef.get().await()
+                val likedByList = document.get("likedBy") as? List<*>
+                val actualLikeCount = likedByList?.size ?: 0
+                feedRef.update("likeCount", actualLikeCount).await()
+
             } catch (e: Exception) {
-                Log.e("FeedViewModel", "Error toggling like for feed $feedId", e)
+                Log.e("FeedViewModel", "Error toggling like for feed $feedId. Reverting UI.", e)
+                loadFeeds(isRefresh = false)
             }
         }
     }
