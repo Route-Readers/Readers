@@ -81,8 +81,12 @@ class FollowListViewModel : ViewModel() {
             }
 
             try {
+
                 val currentUserDoc = db.collection("users").document(currentUserId).get().await()
                 val currentUserFollowingIds = (currentUserDoc.get("following") as? List<String>)?.toSet() ?: emptySet()
+                val blockedUsers = (currentUserDoc.get("blockedUsers") as? List<String>)?.toSet() ?: emptySet()
+                val blockedByUsers = (currentUserDoc.get("blockedBy") as? List<String>)?.toSet() ?: emptySet()
+                val exclusionSet = blockedUsers + blockedByUsers
 
                 val targetUserDoc = db.collection("users").document(userId).get().await()
                 if (!targetUserDoc.exists()) {
@@ -90,7 +94,7 @@ class FollowListViewModel : ViewModel() {
                     return@launch
                 }
 
-                val userIds = targetUserDoc.get(listType) as? List<String>
+                val userIds = (targetUserDoc.get(listType) as? List<String>)?.filterNot { it in exclusionSet }
                 if (userIds.isNullOrEmpty()) {
                     _uiState.value = FollowListUiState.Success(emptyList(), currentUserFollowingIds)
                     return@launch
@@ -123,11 +127,16 @@ class FollowListViewModel : ViewModel() {
             }
 
             try {
+
                 val currentUserDoc = db.collection("users").document(currentUserId).get().await()
                 val currentUserFollowingIds = (currentUserDoc.get("following") as? List<String>)?.toSet() ?: emptySet()
+                val blockedUsers = (currentUserDoc.get("blockedUsers") as? List<String>)?.toSet() ?: emptySet()
+                val blockedByUsers = (currentUserDoc.get("blockedBy") as? List<String>)?.toSet() ?: emptySet()
+                val exclusionSet = blockedUsers + blockedByUsers
 
                 val allUsersQuery = db.collection("users").limit(100).get().await()
                 val allUsers = allUsersQuery.toObjects(User::class.java)
+                    .filterNot { it.uid in exclusionSet } // 차단 관련 유저 필터링
 
                 val sortedUsers = allUsers.sortedByDescending { it.uid == currentUserId }
 
@@ -185,10 +194,79 @@ class FollowListViewModel : ViewModel() {
                     currentState.currentUserFollowingIds + targetUserId
                 }
 
-                _uiState.value = currentState.copy(currentUserFollowingIds = updatedFollowingIds)
+                val updatedUsers = currentState.users.map { user ->
+                    if (user.uid == currentUserId) {
+                        val newFollowingCount = user.followingCount + if (isCurrentlyFollowing) -1 else 1
+                        user.copy(followingCount = newFollowingCount)
+                    }
+                    else if (user.uid == targetUserId) {
+                        val newFollowerCount = user.followerCount + if (isCurrentlyFollowing) -1 else 1
+                        user.copy(followerCount = newFollowerCount)
+                    }
+                    else {
+                        user
+                    }
+                }
+
+                _uiState.value = currentState.copy(
+                    users = updatedUsers,
+                    currentUserFollowingIds = updatedFollowingIds
+                )
 
             } catch (e: Exception) {
+                // Handle exception
+            }
+        }
+    }
 
+    fun blockUser(targetUserId: String) {
+        viewModelScope.launch {
+            if (currentUserId == null || currentUserId == targetUserId) {
+                return@launch
+            }
+
+            val currentState = uiState.value
+            if (currentState !is FollowListUiState.Success) {
+                return@launch
+            }
+
+            val currentUserRef = db.collection("users").document(currentUserId)
+            val targetUserRef = db.collection("users").document(targetUserId)
+
+            try {
+                db.runTransaction { transaction ->
+                    transaction.update(currentUserRef, "blockedUsers", FieldValue.arrayUnion(targetUserId))
+                    transaction.update(targetUserRef, "blockedBy", FieldValue.arrayUnion(currentUserId))
+
+                    if (currentState.currentUserFollowingIds.contains(targetUserId)) {
+                        transaction.update(currentUserRef, "following", FieldValue.arrayRemove(targetUserId))
+                        transaction.update(currentUserRef, "followingCount", FieldValue.increment(-1))
+                        transaction.update(targetUserRef, "followers", FieldValue.arrayRemove(currentUserId))
+                        transaction.update(targetUserRef, "followerCount", FieldValue.increment(-1))
+                    }
+
+                    val targetUserDoc = transaction.get(targetUserRef)
+                    val targetUserFollowing = targetUserDoc.get("following") as? List<String> ?: emptyList()
+                    if (targetUserFollowing.contains(currentUserId)) {
+                        transaction.update(targetUserRef, "following", FieldValue.arrayRemove(currentUserId))
+                        transaction.update(targetUserRef, "followingCount", FieldValue.increment(-1))
+                        transaction.update(currentUserRef, "followers", FieldValue.arrayRemove(targetUserId))
+                        transaction.update(currentUserRef, "followerCount", FieldValue.increment(-1))
+                    }
+
+                    null
+                }.await()
+
+                val updatedUsers = currentState.users.filterNot { it.uid == targetUserId }
+                val updatedFollowingIds = currentState.currentUserFollowingIds - targetUserId
+
+                _uiState.value = currentState.copy(
+                    users = updatedUsers,
+                    currentUserFollowingIds = updatedFollowingIds
+                )
+
+            } catch (e: Exception) {
+                // Handle exception
             }
         }
     }
