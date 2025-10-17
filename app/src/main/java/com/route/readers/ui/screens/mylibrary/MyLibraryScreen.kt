@@ -11,7 +11,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,11 +22,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
 import com.route.readers.R
 import com.route.readers.data.model.MyBook
 import com.route.readers.data.remote.MyLibraryRepository
+import com.route.readers.data.remote.FirestoreRepository
 import com.route.readers.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -45,17 +44,6 @@ fun MyLibraryScreen(
     var showDeleteDialog by remember { mutableStateOf<MyBook?>(null) }
     var selectedBook by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
-
-    // 외부에서 다이얼로그 표시 요청이 있을 때 처리
-    LaunchedEffect(showProgressDialog) {
-        if (showProgressDialog) {
-            val book = books.find { it.isbn == selectedBook }
-            book?.let {
-                showProgressDialogBook = it
-                onProgressDialogDismiss()
-            }
-        }
-    }
 
     // 책 목록 새로고침 함수
     fun refreshBooks() {
@@ -78,18 +66,33 @@ fun MyLibraryScreen(
         refreshBooks()
     }
 
-    // 주기적으로 새로고침 (검색에서 추가된 책을 반영하기 위해)
+    // 실시간 새로고침 (2초마다)
     LaunchedEffect(Unit) {
         while (true) {
-            kotlinx.coroutines.delay(5000) // 5초마다 새로고침
+            kotlinx.coroutines.delay(2000)
             if (!isLoading) {
                 scope.launch {
-                    val newBooks = myLibraryRepository.getMyBooks()
-                    if (newBooks.size != books.size) {
-                        books = newBooks
-                        Log.d("MyLibraryScreen", "Books updated: ${books.size}")
+                    try {
+                        val newBooks = myLibraryRepository.getMyBooks()
+                        if (newBooks.size != books.size || newBooks != books) {
+                            books = newBooks
+                            Log.d("MyLibraryScreen", "Books auto-updated: ${books.size}")
+                        }
+                    } catch (e: Exception) {
+                        Log.e("MyLibraryScreen", "Auto-refresh error: ${e.message}")
                     }
                 }
+            }
+        }
+    }
+
+    // 외부에서 다이얼로그 표시 요청이 있을 때 처리
+    LaunchedEffect(showProgressDialog) {
+        if (showProgressDialog) {
+            val book = books.find { it.isbn == selectedBook }
+            book?.let {
+                showProgressDialogBook = it
+                onProgressDialogDismiss()
             }
         }
     }
@@ -97,7 +100,7 @@ fun MyLibraryScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(CreamBackground)
+            .background(Color(0xFFF5F5F5))
             .padding(16.dp)
     ) {
         // 헤더
@@ -114,17 +117,6 @@ fun MyLibraryScreen(
                 fontWeight = FontWeight.Bold,
                 color = DarkRed
             )
-            
-            IconButton(
-                onClick = { refreshBooks() },
-                enabled = !isLoading
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = "새로고침",
-                    tint = if (isLoading) Color.Gray else DarkRed
-                )
-            }
         }
 
         if (isLoading) {
@@ -193,7 +185,7 @@ fun MyLibraryScreen(
                     }
                     
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        val readingBooks = books.count { it.currentPage > 0 && it.currentPage < it.totalPages }
+                        val readingBooks = books.count { it.currentPage > 0 && !it.isCompleted }
                         Text(
                             text = "$readingBooks",
                             fontSize = 24.sp,
@@ -204,7 +196,7 @@ fun MyLibraryScreen(
                     }
                     
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        val completedBooks = books.count { it.currentPage >= it.totalPages }
+                        val completedBooks = books.count { it.isCompleted }
                         Text(
                             text = "$completedBooks",
                             fontSize = 24.sp,
@@ -225,11 +217,9 @@ fun MyLibraryScreen(
                         isSelected = selectedBook == book.isbn,
                         onProgressClick = { 
                             if (selectedBook == book.isbn) {
-                                // 이미 선택된 책을 다시 클릭하면 선택 해제
                                 selectedBook = null
                                 onBookSelected(null)
                             } else {
-                                // 새로운 책 선택
                                 selectedBook = book.isbn
                                 onBookSelected(book)
                             }
@@ -252,7 +242,7 @@ fun MyLibraryScreen(
                     val success = myLibraryRepository.updateReadingProgress(book.isbn, currentPage)
                     Log.d("MyLibraryScreen", "Update result: $success")
                     if (success) {
-                        refreshBooks() // 새로고침
+                        refreshBooks()
                         Toast.makeText(context, "진도가 업데이트되었습니다", Toast.LENGTH_SHORT).show()
                     } else {
                         Toast.makeText(context, "업데이트 실패. 다시 시도해주세요", Toast.LENGTH_SHORT).show()
@@ -274,7 +264,7 @@ fun MyLibraryScreen(
                     val success = myLibraryRepository.removeBookFromLibrary(book.isbn)
                     Log.d("MyLibraryScreen", "Delete result: $success")
                     if (success) {
-                        refreshBooks() // 새로고침
+                        refreshBooks()
                         Toast.makeText(context, "책이 삭제되었습니다", Toast.LENGTH_SHORT).show()
                     } else {
                         Toast.makeText(context, "삭제 실패. 다시 시도해주세요", Toast.LENGTH_SHORT).show()
@@ -307,7 +297,8 @@ fun MyBookCard(
         colors = CardDefaults.cardColors(
             containerColor = when {
                 isSelected -> DarkRed.copy(alpha = 0.1f)
-                book.currentPage > 0 && book.currentPage < book.totalPages -> ReadingGreen.copy(alpha = 0.1f)
+                book.isCompleted -> DarkRed.copy(alpha = 0.1f)
+                book.currentPage > 0 -> ReadingGreen.copy(alpha = 0.1f)
                 else -> White
             }
         ),
@@ -347,25 +338,22 @@ fun MyBookCard(
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 Text(
-                    text = "${book.progressPercentage}%",
+                    text = if (book.isCompleted) "완독!" else "${book.progressPercentage}%",
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Bold,
                     color = when {
+                        book.isCompleted -> DarkRed
                         book.progressPercentage == 0 -> TextGray
-                        book.progressPercentage == 100 -> DarkRed
                         else -> ReadingGreen
                     }
                 )
                 
                 LinearProgressIndicator(
-                    progress = book.progressPercentage / 100f,
+                    progress = if (book.isCompleted) 1f else book.progressPercentage / 100f,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(8.dp),
-                    color = when {
-                        book.progressPercentage == 100 -> DarkRed
-                        else -> ReadingGreen
-                    },
+                    color = if (book.isCompleted) DarkRed else ReadingGreen,
                     trackColor = Color.LightGray
                 )
                 
@@ -377,7 +365,6 @@ fun MyBookCard(
                 )
             }
 
-            // 삭제 버튼
             IconButton(
                 onClick = onDeleteClick
             ) {

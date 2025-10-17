@@ -38,12 +38,14 @@ class MyLibraryRepository {
                 // Firestore에도 저장
                 val myBook = MyBook(
                     id = book.isbn,
+                    userId = "", // FirestoreRepository에서 설정됨
                     title = book.title,
                     author = book.author,
                     cover = book.cover,
                     isbn = book.isbn,
                     totalPages = totalPages,
                     currentPage = 0,
+                    isCompleted = false,
                     addedDate = System.currentTimeMillis(),
                     lastReadDate = System.currentTimeMillis()
                 )
@@ -65,28 +67,32 @@ class MyLibraryRepository {
     
     suspend fun updateReadingProgress(isbn: String, currentPage: Int): Boolean {
         return try {
-            val currentBooks = _myBooks.value.toMutableList()
-            val bookIndex = currentBooks.indexOfFirst { it.isbn == isbn }
+            // Firestore에서 직접 업데이트
+            val success = firestoreRepository.updateReadingProgress(isbn, currentPage)
             
-            if (bookIndex != -1) {
-                val book = currentBooks[bookIndex]
-                val progress = if (book.totalPages > 0) {
-                    ((currentPage.toFloat() / book.totalPages) * 100).toInt()
-                } else 0
+            if (success) {
+                // 로컬 상태도 업데이트
+                val currentBooks = _myBooks.value.toMutableList()
+                val bookIndex = currentBooks.indexOfFirst { it.isbn == isbn }
                 
-                currentBooks[bookIndex] = book.copy(
-                    currentPage = currentPage,
-                    progress = progress
-                )
-                _myBooks.value = currentBooks
+                if (bookIndex != -1) {
+                    val book = currentBooks[bookIndex]
+                    val progress = if (book.totalPages > 0) {
+                        ((currentPage.toFloat() / book.totalPages) * 100).toInt()
+                    } else 0
+                    
+                    currentBooks[bookIndex] = book.copy(
+                        currentPage = currentPage,
+                        progress = progress
+                    )
+                    _myBooks.value = currentBooks
+                }
                 
                 // 위젯 업데이트
                 WidgetUpdateHelper.updateAllWidgets()
-                
-                // Firestore에도 업데이트
-                return firestoreRepository.updateReadingProgress(isbn, currentPage)
             }
-            false
+            
+            success
         } catch (e: Exception) {
             Log.e("MyLibraryRepository", "Error updating progress: ${e.message}", e)
             false

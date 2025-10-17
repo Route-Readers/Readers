@@ -1,21 +1,28 @@
 package com.route.readers.data.model
 
+import com.google.firebase.firestore.Exclude
+
 data class MyBook(
     val id: String = "",
+    val userId: String = "",
     val title: String = "",
     val author: String = "",
     val cover: String = "",
     val isbn: String = "",
     val totalPages: Int = 0,
     val currentPage: Int = 0,
+    val isCompleted: Boolean = false,
     val addedDate: Long = System.currentTimeMillis(),
-    val lastReadDate: Long = System.currentTimeMillis()
+    val lastReadDate: Long = System.currentTimeMillis(),
+    val completedDate: Long? = null
 ) {
+    @get:Exclude
     val progressPercentage: Int
         get() = if (totalPages > 0) {
             ((currentPage.toFloat() / totalPages) * 100).toInt()
         } else 0
 
+    @Exclude
     fun getHighQualityImageUrl(): String {
         return when {
             cover.contains("aladin.co.kr") && cover.contains("/cover/") -> {
