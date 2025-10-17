@@ -102,7 +102,7 @@ fun AttendanceBadge(days: Int) {
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.Add,
+                painter = painterResource(id = R.drawable.book_5_24),
                 contentDescription = null,
                 modifier = Modifier.size(16.dp),
                 tint = DarkRed
