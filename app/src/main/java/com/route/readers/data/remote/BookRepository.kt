@@ -1,6 +1,5 @@
 package com.route.readers.data.remote
 
-import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.gson.GsonBuilder
@@ -16,8 +15,6 @@ class BookRepository {
 
     companion object {
         private val TTBKEY = BuildConfig.ALADIN_TTB_KEY
-        private const val QUERY_TYPE = "ItemNewAll"
-        private const val SEARCH_TARGET = "Book"
         private const val ITEM_ID_TYPE = "ISBN"
         private const val OUTPUT = "js"
         private const val VERSION = "20131101"
@@ -46,6 +43,7 @@ class BookRepository {
             val response = bookService.getBookSearch(
                 ttbKey = TTBKEY,
                 query = query,
+                queryType = "Keyword",
                 start = page,
                 maxResults = maxResults,
                 output = OUTPUT,
@@ -53,7 +51,12 @@ class BookRepository {
             )
 
             if (response.isSuccessful) {
+                // ▼▼▼ Elvis Operator(?:)를 사용하여 books가 null일 경우 안전하게 빈 리스트를 반환합니다. ▼▼▼
                 val books = response.body()?.books ?: emptyList()
+                if (books.isEmpty()) {
+                    return emptyList()
+                }
+
                 val detailedBooks = coroutineScope {
                     books.map { book ->
                         async {
@@ -82,14 +85,18 @@ class BookRepository {
 
             val response = bookService.getBookList(
                 ttbKey = TTBKEY,
-                queryType = QUERY_TYPE,
-                searchTarget = SEARCH_TARGET,
+                queryType = "ItemNewAll",
+                searchTarget = "Book",
                 output = OUTPUT,
                 version = VERSION
             )
 
             if (response.isSuccessful) {
                 val basicBookList = response.body()?.books ?: emptyList()
+                if (basicBookList.isEmpty()) {
+                    return emptyList()
+                }
+
                 val detailedBooks = coroutineScope {
                     basicBookList.map { book ->
                         async {
@@ -140,9 +147,10 @@ class BookRepository {
         val favoriteRef = db.collection("users").document(currentUserId)
             .collection("favorites").document(book.isbn)
 
+        // isFavorite는 val이므로 copy()를 통해 새 객체를 만들어야 함
         if (book.isFavorite) {
-            val bookData = book.copy(isFavorite = false)
-            favoriteRef.set(bookData).await()
+            // Firestore에 저장할 때는 isFavorite를 false로 바꾼 새 객체를 저장
+            favoriteRef.set(book.copy(isFavorite = false)).await()
         } else {
             favoriteRef.delete().await()
         }
