@@ -2,11 +2,11 @@ package com.route.readers.ui.screens.search
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.Context
-import android.content.pm.PackageManager
 import android.location.Location
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,8 +20,6 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,7 +30,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -50,7 +47,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
-    viewModel: BookViewModel = viewModel(),
+    bookViewModel: BookViewModel = viewModel(),
     libraryViewModel: LibraryViewModel = viewModel(),
     myLibraryRepository: MyLibraryRepository = MyLibraryRepository(),
     firestoreRepository: FirestoreRepository = FirestoreRepository()
@@ -76,7 +73,6 @@ fun SearchScreen(
                 selected = selectedTab == 1,
                 onClick = {
                     selectedTab = 1
-                    viewModel.clearSearchResults()
                     libraryViewModel.resetState()
                 },
                 text = { Text("도서관검색") }
@@ -84,13 +80,13 @@ fun SearchScreen(
         }
 
         when (selectedTab) {
-            0 -> BookSearchTab(viewModel, myLibraryRepository, firestoreRepository)
-            1 -> LibrarySearchTab(bookViewModel = viewModel, libraryViewModel = libraryViewModel)
+            0 -> BookSearchTab(bookViewModel, myLibraryRepository, firestoreRepository)
+            1 -> LibrarySearchTab(bookViewModel, libraryViewModel)
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 fun BookSearchTab(
     viewModel: BookViewModel,
@@ -121,18 +117,19 @@ fun BookSearchTab(
             OutlinedTextField(
                 value = searchText,
                 onValueChange = { searchText = it },
-                placeholder = { Text("책 제목, 작가명으로 검색") },
+                placeholder = { Text("책 제목으로 검색 (알라딘 API)") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { performSearch() }),
                 trailingIcon = {
-                    Button(
+                    TextButton(
                         onClick = { performSearch() },
-                        enabled = searchText.isNotBlank() && !isLoading
+                        enabled = searchText.isNotBlank() && !isLoading,
+                        contentPadding = PaddingValues(horizontal = 8.dp)
                     ) {
-                        Text("검색")
+                        Text("검색", fontSize = 16.sp)
                     }
                 }
             )
@@ -382,13 +379,13 @@ fun LibrarySearchTab(
     bookViewModel: BookViewModel,
     libraryViewModel: LibraryViewModel
 ) {
-    var searchText by remember { mutableStateOf("") }
+    var searchText by remember { mutableStateOf(bookViewModel.currentQuery.value) }
     var selectedBook by remember { mutableStateOf<Book?>(null) }
     val books by bookViewModel.books.collectAsState()
     val isLoadingBooks by bookViewModel.isLoading.collectAsState()
     val libraryState by libraryViewModel.libraryState.collectAsState()
+
     val context = LocalContext.current
-    // ▼▼▼ fusedLocationClient를 remember 안으로 이동 ▼▼▼
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
     val permissionState = rememberMultiplePermissionsState(
@@ -423,13 +420,11 @@ fun LibrarySearchTab(
         }
     }
 
-    LaunchedEffect(permissionState.allPermissionsGranted, libraryState) {
-        if (libraryState is LibraryUiState.Idle) {
-            if (permissionState.allPermissionsGranted) {
-                requestLocationSearch()
-            } else {
-                libraryViewModel.notifyPermissionError()
-            }
+    LaunchedEffect(permissionState.allPermissionsGranted) {
+        if (books.isEmpty() && permissionState.allPermissionsGranted) {
+            requestLocationSearch()
+        } else if (!permissionState.allPermissionsGranted) {
+            libraryViewModel.notifyPermissionError()
         }
     }
 
@@ -460,7 +455,28 @@ fun LibrarySearchTab(
             }
         }
 
-        when (val state = libraryState) {
+        val currentLibraryState = libraryState
+
+        if (isLoadingBooks) {
+            item {
+                Box(modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 32.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
+        } else if (books.isNotEmpty()) {
+            if (currentLibraryState is LibraryUiState.Idle) {
+                items(books, key = { "lib-book-${it.isbn}" }) { book ->
+                    SimpleBookCard(book = book) {
+                        selectedBook = book
+                        requestLocationSearch(book)
+                    }
+                }
+            }
+        }
+
+        when (currentLibraryState) {
             is LibraryUiState.Loading -> {
                 item {
                     Box(modifier = Modifier
@@ -470,7 +486,7 @@ fun LibrarySearchTab(
                             CircularProgressIndicator()
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                if (selectedBook != null) "책 소장 정보를 검색 중입니다..." else "주변 도서관을 검색 중입니다...",
+                                if (selectedBook != null) "『${selectedBook?.title}』 소장 정보를 검색 중입니다..." else "주변 도서관을 검색 중입니다...",
                                 color = TextGray
                             )
                         }
@@ -482,7 +498,7 @@ fun LibrarySearchTab(
                     Column {
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = if (selectedBook != null) "\"${selectedBook?.title}\" 소장 도서관" else "내 주변 도서관",
+                            text = if (selectedBook != null) "『${selectedBook?.title}』 소장 도서관" else "내 주변 도서관",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = DarkRed
@@ -490,14 +506,14 @@ fun LibrarySearchTab(
                         Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
-                if (state.libraries.isEmpty()) {
+                if (currentLibraryState.libraries.isEmpty()) {
                     item {
                         Text(
                             if (selectedBook != null) "주변에 해당 책을 소장한 도서관이 없습니다." else "주변에 검색된 도서관이 없습니다."
                         )
                     }
                 } else {
-                    items(state.libraries, key = { it.libraryInfo.libCode }) { result ->
+                    items(currentLibraryState.libraries, key = { it.libraryInfo.libCode }) { result ->
                         LibraryResultCard(
                             libraryName = result.libraryInfo.libName,
                             address = result.libraryInfo.address,
@@ -516,7 +532,7 @@ fun LibrarySearchTab(
                             .padding(top = 32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(state.message, color = MaterialTheme.colorScheme.error)
+                        Text(currentLibraryState.message, color = MaterialTheme.colorScheme.error)
                         Spacer(modifier = Modifier.height(8.dp))
                         Button(onClick = {
                             if (!permissionState.allPermissionsGranted) {
@@ -531,30 +547,16 @@ fun LibrarySearchTab(
                 }
             }
             is LibraryUiState.Idle -> {
-                if (isLoadingBooks) {
+                if (books.isEmpty() && !isLoadingBooks) {
                     item {
-                        Box(modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 32.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
-                    }
-                } else if (books.isNotEmpty()) {
-                    items(books, key = { it.isbn }) { book ->
-                        SimpleBookCard(book = book) {
-                            selectedBook = book
-                            if (permissionState.allPermissionsGranted) {
-                                requestLocationSearch(book)
-                            } else {
-                                permissionState.launchMultiplePermissionRequest()
-                            }
-                        }
+                        // Empty state
                     }
                 }
             }
         }
     }
 }
+
 
 @Composable
 fun SimpleBookCard(book: Book, onClick: () -> Unit) {
@@ -576,7 +578,7 @@ fun SimpleBookCard(book: Book, onClick: () -> Unit) {
                 error = painterResource(R.mipmap.readerslogo)
             )
             Spacer(modifier = Modifier.width(12.dp))
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(book.title, fontWeight = FontWeight.Bold, maxLines = 1)
                 Text(book.author, color = TextGray, fontSize = 12.sp, maxLines = 1)
             }
@@ -625,4 +627,3 @@ fun LibraryResultCard(
         }
     }
 }
-

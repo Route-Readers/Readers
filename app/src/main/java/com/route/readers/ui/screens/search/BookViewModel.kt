@@ -1,6 +1,5 @@
 package com.route.readers.ui.screens.search
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.route.readers.data.model.Book
@@ -37,7 +36,6 @@ class BookViewModel : ViewModel() {
 
     fun searchBooks(query: String, isNewSearch: Boolean = true) {
         if (query.isBlank()) {
-            Log.w("BookViewModel", "Empty query provided")
             return
         }
 
@@ -47,7 +45,6 @@ class BookViewModel : ViewModel() {
             _books.value = emptyList()
         }
 
-        Log.d("BookViewModel", "검색 시작: $query, 페이지: $currentPage")
         viewModelScope.launch {
             if (isNewSearch) {
                 _isLoading.value = true
@@ -57,9 +54,7 @@ class BookViewModel : ViewModel() {
             _errorMessage.value = null
 
             try {
-                Log.d("BookViewModel", "API 호출 중...")
                 val result = bookRepository.getBookSearch(query.trim(), currentPage, pageSize)
-                Log.d("BookViewModel", "검색 결과: ${result.size}개")
 
                 if (isNewSearch) {
                     _books.value = result
@@ -69,11 +64,7 @@ class BookViewModel : ViewModel() {
 
                 _hasMoreResults.value = result.size >= pageSize
 
-                if (result.isEmpty() && isNewSearch) {
-                    _errorMessage.value = "검색 결과가 없습니다"
-                }
             } catch (e: Exception) {
-                Log.e("BookViewModel", "검색 에러: ${e.message}", e)
                 _errorMessage.value = "검색 중 오류가 발생했습니다: ${e.message}"
                 if (isNewSearch) {
                     _books.value = emptyList()
@@ -93,7 +84,6 @@ class BookViewModel : ViewModel() {
     }
 
     fun getNewBooks() {
-        Log.d("BookViewModel", "신간 도서 불러오기 시작")
         _currentQuery.value = ""
         currentPage = 1
 
@@ -101,16 +91,13 @@ class BookViewModel : ViewModel() {
             _isLoading.value = true
             _errorMessage.value = null
             try {
-                Log.d("BookViewModel", "신간 API 호출 중...")
                 val result = bookRepository.getBookList()
-                Log.d("BookViewModel", "신간 결과: ${result.size}개")
                 _books.value = result
                 _hasMoreResults.value = false
                 if (result.isEmpty()) {
                     _errorMessage.value = "신간 도서를 불러올 수 없습니다"
                 }
             } catch (e: Exception) {
-                Log.e("BookViewModel", "신간 에러: ${e.message}", e)
                 _errorMessage.value = "신간 도서 불러오기 중 오류: ${e.message}"
                 _books.value = emptyList()
             } finally {
@@ -136,7 +123,6 @@ class BookViewModel : ViewModel() {
                 val bookToUpdate = book.copy(isFavorite = newFavoriteStatus)
                 bookRepository.toggleFavoriteStatus(bookToUpdate)
             } catch (e: Exception) {
-                Log.e("BookViewModel", "Failed to toggle favorite status on server, rolling back UI.", e)
                 _books.value = originalBooks
             }
         }
