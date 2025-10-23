@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
@@ -18,25 +19,27 @@ android {
         versionCode = 1
         versionName = "1.0"
 
+        // local.properties 파일 로드
         val localProperties = Properties()
         val localPropertiesFile = rootProject.file("local.properties")
         if (localPropertiesFile.exists()) {
-            localPropertiesFile.inputStream().use { input ->
-                localProperties.load(input)
-            }
+            localProperties.load(FileInputStream(localPropertiesFile))
         }
 
+        // ALADIN_TTB_KEY를 BuildConfig.ALADIN_TTB_KEY로 생성
         buildConfigField(
             "String",
             "ALADIN_TTB_KEY",
-            "\"${localProperties.getProperty("ALADIN_TTB_KEY", "")}\""
+            "\"${localProperties.getProperty("ALADIN_TTB_KEY")}\""
         )
 
         buildConfigField(
             "String",
-            "DATA_GO_KR_API_KEY",
-            "\"${localProperties.getProperty("DATA_GO_KR_API_KEY", "")}\""
+            "DATA_GO_KR_API_KEY", // <- 이 이름을 Kotlin 코드에서 사용하는 이름과 일치시킵니다.
+            "\"${localProperties.getProperty("DATA_GO_KR_API_KEY")}\""
         )
+
+
     }
 
     compileOptions {
@@ -50,7 +53,7 @@ android {
 
     buildFeatures {
         compose = true
-        buildConfig = true
+        buildConfig = true // 이 설정이 있어야 BuildConfig 파일이 생성됩니다.
     }
 
 }
@@ -62,8 +65,6 @@ dependencies {
     implementation(platform("androidx.compose:compose-bom:2024.06.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
-    // ▼▼▼ 수정된 부분 ▼▼▼
-    // 중복된 material3 의존성을 제거하고 버전을 명시적으로 지정합니다.
     implementation("androidx.compose.material3:material3:1.3.1")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
     implementation("androidx.compose.runtime:runtime-livedata")
@@ -92,5 +93,8 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.4.0")
     // 위치
     implementation("com.google.android.gms:play-services-location:21.3.0")
+
+    // HTTP 요청/응답을 로그로 보기 위한 라이브러리
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
 }

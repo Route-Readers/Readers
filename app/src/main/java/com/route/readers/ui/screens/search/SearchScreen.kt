@@ -1,8 +1,10 @@
 package com.route.readers.ui.screens.search
 
+import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Context
+import android.content.pm.PackageManager
 import android.location.Location
-import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,17 +26,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import com.route.readers.R
 import com.route.readers.data.model.Book
 import com.route.readers.data.remote.FirestoreRepository
-import com.route.readers.data.remote.LibrarySearchResult
 import com.route.readers.data.remote.MyLibraryRepository
 import com.route.readers.ui.theme.*
 import kotlinx.coroutines.launch
@@ -43,7 +51,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SearchScreen(
     viewModel: BookViewModel = viewModel(),
-    libraryViewModel: LibraryViewModel = viewModel(), // LibraryViewModel 추가
+    libraryViewModel: LibraryViewModel = viewModel(),
     myLibraryRepository: MyLibraryRepository = MyLibraryRepository(),
     firestoreRepository: FirestoreRepository = FirestoreRepository()
 ) {
@@ -68,7 +76,6 @@ fun SearchScreen(
                 selected = selectedTab == 1,
                 onClick = {
                     selectedTab = 1
-                    // 탭 전환 시 검색 결과 및 상태 초기화
                     viewModel.clearSearchResults()
                     libraryViewModel.resetState()
                 },
@@ -78,8 +85,7 @@ fun SearchScreen(
 
         when (selectedTab) {
             0 -> BookSearchTab(viewModel, myLibraryRepository, firestoreRepository)
-            // LibrarySearchTab에 필요한 ViewModel들을 전달
-            1 -> LibrarySearchTab(viewModel, libraryViewModel)
+            1 -> LibrarySearchTab(bookViewModel = viewModel, libraryViewModel = libraryViewModel)
         }
     }
 }
@@ -344,9 +350,7 @@ fun BookSearchResultCard(
                     }
 
                     OutlinedButton(
-                        onClick = {
-                            // TODO: "읽기 시작" 버튼 클릭 시 동작 구현
-                        },
+                        onClick = { },
                         modifier = Modifier.height(32.dp),
                         shape = RoundedCornerShape(50),
                         colors = ButtonDefaults.outlinedButtonColors(
@@ -371,7 +375,8 @@ fun BookSearchResultCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalPermissionsApi::class)
+@SuppressLint("MissingPermission")
 @Composable
 fun LibrarySearchTab(
     bookViewModel: BookViewModel,
@@ -380,42 +385,63 @@ fun LibrarySearchTab(
     var searchText by remember { mutableStateOf("") }
     var selectedBook by remember { mutableStateOf<Book?>(null) }
     val books by bookViewModel.books.collectAsState()
-    val isLoading by bookViewModel.isLoading.collectAsState()
+    val isLoadingBooks by bookViewModel.isLoading.collectAsState()
     val libraryState by libraryViewModel.libraryState.collectAsState()
+    val context = LocalContext.current
+    // ▼▼▼ fusedLocationClient를 remember 안으로 이동 ▼▼▼
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
-    // 위치 권한 요청 및 처리를 위한 Manager
-    val locationManager = rememberLocationManager(
-        onLocationGranted = { location ->
-            // 위치 정보 획득 성공 시, ViewModel을 통해 도서관 검색 실행
-            selectedBook?.let {
-                libraryViewModel.searchNearbyLibraries(it.isbn, location.latitude, location.longitude)
-            }
-        },
-        onPermissionDenied = {
-            // 권한 거부 시 상태 초기화
-            selectedBook = null
-            libraryViewModel.resetState()
-        }
+    val permissionState = rememberMultiplePermissionsState(
+        permissions = listOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        )
     )
+
+    fun requestLocationSearch(book: Book? = null) {
+        libraryViewModel.startLoading()
+        val cancellationTokenSource = CancellationTokenSource()
+        fusedLocationClient.getCurrentLocation(
+            Priority.PRIORITY_HIGH_ACCURACY,
+            cancellationTokenSource.token
+        ).addOnSuccessListener { location: Location? ->
+            if (location != null) {
+                if (book != null) {
+                    libraryViewModel.searchNearbyLibrariesWithBook(
+                        isbn = book.isbn,
+                        latitude = location.latitude,
+                        longitude = location.longitude
+                    )
+                } else {
+                    libraryViewModel.searchNearbyLibraries(location.latitude, location.longitude)
+                }
+            } else {
+                libraryViewModel.notifyLocationError()
+            }
+        }.addOnFailureListener {
+            libraryViewModel.notifyLocationError()
+        }
+    }
+
+    LaunchedEffect(permissionState.allPermissionsGranted, libraryState) {
+        if (libraryState is LibraryUiState.Idle) {
+            if (permissionState.allPermissionsGranted) {
+                requestLocationSearch()
+            } else {
+                libraryViewModel.notifyPermissionError()
+            }
+        }
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 1. 책 검색 UI
         item {
             Column {
-                Text(
-                    "찾고 있는 책을 검색하여",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    "주변 도서관의 소장 정보를 확인해보세요.",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Text("찾고 있는 책을 검색하여", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text("주변 도서관의 소장 정보를 확인해보세요.", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = searchText,
@@ -425,20 +451,28 @@ fun LibrarySearchTab(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { bookViewModel.searchBooks(searchText) })
+                    keyboardActions = KeyboardActions(onSearch = {
+                        selectedBook = null
+                        libraryViewModel.resetState()
+                        bookViewModel.searchBooks(searchText)
+                    })
                 )
             }
         }
 
-        // 2. 책 검색 결과 또는 도서관 검색 결과 표시
         when (val state = libraryState) {
             is LibraryUiState.Loading -> {
                 item {
-                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 32.dp), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             CircularProgressIndicator()
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("주변 도서관을 검색 중입니다...", color = TextGray)
+                            Text(
+                                if (selectedBook != null) "책 소장 정보를 검색 중입니다..." else "주변 도서관을 검색 중입니다...",
+                                color = TextGray
+                            )
                         }
                     }
                 }
@@ -446,47 +480,75 @@ fun LibrarySearchTab(
             is LibraryUiState.Success -> {
                 item {
                     Column {
+                        Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            "\"${selectedBook?.title}\" 소장 도서관",
+                            text = if (selectedBook != null) "\"${selectedBook?.title}\" 소장 도서관" else "내 주변 도서관",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = DarkRed
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        if (state.libraries.isEmpty()) {
-                            Text("주변에 해당 책을 소장한 도서관이 없습니다.")
-                        }
                     }
                 }
-                items(state.libraries) { result ->
-                    LibraryResultCard(
-                        libraryName = result.libraryInfo.libName,
-                        address = result.libraryInfo.address,
-                        distance = result.distance,
-                        isLoanAvailable = result.isLoanAvailable
-                    )
+                if (state.libraries.isEmpty()) {
+                    item {
+                        Text(
+                            if (selectedBook != null) "주변에 해당 책을 소장한 도서관이 없습니다." else "주변에 검색된 도서관이 없습니다."
+                        )
+                    }
+                } else {
+                    items(state.libraries, key = { it.libraryInfo.libCode }) { result ->
+                        LibraryResultCard(
+                            libraryName = result.libraryInfo.libName,
+                            address = result.libraryInfo.address,
+                            distance = result.distance,
+                            isLoanAvailable = result.isLoanAvailable,
+                            showLoanStatus = selectedBook != null
+                        )
+                    }
                 }
             }
             is LibraryUiState.Error -> {
                 item {
-                    Text(state.message, color = MaterialTheme.colorScheme.error)
-                }
-            }
-            is LibraryUiState.Idle -> {
-                // 책 검색 로딩
-                if (isLoading) {
-                    item {
-                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(state.message, color = MaterialTheme.colorScheme.error)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(onClick = {
+                            if (!permissionState.allPermissionsGranted) {
+                                permissionState.launchMultiplePermissionRequest()
+                            } else {
+                                requestLocationSearch(selectedBook)
+                            }
+                        }) {
+                            Text("다시 시도")
                         }
                     }
                 }
-                // 책 검색 결과
-                items(books) { book ->
-                    SimpleBookCard(book = book) {
-                        // 책 선택 시, 위치 권한 요청 시작
-                        selectedBook = book
-                        locationManager()
+            }
+            is LibraryUiState.Idle -> {
+                if (isLoadingBooks) {
+                    item {
+                        Box(modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 32.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                } else if (books.isNotEmpty()) {
+                    items(books, key = { it.isbn }) { book ->
+                        SimpleBookCard(book = book) {
+                            selectedBook = book
+                            if (permissionState.allPermissionsGranted) {
+                                requestLocationSearch(book)
+                            } else {
+                                permissionState.launchMultiplePermissionRequest()
+                            }
+                        }
                     }
                 }
             }
@@ -494,7 +556,6 @@ fun LibrarySearchTab(
     }
 }
 
-// LibrarySearchTab에서 사용할 간단한 책 카드
 @Composable
 fun SimpleBookCard(book: Book, onClick: () -> Unit) {
     Card(
@@ -523,13 +584,13 @@ fun SimpleBookCard(book: Book, onClick: () -> Unit) {
     }
 }
 
-// 도서관 검색 결과를 보여주는 카드
 @Composable
 fun LibraryResultCard(
     libraryName: String,
     address: String,
     distance: Float,
-    isLoanAvailable: Boolean
+    isLoanAvailable: Boolean,
+    showLoanStatus: Boolean
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -546,13 +607,16 @@ fun LibraryResultCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
+                if (showLoanStatus) {
+                    Text(
+                        text = if (isLoanAvailable) "✓ 대출 가능" else "✗ 대출 중 또는 불가",
+                        color = if (isLoanAvailable) Color(0xFF4CAF50) else DarkRed,
+                        fontWeight = FontWeight.Bold
+                    )
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
                 Text(
-                    text = if (isLoanAvailable) "✓ 대출 가능" else "✗ 대출 중 또는 불가",
-                    color = if (isLoanAvailable) Color(0xFF4CAF50) else DarkRed, // 좀 더 명확한 초록색으로 변경
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    // 미터를 킬로미터로 변환하여 소수점 첫째 자리까지 표시
                     text = "${String.format("%.1f", distance / 1000)}km",
                     fontWeight = FontWeight.Bold,
                     color = DarkRed
@@ -562,57 +626,3 @@ fun LibraryResultCard(
     }
 }
 
-// 이전에 별도 파일로 만들었던 LocationUtils 내용을 여기에 포함시킵니다.
-// 만약 별도 파일로 유지하고 싶다면 이 부분은 삭제하고 import 하시면 됩니다.
-@SuppressLint("MissingPermission")
-@Composable
-fun rememberLocationManager(
-    onLocationGranted: (Location) -> Unit,
-    onPermissionDenied: () -> Unit
-): () -> Unit {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val fusedLocationClient = remember { com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(context) }
-    var hasPermission by remember { mutableStateOf(false) }
-
-    val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-        contract = androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions(),
-        onResult = { permissions ->
-            if (permissions[android.Manifest.permission.ACCESS_FINE_LOCATION] == true || permissions[android.Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
-                hasPermission = true
-            } else {
-                android.widget.Toast.makeText(context, "위치 권한이 거부되었습니다. 도서관 검색 기능을 사용할 수 없습니다.", android.widget.Toast.LENGTH_SHORT).show()
-                onPermissionDenied()
-            }
-        }
-    )
-
-    LaunchedEffect(hasPermission) {
-        if (hasPermission) {
-            val cancellationTokenSource = com.google.android.gms.tasks.CancellationTokenSource()
-            fusedLocationClient.getCurrentLocation(
-                com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY,
-                cancellationTokenSource.token
-            ).addOnSuccessListener { location: Location? ->
-                if (location != null) {
-                    onLocationGranted(location)
-                } else {
-                    android.widget.Toast.makeText(context, "위치 정보를 가져오는 데 실패했습니다.", android.widget.Toast.LENGTH_SHORT).show()
-                    onPermissionDenied()
-                }
-            }.addOnFailureListener {
-                android.widget.Toast.makeText(context, "위치 서비스 오류가 발생했습니다.", android.widget.Toast.LENGTH_SHORT).show()
-                onPermissionDenied()
-            }
-        }
-    }
-
-    return {
-        // 권한 요청 시작
-        permissionLauncher.launch(
-            arrayOf(
-                android.Manifest.permission.ACCESS_FINE_LOCATION,
-                android.Manifest.permission.ACCESS_COARSE_LOCATION
-            )
-        )
-    }
-}
