@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.*
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -190,6 +191,10 @@ fun ActualFeedContent(
                     if (item is FeedItem.BookReview) {
                         onNavigateToOtherUserProfile(item.authorId)
                     }
+                    if (item is FeedItem.FollowNotification) {
+                        onNavigateToOtherUserProfile(item.followerId)
+
+                    }
                 },
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
@@ -206,6 +211,7 @@ fun FeedCard(
     onSaveClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onUserClick: () -> Unit,
+    onFollowBack: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
@@ -274,7 +280,27 @@ fun FeedCard(
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(text = item.review, fontSize = 14.sp)
                 }
-            }
+                is FeedItem.FollowNotification -> {
+                    Text(
+                        text = "👥 ${item.userName}님이 팔로우했습니다!",
+                        fontWeight = FontWeight.Medium,
+                        color = DarkRed,
+                        fontSize = 16.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = { onFollowBack(item.followerId) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (item.isFollowedBack) DarkRed else Color.Gray
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = if (item.isFollowedBack) "맞팔 완료" else "맞팔하기",
+                            color = White
+                        )
+                    }
+                }            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -297,7 +323,11 @@ fun FeedCard(
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                if (item is FeedItem.BookReview && item.authorId == currentUserId) {
+                val canDelete = when (item) {
+                    is FeedItem.BookReview -> item.authorId == currentUserId
+                    is FeedItem.FollowNotification -> item.receiverId == currentUserId
+                }
+                if (canDelete) {
                     IconButton(onClick = onDeleteClick) {
                         Icon(
                             imageVector = Icons.Default.Delete,
@@ -332,7 +362,17 @@ sealed class FeedItem(
         override val likeCount: Int = 0,
         override val commentCount: Int = 0
     ) : FeedItem(id, userName, timestamp, likeCount, commentCount, "BOOK_REVIEW")
-}
+    data class FollowNotification(
+        override val id: String = "",
+        val authorId: String = "",
+        override val userName: String = "",
+        val followerId: String = "",
+        val receiverId: String = "",
+        val isFollowedBack: Boolean = false,
+        override val timestamp: Timestamp = Timestamp.now(),
+        override val likeCount: Int = 0,
+        override val commentCount: Int = 0
+    ) : FeedItem(id, userName, timestamp, likeCount, commentCount, "FOLLOW_NOTIFICATION")}
 
 fun formatTimestamp(timestamp: Timestamp): String {
     val diff = (System.currentTimeMillis() - timestamp.toDate().time) / 1000
@@ -348,6 +388,7 @@ fun DocumentSnapshot.toFeedItem(): FeedItem? {
     val type = getString("type") ?: return null
     return when (type) {
         "BOOK_REVIEW" -> this.toObject(FeedItem.BookReview::class.java)
+        "FOLLOW_NOTIFICATION" -> this.toObject(FeedItem.FollowNotification::class.java)
         else -> null
     }
 }
