@@ -67,6 +67,7 @@ import java.util.Locale
 fun FeedScreen(
     onNavigateToAddFeed: () -> Unit,
     onNavigateToOtherUserProfile: (String) -> Unit,
+    onFollowBack: (String) -> Unit,
     feedViewModel: FeedViewModel = viewModel()
 ) {
     val uiState by feedViewModel.uiState.collectAsState()
@@ -114,7 +115,12 @@ fun FeedScreen(
                                 onDeleteFeed = { feedId ->
                                     feedViewModel.deleteFeed(feedId)
                                 },
-                                onNavigateToOtherUserProfile = onNavigateToOtherUserProfile
+                                onNavigateToOtherUserProfile = onNavigateToOtherUserProfile,
+
+
+                                onFollowBack = { followerId ->
+                                    feedViewModel.followBack(followerId)
+                                }
                             )
                         }
                     }
@@ -132,7 +138,8 @@ fun ActualFeedContent(
     onLikeClick: (String, Boolean) -> Unit,
     onSaveClick: (String, Boolean) -> Unit,
     onDeleteFeed: (String) -> Unit,
-    onNavigateToOtherUserProfile: (String) -> Unit
+    onNavigateToOtherUserProfile: (String) -> Unit,
+    onFollowBack: (String) -> Unit,
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var feedToDelete by remember { mutableStateOf<String?>(null) }
@@ -196,6 +203,7 @@ fun ActualFeedContent(
 
                     }
                 },
+                onFollowBack = onFollowBack,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
         }

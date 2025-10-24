@@ -148,6 +148,9 @@ fun MainScreen(
                     onNavigateToAddFeed = onNavigateToAddFeed,
                     onNavigateToOtherUserProfile = { userId ->
                         bottomNavController.navigate("profile_route/$userId")
+                    },
+                    onFollowBack = { followerId ->
+                        // 맞팔 기능은 FeedViewModel에서 처리됨
                     }
                 )
             }
