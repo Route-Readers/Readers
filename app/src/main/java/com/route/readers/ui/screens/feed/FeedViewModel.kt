@@ -19,7 +19,8 @@ sealed class FeedUiState {
     data class Success(
         val items: List<FeedItem>,
         val likedFeedIds: Set<String>,
-        val savedFeedIds: Set<String>
+        val savedFeedIds: Set<String>,
+        val followerInfoMap: Map<String, User> = emptyMap()
     ) : FeedUiState()
     data class Error(val message: String) : FeedUiState()
 }
@@ -65,7 +66,7 @@ class FeedViewModel : ViewModel() {
                 val feedAuthors = (followingList + currentUserId).distinct()
 
                 if (feedAuthors.isEmpty()) {
-                    _uiState.value = FeedUiState.Success(emptyList(), emptySet(), emptySet())
+                    _uiState.value = FeedUiState.Success(emptyList(), emptySet(), emptySet(), emptyMap())
                     if (isRefresh) _isRefreshing.value = false
                     return@launch
                 }
@@ -73,18 +74,50 @@ class FeedViewModel : ViewModel() {
                 val savedFeedIdsFromUser = user?.savedFeeds?.toSet() ?: emptySet()
 
                 val querySnapshot = db.collection("feeds")
-                    .whereIn("authorId", feedAuthors.take(30))
                     .orderBy("timestamp", Query.Direction.DESCENDING)
-                    .limit(20)
+                    .limit(50)
                     .get()
                     .await()
 
                 val feeds = querySnapshot.mapNotNull { doc ->
                     when (doc.getString("type")) {
-                        "BOOK_REVIEW" -> doc.toObject(FeedItem.BookReview::class.java)
+                        "BOOK_REVIEW" -> {
+                            val feed = doc.toObject(FeedItem.BookReview::class.java).copy(id = doc.id)
+                            if (feed.authorId in feedAuthors && feed.authorId !in blockedUserList) feed else null
+                        }
+                        "FOLLOW_NOTIFICATION" -> {
+                            val feed = doc.toObject(FeedItem.FollowNotification::class.java).copy(id = doc.id)
+                            Log.d("FeedViewModel", "Found follow notification: ${feed.followerId} -> ${feed.receiverId}, currentUser: $currentUserId")
+                            if (feed.receiverId == currentUserId && feed.followerId !in blockedUserList) {
+                                Log.d("FeedViewModel", "Including follow notification in feed")
+                                feed
+                            } else {
+                                Log.d("FeedViewModel", "Excluding follow notification from feed")
+                                null
+                            }
+                        }
                         else -> null
                     }
-                }.filterNot { it.authorId in blockedUserList }
+                }.filterNotNull()
+
+                // 팔로우 알림에서 팔로워 정보 가져오기
+                val followNotifications = feeds.filterIsInstance<FeedItem.FollowNotification>()
+                val followerIds = followNotifications.map { it.followerId }.distinct()
+                
+                val followerInfoMap = if (followerIds.isNotEmpty()) {
+                    val followerDocs = db.collection("users")
+                        .whereIn("uid", followerIds)
+                        .get()
+                        .await()
+                    followerDocs.associate { doc ->
+                        val user = doc.toObject(User::class.java)
+                        user.uid to user
+                    }
+                } else {
+                    emptyMap()
+                }
+
+                Log.d("FeedViewModel", "Total feeds loaded: ${feeds.size}, Follow notifications: ${followNotifications.size}, Follower info loaded: ${followerInfoMap.size}")
 
                 val likedFeedIds = feeds
                     .filterIsInstance<FeedItem.BookReview>()
@@ -92,7 +125,7 @@ class FeedViewModel : ViewModel() {
                     .map { it.id }
                     .toSet()
 
-                _uiState.value = FeedUiState.Success(feeds, likedFeedIds, savedFeedIdsFromUser)
+                _uiState.value = FeedUiState.Success(feeds, likedFeedIds, savedFeedIdsFromUser, followerInfoMap)
 
             } catch (e: Exception) {
                 Log.e("FeedViewModel", "Error loading feeds", e)
@@ -185,6 +218,23 @@ class FeedViewModel : ViewModel() {
                 db.collection("feeds").document(feedId).delete().await()
             } catch (e: Exception) {
                 Log.e("FeedViewModel", "Error deleting feed $feedId", e)
+            }
+        }
+    }
+
+    fun followBack(followerId: String) {
+        val currentUserId = auth.currentUser?.uid ?: return
+        viewModelScope.launch {
+            try {
+                val currentUserRef = db.collection("users").document(currentUserId)
+                currentUserRef.update("following", FieldValue.arrayUnion(followerId)).await()
+                
+                val followerRef = db.collection("users").document(followerId)
+                followerRef.update("followers", FieldValue.arrayUnion(currentUserId)).await()
+                
+                loadFeeds(isRefresh = false)
+            } catch (e: Exception) {
+                Log.e("FeedViewModel", "Error following back user $followerId", e)
             }
         }
     }

@@ -184,6 +184,15 @@ class FollowListViewModel : ViewModel() {
                         transaction.update(currentUserRef, "followingCount", FieldValue.increment(1))
                         transaction.update(targetUserRef, "followers", FieldValue.arrayUnion(currentUserId))
                         transaction.update(targetUserRef, "followerCount", FieldValue.increment(1))
+                        // 팔로우 알림 생성
+                        val followNotificationRef = db.collection("feeds").document()
+                        transaction.set(followNotificationRef, mapOf (
+                            "type" to "FOLLOW_NOTIFICATION",
+                            "followerId" to currentUserId,
+                            "receiverId" to targetUserId,
+                            "isFollowedBack" to false,
+                            "timestamp" to FieldValue.serverTimestamp()
+                        ))
                     }
                     null
                 }.await()

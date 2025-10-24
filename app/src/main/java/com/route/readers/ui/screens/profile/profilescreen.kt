@@ -1,5 +1,6 @@
 package com.route.readers.ui.screens.profile
 
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -76,7 +77,10 @@ fun ProfileScreen(
                     ProfileContent(
                         state = state,
                         viewModel = viewModel,
-                        onFollowClick = { viewModel.followUser(state.user.uid) },
+                        onFollowClick = { 
+                            Log.d("ProfileScreen", "Follow button clicked for user: ${state.user.uid}")
+                            viewModel.followUser(state.user.uid) 
+                        },
                         onUnfollowClick = { viewModel.unfollowUser(state.user.uid) },
                         onFollowListClick = { listType ->
                             onNavigateToFollowList(listType, state.user.nickname)

@@ -270,18 +270,45 @@ open class ProfileViewModel : ViewModel() {
     }
 
     fun followUser(targetUserId: String) {
+        Log.d("ProfileViewModel", "followUser called with targetUserId: $targetUserId")
         if (currentUserId == null) return
         refreshUiStateForFollow(targetUserId, true)
         viewModelScope.launch {
             try {
+                Log.d("ProfileViewModel", "Starting follow process...")
                 val targetUserRef = db.collection("users").document(targetUserId)
                 val currentUserRef = db.collection("users").document(currentUserId)
+                
+                // 현재 사용자 정보 가져오기
+                val currentUserDoc = currentUserRef.get().await()
+                val currentUserName = currentUserDoc.getString("nickname") ?: "알 수 없음"
+                Log.d("ProfileViewModel", "Current user name: $currentUserName")
+                
                 db.runBatch { batch ->
                     batch.update(targetUserRef, "followers", FieldValue.arrayUnion(currentUserId))
                     batch.update(targetUserRef, "followerCount", FieldValue.increment(1))
                     batch.update(currentUserRef, "following", FieldValue.arrayUnion(targetUserId))
                     batch.update(currentUserRef, "followingCount", FieldValue.increment(1))
                 }.await()
+                Log.d("ProfileViewModel", "User follow batch completed")
+                
+                // 팔로우 알림 생성
+                val followNotification = hashMapOf(
+                    "type" to "FOLLOW_NOTIFICATION",
+                    "authorId" to currentUserId,
+                    "userName" to currentUserName,
+                    "followerId" to currentUserId,
+                    "receiverId" to targetUserId,
+                    "isFollowedBack" to false,
+                    "timestamp" to FieldValue.serverTimestamp(),
+                    "likeCount" to 0,
+                    "commentCount" to 0
+                )
+                
+                Log.d("ProfileViewModel", "Creating follow notification: $followNotification")
+                db.collection("feeds").add(followNotification).await()
+                Log.d("ProfileViewModel", "Follow notification created successfully")
+                
             } catch (e: Exception) {
                 refreshUiStateForFollow(targetUserId, false)
             }
