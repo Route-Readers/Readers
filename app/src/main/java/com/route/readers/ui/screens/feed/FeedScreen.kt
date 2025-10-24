@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.route.readers.data.model.User
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
@@ -120,7 +121,8 @@ fun FeedScreen(
 
                                 onFollowBack = { followerId ->
                                     feedViewModel.followBack(followerId)
-                                }
+                                },
+                                followerInfoMap = state.followerInfoMap
                             )
                         }
                     }
@@ -140,6 +142,7 @@ fun ActualFeedContent(
     onDeleteFeed: (String) -> Unit,
     onNavigateToOtherUserProfile: (String) -> Unit,
     onFollowBack: (String) -> Unit,
+    followerInfoMap: Map<String, User> = emptyMap(),
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var feedToDelete by remember { mutableStateOf<String?>(null) }
@@ -204,6 +207,7 @@ fun ActualFeedContent(
                     }
                 },
                 onFollowBack = onFollowBack,
+                followerInfoMap = followerInfoMap,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
         }
@@ -220,6 +224,7 @@ fun FeedCard(
     onDeleteClick: () -> Unit,
     onUserClick: () -> Unit,
     onFollowBack: (String) -> Unit = {},
+    followerInfoMap: Map<String, User> = emptyMap(),
     modifier: Modifier = Modifier
 ) {
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
@@ -289,8 +294,9 @@ fun FeedCard(
                     Text(text = item.review, fontSize = 14.sp)
                 }
                 is FeedItem.FollowNotification -> {
+                    val followerName = followerInfoMap[item.followerId]?.nickname ?: "알 수 없는 사용자"
                     Text(
-                        text = "👥 ${item.userName}님이 팔로우했습니다!",
+                        text = "👥 ${followerName}님이 팔로우했습니다!",
                         fontWeight = FontWeight.Medium,
                         color = DarkRed,
                         fontSize = 16.sp

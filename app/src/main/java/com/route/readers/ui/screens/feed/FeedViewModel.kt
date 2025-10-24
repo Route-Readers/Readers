@@ -19,7 +19,8 @@ sealed class FeedUiState {
     data class Success(
         val items: List<FeedItem>,
         val likedFeedIds: Set<String>,
-        val savedFeedIds: Set<String>
+        val savedFeedIds: Set<String>,
+        val followerInfoMap: Map<String, User> = emptyMap()
     ) : FeedUiState()
     data class Error(val message: String) : FeedUiState()
 }
@@ -65,7 +66,7 @@ class FeedViewModel : ViewModel() {
                 val feedAuthors = (followingList + currentUserId).distinct()
 
                 if (feedAuthors.isEmpty()) {
-                    _uiState.value = FeedUiState.Success(emptyList(), emptySet(), emptySet())
+                    _uiState.value = FeedUiState.Success(emptyList(), emptySet(), emptySet(), emptyMap())
                     if (isRefresh) _isRefreshing.value = false
                     return@launch
                 }
@@ -99,7 +100,24 @@ class FeedViewModel : ViewModel() {
                     }
                 }.filterNotNull()
 
-                Log.d("FeedViewModel", "Total feeds loaded: ${feeds.size}, Follow notifications: ${feeds.filterIsInstance<FeedItem.FollowNotification>().size}")
+                // 팔로우 알림에서 팔로워 정보 가져오기
+                val followNotifications = feeds.filterIsInstance<FeedItem.FollowNotification>()
+                val followerIds = followNotifications.map { it.followerId }.distinct()
+                
+                val followerInfoMap = if (followerIds.isNotEmpty()) {
+                    val followerDocs = db.collection("users")
+                        .whereIn("uid", followerIds)
+                        .get()
+                        .await()
+                    followerDocs.associate { doc ->
+                        val user = doc.toObject(User::class.java)
+                        user.uid to user
+                    }
+                } else {
+                    emptyMap()
+                }
+
+                Log.d("FeedViewModel", "Total feeds loaded: ${feeds.size}, Follow notifications: ${followNotifications.size}, Follower info loaded: ${followerInfoMap.size}")
 
                 val likedFeedIds = feeds
                     .filterIsInstance<FeedItem.BookReview>()
@@ -107,7 +125,7 @@ class FeedViewModel : ViewModel() {
                     .map { it.id }
                     .toSet()
 
-                _uiState.value = FeedUiState.Success(feeds, likedFeedIds, savedFeedIdsFromUser)
+                _uiState.value = FeedUiState.Success(feeds, likedFeedIds, savedFeedIdsFromUser, followerInfoMap)
 
             } catch (e: Exception) {
                 Log.e("FeedViewModel", "Error loading feeds", e)
