@@ -41,7 +41,7 @@ import java.net.URLEncoder
 @Composable
 fun MainScreen(
     navController: NavHostController,
-    onNavigateToOtherUserProfile: (String) -> Unit, // 이 파라미터는 AppNavigation과의 계약을 위해 유지합니다.
+    onNavigateToOtherUserProfile: (String) -> Unit,
     onNavigateToAddFeed: () -> Unit
 ) {
     val bottomNavController = rememberNavController()
@@ -160,7 +160,16 @@ fun MainScreen(
                         selectedBook = book
                     },
                     showProgressDialog = showProgressDialog,
-                    onProgressDialogDismiss = { showProgressDialog = false }
+                    onProgressDialogDismiss = { showProgressDialog = false },
+                    onNavigateToSearch = {
+                        bottomNavController.navigate(BottomNavItem.Search.route) {
+                            popUpTo(bottomNavController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
                 )
             }
             composable(BottomNavItem.Search.route) {

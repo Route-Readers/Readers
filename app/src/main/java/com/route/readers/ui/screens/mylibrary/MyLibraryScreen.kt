@@ -5,11 +5,15 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,7 +30,6 @@ import coil.compose.AsyncImage
 import com.route.readers.R
 import com.route.readers.data.model.MyBook
 import com.route.readers.data.remote.MyLibraryRepository
-import com.route.readers.data.remote.FirestoreRepository
 import com.route.readers.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -34,7 +37,8 @@ import kotlinx.coroutines.launch
 fun MyLibraryScreen(
     onBookSelected: (MyBook?) -> Unit = {},
     showProgressDialog: Boolean = false,
-    onProgressDialogDismiss: () -> Unit = {}
+    onProgressDialogDismiss: () -> Unit = {},
+    onNavigateToSearch: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val myLibraryRepository = remember { MyLibraryRepository() }
@@ -45,7 +49,6 @@ fun MyLibraryScreen(
     var selectedBook by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
-    // 책 목록 새로고침 함수
     fun refreshBooks() {
         scope.launch {
             isLoading = true
@@ -61,12 +64,10 @@ fun MyLibraryScreen(
         }
     }
 
-    // 화면 진입 시 책 목록 로드
     LaunchedEffect(Unit) {
         refreshBooks()
     }
 
-    // 실시간 새로고침 (2초마다)
     LaunchedEffect(Unit) {
         while (true) {
             kotlinx.coroutines.delay(2000)
@@ -86,7 +87,6 @@ fun MyLibraryScreen(
         }
     }
 
-    // 외부에서 다이얼로그 표시 요청이 있을 때 처리
     LaunchedEffect(showProgressDialog) {
         if (showProgressDialog) {
             val book = books.find { it.isbn == selectedBook }
@@ -103,7 +103,6 @@ fun MyLibraryScreen(
             .background(Color(0xFFF5F5F5))
             .padding(16.dp)
     ) {
-        // 헤더
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -157,10 +156,23 @@ fun MyLibraryScreen(
                         color = TextGray,
                         fontSize = 16.sp
                     )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Button(
+                        onClick = { onNavigateToSearch() },
+                        colors = ButtonDefaults.buttonColors(containerColor = DarkRed),
+                        shape = CircleShape,
+                        modifier = Modifier.size(56.dp),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "책 추가하기",
+                            tint = White
+                        )
+                    }
                 }
             }
         } else {
-            // 통계 정보
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -183,7 +195,7 @@ fun MyLibraryScreen(
                         )
                         Text("총 책 수", fontSize = 12.sp, color = TextGray)
                     }
-                    
+
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         val readingBooks = books.count { it.currentPage > 0 && !it.isCompleted }
                         Text(
@@ -194,7 +206,7 @@ fun MyLibraryScreen(
                         )
                         Text("읽는 중", fontSize = 12.sp, color = TextGray)
                     }
-                    
+
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         val completedBooks = books.count { it.isCompleted }
                         Text(
@@ -215,7 +227,7 @@ fun MyLibraryScreen(
                     MyBookCard(
                         book = book,
                         isSelected = selectedBook == book.isbn,
-                        onProgressClick = { 
+                        onProgressClick = {
                             if (selectedBook == book.isbn) {
                                 selectedBook = null
                                 onBookSelected(null)
@@ -231,7 +243,6 @@ fun MyLibraryScreen(
         }
     }
 
-    // 진도 업데이트 다이얼로그
     showProgressDialogBook?.let { book ->
         ProgressUpdateDialog(
             book = book,
@@ -253,7 +264,6 @@ fun MyLibraryScreen(
         )
     }
 
-    // 삭제 확인 다이얼로그
     showDeleteDialog?.let { book ->
         DeleteConfirmDialog(
             bookTitle = book.title,
@@ -289,8 +299,8 @@ fun MyBookCard(
             .clickable { onProgressClick() }
             .then(
                 if (isSelected) Modifier.border(
-                    3.dp, 
-                    DarkRed, 
+                    3.dp,
+                    DarkRed,
                     RoundedCornerShape(12.dp)
                 ) else Modifier
             ),
@@ -336,7 +346,7 @@ fun MyBookCard(
                     color = TextGray
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                
+
                 Text(
                     text = if (book.isCompleted) "완독!" else "${book.progressPercentage}%",
                     fontSize = 32.sp,
@@ -347,7 +357,7 @@ fun MyBookCard(
                         else -> ReadingGreen
                     }
                 )
-                
+
                 LinearProgressIndicator(
                     progress = if (book.isCompleted) 1f else book.progressPercentage / 100f,
                     modifier = Modifier
@@ -356,7 +366,7 @@ fun MyBookCard(
                     color = if (book.isCompleted) DarkRed else ReadingGreen,
                     trackColor = Color.LightGray
                 )
-                
+
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "${book.currentPage} / ${book.totalPages} 페이지",
@@ -429,7 +439,7 @@ fun ProgressUpdateDialog(
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = currentPageText,
-                    onValueChange = { 
+                    onValueChange = {
                         currentPageText = it
                         isError = false
                     },
