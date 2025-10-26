@@ -1,11 +1,14 @@
 package com.route.readers.ui.navigation
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -25,8 +28,10 @@ import com.route.readers.ui.screens.login.OnboardingScreen
 import com.route.readers.ui.screens.login.SignUpScreen
 import com.route.readers.ui.screens.profile.FollowListScreen
 import com.route.readers.ui.screens.profile.FollowListViewModel
+import com.route.readers.ui.screens.profile.ProfileCustomizationScreen
 import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.profile.ProfileSetupScreen
+import com.route.readers.ui.screens.profile.ProfileUiState
 import com.route.readers.ui.screens.profile.ProfileViewModel
 import java.net.URLDecoder
 import java.net.URLEncoder
@@ -183,6 +188,19 @@ fun AppNavigation(navController: NavHostController) {
                     },
                     onNavigateToSearch = {
                         navController.navigate("search_route")
+                    },
+                    onNavigateToCustomization = {
+                        Log.d("AppNavigation", "onNavigateToCustomization called - about to navigate")
+                        Log.d("AppNavigation", "NavController: $navController")
+                        Log.d("AppNavigation", "Current destination: ${navController.currentDestination?.route}")
+                        try {
+                            navController.navigate("profile_customization_route") {
+                                launchSingleTop = true
+                            }
+                            Log.d("AppNavigation", "Navigation to profile_customization_route completed")
+                        } catch (e: Exception) {
+                            Log.e("AppNavigation", "Navigation failed", e)
+                        }
                     }
                 )
             }
@@ -215,6 +233,33 @@ fun AppNavigation(navController: NavHostController) {
                     },
                     onNavigateBack = { navController.popBackStack() },
                     viewModel = followListViewModel
+                )
+            }
+        }
+
+        composable("profile_customization_route") {
+            val profileViewModel: ProfileViewModel = viewModel()
+            val uiState by profileViewModel.uiState.collectAsState()
+            
+            // Load current user data when entering customization screen
+            LaunchedEffect(Unit) {
+                val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+                if (currentUserId != null) {
+                    profileViewModel.fetchUserProfile(currentUserId)
+                }
+            }
+            
+            val currentState = uiState
+            if (currentState is ProfileUiState.Success && currentState.isMyProfile) {
+                ProfileCustomizationScreen(
+                    currentCharacter = currentState.user.profileCharacter,
+                    currentBackgroundColor = currentState.user.profileBackgroundColor,
+                    nickname = currentState.user.nickname,
+                    onSave = { character, backgroundColor ->
+                        profileViewModel.updateProfileCharacter(character, backgroundColor)
+                        navController.popBackStack()
+                    },
+                    onBack = { navController.popBackStack() }
                 )
             }
         }
