@@ -142,9 +142,9 @@ class NotificationRepository(private val context: Context? = null) {
             try {
                 // 현재 사용자 정보 가져오기
                 val userDoc = firestore.collection("users").document(userId).get().await()
-                val userName = userDoc.getString("name") 
+                val userName = userDoc.getString("nickname") 
+                    ?: userDoc.getString("name") 
                     ?: userDoc.getString("displayName") 
-                    ?: userDoc.getString("nickname")
                     ?: "독서친구"
                 
                 android.util.Log.d("NotificationRepository", "User name retrieved: $userName from user: $userId")
