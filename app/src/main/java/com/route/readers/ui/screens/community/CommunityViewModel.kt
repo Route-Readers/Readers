@@ -1,9 +1,11 @@
 package com.route.readers.ui.screens.community
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.route.readers.data.remote.AddFriendResult
 import com.route.readers.data.remote.FriendsRepository
+import com.route.readers.data.remote.NotificationRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,14 +24,16 @@ data class CommunityUiState(
     val challengeProgress: Float = 0.67f,
     val challengeParticipants: Int = 156,
     val addFriendMessage: String? = null,
-    val friendToDelete: Friend? = null
+    val friendToDelete: Friend? = null,
+    val isNotificationSending: Boolean = false
 ) {
     val displayedFriends: List<Friend> = friends.take(5)
     val hasMoreFriends: Boolean = friends.size > 5
 }
 
-class CommunityViewModel : ViewModel() {
+class CommunityViewModel(context: Context? = null) : ViewModel() {
     private val friendsRepository = FriendsRepository()
+    private val notificationRepository = NotificationRepository(context)
     
     private val _uiState = MutableStateFlow(CommunityUiState())
     val uiState: StateFlow<CommunityUiState> = _uiState.asStateFlow()
@@ -46,6 +50,24 @@ class CommunityViewModel : ViewModel() {
     private fun loadFriends() {
         viewModelScope.launch {
             friendsRepository.loadFriends()
+        }
+    }
+    
+    fun sendReadingNotification() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isNotificationSending = true)
+            try {
+                notificationRepository.sendReadingNotificationToFriends()
+                _uiState.value = _uiState.value.copy(
+                    addFriendMessage = "친구들에게 독서 알림을 보냈습니다! 📚",
+                    isNotificationSending = false
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    addFriendMessage = "알림 전송에 실패했습니다. 다시 시도해주세요.",
+                    isNotificationSending = false
+                )
+            }
         }
     }
     

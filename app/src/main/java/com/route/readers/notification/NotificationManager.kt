@@ -40,6 +40,31 @@ class ReadingNotificationManager(private val context: Context) {
         }
     }
     
+    fun showReadingInvitation(title: String, message: String) {
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            Random.nextInt(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.book_5_24)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setVibrate(longArrayOf(0, 500, 200, 500))
+            .build()
+        
+        notificationManager.notify(Random.nextInt(), notification)
+    }
+
     fun showReadingReminder() {
         val messages = listOf(
             "돌아와서 책을 함께 읽어봐요! 📚",

@@ -1,18 +1,21 @@
 package com.route.readers.data.remote
 
+import android.content.Context
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.route.readers.data.model.Notification
 import com.route.readers.data.model.NotificationType
+import com.route.readers.notification.ReadingNotificationManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.tasks.await
 
-class NotificationRepository {
+class NotificationRepository(private val context: Context? = null) {
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
+    private val notificationManager = context?.let { ReadingNotificationManager(it) }
     
     private val _notifications = MutableStateFlow<List<Notification>>(emptyList())
     val notifications: StateFlow<List<Notification>> = _notifications.asStateFlow()
@@ -134,6 +137,52 @@ class NotificationRepository {
         }
     }
     
+    suspend fun sendReadingNotificationToFriends() {
+        currentUserId?.let { userId ->
+            try {
+                // 현재 사용자 정보 가져오기
+                val userDoc = firestore.collection("users").document(userId).get().await()
+                val userName = userDoc.getString("nickname") 
+                    ?: userDoc.getString("name") 
+                    ?: userDoc.getString("displayName") 
+                    ?: "독서친구"
+                
+                android.util.Log.d("NotificationRepository", "User name retrieved: $userName from user: $userId")
+                
+                // 맞팔 친구들 가져오기 (following과 followers 모두에 있는 사용자)
+                val followingDoc = firestore.collection("following").document(userId).get().await()
+                val followersDoc = firestore.collection("followers").document(userId).get().await()
+                
+                val followingList = followingDoc.get("following") as? List<String> ?: emptyList()
+                val followersList = followersDoc.get("followers") as? List<String> ?: emptyList()
+                
+                // 맞팔 친구들 (서로 팔로우하는 사용자들)
+                val mutualFriends = followingList.intersect(followersList.toSet())
+                
+                val title = "함께 독서해요! 📚"
+                val message = "${userName}님이 지금 책을 읽고 있어요. 함께 독서하시겠어요?"
+                
+                // 각 맞팔 친구에게 알림 보내기
+                mutualFriends.forEach { friendId ->
+                    // Firestore에 알림 저장
+                    createNotification(
+                        userId = friendId,
+                        type = NotificationType.READING_INVITATION,
+                        title = title,
+                        message = message,
+                        data = mapOf("fromUserId" to userId, "fromUserName" to userName)
+                    )
+                }
+                
+                // 로컬 알림도 표시 (테스트용)
+                notificationManager?.showReadingInvitation(title, message)
+                
+            } catch (e: Exception) {
+                android.util.Log.e("NotificationRepository", "Error sending reading notifications", e)
+            }
+        }
+    }
+
     suspend fun createNotification(
         userId: String,
         type: NotificationType,

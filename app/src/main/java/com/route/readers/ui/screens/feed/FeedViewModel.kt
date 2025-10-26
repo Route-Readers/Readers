@@ -119,13 +119,23 @@ class FeedViewModel : ViewModel() {
 
                 Log.d("FeedViewModel", "Total feeds loaded: ${feeds.size}, Follow notifications: ${followNotifications.size}, Follower info loaded: ${followerInfoMap.size}")
 
-                val likedFeedIds = feeds
+                // FollowNotification의 userName을 실제 팔로워 이름으로 업데이트
+                val updatedFeeds = feeds.map { feed ->
+                    if (feed is FeedItem.FollowNotification) {
+                        val followerName = followerInfoMap[feed.followerId]?.nickname ?: "알 수 없는 사용자"
+                        feed.copy(userName = followerName)
+                    } else {
+                        feed
+                    }
+                }
+
+                val likedFeedIds = updatedFeeds
                     .filterIsInstance<FeedItem.BookReview>()
                     .filter { it.likedBy.contains(currentUserId) }
                     .map { it.id }
                     .toSet()
 
-                _uiState.value = FeedUiState.Success(feeds, likedFeedIds, savedFeedIdsFromUser, followerInfoMap)
+                _uiState.value = FeedUiState.Success(updatedFeeds, likedFeedIds, savedFeedIdsFromUser, followerInfoMap)
 
             } catch (e: Exception) {
                 Log.e("FeedViewModel", "Error loading feeds", e)
