@@ -45,8 +45,10 @@ class FeedViewModel : ViewModel() {
     }
 
     fun refreshUserProfiles() {
+        Log.d("FeedViewModel", "refreshUserProfiles called")
         val currentState = _uiState.value
         if (currentState is FeedUiState.Success) {
+            Log.d("FeedViewModel", "Current state is Success, items count: ${currentState.items.size}")
             viewModelScope.launch {
                 try {
                     val updatedFollowerInfoMap = mutableMapOf<String, User>()
@@ -55,13 +57,19 @@ class FeedViewModel : ViewModel() {
                     val userIds = mutableSetOf<String>()
                     currentState.items.forEach { item ->
                         when (item) {
-                            is FeedItem.BookReview -> userIds.add(item.authorId)
+                            is FeedItem.BookReview -> {
+                                userIds.add(item.authorId)
+                                Log.d("FeedViewModel", "Added BookReview authorId: ${item.authorId}")
+                            }
                             is FeedItem.FollowNotification -> {
                                 userIds.add(item.authorId)
                                 userIds.add(item.followerId)
+                                Log.d("FeedViewModel", "Added FollowNotification authorId: ${item.authorId}, followerId: ${item.followerId}")
                             }
                         }
                     }
+                    
+                    Log.d("FeedViewModel", "Total userIds to refresh: ${userIds.size}")
                     
                     // 각 사용자의 최신 정보 가져오기
                     for (userId in userIds) {
@@ -71,6 +79,7 @@ class FeedViewModel : ViewModel() {
                                 val user = userDoc.toObject(User::class.java)
                                 if (user != null) {
                                     updatedFollowerInfoMap[userId] = user
+                                    Log.d("FeedViewModel", "Updated user $userId: character=${user.profileCharacter}, bgColor=${user.profileBackgroundColor}")
                                 }
                             }
                         } catch (e: Exception) {
@@ -78,12 +87,15 @@ class FeedViewModel : ViewModel() {
                         }
                     }
                     
+                    Log.d("FeedViewModel", "Updating UI state with ${updatedFollowerInfoMap.size} users")
                     // UI 상태 업데이트
                     _uiState.value = currentState.copy(followerInfoMap = updatedFollowerInfoMap)
                 } catch (e: Exception) {
                     Log.e("FeedViewModel", "Error refreshing user profiles", e)
                 }
             }
+        } else {
+            Log.d("FeedViewModel", "Current state is not Success: ${currentState::class.simpleName}")
         }
     }
 
@@ -143,24 +155,44 @@ class FeedViewModel : ViewModel() {
                     }
                 }.filterNotNull()
 
-                // 팔로우 알림에서 팔로워 정보 가져오기
-                val followNotifications = feeds.filterIsInstance<FeedItem.FollowNotification>()
-                val followerIds = followNotifications.map { it.followerId }.distinct()
-                
-                val followerInfoMap = if (followerIds.isNotEmpty()) {
-                    val followerDocs = db.collection("users")
-                        .whereIn("uid", followerIds)
-                        .get()
-                        .await()
-                    followerDocs.associate { doc ->
-                        val user = doc.toObject(User::class.java)
-                        user.uid to user
+                // 모든 피드 작성자의 정보 가져오기
+                val allUserIds = mutableSetOf<String>()
+                feeds.forEach { feed ->
+                    when (feed) {
+                        is FeedItem.BookReview -> allUserIds.add(feed.authorId)
+                        is FeedItem.FollowNotification -> {
+                            allUserIds.add(feed.authorId)
+                            allUserIds.add(feed.followerId)
+                        }
                     }
+                }
+                
+                val followerInfoMap = if (allUserIds.isNotEmpty()) {
+                    val userInfoMap = mutableMapOf<String, User>()
+                    
+                    // 사용자 정보를 배치로 가져오기 (Firestore의 whereIn 제한으로 인해 10개씩 나누어 처리)
+                    allUserIds.chunked(10).forEach { userIdChunk ->
+                        try {
+                            val userDocs = db.collection("users")
+                                .whereIn("uid", userIdChunk)
+                                .get()
+                                .await()
+                            userDocs.forEach { doc ->
+                                val user = doc.toObject(User::class.java)
+                                userInfoMap[user.uid] = user
+                            }
+                        } catch (e: Exception) {
+                            Log.e("FeedViewModel", "Error loading user info for chunk: $userIdChunk", e)
+                        }
+                    }
+                    
+                    Log.d("FeedViewModel", "Loaded user info for ${userInfoMap.size} users out of ${allUserIds.size}")
+                    userInfoMap
                 } else {
                     emptyMap()
                 }
 
-                Log.d("FeedViewModel", "Total feeds loaded: ${feeds.size}, Follow notifications: ${followNotifications.size}, Follower info loaded: ${followerInfoMap.size}")
+                Log.d("FeedViewModel", "Total feeds loaded: ${feeds.size}, User info loaded: ${followerInfoMap.size} users")
 
                 // FollowNotification의 userName을 실제 팔로워 이름으로 업데이트
                 val updatedFeeds = feeds.map { feed ->

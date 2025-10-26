@@ -20,13 +20,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import coil.compose.AsyncImage
-import com.route.readers.R
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.route.readers.R
 import com.route.readers.data.model.User
+import com.route.readers.ui.components.UserProfileImage
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
@@ -82,11 +81,6 @@ fun FeedScreen(
     val uiState by feedViewModel.uiState.collectAsState()
     val isRefreshing by feedViewModel.isRefreshing.collectAsState()
     val pullToRefreshState = rememberPullToRefreshState()
-
-    // 화면이 보일 때마다 사용자 프로필 새로고침
-    androidx.compose.runtime.LaunchedEffect(Unit) {
-        feedViewModel.refreshUserProfiles()
-    }
 
     Scaffold(
         floatingActionButton = {
@@ -259,19 +253,33 @@ fun FeedCard(
                         .weight(1f, fill = false)
                         .clickable(onClick = onUserClick)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(DarkRed),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = item.userName.firstOrNull()?.toString() ?: "R",
-                            color = White,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold
+                    // 사용자 정보 가져오기
+                    val userInfo = when (item) {
+                        is FeedItem.BookReview -> followerInfoMap[item.authorId]
+                        is FeedItem.FollowNotification -> followerInfoMap[item.authorId]
+                    }
+                    if (userInfo != null) {
+                        UserProfileImage(
+                            user = userInfo,
+                            size = 40.dp,
+                            fontSize = 20.sp
                         )
+                    } else {
+                        // 사용자 정보가 없을 때 기본 이미지
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(DarkRed),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = item.userName.firstOrNull()?.toString() ?: "R",
+                                color = White,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Column {
