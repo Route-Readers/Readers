@@ -26,6 +26,7 @@ import com.route.readers.ui.screens.login.LoginScreen
 import com.route.readers.ui.screens.login.LoginViewModel
 import com.route.readers.ui.screens.login.OnboardingScreen
 import com.route.readers.ui.screens.login.SignUpScreen
+import com.route.readers.ui.screens.profile.AccountScreen
 import com.route.readers.ui.screens.profile.FollowListScreen
 import com.route.readers.ui.screens.profile.FollowListViewModel
 import com.route.readers.ui.screens.profile.ProfileCustomizationScreen
@@ -168,6 +169,18 @@ fun AppNavigation(navController: NavHostController) {
                 },
                 onNavigateToAddFeed = {
                     navController.navigate("add_feed_route")
+                },
+                onNavigateToMyAccount = {
+                    navController.navigate("account_route")
+                }
+            )
+        }
+
+        composable("account_route") {
+            AccountScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToPrivacy = {
+                    // TODO: Implement privacy screen navigation
                 }
             )
         }
@@ -240,15 +253,14 @@ fun AppNavigation(navController: NavHostController) {
         composable("profile_customization_route") {
             val profileViewModel: ProfileViewModel = viewModel()
             val uiState by profileViewModel.uiState.collectAsState()
-            
-            // Load current user data when entering customization screen
+
             LaunchedEffect(Unit) {
                 val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
                 if (currentUserId != null) {
                     profileViewModel.fetchUserProfile(currentUserId)
                 }
             }
-            
+
             val currentState = uiState
             if (currentState is ProfileUiState.Success && currentState.isMyProfile) {
                 ProfileCustomizationScreen(

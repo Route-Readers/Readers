@@ -39,6 +39,7 @@ import com.route.readers.ui.screens.login.LoginScreen
 import com.route.readers.ui.screens.login.LoginViewModel
 import com.route.readers.ui.screens.login.OnboardingScreen
 import com.route.readers.ui.screens.login.SignUpScreen
+import com.route.readers.ui.screens.profile.AccountScreen
 import com.route.readers.ui.screens.profile.FollowListScreen
 import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.profile.ProfileSetupScreen
@@ -51,7 +52,7 @@ import java.net.URLEncoder
 val LocalAppNavController = staticCompositionLocalOf<NavHostController?> { null }
 
 class MainActivity : ComponentActivity() {
-    
+
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -59,7 +60,7 @@ class MainActivity : ComponentActivity() {
             DailyNotificationScheduler.scheduleDailyNotification(this)
         }
     }
-    
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -228,6 +229,18 @@ fun RootAppNavigation() {
                 },
                 onNavigateToAddFeed = {
                     appNavController.navigate("add_feed_route")
+                },
+                onNavigateToMyAccount = {
+                    appNavController.navigate("account_route")
+                }
+            )
+        }
+
+        composable("account_route") {
+            AccountScreen(
+                onNavigateBack = { appNavController.popBackStack() },
+                onNavigateToPrivacy = {
+                    // TODO: 공개 범위 설정 화면으로 이동하는 로직 구현
                 }
             )
         }

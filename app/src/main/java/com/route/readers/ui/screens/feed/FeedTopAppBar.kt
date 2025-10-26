@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -29,7 +28,8 @@ import com.route.readers.ui.theme.DarkRed
 fun FeedTopAppBar(
     consecutiveDays: Int,
     onBlockListClick: () -> Unit,
-    onLogoutClick: () -> Unit
+    onLogoutClick: () -> Unit,
+    onMyAccountClick: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
@@ -66,6 +66,13 @@ fun FeedTopAppBar(
                     expanded = menuExpanded,
                     onDismissRequest = { menuExpanded = false }
                 ) {
+                    DropdownMenuItem(
+                        text = { Text("내 계정") },
+                        onClick = {
+                            menuExpanded = false
+                            onMyAccountClick()
+                        }
+                    )
                     DropdownMenuItem(
                         text = { Text("차단 목록") },
                         onClick = {
