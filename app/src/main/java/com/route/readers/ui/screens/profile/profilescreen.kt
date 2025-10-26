@@ -59,6 +59,8 @@ fun ProfileScreen(
 
 
         viewModel.fetchUserProfile(userId)
+        // 팔로우 관계 동기화
+        viewModel.syncFollowRelationship(userId)
     }
 
     val uiState by viewModel.uiState.collectAsState()
@@ -103,8 +105,14 @@ fun ProfileScreen(
                         onFollowClick = {
 
                             viewModel.followUser(state.user.uid)
+                            // 팔로우 후 동기화 실행
+                            viewModel.syncFollowRelationship(state.user.uid)
                         },
-                        onUnfollowClick = { viewModel.unfollowUser(state.user.uid) },
+                        onUnfollowClick = { 
+                            viewModel.unfollowUser(state.user.uid)
+                            // 언팔로우 후 동기화 실행
+                            viewModel.syncFollowRelationship(state.user.uid)
+                        },
                         onFollowListClick = { listType ->
                             onNavigateToFollowList(listType, state.user.nickname)
                         },
