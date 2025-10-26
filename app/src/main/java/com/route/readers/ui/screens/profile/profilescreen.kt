@@ -385,6 +385,7 @@ fun ProfileInfoSection(
     onUnfollowClick: () -> Unit,
     onFollowListClick: (String) -> Unit,
     onUpdateProfileImage: (android.net.Uri) -> Unit,
+    onNavigateToCustomization: () -> Unit,
 
     onBlockUser: () -> Unit,
     onUnblockUser: () -> Unit
