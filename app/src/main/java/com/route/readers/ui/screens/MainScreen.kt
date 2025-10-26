@@ -175,8 +175,7 @@ fun MainScreen(
                     },
                     onNavigateToNotifications = {
                         bottomNavController.navigate("notifications")
-                    },
-                    viewModel = communityViewModel
+                    }
                 )
             }
             composable("friends_list") {

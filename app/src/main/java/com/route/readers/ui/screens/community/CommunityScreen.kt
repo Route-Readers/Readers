@@ -24,12 +24,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.route.readers.data.model.BookClub
 import com.route.readers.data.model.ChatMessage
 import com.route.readers.ui.community.used_trade.UsedBookTradeScreen
@@ -39,9 +39,10 @@ import com.route.readers.ui.components.NotificationIconWithBadge
 @Composable
 fun CommunityScreen(
     onNavigateToFriendsList: () -> Unit = {},
-    onNavigateToNotifications: () -> Unit = {},
-    viewModel: CommunityViewModel = viewModel()
+    onNavigateToNotifications: () -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val viewModel: CommunityViewModel = remember { CommunityViewModel(context) }
     val uiState by viewModel.uiState.collectAsState()
     var showAddFriendDialog by remember { mutableStateOf(false) }
     var showCreateBookClubDialog by remember { mutableStateOf(false) }
@@ -127,7 +128,8 @@ fun CommunityScreen(
                     onShowAddFriendDialog = { showAddFriendDialog = true },
                     onRemoveFriend = { friend -> viewModel.showDeleteConfirmation(friend) },
                     onShowCreateBookClubDialog = { showCreateBookClubDialog = true },
-                    onJoinBookClub = { bookClub -> showChatScreen = bookClub }
+                    onJoinBookClub = { bookClub -> showChatScreen = bookClub },
+                    onSendNotification = { viewModel.sendReadingNotification() }
                 )
             }
             1 -> UsedBookTradeScreen()
@@ -203,7 +205,8 @@ fun CommunityContent(
     onShowAddFriendDialog: () -> Unit,
     onRemoveFriend: (Friend) -> Unit,
     onShowCreateBookClubDialog: () -> Unit,
-    onJoinBookClub: (BookClub) -> Unit
+    onJoinBookClub: (BookClub) -> Unit,
+    onSendNotification: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -488,14 +491,23 @@ fun CommunityContent(
                         )
                     }
                     Button(
-                        onClick = { /* 보내기 */ },
+                        onClick = { onSendNotification() },
+                        enabled = !uiState.isNotificationSending,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color.White,
                             contentColor = Color.Black
                         ),
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("보내기")
+                        if (uiState.isNotificationSending) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = Color.Black,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Text("보내기")
+                        }
                     }
                 }
             }
