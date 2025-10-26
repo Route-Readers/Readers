@@ -18,6 +18,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+import com.route.readers.R
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.route.readers.data.model.User
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -74,7 +82,8 @@ fun FeedScreen(
     val uiState by feedViewModel.uiState.collectAsState()
     val isRefreshing by feedViewModel.isRefreshing.collectAsState()
     val pullToRefreshState = rememberPullToRefreshState()
-    // 화면이 다시 보일 때마다 사용자 프로필 새로고침
+
+    // 화면이 보일 때마다 사용자 프로필 새로고침
     androidx.compose.runtime.LaunchedEffect(Unit) {
         feedViewModel.refreshUserProfiles()
     }
@@ -408,4 +417,61 @@ fun DocumentSnapshot.toFeedItem(): FeedItem? {
         "FOLLOW_NOTIFICATION" -> this.toObject(FeedItem.FollowNotification::class.java)
         else -> null
     }
-}
+@Composable
+fun ProfileImageInFeed(user: User?, userName: String) {
+    val backgroundColor = try {
+        user?.profileBackgroundColor?.let { Color(android.graphics.Color.parseColor(it)) } ?: DarkRed
+    } catch (e: Exception) {
+        DarkRed
+    }
+
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(backgroundColor),
+        contentAlignment = Alignment.Center
+    ) {
+        when {
+            !user?.profileImageUrl.isNullOrBlank() -> {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(user?.profileImageUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "프로필 이미지",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            user?.profileCharacter != null -> {
+                val drawableRes = when (user.profileCharacter) {
+                    "lion" -> R.drawable.lion
+                    "penguin" -> R.drawable.penguin
+                    "redpanda" -> R.drawable.redpanda
+                    "squirrel" -> R.drawable.squirrel
+                    else -> null
+                }
+                
+                drawableRes?.let {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(it)
+                            .build(),
+                        contentDescription = "캐릭터",
+                        modifier = Modifier.size(32.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+            }
+            else -> {
+                Text(
+                    text = userName.firstOrNull()?.toString() ?: "R",
+                    color = White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}}
