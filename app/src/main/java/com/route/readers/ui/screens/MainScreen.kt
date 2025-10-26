@@ -42,7 +42,8 @@ import java.net.URLEncoder
 fun MainScreen(
     navController: NavHostController,
     onNavigateToOtherUserProfile: (String) -> Unit,
-    onNavigateToAddFeed: () -> Unit
+    onNavigateToAddFeed: () -> Unit,
+    onNavigateToMyAccount: () -> Unit
 ) {
     val bottomNavController = rememberNavController()
     val communityViewModel: CommunityViewModel = viewModel()
@@ -99,7 +100,8 @@ fun MainScreen(
                     },
                     onLogoutClick = {
                         showLogoutDialog = true
-                    }
+                    },
+                    onMyAccountClick = onNavigateToMyAccount
                 )
             }
         },
@@ -150,7 +152,6 @@ fun MainScreen(
                         bottomNavController.navigate("profile_route/$userId")
                     },
                     onFollowBack = { followerId ->
-                        // 맞팔 기능은 FeedViewModel에서 처리됨
                     }
                 )
             }
