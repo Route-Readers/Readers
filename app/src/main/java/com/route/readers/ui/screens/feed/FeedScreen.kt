@@ -1,5 +1,10 @@
 package com.route.readers.ui.screens.feed
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,17 +23,20 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import com.route.readers.data.model.User
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
-import androidx.compose.material3.*
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -50,13 +58,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentSnapshot
+import com.route.readers.data.model.Book
+import com.route.readers.data.model.User
 import com.route.readers.ui.theme.DarkRed
 import com.route.readers.ui.theme.TextGray
 import com.route.readers.ui.theme.White
@@ -228,6 +243,7 @@ fun FeedCard(
     modifier: Modifier = Modifier
 ) {
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+    var isBookCardExpanded by remember { mutableStateOf(false) }
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -281,7 +297,36 @@ fun FeedCard(
 
             when (item) {
                 is FeedItem.BookReview -> {
-                    Text(text = "📚 ${item.bookTitle}", fontWeight = FontWeight.Medium, color = DarkRed)
+                    AnimatedVisibility(
+                        visible = isBookCardExpanded,
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically()
+                    ) {
+                        item.book?.let { book ->
+                            SelectedBookCard(book = book, onClear = null)
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { isBookCardExpanded = !isBookCardExpanded }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "📚 ${item.book?.title ?: "알 수 없는 책"}",
+                            fontWeight = FontWeight.Medium,
+                            color = DarkRed,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Icon(
+                            imageVector = if (isBookCardExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                            contentDescription = if (isBookCardExpanded) "접기" else "펼치기",
+                            tint = TextGray
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         repeat(5) { index ->
@@ -293,6 +338,7 @@ fun FeedCard(
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(text = item.review, fontSize = 14.sp)
                 }
+
                 is FeedItem.FollowNotification -> {
                     val followerName = followerInfoMap[item.followerId]?.nickname ?: "알 수 없는 사용자"
                     Text(
@@ -314,7 +360,8 @@ fun FeedCard(
                             color = White
                         )
                     }
-                }            }
+                }
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -355,6 +402,44 @@ fun FeedCard(
     }
 }
 
+@Composable
+fun SelectedBookCard(book: Book, onClear: (() -> Unit)? = null) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(book.cover)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = book.title,
+                modifier = Modifier
+                    .height(120.dp)
+                    .width(80.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(book.title, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, lineHeight = 22.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(book.author, color = Color.DarkGray, fontSize = 14.sp)
+            }
+            if (onClear != null) {
+                IconButton(onClick = onClear, modifier = Modifier.size(24.dp)) {
+                    Icon(Icons.Default.Clear, contentDescription = "선택 취소")
+                }
+            }
+        }
+    }
+}
+
 
 sealed class FeedItem(
     open val id: String = "",
@@ -368,7 +453,7 @@ sealed class FeedItem(
         override val id: String = "",
         val authorId: String = "",
         override val userName: String = "",
-        val bookTitle: String = "",
+        val book: Book? = null,
         val review: String = "",
         val rating: Int = 0,
         val likedBy: List<String> = emptyList(),
@@ -376,6 +461,7 @@ sealed class FeedItem(
         override val likeCount: Int = 0,
         override val commentCount: Int = 0
     ) : FeedItem(id, userName, timestamp, likeCount, commentCount, "BOOK_REVIEW")
+
     data class FollowNotification(
         override val id: String = "",
         val authorId: String = "",
@@ -386,7 +472,8 @@ sealed class FeedItem(
         override val timestamp: Timestamp = Timestamp.now(),
         override val likeCount: Int = 0,
         override val commentCount: Int = 0
-    ) : FeedItem(id, userName, timestamp, likeCount, commentCount, "FOLLOW_NOTIFICATION")}
+    ) : FeedItem(id, userName, timestamp, likeCount, commentCount, "FOLLOW_NOTIFICATION")
+}
 
 fun formatTimestamp(timestamp: Timestamp): String {
     val diff = (System.currentTimeMillis() - timestamp.toDate().time) / 1000
@@ -401,7 +488,21 @@ fun formatTimestamp(timestamp: Timestamp): String {
 fun DocumentSnapshot.toFeedItem(): FeedItem? {
     val type = getString("type") ?: return null
     return when (type) {
-        "BOOK_REVIEW" -> this.toObject(FeedItem.BookReview::class.java)
+        "BOOK_REVIEW" -> {
+            val bookData = get("book") as? Map<String, Any>
+            val book = if (bookData != null) {
+                Book(
+                    title = bookData["title"] as? String ?: "",
+                    author = bookData["author"] as? String ?: "",
+                    description = bookData["description"] as? String ?: "",
+                    isbn = bookData["isbn"] as? String ?: "",
+                    cover = bookData["cover"] as? String ?: ""
+                )
+            } else {
+                null
+            }
+            toObject(FeedItem.BookReview::class.java)?.copy(book = book)
+        }
         "FOLLOW_NOTIFICATION" -> this.toObject(FeedItem.FollowNotification::class.java)
         else -> null
     }

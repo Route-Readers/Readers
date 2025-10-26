@@ -79,50 +79,34 @@ class FeedViewModel : ViewModel() {
                     .get()
                     .await()
 
-                val feeds = querySnapshot.mapNotNull { doc ->
-                    when (doc.getString("type")) {
-                        "BOOK_REVIEW" -> {
-                            val feed = doc.toObject(FeedItem.BookReview::class.java).copy(id = doc.id)
-                            if (feed.authorId in feedAuthors && feed.authorId !in blockedUserList) feed else null
-                        }
-                        "FOLLOW_NOTIFICATION" -> {
-                            val feed = doc.toObject(FeedItem.FollowNotification::class.java).copy(id = doc.id)
-                            Log.d("FeedViewModel", "Found follow notification: ${feed.followerId} -> ${feed.receiverId}, currentUser: $currentUserId")
-                            if (feed.receiverId == currentUserId && feed.followerId !in blockedUserList) {
-                                Log.d("FeedViewModel", "Including follow notification in feed")
-                                feed
-                            } else {
-                                Log.d("FeedViewModel", "Excluding follow notification from feed")
-                                null
-                            }
-                        }
-                        else -> null
+                val feeds = querySnapshot.documents.mapNotNull { doc ->
+                    doc.toFeedItem()
+                }.filter { feed ->
+                    when (feed) {
+                        is FeedItem.BookReview -> feed.authorId in feedAuthors && feed.authorId !in blockedUserList
+                        is FeedItem.FollowNotification -> feed.receiverId == currentUserId && feed.followerId !in blockedUserList
                     }
-                }.filterNotNull()
+                }
 
-                // 팔로우 알림에서 팔로워 정보 가져오기
                 val followNotifications = feeds.filterIsInstance<FeedItem.FollowNotification>()
                 val followerIds = followNotifications.map { it.followerId }.distinct()
-                
+
                 val followerInfoMap = if (followerIds.isNotEmpty()) {
                     val followerDocs = db.collection("users")
                         .whereIn("uid", followerIds)
                         .get()
                         .await()
                     followerDocs.associate { doc ->
-                        val user = doc.toObject(User::class.java)
-                        user.uid to user
+                        val followerUser = doc.toObject(User::class.java)
+                        followerUser.uid to followerUser
                     }
                 } else {
                     emptyMap()
                 }
 
-                Log.d("FeedViewModel", "Total feeds loaded: ${feeds.size}, Follow notifications: ${followNotifications.size}, Follower info loaded: ${followerInfoMap.size}")
-
-                // FollowNotification의 userName을 실제 팔로워 이름으로 업데이트
                 val updatedFeeds = feeds.map { feed ->
                     if (feed is FeedItem.FollowNotification) {
-                        val followerName = followerInfoMap[feed.followerId]?.nickname ?: "알 수 없는 사용자"
+                        val followerName = followerInfoMap[feed.followerId]?.nickname ?: feed.userName
                         feed.copy(userName = followerName)
                     } else {
                         feed
@@ -238,10 +222,10 @@ class FeedViewModel : ViewModel() {
             try {
                 val currentUserRef = db.collection("users").document(currentUserId)
                 currentUserRef.update("following", FieldValue.arrayUnion(followerId)).await()
-                
+
                 val followerRef = db.collection("users").document(followerId)
                 followerRef.update("followers", FieldValue.arrayUnion(currentUserId)).await()
-                
+
                 loadFeeds(isRefresh = false)
             } catch (e: Exception) {
                 Log.e("FeedViewModel", "Error following back user $followerId", e)
