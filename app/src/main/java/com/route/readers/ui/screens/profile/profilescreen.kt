@@ -390,6 +390,7 @@ fun ProfileInfoSection(
                 ProfileInfoItem(count = user.followingCount.toString(), label = "팔로잉", onClick = { onFollowListClick("following") })
                 ProfileInfoItem(count = user.readBookCount.toString(), label = "읽은 책")
             }
+            
             if (!isMyProfile) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Column(
