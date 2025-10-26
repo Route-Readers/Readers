@@ -5,6 +5,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -43,6 +44,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -253,7 +255,7 @@ fun FeedCard(
 ) {
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
     // dev 브랜치에서 추가된 BookReview 확장 상태
-    var isBookCardExpanded by remember { mutableStateOf(false) } 
+    var isBookCardExpanded by remember { mutableStateOf(false) }
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -279,14 +281,14 @@ fun FeedCard(
                         is FeedItem.FollowNotification -> item.authorId // FollowNotification의 작성자(authorId)는 나 자신(receiverId)일 수도 있음
                     }
                     val userInfo = followerInfoMap[userIdForProfile]
-                    
+
                     // ProfileImageInFeed 컴포저블 대신 UserProfileImage 사용 (feature/profile_img 반영)
                     // ProfileImageInFeed 컴포넌트가 UserProfileImage의 내용을 대체하여 별도의 파일에 정의된 경우,
                     // 여기서는 UserProfileImage를 사용하도록 통합합니다.
                     // 임시로 feature/profile_img의 ProfileImageInFeed 코드를 복사하여 UserProfileImage를 대체하거나,
                     // 혹은 UserProfileImage가 이미 별도로 정의되어 있다고 가정하고 사용합니다.
                     // 충돌 해결을 위해, 여기서는 feature/profile_img의 프로필 로직을 사용합니다.
-                    
+
                     if (userInfo != null) {
                         UserProfileImage(
                             user = userInfo,
@@ -310,7 +312,7 @@ fun FeedCard(
                             )
                         }
                     }
-                    
+
                     Spacer(modifier = Modifier.width(8.dp))
                     Column {
                         Text(text = item.userName, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = DarkRed)
@@ -449,31 +451,62 @@ fun SelectedBookCard(book: Book, onClear: (() -> Unit)? = null) {
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(book.cover)
-                    .crossfade(true)
-                    .build(),
-                contentDescription = book.title,
-                modifier = Modifier
-                    .height(120.dp)
-                    .width(80.dp)
-                    .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(book.title, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, lineHeight = 22.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(book.author, color = Color.DarkGray, fontSize = 14.sp)
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                verticalAlignment = Alignment.Top
+            ) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(book.cover)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = book.title,
+                    modifier = Modifier
+                        .height(120.dp)
+                        .width(80.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(book.title, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, lineHeight = 22.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(book.author, color = Color.DarkGray, fontSize = 14.sp)
+                }
+                if (onClear != null) {
+                    IconButton(onClick = onClear, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.Clear, contentDescription = "선택 취소")
+                    }
+                }
             }
-            if (onClear != null) {
-                IconButton(onClick = onClear, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.Clear, contentDescription = "선택 취소")
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = { /* TODO: 관심도서 추가 로직 */ },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = DarkRed,
+                        contentColor = Color.White
+                    ),
+                    contentPadding = PaddingValues(vertical = 8.dp)
+                ) {
+                    Text("관심도서 추가")
+                }
+
+                OutlinedButton(
+                    onClick = { /* TODO: 서재에 추가 로직 */ },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, DarkRed),
+                    contentPadding = PaddingValues(vertical = 8.dp)
+                ) {
+                    Text("서재에 추가", color = DarkRed)
                 }
             }
         }
@@ -547,9 +580,9 @@ fun DocumentSnapshot.toFeedItem(): FeedItem? {
             } else {
                 null
             }
-            
+
             val bookReview = toObject(FeedItem.BookReview::class.java)?.copy(book = book)
-            
+
             // 기존 bookTitle 필드를 book 객체의 title로 채우도록 처리 (호환성 유지)
             bookReview?.copy(bookTitle = bookReview.book?.title ?: bookReview.bookTitle)
         }
