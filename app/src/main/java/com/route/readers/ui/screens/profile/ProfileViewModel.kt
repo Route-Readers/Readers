@@ -353,6 +353,38 @@ open class ProfileViewModel : ViewModel() {
         }
     }
 
+    fun updateProfileCharacter(character: String?, backgroundColor: String?) {
+        if (currentUserId == null) return
+        val currentState = _uiState.value
+        if (currentState !is ProfileUiState.Success || !currentState.isMyProfile) return
+
+        viewModelScope.launch {
+            try {
+                val updates = mutableMapOf<String, Any?>()
+                updates["profileCharacter"] = character
+                updates["profileBackgroundColor"] = backgroundColor
+                // Clear profile image URL when using character
+                if (character != null) {
+                    updates["profileImageUrl"] = null
+                }
+
+                db.collection("users").document(currentUserId)
+                    .update(updates)
+                    .await()
+
+                val updatedUser = currentState.user.copy(
+                    profileCharacter = character,
+                    profileBackgroundColor = backgroundColor,
+                    profileImageUrl = if (character != null) null else currentState.user.profileImageUrl
+                )
+                _uiState.value = currentState.copy(user = updatedUser)
+
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Failed to update profile character", e)
+            }
+        }
+    }
+
     private suspend fun fetchRecommendedBooks(genres: List<String>): List<Book> {
         if (genres.isEmpty()) {
             return emptyList()

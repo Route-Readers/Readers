@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import com.route.readers.R
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -48,9 +49,14 @@ fun ProfileScreen(
     userId: String,
     onNavigateToFollowList: (listType: String, nickname: String) -> Unit,
     onNavigateToSearch: () -> Unit,
+    onNavigateToCustomization: () -> Unit = {},
     viewModel: ProfileViewModel
 ) {
+    var showCustomization by remember { mutableStateOf(false) }
+    
     LaunchedEffect(key1 = userId) {
+        Log.d("ProfileScreen", "ProfileScreen launched with userId: $userId")
+        Log.d("ProfileScreen", "Current user ID: ${com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid}")
         viewModel.fetchUserProfile(userId)
     }
 
@@ -59,6 +65,22 @@ fun ProfileScreen(
     val isSelectionModeActive = (uiState as? ProfileUiState.Success)?.isSelectionMode == true
     BackHandler(enabled = isSelectionModeActive) {
         viewModel.clearSelectionMode()
+    }
+
+    // 커스터마이제이션 화면 표시
+    val currentState = uiState
+    if (showCustomization && currentState is ProfileUiState.Success) {
+        ProfileCustomizationScreen(
+            currentCharacter = currentState.user.profileCharacter,
+            currentBackgroundColor = currentState.user.profileBackgroundColor,
+            nickname = currentState.user.nickname,
+            onSave = { character, backgroundColor ->
+                viewModel.updateProfileCharacter(character, backgroundColor)
+                showCustomization = false
+            },
+            onBack = { showCustomization = false }
+        )
+        return
     }
 
     Scaffold(
@@ -86,9 +108,19 @@ fun ProfileScreen(
                             onNavigateToFollowList(listType, state.user.nickname)
                         },
                         onUpdateProfileImage = { imageUri ->
-                            viewModel.updateProfileImage(imageUri)
+                            Log.d("ProfileScreen", "onUpdateProfileImage called with uri: $imageUri")
+                            if (imageUri == android.net.Uri.EMPTY) {
+                                Log.d("ProfileScreen", "Navigating to customization")
+                                showCustomization = true
+                            } else {
+                                viewModel.updateProfileImage(imageUri)
+                            }
                         },
                         onNavigateToSearch = onNavigateToSearch,
+                        onNavigateToCustomization = { 
+                            Log.d("ProfileScreen", "onNavigateToCustomization called - setting showCustomization = true")
+                            showCustomization = true 
+                        },
                         onBlockUser = { viewModel.blockUser(state.user.uid) },
                         onUnblockUser = { viewModel.unblockUser(state.user.uid) }
                     )
@@ -108,6 +140,7 @@ fun ProfileContent(
     onFollowListClick: (String) -> Unit,
     onUpdateProfileImage: (android.net.Uri) -> Unit,
     onNavigateToSearch: () -> Unit,
+    onNavigateToCustomization: () -> Unit,
     onBlockUser: () -> Unit,
     onUnblockUser: () -> Unit
 ) {
@@ -157,6 +190,12 @@ fun ProfileContent(
                     onUnfollowClick = onUnfollowClick,
                     onFollowListClick = onFollowListClick,
                     onUpdateProfileImage = onUpdateProfileImage,
+                    onNavigateToCustomization = { 
+                        Log.d("ProfileScreen", "ProfileInfoSection onNavigateToCustomization called")
+                        Log.d("ProfileScreen", "About to call ProfileContent's onNavigateToCustomization")
+                        onNavigateToCustomization()
+                        Log.d("ProfileScreen", "ProfileContent's onNavigateToCustomization called")
+                    },
                     onBlockUser = onBlockUser,
                     onUnblockUser = onUnblockUser
                 )
@@ -345,6 +384,7 @@ fun ProfileInfoSection(
     onUnfollowClick: () -> Unit,
     onFollowListClick: (String) -> Unit,
     onUpdateProfileImage: (android.net.Uri) -> Unit,
+    onNavigateToCustomization: () -> Unit,
     onBlockUser: () -> Unit,
     onUnblockUser: () -> Unit
 ) {
@@ -367,13 +407,14 @@ fun ProfileInfoSection(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             ProfileImage(
-                imageUrl = user.profileImageUrl,
-                nickname = user.nickname,
+                user = user,
                 isMyProfile = isMyProfile,
                 onImageClick = {
-                    singlePhotoPickerLauncher.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
+                    Log.d("ProfileScreen", "Profile image clicked, isMyProfile: $isMyProfile")
+                    Log.d("ProfileScreen", "User ID: ${user.uid}")
+                    Log.d("ProfileScreen", "About to call onNavigateToCustomization")
+                    onNavigateToCustomization()
+                    Log.d("ProfileScreen", "onNavigateToCustomization called")
                 }
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -631,41 +672,74 @@ fun BookCardItem(
 
 @Composable
 fun ProfileImage(
-    imageUrl: String?,
-    nickname: String,
+    user: User,
     isMyProfile: Boolean,
     onImageClick: () -> Unit
 ) {
-    val modifier = if (isMyProfile) {
-        Modifier.clickable(onClick = onImageClick)
-    } else {
-        Modifier
+    val modifier = Modifier.clickable(onClick = {
+        Log.d("ProfileImage", "ProfileImage clicked, isMyProfile: $isMyProfile")
+        Log.d("ProfileImage", "User ID: ${user.uid}")
+        if (isMyProfile) {
+            Log.d("ProfileImage", "Calling onImageClick")
+            onImageClick()
+        } else {
+            Log.d("ProfileImage", "Not my profile, click ignored")
+        }
+    })
+
+    val backgroundColor = try {
+        user.profileBackgroundColor?.let { Color(android.graphics.Color.parseColor(it)) } ?: DarkRed
+    } catch (e: Exception) {
+        DarkRed
     }
 
     Box(
         modifier = modifier
             .size(100.dp)
             .clip(CircleShape)
-            .background(DarkRed),
+            .background(backgroundColor),
         contentAlignment = Alignment.Center
     ) {
-        if (!imageUrl.isNullOrBlank()) {
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(imageUrl)
-                    .crossfade(true)
-                    .build(),
-                contentDescription = "프로필 이미지",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-        } else {
-            Text(
-                text = nickname.firstOrNull()?.toString() ?: "",
-                color = Color.White,
-                fontSize = 40.sp,
-                fontWeight = FontWeight.Bold
-            )
+        when {
+            !user.profileImageUrl.isNullOrBlank() -> {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(user.profileImageUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "프로필 이미지",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            user.profileCharacter != null -> {
+                val drawableRes = when (user.profileCharacter) {
+                    "lion" -> R.drawable.lion
+                    "penguin" -> R.drawable.penguin
+                    "redpanda" -> R.drawable.redpanda
+                    "squirrel" -> R.drawable.squirrel
+                    else -> null
+                }
+                
+                drawableRes?.let {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(it)
+                            .build(),
+                        contentDescription = "캐릭터",
+                        modifier = Modifier.size(80.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+            }
+            else -> {
+                Text(
+                    text = user.nickname.firstOrNull()?.toString() ?: "",
+                    color = Color.White,
+                    fontSize = 40.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
         if (isMyProfile) {
             Box(

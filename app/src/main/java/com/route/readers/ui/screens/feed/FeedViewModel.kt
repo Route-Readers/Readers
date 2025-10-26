@@ -44,6 +44,49 @@ class FeedViewModel : ViewModel() {
         loadFeeds(isRefresh = true)
     }
 
+    fun refreshUserProfiles() {
+        val currentState = _uiState.value
+        if (currentState is FeedUiState.Success) {
+            viewModelScope.launch {
+                try {
+                    val updatedFollowerInfoMap = mutableMapOf<String, User>()
+                    
+                    // 현재 피드에 있는 모든 사용자 ID 수집
+                    val userIds = mutableSetOf<String>()
+                    currentState.items.forEach { item ->
+                        when (item) {
+                            is FeedItem.BookReview -> userIds.add(item.authorId)
+                            is FeedItem.FollowNotification -> {
+                                userIds.add(item.authorId)
+                                userIds.add(item.followerId)
+                            }
+                        }
+                    }
+                    
+                    // 각 사용자의 최신 정보 가져오기
+                    for (userId in userIds) {
+                        try {
+                            val userDoc = db.collection("users").document(userId).get().await()
+                            if (userDoc.exists()) {
+                                val user = userDoc.toObject(User::class.java)
+                                if (user != null) {
+                                    updatedFollowerInfoMap[userId] = user
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e("FeedViewModel", "Error fetching user $userId", e)
+                        }
+                    }
+                    
+                    // UI 상태 업데이트
+                    _uiState.value = currentState.copy(followerInfoMap = updatedFollowerInfoMap)
+                } catch (e: Exception) {
+                    Log.e("FeedViewModel", "Error refreshing user profiles", e)
+                }
+            }
+        }
+    }
+
     private fun loadFeeds(isRefresh: Boolean) {
         val currentUserId = auth.currentUser?.uid
         if (currentUserId == null) {

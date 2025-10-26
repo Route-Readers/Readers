@@ -12,6 +12,8 @@ data class User(
     val nickname: String = "",
     val email: String? = null,
     val profileImageUrl: String? = null,
+    val profileCharacter: String? = null, // "lion", "penguin", "redpanda", "squirrel"
+    val profileBackgroundColor: String? = null, // hex color code
     val bio: String? = null,
     val readingGenres: List<String> = emptyList(),
     val readingStyles: List<String> = emptyList(),

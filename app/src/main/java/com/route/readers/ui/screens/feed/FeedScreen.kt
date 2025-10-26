@@ -74,7 +74,10 @@ fun FeedScreen(
     val uiState by feedViewModel.uiState.collectAsState()
     val isRefreshing by feedViewModel.isRefreshing.collectAsState()
     val pullToRefreshState = rememberPullToRefreshState()
-
+    // 화면이 다시 보일 때마다 사용자 프로필 새로고침
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        feedViewModel.refreshUserProfiles()
+    }
 
     Scaffold(
         floatingActionButton = {
