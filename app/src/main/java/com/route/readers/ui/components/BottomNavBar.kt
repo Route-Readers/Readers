@@ -98,14 +98,12 @@ fun BottomNavBar(
                     item = screen,
                     isSelected = currentRoute == screen.route,
                     onClick = {
-                        if (currentRoute != screen.route) {
-                            navController.navigate(screen.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
+                        navController.navigate(screen.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
                             }
+                            launchSingleTop = true
+                            restoreState = true
                         }
                     }
                 )
@@ -126,14 +124,12 @@ fun BottomNavBar(
                         if (screen.route == BottomNavItem.Profile.route) {
                             onProfileClick()
                         } else {
-                            if (currentRoute != screen.route) {
-                                navController.navigate(screen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
+                            navController.navigate(screen.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
                                 }
+                                launchSingleTop = true
+                                restoreState = true
                             }
                         }
                     }
