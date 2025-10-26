@@ -8,7 +8,8 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.data.model.Book
-import com.route.readers.data.remote.BookRepository
+import com.route.readers.data.remote.BookRepository // BookRepository를 import 합니다.
+import com.route.readers.ui.screens.feed.FeedItem
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -25,6 +26,8 @@ class AddFeedViewModel : ViewModel() {
 
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
+
+    // 1. BookRepository 인스턴스를 다시 생성합니다.
     private val bookRepository = BookRepository()
     private var searchJob: Job? = null
 
@@ -48,11 +51,13 @@ class AddFeedViewModel : ViewModel() {
         if (text.isNotBlank()) {
             searchJob?.cancel()
             searchJob = viewModelScope.launch {
-                delay(500L)
+                delay(500L) // 사용자가 타이핑을 멈출 때까지 0.5초 대기
                 isSearching = true
                 searchedBooks = try {
+                    // 2. BookRepository를 통해 실제 API를 호출하도록 코드를 복원합니다.
                     bookRepository.getBookSearch(query = text, maxResults = 10)
                 } catch (e: Exception) {
+                    // API 호출 중 오류 발생 시 빈 리스트를 반환합니다.
                     emptyList()
                 } finally {
                     isSearching = false
@@ -83,8 +88,8 @@ class AddFeedViewModel : ViewModel() {
             return
         }
 
-        val book = selectedBook
-        if (book == null) {
+        val bookToSave = selectedBook
+        if (bookToSave == null) {
             uiState = AddFeedUiState.Error("리뷰를 작성할 책을 선택해주세요.")
             return
         }
@@ -105,23 +110,21 @@ class AddFeedViewModel : ViewModel() {
                 val currentUserNickname = userDoc.getString("nickname") ?: "익명"
 
                 val feedRef = db.collection("feeds").document()
-                val feedData = hashMapOf(
-                    "id" to feedRef.id,
-                    "authorId" to currentUserId,
-                    "userName" to currentUserNickname,
-                    "type" to "BOOK_REVIEW",
-                    "bookTitle" to book.title,
-                    "bookAuthor" to book.author,
-                    "bookCover" to book.cover,
-                    "review" to reviewText,
-                    "rating" to rating,
-                    "timestamp" to com.google.firebase.Timestamp.now(),
-                    "likeCount" to 0,
-                    "commentCount" to 0,
-                    "likedBy" to emptyList<String>()
+
+                val newFeed = FeedItem.BookReview(
+                    id = feedRef.id,
+                    authorId = currentUserId,
+                    userName = currentUserNickname,
+                    book = bookToSave, // 수정된 대로 Book 객체를 통째로 저장합니다.
+                    review = reviewText,
+                    rating = rating,
+                    timestamp = com.google.firebase.Timestamp.now(),
+                    likeCount = 0,
+                    commentCount = 0,
+                    likedBy = emptyList()
                 )
 
-                feedRef.set(feedData).await()
+                feedRef.set(newFeed).await()
                 uiState = AddFeedUiState.Success
             } catch (e: Exception) {
                 uiState = AddFeedUiState.Error("피드 저장에 실패했습니다: ${e.message}")

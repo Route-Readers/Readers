@@ -21,8 +21,6 @@ data class Book(
     val currentPage: Int = 0,
     val totalPages: Int = 0,
     val progress: Int = 0,
-
-    // isFavorite를 주 생성자로 이동하고 val로 변경
     @get:Exclude
     val isFavorite: Boolean = false
 ) {
@@ -35,7 +33,6 @@ data class Book(
     }
 
     fun getHighQualityImageUrl(): String {
-        // API에서 이미 Cover=Big 파라미터로 큰 이미지를 받아오므로 그대로 사용
         return cover
     }
 }

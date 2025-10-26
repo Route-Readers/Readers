@@ -278,12 +278,12 @@ open class ProfileViewModel : ViewModel() {
                 Log.d("ProfileViewModel", "Starting follow process...")
                 val targetUserRef = db.collection("users").document(targetUserId)
                 val currentUserRef = db.collection("users").document(currentUserId)
-                
+
                 // 현재 사용자 정보 가져오기
                 val currentUserDoc = currentUserRef.get().await()
                 val currentUserName = currentUserDoc.getString("nickname") ?: "알 수 없음"
                 Log.d("ProfileViewModel", "Current user name: $currentUserName")
-                
+
                 db.runBatch { batch ->
                     batch.update(targetUserRef, "followers", FieldValue.arrayUnion(currentUserId))
                     batch.update(targetUserRef, "followerCount", FieldValue.increment(1))
@@ -291,7 +291,7 @@ open class ProfileViewModel : ViewModel() {
                     batch.update(currentUserRef, "followingCount", FieldValue.increment(1))
                 }.await()
                 Log.d("ProfileViewModel", "User follow batch completed")
-                
+
                 // 팔로우 알림 생성
                 val followNotification = hashMapOf(
                     "type" to "FOLLOW_NOTIFICATION",
@@ -304,11 +304,11 @@ open class ProfileViewModel : ViewModel() {
                     "likeCount" to 0,
                     "commentCount" to 0
                 )
-                
+
                 Log.d("ProfileViewModel", "Creating follow notification: $followNotification")
                 db.collection("feeds").add(followNotification).await()
                 Log.d("ProfileViewModel", "Follow notification created successfully")
-                
+
             } catch (e: Exception) {
                 refreshUiStateForFollow(targetUserId, false)
             }

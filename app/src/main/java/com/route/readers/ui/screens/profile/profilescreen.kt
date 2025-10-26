@@ -77,9 +77,9 @@ fun ProfileScreen(
                     ProfileContent(
                         state = state,
                         viewModel = viewModel,
-                        onFollowClick = { 
+                        onFollowClick = {
                             Log.d("ProfileScreen", "Follow button clicked for user: ${state.user.uid}")
-                            viewModel.followUser(state.user.uid) 
+                            viewModel.followUser(state.user.uid)
                         },
                         onUnfollowClick = { viewModel.unfollowUser(state.user.uid) },
                         onFollowListClick = { listType ->
