@@ -119,27 +119,30 @@ fun ProfileCustomizationScreen(
             // Character Selection
             Text("캐릭터 선택", fontSize = 18.sp, fontWeight = FontWeight.Bold)
             
-            Row(
+            LazyRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(horizontal = 4.dp)
             ) {
                 // Default option (no character)
-                CharacterItem(
-                    isSelected = selectedCharacter == null,
-                    onClick = { selectedCharacter = null }
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(60.dp)
-                            .clip(CircleShape)
-                            .background(Color.Gray.copy(alpha = 0.3f)),
-                        contentAlignment = Alignment.Center
+                item {
+                    CharacterItem(
+                        isSelected = selectedCharacter == null,
+                        onClick = { selectedCharacter = null }
                     ) {
-                        Text("기본", fontSize = 12.sp, color = Color.Gray)
+                        Box(
+                            modifier = Modifier
+                                .size(60.dp)
+                                .clip(CircleShape)
+                                .background(Color.Gray.copy(alpha = 0.3f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("기본", fontSize = 12.sp, color = Color.Gray)
+                        }
                     }
                 }
 
-                characters.forEach { character ->
+                items(characters) { character ->
                     CharacterItem(
                         isSelected = selectedCharacter == character.id,
                         onClick = { selectedCharacter = character.id }
