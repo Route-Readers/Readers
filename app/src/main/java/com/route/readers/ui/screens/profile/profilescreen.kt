@@ -1,5 +1,6 @@
 package com.route.readers.ui.screens.profile
 
+import android.net.Uri
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -77,9 +78,9 @@ fun ProfileScreen(
                     ProfileContent(
                         state = state,
                         viewModel = viewModel,
-                        onFollowClick = { 
+                        onFollowClick = {
                             Log.d("ProfileScreen", "Follow button clicked for user: ${state.user.uid}")
-                            viewModel.followUser(state.user.uid) 
+                            viewModel.followUser(state.user.uid)
                         },
                         onUnfollowClick = { viewModel.unfollowUser(state.user.uid) },
                         onFollowListClick = { listType ->
@@ -106,7 +107,7 @@ fun ProfileContent(
     onFollowClick: () -> Unit,
     onUnfollowClick: () -> Unit,
     onFollowListClick: (String) -> Unit,
-    onUpdateProfileImage: (android.net.Uri) -> Unit,
+    onUpdateProfileImage: (Uri) -> Unit,
     onNavigateToSearch: () -> Unit,
     onBlockUser: () -> Unit,
     onUnblockUser: () -> Unit
@@ -344,7 +345,7 @@ fun ProfileInfoSection(
     onFollowClick: () -> Unit,
     onUnfollowClick: () -> Unit,
     onFollowListClick: (String) -> Unit,
-    onUpdateProfileImage: (android.net.Uri) -> Unit,
+    onUpdateProfileImage: (Uri) -> Unit,
     onBlockUser: () -> Unit,
     onUnblockUser: () -> Unit
 ) {
@@ -390,7 +391,7 @@ fun ProfileInfoSection(
                 ProfileInfoItem(count = user.followingCount.toString(), label = "팔로잉", onClick = { onFollowListClick("following") })
                 ProfileInfoItem(count = user.readBookCount.toString(), label = "읽은 책")
             }
-            
+
             if (!isMyProfile) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Column(

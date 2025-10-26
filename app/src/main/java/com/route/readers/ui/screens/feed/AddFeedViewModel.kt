@@ -9,6 +9,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.data.model.Book
 import com.route.readers.data.remote.BookRepository
+import com.route.readers.ui.screens.feed.FeedItem
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -83,8 +84,8 @@ class AddFeedViewModel : ViewModel() {
             return
         }
 
-        val book = selectedBook
-        if (book == null) {
+        val bookToSave = selectedBook
+        if (bookToSave == null) {
             uiState = AddFeedUiState.Error("리뷰를 작성할 책을 선택해주세요.")
             return
         }
@@ -105,23 +106,21 @@ class AddFeedViewModel : ViewModel() {
                 val currentUserNickname = userDoc.getString("nickname") ?: "익명"
 
                 val feedRef = db.collection("feeds").document()
-                val feedData = hashMapOf(
-                    "id" to feedRef.id,
-                    "authorId" to currentUserId,
-                    "userName" to currentUserNickname,
-                    "type" to "BOOK_REVIEW",
-                    "bookTitle" to book.title,
-                    "bookAuthor" to book.author,
-                    "bookCover" to book.cover,
-                    "review" to reviewText,
-                    "rating" to rating,
-                    "timestamp" to com.google.firebase.Timestamp.now(),
-                    "likeCount" to 0,
-                    "commentCount" to 0,
-                    "likedBy" to emptyList<String>()
+
+                val newFeed = FeedItem.BookReview(
+                    id = feedRef.id,
+                    authorId = currentUserId,
+                    userName = currentUserNickname,
+                    book = bookToSave,
+                    review = reviewText,
+                    rating = rating,
+                    timestamp = com.google.firebase.Timestamp.now(),
+                    likeCount = 0,
+                    commentCount = 0,
+                    likedBy = emptyList()
                 )
 
-                feedRef.set(feedData).await()
+                feedRef.set(newFeed).await()
                 uiState = AddFeedUiState.Success
             } catch (e: Exception) {
                 uiState = AddFeedUiState.Error("피드 저장에 실패했습니다: ${e.message}")
