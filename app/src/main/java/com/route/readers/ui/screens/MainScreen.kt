@@ -18,6 +18,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
@@ -48,6 +50,9 @@ fun MainScreen(
     val bottomNavController = rememberNavController()
     val communityViewModel: CommunityViewModel = viewModel()
     val mainViewModel: MainViewModel = viewModel()
+    
+    // 사용자 ID 미리 캐시
+    val currentUserId = remember { FirebaseAuth.getInstance().currentUser?.uid }
 
     var selectedBook by remember { mutableStateOf<MyBook?>(null) }
     var showProgressDialog by remember { mutableStateOf(false) }
@@ -111,7 +116,6 @@ fun MainScreen(
                 BottomNavBar(
                     navController = bottomNavController,
                     onProfileClick = {
-                        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
                         if (currentUserId != null) {
                             bottomNavController.navigate("profile_route/$currentUserId") {
                                 popUpTo(bottomNavController.graph.findStartDestination().id) {
@@ -142,7 +146,9 @@ fun MainScreen(
         NavHost(
             navController = bottomNavController,
             startDestination = BottomNavItem.Feed.route,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(innerPadding),
+            enterTransition = { EnterTransition.None },
+            exitTransition = { ExitTransition.None }
         ) {
             composable(BottomNavItem.Feed.route) {
                 selectedBook = null

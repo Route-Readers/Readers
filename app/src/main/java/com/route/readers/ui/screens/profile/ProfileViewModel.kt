@@ -2,6 +2,7 @@ package com.route.readers.ui.screens.profile
 
 import android.net.Uri
 import android.util.Log
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
@@ -95,7 +96,12 @@ open class ProfileViewModel : ViewModel() {
         return imagesRef.downloadUrl.await().toString()
     }
 
-    private suspend fun saveUserData(nickname: String, profileImageUrl: String?, genres: List<String>, styles: List<String>) {
+    private suspend fun saveUserData(
+        nickname: String,
+        profileImageUrl: String?,
+        genres: List<String>,
+        styles: List<String>
+    ) {
         if (currentUserId == null) throw IllegalStateException("Current User ID is null")
 
         val userProfileData = mapOf(
@@ -133,27 +139,24 @@ open class ProfileViewModel : ViewModel() {
         _uiState.value = ProfileUiState.Loading
         viewModelScope.launch {
             try {
-                val currentUserDoc = currentUserId?.let { db.collection("users").document(it).get().await() }
-                val currentUserBlocked = currentUserDoc?.toObject(User::class.java)?.blockedUsers ?: emptyList()
+                val currentUserDoc =
+                    currentUserId?.let { db.collection("users").document(it).get().await() }
+                val currentUserBlocked =
+                    currentUserDoc?.toObject(User::class.java)?.blockedUsers ?: emptyList()
 
                 val userDocument = db.collection("users").document(targetUserId).get().await()
                 val user: User? = userDocument.toObject(User::class.java)
 
                 if (user != null) {
-                    android.util.Log.d("ProfileViewModel", "=== 팔로워/팔로잉 디버깅 ===")
-                    android.util.Log.d("ProfileViewModel", "targetUserId: $targetUserId")
-                    android.util.Log.d("ProfileViewModel", "currentUserId: $currentUserId")
-                    android.util.Log.d("ProfileViewModel", "원본 followers: ${user.followers}")
-                    android.util.Log.d("ProfileViewModel", "원본 following: ${user.following}")
-                    android.util.Log.d("ProfileViewModel", "원본 followerCount: ${user.followerCount}")
-                    android.util.Log.d("ProfileViewModel", "원본 followingCount: ${user.followingCount}")
+
 
                     val followerNames = mutableListOf<String>()
                     val followingNames = mutableListOf<String>()
 
                     for (followerId in user.followers) {
                         try {
-                            val followerDoc = db.collection("users").document(followerId).get().await()
+                            val followerDoc =
+                                db.collection("users").document(followerId).get().await()
                             val nickname = followerDoc.getString("nickname") ?: "알수없음"
                             followerNames.add("$nickname($followerId)")
                         } catch (e: Exception) {
@@ -163,7 +166,8 @@ open class ProfileViewModel : ViewModel() {
 
                     for (followingId in user.following) {
                         try {
-                            val followingDoc = db.collection("users").document(followingId).get().await()
+                            val followingDoc =
+                                db.collection("users").document(followingId).get().await()
                             val nickname = followingDoc.getString("nickname") ?: "알수없음"
                             followingNames.add("$nickname($followingId)")
                         } catch (e: Exception) {
@@ -171,14 +175,10 @@ open class ProfileViewModel : ViewModel() {
                         }
                     }
 
-                    android.util.Log.d("ProfileViewModel", "팔로워 목록: $followerNames")
-                    android.util.Log.d("ProfileViewModel", "팔로잉 목록: $followingNames")
 
                     val filteredFollowers = user.followers.filter { it != targetUserId }
                     val filteredFollowing = user.following.filter { it != targetUserId }
 
-                    android.util.Log.d("ProfileViewModel", "필터된 followers: $filteredFollowers")
-                    android.util.Log.d("ProfileViewModel", "필터된 following: $filteredFollowing")
 
                     val validFollowers = mutableListOf<String>()
                     val validFollowing = mutableListOf<String>()
@@ -186,16 +186,14 @@ open class ProfileViewModel : ViewModel() {
                     for (followerId in user.followers) {
                         if (followerId != targetUserId) {
                             try {
-                                val followerDoc = db.collection("users").document(followerId).get().await()
+                                val followerDoc =
+                                    db.collection("users").document(followerId).get().await()
                                 val nickname = followerDoc.getString("nickname")
                                 if (!nickname.isNullOrBlank()) {
                                     validFollowers.add(followerId)
-                                    android.util.Log.d("ProfileViewModel", "유효한 팔로워: $nickname($followerId)")
                                 } else {
-                                    android.util.Log.d("ProfileViewModel", "무효한 팔로워 (닉네임 없음): $followerId")
                                 }
                             } catch (e: Exception) {
-                                android.util.Log.d("ProfileViewModel", "무효한 팔로워 (문서 없음): $followerId")
                             }
                         }
                     }
@@ -203,16 +201,14 @@ open class ProfileViewModel : ViewModel() {
                     for (followingId in user.following) {
                         if (followingId != targetUserId) {
                             try {
-                                val followingDoc = db.collection("users").document(followingId).get().await()
+                                val followingDoc =
+                                    db.collection("users").document(followingId).get().await()
                                 val nickname = followingDoc.getString("nickname")
                                 if (!nickname.isNullOrBlank()) {
                                     validFollowing.add(followingId)
-                                    android.util.Log.d("ProfileViewModel", "유효한 팔로잉: $nickname($followingId)")
                                 } else {
-                                    android.util.Log.d("ProfileViewModel", "무효한 팔로잉 (닉네임 없음): $followingId")
                                 }
                             } catch (e: Exception) {
-                                android.util.Log.d("ProfileViewModel", "무효한 팔로잉 (문서 없음): $followingId")
                             }
                         }
                     }
@@ -220,8 +216,6 @@ open class ProfileViewModel : ViewModel() {
                     val actualFollowerCount = validFollowers.size.toLong()
                     val actualFollowingCount = validFollowing.size.toLong()
 
-                    android.util.Log.d("ProfileViewModel", "최종 유효한 팔로워 수: $actualFollowerCount")
-                    android.util.Log.d("ProfileViewModel", "최종 유효한 팔로잉 수: $actualFollowingCount")
 
                     db.collection("users").document(targetUserId)
                         .update(
@@ -241,11 +235,22 @@ open class ProfileViewModel : ViewModel() {
                         followingCount = actualFollowingCount
                     )
                     val isMyProfile = targetUserId == currentUserId
-                    val isFollowing = updatedUser.followers.contains(currentUserId)
+                    // 현재 사용자의 팔로잉 목록에서 상대방이 있는지 확인
+                    val isFollowing = if (currentUserId != null) {
+                        val currentUserDoc =
+                            db.collection("users").document(currentUserId).get().await()
+                        val currentUserFollowing =
+                            currentUserDoc.get("following") as? List<String> ?: emptyList()
+                        currentUserFollowing.contains(targetUserId)
+                    } else {
+                        false
+                    }
                     val isBlocked = currentUserBlocked.contains(targetUserId)
 
-                    val recommendedBooksDeferred = async { fetchRecommendedBooks(updatedUser.readingGenres) }
-                    val favoriteBooksDeferred = async { bookRepository.getFavoriteBooks(targetUserId) }
+                    val recommendedBooksDeferred =
+                        async { fetchRecommendedBooks(updatedUser.readingGenres) }
+                    val favoriteBooksDeferred =
+                        async { bookRepository.getFavoriteBooks(targetUserId) }
                     val challengesDeferred = async { fetchUserChallenges(targetUserId) }
                     val myPostsDeferred = async { fetchMyPosts(targetUserId) }
 
@@ -263,7 +268,8 @@ open class ProfileViewModel : ViewModel() {
 
                     val savedFeedIds = user.savedFeeds.toSet()
 
-                    val (ongoing, completed) = challengesDeferred.await().partition { !it.isCompleted }
+                    val (ongoing, completed) = challengesDeferred.await()
+                        .partition { !it.isCompleted }
 
                     _uiState.value = ProfileUiState.Success(
                         user = updatedUser,
@@ -403,7 +409,7 @@ open class ProfileViewModel : ViewModel() {
     }
 
     fun followUser(targetUserId: String) {
-        Log.d("ProfileViewModel", "followUser called with targetUserId: $targetUserId")
+
         if (currentUserId == null || currentUserId == targetUserId) return
         refreshUiStateForFollow(targetUserId, true)
         viewModelScope.launch {
@@ -514,7 +520,8 @@ open class ProfileViewModel : ViewModel() {
             _uiState.value = currentState.copy(selectedBookIds = newSelectedIds)
 
             if (newSelectedIds.isEmpty()) {
-                _uiState.value = currentState.copy(isSelectionMode = false, selectedBookIds = emptySet())
+                _uiState.value =
+                    currentState.copy(isSelectionMode = false, selectedBookIds = emptySet())
             }
         }
     }
@@ -548,7 +555,8 @@ open class ProfileViewModel : ViewModel() {
             try {
                 bookRepository.deleteFavoriteBooks(userId, bookIdsToDelete.toList())
 
-                val updatedBooks = currentState.favoriteBooks.filterNot { it.isbn in bookIdsToDelete }
+                val updatedBooks =
+                    currentState.favoriteBooks.filterNot { it.isbn in bookIdsToDelete }
                 _uiState.value = currentState.copy(
                     favoriteBooks = updatedBooks,
                     isSelectionMode = false,
@@ -699,8 +707,10 @@ open class ProfileViewModel : ViewModel() {
                 val user = userDoc.toObject(User::class.java)
 
                 if (user != null) {
-                    val correctFollowerCount = user.followers.filter { it != targetUserId }.size.toLong()
-                    val correctFollowingCount = user.following.filter { it != targetUserId }.size.toLong()
+                    val correctFollowerCount =
+                        user.followers.filter { it != targetUserId }.size.toLong()
+                    val correctFollowingCount =
+                        user.following.filter { it != targetUserId }.size.toLong()
 
                     db.collection("users").document(targetUserId)
                         .update(
@@ -711,10 +721,46 @@ open class ProfileViewModel : ViewModel() {
                         )
                         .await()
 
-                    android.util.Log.d("ProfileViewModel", "강제 동기화 완료: follower=$correctFollowerCount, following=$correctFollowingCount")
                 }
             } catch (e: Exception) {
-                android.util.Log.e("ProfileViewModel", "강제 동기화 실패", e)
+            }
+        }
+    }
+
+    // 팔로우 관계 동기화 함수
+    fun syncFollowRelationship(targetUserId: String) {
+        if (currentUserId == null) return
+
+        viewModelScope.launch {
+            try {
+                val currentUserDoc = db.collection("users").document(currentUserId).get().await()
+                val targetUserDoc = db.collection("users").document(targetUserId).get().await()
+
+                val currentUserFollowing =
+                    currentUserDoc.get("following") as? List<String> ?: emptyList()
+                val targetUserFollowers =
+                    targetUserDoc.get("followers") as? List<String> ?: emptyList()
+
+                val shouldBeFollowing = currentUserFollowing.contains(targetUserId)
+                val isInTargetFollowers = targetUserFollowers.contains(currentUserId)
+
+                // 불일치 발견 시 수정
+                if (shouldBeFollowing && !isInTargetFollowers) {
+                    // 내가 팔로우하고 있는데 상대방 팔로워 목록에 없음 -> 상대방에 추가
+                    db.collection("users").document(targetUserId)
+                        .update("followers", FieldValue.arrayUnion(currentUserId))
+                        .await()
+                } else if (!shouldBeFollowing && isInTargetFollowers) {
+                    // 내가 팔로우하지 않는데 상대방 팔로워 목록에 있음 -> 상대방에서 제거
+                    db.collection("users").document(targetUserId)
+                        .update("followers", FieldValue.arrayRemove(currentUserId))
+                        .await()
+                }
+
+                // 프로필 다시 로드
+                fetchUserProfile(targetUserId)
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "동기화 실패", e)
             }
         }
     }

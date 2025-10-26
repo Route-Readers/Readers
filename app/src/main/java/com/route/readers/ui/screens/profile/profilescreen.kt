@@ -1,7 +1,7 @@
 package com.route.readers.ui.screens.profile
 
 import android.net.Uri
-import android.util.Log
+
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -56,9 +56,11 @@ fun ProfileScreen(
     var showCustomization by remember { mutableStateOf(false) }
     
     LaunchedEffect(key1 = userId) {
-        Log.d("ProfileScreen", "ProfileScreen launched with userId: $userId")
-        Log.d("ProfileScreen", "Current user ID: ${com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid}")
+
+
         viewModel.fetchUserProfile(userId)
+        // 팔로우 관계 동기화
+        viewModel.syncFollowRelationship(userId)
     }
 
     val uiState by viewModel.uiState.collectAsState()
@@ -101,17 +103,23 @@ fun ProfileScreen(
                         state = state,
                         viewModel = viewModel,
                         onFollowClick = {
-                            Log.d("ProfileScreen", "Follow button clicked for user: ${state.user.uid}")
+
                             viewModel.followUser(state.user.uid)
+                            // 팔로우 후 동기화 실행
+                            viewModel.syncFollowRelationship(state.user.uid)
                         },
-                        onUnfollowClick = { viewModel.unfollowUser(state.user.uid) },
+                        onUnfollowClick = { 
+                            viewModel.unfollowUser(state.user.uid)
+                            // 언팔로우 후 동기화 실행
+                            viewModel.syncFollowRelationship(state.user.uid)
+                        },
                         onFollowListClick = { listType ->
                             onNavigateToFollowList(listType, state.user.nickname)
                         },
                         onUpdateProfileImage = { imageUri ->
-                            Log.d("ProfileScreen", "onUpdateProfileImage called with uri: $imageUri")
+
                             if (imageUri == android.net.Uri.EMPTY) {
-                                Log.d("ProfileScreen", "Navigating to customization")
+
                                 showCustomization = true
                             } else {
                                 viewModel.updateProfileImage(imageUri)
@@ -119,7 +127,7 @@ fun ProfileScreen(
                         },
                         onNavigateToSearch = onNavigateToSearch,
                         onNavigateToCustomization = { 
-                            Log.d("ProfileScreen", "onNavigateToCustomization called - setting showCustomization = true")
+
                             showCustomization = true 
                         },
                         onBlockUser = { viewModel.blockUser(state.user.uid) },
@@ -192,10 +200,10 @@ fun ProfileContent(
                     onFollowListClick = onFollowListClick,
                     onUpdateProfileImage = onUpdateProfileImage,
                     onNavigateToCustomization = { 
-                        Log.d("ProfileScreen", "ProfileInfoSection onNavigateToCustomization called")
-                        Log.d("ProfileScreen", "About to call ProfileContent's onNavigateToCustomization")
+
+
                         onNavigateToCustomization()
-                        Log.d("ProfileScreen", "ProfileContent's onNavigateToCustomization called")
+
                     },
                     onBlockUser = onBlockUser,
                     onUnblockUser = onUnblockUser
@@ -412,11 +420,11 @@ fun ProfileInfoSection(
                 user = user,
                 isMyProfile = isMyProfile,
                 onImageClick = {
-                    Log.d("ProfileScreen", "Profile image clicked, isMyProfile: $isMyProfile")
-                    Log.d("ProfileScreen", "User ID: ${user.uid}")
-                    Log.d("ProfileScreen", "About to call onNavigateToCustomization")
+
+
+
                     onNavigateToCustomization()
-                    Log.d("ProfileScreen", "onNavigateToCustomization called")
+
                 }
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -679,13 +687,13 @@ fun ProfileImage(
     onImageClick: () -> Unit
 ) {
     val modifier = Modifier.clickable(onClick = {
-        Log.d("ProfileImage", "ProfileImage clicked, isMyProfile: $isMyProfile")
-        Log.d("ProfileImage", "User ID: ${user.uid}")
+
+
         if (isMyProfile) {
-            Log.d("ProfileImage", "Calling onImageClick")
+
             onImageClick()
         } else {
-            Log.d("ProfileImage", "Not my profile, click ignored")
+
         }
     })
 
