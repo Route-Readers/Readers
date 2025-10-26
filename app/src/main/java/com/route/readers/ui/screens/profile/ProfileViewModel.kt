@@ -140,7 +140,6 @@ open class ProfileViewModel : ViewModel() {
                 val user: User? = userDocument.toObject(User::class.java)
 
                 if (user != null) {
-                    // 실제 팔로워/팔로잉 수와 동기화 (자기 자신 제외)
                     android.util.Log.d("ProfileViewModel", "=== 팔로워/팔로잉 디버깅 ===")
                     android.util.Log.d("ProfileViewModel", "targetUserId: $targetUserId")
                     android.util.Log.d("ProfileViewModel", "currentUserId: $currentUserId")
@@ -148,11 +147,10 @@ open class ProfileViewModel : ViewModel() {
                     android.util.Log.d("ProfileViewModel", "원본 following: ${user.following}")
                     android.util.Log.d("ProfileViewModel", "원본 followerCount: ${user.followerCount}")
                     android.util.Log.d("ProfileViewModel", "원본 followingCount: ${user.followingCount}")
-                    
-                    // 각 팔로워/팔로잉의 실제 닉네임 가져오기
+
                     val followerNames = mutableListOf<String>()
                     val followingNames = mutableListOf<String>()
-                    
+
                     for (followerId in user.followers) {
                         try {
                             val followerDoc = db.collection("users").document(followerId).get().await()
@@ -162,7 +160,7 @@ open class ProfileViewModel : ViewModel() {
                             followerNames.add("오류($followerId)")
                         }
                     }
-                    
+
                     for (followingId in user.following) {
                         try {
                             val followingDoc = db.collection("users").document(followingId).get().await()
@@ -172,23 +170,21 @@ open class ProfileViewModel : ViewModel() {
                             followingNames.add("오류($followingId)")
                         }
                     }
-                    
+
                     android.util.Log.d("ProfileViewModel", "팔로워 목록: $followerNames")
                     android.util.Log.d("ProfileViewModel", "팔로잉 목록: $followingNames")
-                    
+
                     val filteredFollowers = user.followers.filter { it != targetUserId }
                     val filteredFollowing = user.following.filter { it != targetUserId }
-                    
+
                     android.util.Log.d("ProfileViewModel", "필터된 followers: $filteredFollowers")
                     android.util.Log.d("ProfileViewModel", "필터된 following: $filteredFollowing")
-                    
-                    // 유효한 사용자만 필터링 (존재하고 닉네임이 있는 사용자)
+
                     val validFollowers = mutableListOf<String>()
                     val validFollowing = mutableListOf<String>()
-                    
-                    // 팔로워 검증
+
                     for (followerId in user.followers) {
-                        if (followerId != targetUserId) { // 자기 자신 제외
+                        if (followerId != targetUserId) {
                             try {
                                 val followerDoc = db.collection("users").document(followerId).get().await()
                                 val nickname = followerDoc.getString("nickname")
@@ -203,10 +199,9 @@ open class ProfileViewModel : ViewModel() {
                             }
                         }
                     }
-                    
-                    // 팔로잉 검증
+
                     for (followingId in user.following) {
-                        if (followingId != targetUserId) { // 자기 자신 제외
+                        if (followingId != targetUserId) {
                             try {
                                 val followingDoc = db.collection("users").document(followingId).get().await()
                                 val nickname = followingDoc.getString("nickname")
@@ -221,14 +216,13 @@ open class ProfileViewModel : ViewModel() {
                             }
                         }
                     }
-                    
+
                     val actualFollowerCount = validFollowers.size.toLong()
                     val actualFollowingCount = validFollowing.size.toLong()
-                    
+
                     android.util.Log.d("ProfileViewModel", "최종 유효한 팔로워 수: $actualFollowerCount")
                     android.util.Log.d("ProfileViewModel", "최종 유효한 팔로잉 수: $actualFollowingCount")
-                    
-                    // 무효한 사용자 ID들을 배열에서도 제거
+
                     db.collection("users").document(targetUserId)
                         .update(
                             mapOf(
@@ -239,7 +233,7 @@ open class ProfileViewModel : ViewModel() {
                             )
                         )
                         .await()
-                    
+
                     val updatedUser = user.copy(
                         followers = validFollowers,
                         following = validFollowing,
@@ -294,6 +288,7 @@ open class ProfileViewModel : ViewModel() {
             }
         }
     }
+
     private suspend fun fetchMyPosts(userId: String): List<FeedItem> {
         return try {
             val snapshot = db.collection("feeds")
@@ -409,19 +404,18 @@ open class ProfileViewModel : ViewModel() {
 
     fun followUser(targetUserId: String) {
         Log.d("ProfileViewModel", "followUser called with targetUserId: $targetUserId")
-        if (currentUserId == null || currentUserId == targetUserId) return // 자기 자신 팔로우 방지
+        if (currentUserId == null || currentUserId == targetUserId) return
         refreshUiStateForFollow(targetUserId, true)
         viewModelScope.launch {
             try {
                 Log.d("ProfileViewModel", "Starting follow process...")
                 val targetUserRef = db.collection("users").document(targetUserId)
                 val currentUserRef = db.collection("users").document(currentUserId)
-                
-                // 현재 사용자 정보 가져오기
+
                 val currentUserDoc = currentUserRef.get().await()
                 val currentUserName = currentUserDoc.getString("nickname") ?: "알 수 없음"
                 Log.d("ProfileViewModel", "Current user name: $currentUserName")
-                
+
                 db.runBatch { batch ->
                     batch.update(targetUserRef, "followers", FieldValue.arrayUnion(currentUserId))
                     batch.update(targetUserRef, "followerCount", FieldValue.increment(1))
@@ -429,8 +423,7 @@ open class ProfileViewModel : ViewModel() {
                     batch.update(currentUserRef, "followingCount", FieldValue.increment(1))
                 }.await()
                 Log.d("ProfileViewModel", "User follow batch completed")
-                
-                // 팔로우 알림 생성
+
                 val followNotification = hashMapOf(
                     "type" to "FOLLOW_NOTIFICATION",
                     "authorId" to currentUserId,
@@ -442,11 +435,11 @@ open class ProfileViewModel : ViewModel() {
                     "likeCount" to 0,
                     "commentCount" to 0
                 )
-                
+
                 Log.d("ProfileViewModel", "Creating follow notification: $followNotification")
                 db.collection("feeds").add(followNotification).await()
                 Log.d("ProfileViewModel", "Follow notification created successfully")
-                
+
             } catch (e: Exception) {
                 refreshUiStateForFollow(targetUserId, false)
             }
@@ -454,7 +447,7 @@ open class ProfileViewModel : ViewModel() {
     }
 
     fun unfollowUser(targetUserId: String) {
-        if (currentUserId == null || currentUserId == targetUserId) return // 자기 자신 언팔로우 방지
+        if (currentUserId == null || currentUserId == targetUserId) return
         refreshUiStateForFollow(targetUserId, false)
         viewModelScope.launch {
             try {
@@ -698,19 +691,17 @@ open class ProfileViewModel : ViewModel() {
             }
         }
     }
-    
-    // 임시 디버깅용 - 강제로 카운트 동기화
+
     fun forceSyncCounts(targetUserId: String) {
         viewModelScope.launch {
             try {
                 val userDoc = db.collection("users").document(targetUserId).get().await()
                 val user = userDoc.toObject(User::class.java)
-                
+
                 if (user != null) {
                     val correctFollowerCount = user.followers.filter { it != targetUserId }.size.toLong()
                     val correctFollowingCount = user.following.filter { it != targetUserId }.size.toLong()
-                    
-                    // 강제로 정확한 카운트로 업데이트
+
                     db.collection("users").document(targetUserId)
                         .update(
                             mapOf(
@@ -719,7 +710,7 @@ open class ProfileViewModel : ViewModel() {
                             )
                         )
                         .await()
-                        
+
                     android.util.Log.d("ProfileViewModel", "강제 동기화 완료: follower=$correctFollowerCount, following=$correctFollowingCount")
                 }
             } catch (e: Exception) {

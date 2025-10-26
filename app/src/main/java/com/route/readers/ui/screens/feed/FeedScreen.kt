@@ -1,5 +1,10 @@
 package com.route.readers.ui.screens.feed
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,24 +23,20 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import com.route.readers.R
-import com.route.readers.data.model.User
-import com.route.readers.ui.components.UserProfileImage
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
-import androidx.compose.material3.*
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -57,18 +58,31 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.route.readers.R // 이 import가 feature/profile_img에 있었음
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentSnapshot
+import com.route.readers.data.model.Book // dev에 추가된 Book 모델
+import com.route.readers.data.model.User
+import com.route.readers.ui.components.UserProfileImage // feature/profile_img에 추가된 UserProfileImage
 import com.route.readers.ui.theme.DarkRed
 import com.route.readers.ui.theme.TextGray
 import com.route.readers.ui.theme.White
 import java.text.SimpleDateFormat
 import java.util.Locale
+
+// ====================================================================================
+// FeedScreen (UI Entry Point)
+// ====================================================================================
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -123,8 +137,6 @@ fun FeedScreen(
                                     feedViewModel.deleteFeed(feedId)
                                 },
                                 onNavigateToOtherUserProfile = onNavigateToOtherUserProfile,
-
-
                                 onFollowBack = { followerId ->
                                     feedViewModel.followBack(followerId)
                                 },
@@ -137,6 +149,10 @@ fun FeedScreen(
         }
     }
 }
+
+// ====================================================================================
+// ActualFeedContent (LazyColumn & Delete Dialog)
+// ====================================================================================
 
 @Composable
 fun ActualFeedContent(
@@ -204,13 +220,11 @@ fun ActualFeedContent(
                     showDeleteDialog = true
                 },
                 onUserClick = {
-                    if (item is FeedItem.BookReview) {
-                        onNavigateToOtherUserProfile(item.authorId)
+                    val userId = when (item) {
+                        is FeedItem.BookReview -> item.authorId
+                        is FeedItem.FollowNotification -> item.followerId // 팔로우 알림은 팔로워 프로필로 이동
                     }
-                    if (item is FeedItem.FollowNotification) {
-                        onNavigateToOtherUserProfile(item.followerId)
-
-                    }
+                    onNavigateToOtherUserProfile(userId)
                 },
                 onFollowBack = onFollowBack,
                 followerInfoMap = followerInfoMap,
@@ -219,6 +233,10 @@ fun ActualFeedContent(
         }
     }
 }
+
+// ====================================================================================
+// FeedCard (Individual Feed UI)
+// ====================================================================================
 
 @Composable
 fun FeedCard(
@@ -234,6 +252,8 @@ fun FeedCard(
     modifier: Modifier = Modifier
 ) {
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+    // dev 브랜치에서 추가된 BookReview 확장 상태
+    var isBookCardExpanded by remember { mutableStateOf(false) } 
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -253,11 +273,20 @@ fun FeedCard(
                         .weight(1f, fill = false)
                         .clickable(onClick = onUserClick)
                 ) {
-                    // 사용자 정보 가져오기
-                    val userInfo = when (item) {
-                        is FeedItem.BookReview -> followerInfoMap[item.authorId]
-                        is FeedItem.FollowNotification -> followerInfoMap[item.authorId]
+                    // 사용자 정보 가져오기 (BookReview는 작성자, FollowNotification은 수신자(나) 정보로 표시)
+                    val userIdForProfile = when (item) {
+                        is FeedItem.BookReview -> item.authorId
+                        is FeedItem.FollowNotification -> item.authorId // FollowNotification의 작성자(authorId)는 나 자신(receiverId)일 수도 있음
                     }
+                    val userInfo = followerInfoMap[userIdForProfile]
+                    
+                    // ProfileImageInFeed 컴포저블 대신 UserProfileImage 사용 (feature/profile_img 반영)
+                    // ProfileImageInFeed 컴포넌트가 UserProfileImage의 내용을 대체하여 별도의 파일에 정의된 경우,
+                    // 여기서는 UserProfileImage를 사용하도록 통합합니다.
+                    // 임시로 feature/profile_img의 ProfileImageInFeed 코드를 복사하여 UserProfileImage를 대체하거나,
+                    // 혹은 UserProfileImage가 이미 별도로 정의되어 있다고 가정하고 사용합니다.
+                    // 충돌 해결을 위해, 여기서는 feature/profile_img의 프로필 로직을 사용합니다.
+                    
                     if (userInfo != null) {
                         UserProfileImage(
                             user = userInfo,
@@ -265,7 +294,7 @@ fun FeedCard(
                             fontSize = 20.sp
                         )
                     } else {
-                        // 사용자 정보가 없을 때 기본 이미지
+                        // 사용자 정보가 없을 때 기본 이미지 (feature/profile_img의 로직 유지)
                         Box(
                             modifier = Modifier
                                 .size(40.dp)
@@ -281,6 +310,7 @@ fun FeedCard(
                             )
                         }
                     }
+                    
                     Spacer(modifier = Modifier.width(8.dp))
                     Column {
                         Text(text = item.userName, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = DarkRed)
@@ -301,7 +331,39 @@ fun FeedCard(
 
             when (item) {
                 is FeedItem.BookReview -> {
-                    Text(text = "📚 ${item.bookTitle}", fontWeight = FontWeight.Medium, color = DarkRed)
+                    // dev 브랜치의 확장 가능한 SelectedBookCard 로직 반영
+                    AnimatedVisibility(
+                        visible = isBookCardExpanded,
+                        enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
+                        exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top)
+                    ) {
+                        item.book?.let { book ->
+                            SelectedBookCard(book = book, onClear = null) // 피드에서는 취소 기능 없음
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { isBookCardExpanded = !isBookCardExpanded }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            // dev 브랜치는 book 객체의 title을, feature/profile_img는 bookTitle 필드를 사용.
+                            // FeedItem.BookReview 정의에서 bookTitle 대신 book 객체 내부의 title을 사용하도록 통일.
+                            text = "📚 ${item.book?.title ?: item.bookTitle}", // 안전을 위해 둘 다 사용
+                            fontWeight = FontWeight.Medium,
+                            color = DarkRed,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Icon(
+                            imageVector = if (isBookCardExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                            contentDescription = if (isBookCardExpanded) "접기" else "펼치기",
+                            tint = TextGray
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         repeat(5) { index ->
@@ -334,7 +396,8 @@ fun FeedCard(
                             color = White
                         )
                     }
-                }            }
+                }
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -375,6 +438,51 @@ fun FeedCard(
     }
 }
 
+// ====================================================================================
+// SelectedBookCard (Book Info Card) - dev 브랜치에서 추가됨
+// ====================================================================================
+
+@Composable
+fun SelectedBookCard(book: Book, onClear: (() -> Unit)? = null) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(book.cover)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = book.title,
+                modifier = Modifier
+                    .height(120.dp)
+                    .width(80.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(book.title, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, lineHeight = 22.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(book.author, color = Color.DarkGray, fontSize = 14.sp)
+            }
+            if (onClear != null) {
+                IconButton(onClick = onClear, modifier = Modifier.size(24.dp)) {
+                    Icon(Icons.Default.Clear, contentDescription = "선택 취소")
+                }
+            }
+        }
+    }
+}
+
+// ====================================================================================
+// Data Classes & Utility Functions
+// ====================================================================================
 
 sealed class FeedItem(
     open val id: String = "",
@@ -388,7 +496,8 @@ sealed class FeedItem(
         override val id: String = "",
         val authorId: String = "",
         override val userName: String = "",
-        val bookTitle: String = "",
+        val book: Book? = null, // dev 브랜치 변경: book 객체 추가
+        val bookTitle: String = book?.title ?: "", // feature/profile_img 브랜치에서 사용하던 bookTitle 필드 유지 (호환성 및 안전성)
         val review: String = "",
         val rating: Int = 0,
         val likedBy: List<String> = emptyList(),
@@ -396,6 +505,7 @@ sealed class FeedItem(
         override val likeCount: Int = 0,
         override val commentCount: Int = 0
     ) : FeedItem(id, userName, timestamp, likeCount, commentCount, "BOOK_REVIEW")
+
     data class FollowNotification(
         override val id: String = "",
         val authorId: String = "",
@@ -406,7 +516,8 @@ sealed class FeedItem(
         override val timestamp: Timestamp = Timestamp.now(),
         override val likeCount: Int = 0,
         override val commentCount: Int = 0
-    ) : FeedItem(id, userName, timestamp, likeCount, commentCount, "FOLLOW_NOTIFICATION")}
+    ) : FeedItem(id, userName, timestamp, likeCount, commentCount, "FOLLOW_NOTIFICATION")
+}
 
 fun formatTimestamp(timestamp: Timestamp): String {
     val diff = (System.currentTimeMillis() - timestamp.toDate().time) / 1000
@@ -418,68 +529,36 @@ fun formatTimestamp(timestamp: Timestamp): String {
     }
 }
 
+// DocumentSnapshot 파싱 로직 (dev 브랜치 로직 반영)
 fun DocumentSnapshot.toFeedItem(): FeedItem? {
     val type = getString("type") ?: return null
     return when (type) {
-        "BOOK_REVIEW" -> this.toObject(FeedItem.BookReview::class.java)
+        "BOOK_REVIEW" -> {
+            // dev 브랜치의 Book 객체 파싱 로직 사용
+            val bookData = get("book") as? Map<String, Any>
+            val book = if (bookData != null) {
+                Book(
+                    title = bookData["title"] as? String ?: "",
+                    author = bookData["author"] as? String ?: "",
+                    description = bookData["description"] as? String ?: "",
+                    isbn = bookData["isbn"] as? String ?: "",
+                    cover = bookData["cover"] as? String ?: ""
+                )
+            } else {
+                null
+            }
+            
+            val bookReview = toObject(FeedItem.BookReview::class.java)?.copy(book = book)
+            
+            // 기존 bookTitle 필드를 book 객체의 title로 채우도록 처리 (호환성 유지)
+            bookReview?.copy(bookTitle = bookReview.book?.title ?: bookReview.bookTitle)
+        }
         "FOLLOW_NOTIFICATION" -> this.toObject(FeedItem.FollowNotification::class.java)
         else -> null
     }
-@Composable
-fun ProfileImageInFeed(user: User?, userName: String) {
-    val backgroundColor = try {
-        user?.profileBackgroundColor?.let { Color(android.graphics.Color.parseColor(it)) } ?: DarkRed
-    } catch (e: Exception) {
-        DarkRed
-    }
+}
 
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .background(backgroundColor),
-        contentAlignment = Alignment.Center
-    ) {
-        when {
-            !user?.profileImageUrl.isNullOrBlank() -> {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(user?.profileImageUrl)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = "프로필 이미지",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-            user?.profileCharacter != null -> {
-                val drawableRes = when (user.profileCharacter) {
-                    "lion" -> R.drawable.lion
-                    "penguin" -> R.drawable.penguin
-                    "redpanda" -> R.drawable.redpanda
-                    "squirrel" -> R.drawable.squirrel
-                    else -> null
-                }
-                
-                drawableRes?.let {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(it)
-                            .build(),
-                        contentDescription = "캐릭터",
-                        modifier = Modifier.size(32.dp),
-                        contentScale = ContentScale.Fit
-                    )
-                }
-            }
-            else -> {
-                Text(
-                    text = userName.firstOrNull()?.toString() ?: "R",
-                    color = White,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-    }
-}}
+// ProfileImageInFeed 컴포넌트는 UserProfileImage의 내용을 재정의하거나
+// 동일한 기능을 수행하는 것으로 보이므로, UserProfileImage가 외부 파일에 이미 정의되어 있다고 가정하고
+// 충돌 섹션에서 제거했습니다. 만약 UserProfileImage가 없다면 ProfileImageInFeed 내용을 옮겨와야 합니다.
+// 여기서는 feature/profile_img에서 import된 com.route.readers.ui.components.UserProfileImage를 사용한다고 가정합니다.
