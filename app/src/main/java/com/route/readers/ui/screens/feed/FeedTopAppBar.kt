@@ -2,7 +2,16 @@ package com.route.readers.ui.screens.feed
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
@@ -29,7 +38,8 @@ fun FeedTopAppBar(
     consecutiveDays: Int,
     onBlockListClick: () -> Unit,
     onLogoutClick: () -> Unit,
-    onMyAccountClick: () -> Unit
+    onMyAccountClick: () -> Unit,
+    onAttendanceClick: () -> Unit // 기록 페이지 이동 콜백 추가
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
@@ -51,7 +61,10 @@ fun FeedTopAppBar(
             }
         },
         actions = {
-            AttendanceBadge(days = consecutiveDays)
+            AttendanceBadge(
+                days = consecutiveDays,
+                onClick = onAttendanceClick // 클릭 콜백 전달
+            )
 
             Box {
                 IconButton(onClick = { menuExpanded = true }) {
@@ -97,13 +110,14 @@ fun FeedTopAppBar(
 }
 
 @Composable
-fun AttendanceBadge(days: Int) {
+fun AttendanceBadge(days: Int, onClick: () -> Unit) { // onClick 파라미터 추가
     if (days > 0) {
         Row(
             modifier = Modifier
                 .height(32.dp)
                 .clip(CircleShape)
                 .background(Color(0xFFFFF7E6))
+                .clickable(onClick = onClick) // 클릭 가능하도록 설정
                 .padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)

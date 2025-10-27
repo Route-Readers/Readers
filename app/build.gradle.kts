@@ -1,8 +1,7 @@
 import java.util.Properties
 import java.io.FileInputStream
 
-plugins {
-    id("com.android.application")
+plugins {id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.gms.google-services")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -19,14 +18,12 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        // local.properties 파일 로드
         val localProperties = Properties()
         val localPropertiesFile = rootProject.file("local.properties")
         if (localPropertiesFile.exists()) {
             localProperties.load(FileInputStream(localPropertiesFile))
         }
 
-        // ALADIN_TTB_KEY를 BuildConfig.ALADIN_TTB_KEY로 생성
         buildConfigField(
             "String",
             "ALADIN_TTB_KEY",
@@ -35,30 +32,29 @@ android {
 
         buildConfigField(
             "String",
-            "DATA_GO_KR_API_KEY", // <- 이 이름을 Kotlin 코드에서 사용하는 이름과 일치시킵니다.
+            "DATA_GO_KR_API_KEY",
             "\"${localProperties.getProperty("DATA_GO_KR_API_KEY")}\""
         )
-
-
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
 
     kotlinOptions {
-        jvmTarget = "17"
+        jvmTarget = "1.8"
     }
 
     buildFeatures {
         compose = true
-        buildConfig = true // 이 설정이 있어야 BuildConfig 파일이 생성됩니다.
+        buildConfig = true
     }
-
 }
 
 dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")
     implementation("androidx.activity:activity-compose:1.9.1")
@@ -75,7 +71,6 @@ dependencies {
 
     implementation("androidx.compose.foundation:foundation-layout:1.6.8")
 
-    // --- Firebase ---
     implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
     implementation("com.google.android.gms:play-services-auth:21.4.0")
     implementation("com.google.firebase:firebase-analytics")
@@ -84,17 +79,16 @@ dependencies {
     implementation("com.google.firebase:firebase-storage")
     implementation("com.google.accompanist:accompanist-permissions:0.34.0")
 
-    // --- Retrofit ---
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation("com.squareup.retrofit2:converter-scalars:2.9.0")
 
-    // --- Coil for image loading ---
     implementation("io.coil-kt:coil-compose:2.4.0")
-    // 위치
     implementation("com.google.android.gms:play-services-location:21.3.0")
 
-    // HTTP 요청/응답을 로그로 보기 위한 라이브러리
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
+    val calendarVersion = "1.4.0"
+    implementation("io.github.boguszpawlowski.composecalendar:composecalendar:$calendarVersion")
+    implementation("io.github.boguszpawlowski.composecalendar:kotlinx-datetime:$calendarVersion")
 }
