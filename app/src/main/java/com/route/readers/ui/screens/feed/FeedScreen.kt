@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Clear
@@ -45,9 +46,11 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -101,42 +104,53 @@ fun FeedScreen(
     val isRefreshing by feedViewModel.isRefreshing.collectAsState()
     val pullToRefreshState = rememberPullToRefreshState()
 
-    PullToRefreshBox(
-        modifier = Modifier.fillMaxSize(),
-        state = pullToRefreshState,
-        isRefreshing = isRefreshing,
-        onRefresh = { feedViewModel.refreshFeeds() }
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
+    Scaffold(
+        floatingActionButton = {
+            FloatingActionButton(onClick = onNavigateToAddFeed, containerColor = DarkRed) {
+                Icon(Icons.Default.Add, contentDescription = "피드 추가", tint = White)
+            }
+        },
+        containerColor = Color(0xFFF5F5F5)
+    ) { paddingValues ->
+        PullToRefreshBox(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize(),
+            state = pullToRefreshState,
+            isRefreshing = isRefreshing,
+            onRefresh = { feedViewModel.refreshFeeds() }
         ) {
-            when (val state = uiState) {
-                is FeedUiState.Loading -> CircularProgressIndicator()
-                is FeedUiState.Error -> Text(text = state.message)
-                is FeedUiState.Success -> {
-                    if (state.items.isEmpty()) {
-                        Text("표시할 피드가 없습니다.")
-                    } else {
-                        SortableFeedContent(
-                            feedItems = state.items,
-                            likedFeedIds = state.likedFeedIds,
-                            savedFeedIds = state.savedFeedIds,
-                            onLikeClick = { feedId, isLiked ->
-                                feedViewModel.toggleLike(feedId, isLiked)
-                            },
-                            onSaveClick = { feedId, isSaved ->
-                                feedViewModel.toggleSave(feedId, isSaved)
-                            },
-                            onDeleteFeed = { feedId ->
-                                feedViewModel.deleteFeed(feedId)
-                            },
-                            onNavigateToOtherUserProfile = onNavigateToOtherUserProfile,
-                            onFollowBack = { followerId ->
-                                feedViewModel.followBack(followerId)
-                            },
-                            followerInfoMap = state.followerInfoMap
-                        )
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                when (val state = uiState) {
+                    is FeedUiState.Loading -> CircularProgressIndicator()
+                    is FeedUiState.Error -> Text(text = state.message)
+                    is FeedUiState.Success -> {
+                        if (state.items.isEmpty()) {
+                            Text("표시할 피드가 없습니다.")
+                        } else {
+                            SortableFeedContent(
+                                feedItems = state.items,
+                                likedFeedIds = state.likedFeedIds,
+                                savedFeedIds = state.savedFeedIds,
+                                onLikeClick = { feedId, isLiked ->
+                                    feedViewModel.toggleLike(feedId, isLiked)
+                                },
+                                onSaveClick = { feedId, isSaved ->
+                                    feedViewModel.toggleSave(feedId, isSaved)
+                                },
+                                onDeleteFeed = { feedId ->
+                                    feedViewModel.deleteFeed(feedId)
+                                },
+                                onNavigateToOtherUserProfile = onNavigateToOtherUserProfile,
+                                onFollowBack = { followerId ->
+                                    feedViewModel.followBack(followerId)
+                                },
+                                followerInfoMap = state.followerInfoMap
+                            )
+                        }
                     }
                 }
             }
@@ -285,7 +299,7 @@ fun ActualFeedContent(
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp),
+        contentPadding = PaddingValues(bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(feedItems, key = { it.id }) { item ->

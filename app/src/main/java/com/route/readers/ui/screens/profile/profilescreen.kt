@@ -54,7 +54,7 @@ fun ProfileScreen(
     viewModel: ProfileViewModel
 ) {
     var showCustomization by remember { mutableStateOf(false) }
-    
+
     LaunchedEffect(key1 = userId) {
 
 
@@ -108,7 +108,7 @@ fun ProfileScreen(
                             // 팔로우 후 동기화 실행
                             viewModel.syncFollowRelationship(state.user.uid)
                         },
-                        onUnfollowClick = { 
+                        onUnfollowClick = {
                             viewModel.unfollowUser(state.user.uid)
                             // 언팔로우 후 동기화 실행
                             viewModel.syncFollowRelationship(state.user.uid)
@@ -126,9 +126,9 @@ fun ProfileScreen(
                             }
                         },
                         onNavigateToSearch = onNavigateToSearch,
-                        onNavigateToCustomization = { 
+                        onNavigateToCustomization = {
 
-                            showCustomization = true 
+                            showCustomization = true
                         },
                         onBlockUser = { viewModel.blockUser(state.user.uid) },
                         onUnblockUser = { viewModel.unblockUser(state.user.uid) }
@@ -199,7 +199,7 @@ fun ProfileContent(
                     onUnfollowClick = onUnfollowClick,
                     onFollowListClick = onFollowListClick,
                     onUpdateProfileImage = onUpdateProfileImage,
-                    onNavigateToCustomization = { 
+                    onNavigateToCustomization = {
 
 
                         onNavigateToCustomization()
@@ -730,7 +730,7 @@ fun ProfileImage(
                     "squirrel" -> R.drawable.squirrel
                     else -> null
                 }
-                
+
                 drawableRes?.let {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
