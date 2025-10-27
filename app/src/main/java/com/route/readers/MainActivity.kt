@@ -1,15 +1,15 @@
 package com.route.readers
 
 import android.Manifest
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.activity.compose.setContent
+import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -22,7 +22,6 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -35,6 +34,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.notification.DailyNotificationScheduler
 import com.route.readers.ui.screens.MainScreen
 import com.route.readers.ui.screens.add_feed.AddFeedScreen
+import com.route.readers.ui.screens.attendance.AttendanceScreen // 추가
 import com.route.readers.ui.screens.login.LoginScreen
 import com.route.readers.ui.screens.login.LoginViewModel
 import com.route.readers.ui.screens.login.OnboardingScreen
@@ -232,6 +232,9 @@ fun RootAppNavigation() {
                 },
                 onNavigateToMyAccount = {
                     appNavController.navigate("account_route")
+                },
+                onNavigateToAttendance = { // 수정된 부분
+                    appNavController.navigate("attendance_route")
                 }
             )
         }
@@ -242,6 +245,12 @@ fun RootAppNavigation() {
                 onNavigateToPrivacy = {
                     // TODO: 공개 범위 설정 화면으로 이동하는 로직 구현
                 }
+            )
+        }
+
+        composable("attendance_route") { // 추가된 부분
+            AttendanceScreen(
+                onNavigateBack = { appNavController.popBackStack() }
             )
         }
 

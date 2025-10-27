@@ -22,6 +22,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.ui.screens.MainScreen
 import com.route.readers.ui.screens.add_feed.AddFeedScreen
+import com.route.readers.ui.screens.attendance.AttendanceScreen // --- 1. import 추가 ---
 import com.route.readers.ui.screens.login.LoginScreen
 import com.route.readers.ui.screens.login.LoginViewModel
 import com.route.readers.ui.screens.login.OnboardingScreen
@@ -161,6 +162,7 @@ fun AppNavigation(navController: NavHostController) {
             )
         }
 
+        // --- 2. MainScreen에 onNavigateToAttendance 추가 ---
         composable("main_app_content_route") {
             MainScreen(
                 navController = navController,
@@ -172,6 +174,9 @@ fun AppNavigation(navController: NavHostController) {
                 },
                 onNavigateToMyAccount = {
                     navController.navigate("account_route")
+                },
+                onNavigateToAttendance = { // 콜백 추가
+                    navController.navigate("attendance_route")
                 }
             )
         }
@@ -278,6 +283,15 @@ fun AppNavigation(navController: NavHostController) {
 
         composable("add_feed_route") {
             AddFeedScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        // --- 3. AttendanceScreen 경로 추가 ---
+        composable("attendance_route") {
+            AttendanceScreen(
                 onNavigateBack = {
                     navController.popBackStack()
                 }

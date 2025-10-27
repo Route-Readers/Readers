@@ -1,5 +1,8 @@
 package com.route.readers.ui.screens
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Scaffold
@@ -18,8 +21,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
@@ -45,13 +46,13 @@ fun MainScreen(
     navController: NavHostController,
     onNavigateToOtherUserProfile: (String) -> Unit,
     onNavigateToAddFeed: () -> Unit,
-    onNavigateToMyAccount: () -> Unit
+    onNavigateToMyAccount: () -> Unit,
+    onNavigateToAttendance: () -> Unit
 ) {
     val bottomNavController = rememberNavController()
     val communityViewModel: CommunityViewModel = viewModel()
     val mainViewModel: MainViewModel = viewModel()
-    
-    // 사용자 ID 미리 캐시
+
     val currentUserId = remember { FirebaseAuth.getInstance().currentUser?.uid }
 
     var selectedBook by remember { mutableStateOf<MyBook?>(null) }
@@ -106,7 +107,8 @@ fun MainScreen(
                     onLogoutClick = {
                         showLogoutDialog = true
                     },
-                    onMyAccountClick = onNavigateToMyAccount
+                    onMyAccountClick = onNavigateToMyAccount,
+                    onAttendanceClick = onNavigateToAttendance
                 )
             }
         },
@@ -146,7 +148,9 @@ fun MainScreen(
         NavHost(
             navController = bottomNavController,
             startDestination = BottomNavItem.Feed.route,
-            modifier = Modifier.padding(innerPadding),
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize(),
             enterTransition = { EnterTransition.None },
             exitTransition = { ExitTransition.None }
         ) {
