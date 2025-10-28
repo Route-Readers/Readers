@@ -73,6 +73,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.offset
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -491,6 +492,42 @@ fun FeedCard(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(text = item.review, fontSize = 14.sp)
+
+                    Spacer(modifier = Modifier.height(8.dp)) // Spacer after review text
+                    Row( // This is the Row containing like/delete buttons
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row( // This is the inner Row for like icon and count
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable(onClick = onLikeClick)
+                        ) {
+                            Icon(
+                                imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                                contentDescription = "좋아요",
+                                tint = if (isLiked) DarkRed else TextGray,
+                                modifier = Modifier.size(24.dp) // Explicit icon size
+                            )
+                            Spacer(modifier = Modifier.width(4.dp)) // Reintroduce small spacing
+                            Text(text = item.likeCount.toString(), fontSize = 14.sp, color = TextGray)
+                        }
+
+                        Spacer(modifier = Modifier.weight(1f))
+
+                        val canDelete = when (item) {
+                            is FeedItem.BookReview -> item.authorId == currentUserId
+                            is FeedItem.FollowNotification -> item.receiverId == currentUserId
+                        }
+                        if (canDelete) {
+                            IconButton(onClick = onDeleteClick) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "삭제",
+                                    tint = TextGray
+                                )
+                            }
+                        }
+                    }
                 }
                 is FeedItem.FollowNotification -> {
                     val followerName = followerInfoMap[item.followerId]?.nickname ?: "알 수 없는 사용자"
@@ -513,41 +550,40 @@ fun FeedCard(
                             color = White
                         )
                     }
-                }
-            }
+                    Spacer(modifier = Modifier.height(8.dp)) // Spacer after follow notification button
+                    Row( // Moved like/delete row for FollowNotification
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row( // This is the inner Row for like icon and count
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable(onClick = onLikeClick)
+                        ) {
+                            Icon(
+                                imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                                contentDescription = "좋아요",
+                                tint = if (isLiked) DarkRed else TextGray,
+                                modifier = Modifier.size(24.dp) // Explicit icon size
+                            )
+                            Spacer(modifier = Modifier.width(4.dp)) // 이걸로 좋아요 아이콘과 좋아요수 간격 조정 가능해요
+                            Text(text = item.likeCount.toString(), fontSize = 14.sp, color = TextGray)
+                        }
 
-            Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.weight(1f))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onLikeClick) {
-                        Icon(
-                            imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                            contentDescription = "좋아요",
-                            tint = if (isLiked) DarkRed else TextGray
-                        )
-                    }
-                    Text(text = item.likeCount.toString(), fontSize = 14.sp, color = TextGray)
-                }
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                val canDelete = when (item) {
-                    is FeedItem.BookReview -> item.authorId == currentUserId
-                    is FeedItem.FollowNotification -> item.receiverId == currentUserId
-                }
-                if (canDelete) {
-                    IconButton(onClick = onDeleteClick) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "삭제",
-                            tint = TextGray
-                        )
+                        val canDelete = when (item) {
+                            is FeedItem.BookReview -> item.authorId == currentUserId
+                            is FeedItem.FollowNotification -> item.receiverId == currentUserId
+                        }
+                        if (canDelete) {
+                            IconButton(onClick = onDeleteClick) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "삭제",
+                                    tint = TextGray
+                                )
+                            }
+                        }
                     }
                 }
             }
