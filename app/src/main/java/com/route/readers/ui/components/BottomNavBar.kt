@@ -25,13 +25,14 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.google.firebase.auth.FirebaseAuth
 
 sealed class BottomNavItem(val route: String, val title: String, val icon: ImageVector) {
     object Feed : BottomNavItem("feed_screen", "피드", Icons.Filled.Home)
     object MyLibrary : BottomNavItem("mylibrary_screen", "내 서재", Icons.Filled.AccountCircle)
     object Search : BottomNavItem("search_screen", "검색", Icons.Filled.Search)
     object Community : BottomNavItem("community_screen", "커뮤니티", Icons.Filled.Explore)
-    object Profile : BottomNavItem("profile_screen", "프로필", Icons.Filled.AccountCircle)
+    object Profile : BottomNavItem("profile_route", "프로필", Icons.Filled.AccountCircle)
 }
 
 val sideNavItems = listOf(
@@ -51,6 +52,7 @@ fun BottomNavBar(
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
 
     Box(
         modifier = modifier
@@ -69,11 +71,10 @@ fun BottomNavBar(
                         onStartReading()
                     } else {
                         navController.navigate(BottomNavItem.MyLibrary.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
+                            popUpTo(BottomNavItem.Feed.route) {
                                 saveState = true
                             }
                             launchSingleTop = true
-                            restoreState = true
                         }
                     }
                 },
@@ -94,16 +95,21 @@ fun BottomNavBar(
             horizontalArrangement = Arrangement.spacedBy(40.dp)
         ) {
             sideNavItems.take(2).forEach { screen ->
+                val isSelected = if (screen.route == "profile_route") {
+                    val profileUserId = navBackStackEntry?.arguments?.getString("userId")
+                    currentRoute == "profile_route/{userId}" && profileUserId == currentUserId
+                } else {
+                    currentRoute == screen.route
+                }
                 NavItem(
                     item = screen,
-                    isSelected = currentRoute == screen.route,
+                    isSelected = isSelected,
                     onClick = {
                         navController.navigate(screen.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
+                            popUpTo(BottomNavItem.Feed.route) {
                                 saveState = true
                             }
                             launchSingleTop = true
-                            restoreState = true
                         }
                     }
                 )
@@ -117,19 +123,24 @@ fun BottomNavBar(
             horizontalArrangement = Arrangement.spacedBy(40.dp)
         ) {
             sideNavItems.drop(2).forEach { screen ->
+                val isSelected = if (screen.route == "profile_route") {
+                    val profileUserId = navBackStackEntry?.arguments?.getString("userId")
+                    currentRoute == "profile_route/{userId}" && profileUserId == currentUserId
+                } else {
+                    currentRoute == screen.route
+                }
                 NavItem(
                     item = screen,
-                    isSelected = currentRoute == screen.route,
+                    isSelected = isSelected,
                     onClick = {
                         if (screen.route == BottomNavItem.Profile.route) {
                             onProfileClick()
                         } else {
                             navController.navigate(screen.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
+                                popUpTo(BottomNavItem.Feed.route) {
                                     saveState = true
                                 }
                                 launchSingleTop = true
-                                restoreState = true
                             }
                         }
                     }
