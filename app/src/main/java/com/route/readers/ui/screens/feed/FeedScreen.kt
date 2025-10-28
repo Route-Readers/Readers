@@ -366,7 +366,7 @@ fun FeedCard(
                 ) {
                     val userIdForProfile = when (item) {
                         is FeedItem.BookReview -> item.authorId
-                        is FeedItem.FollowNotification -> item.authorId
+                        is FeedItem.FollowNotification -> item.followerId
                     }
                     val userInfo = followerInfoMap[userIdForProfile]
 
@@ -648,11 +648,17 @@ fun DocumentSnapshot.toFeedItem(): FeedItem? {
                 null
             }
 
-            val bookReview = toObject(FeedItem.BookReview::class.java)?.copy(book = book)
+            val bookReview = toObject(FeedItem.BookReview::class.java)?.copy(
+                id = this.id, // 문서 ID를 명시적으로 설정
+                book = book
+            )
 
-            bookReview?.copy(bookTitle = bookReview.book?.title ?: bookReview.bookTitle)
+            // book 객체가 있으면 title을, 없으면 기존 bookTitle 필드를 사용
+            bookReview?.copy(bookTitle = book?.title ?: bookReview.bookTitle)
         }
-        "FOLLOW_NOTIFICATION" -> this.toObject(FeedItem.FollowNotification::class.java)
+        "FOLLOW_NOTIFICATION" -> this.toObject(FeedItem.FollowNotification::class.java)?.copy(
+            id = this.id // 문서 ID를 명시적으로 설정
+        )
         else -> null
     }
 }
