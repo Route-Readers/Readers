@@ -136,12 +136,12 @@ fun FeedScreen(
                             SortableFeedContent(
                                 feedItems = state.items,
                                 likedFeedIds = state.likedFeedIds,
-                                savedFeedIds = state.savedFeedIds,
+                                bookmarkedFeedIds = state.bookmarkedFeedIds,
                                 onLikeClick = { feedId, isLiked ->
                                     feedViewModel.toggleLike(feedId, isLiked)
                                 },
-                                onSaveClick = { feedId, isSaved ->
-                                    feedViewModel.toggleSave(feedId, isSaved)
+                                onBookmarkClick = { feedId, isBookmarked ->
+                                    feedViewModel.toggleBookmark(feedId, isBookmarked)
                                 },
                                 onDeleteFeed = { feedId ->
                                     feedViewModel.deleteFeed(feedId)
@@ -164,9 +164,9 @@ fun FeedScreen(
 fun SortableFeedContent(
     feedItems: List<FeedItem>,
     likedFeedIds: Set<String>,
-    savedFeedIds: Set<String>,
+    bookmarkedFeedIds: Set<String>,
     onLikeClick: (String, Boolean) -> Unit,
-    onSaveClick: (String, Boolean) -> Unit,
+    onBookmarkClick: (String, Boolean) -> Unit,
     onDeleteFeed: (String) -> Unit,
     onNavigateToOtherUserProfile: (String) -> Unit,
     onFollowBack: (String) -> Unit,
@@ -238,9 +238,9 @@ fun SortableFeedContent(
             listState = listState,
             feedItems = sortedFeedItems,
             likedFeedIds = likedFeedIds,
-            savedFeedIds = savedFeedIds,
+            bookmarkedFeedIds = bookmarkedFeedIds,
             onLikeClick = onLikeClick,
-            onSaveClick = onSaveClick,
+            onBookmarkClick = onBookmarkClick,
             onDeleteFeed = onDeleteFeed,
             onNavigateToOtherUserProfile = onNavigateToOtherUserProfile,
             onFollowBack = onFollowBack,
@@ -255,9 +255,9 @@ fun ActualFeedContent(
     listState: LazyListState,
     feedItems: List<FeedItem>,
     likedFeedIds: Set<String>,
-    savedFeedIds: Set<String>,
+    bookmarkedFeedIds: Set<String>,
     onLikeClick: (String, Boolean) -> Unit,
-    onSaveClick: (String, Boolean) -> Unit,
+    onBookmarkClick: (String, Boolean) -> Unit,
     onDeleteFeed: (String) -> Unit,
     onNavigateToOtherUserProfile: (String) -> Unit,
     onFollowBack: (String) -> Unit,
@@ -306,13 +306,13 @@ fun ActualFeedContent(
     ) {
         items(feedItems, key = { it.id }) { item ->
             val isLiked = likedFeedIds.contains(item.id)
-            val isSaved = savedFeedIds.contains(item.id)
+            val isBookmarked = bookmarkedFeedIds.contains(item.id)
             FeedCard(
                 item = item,
                 isLiked = isLiked,
-                isSaved = isSaved,
+                isBookmarked = isBookmarked,
                 onLikeClick = { onLikeClick(item.id, isLiked) },
-                onSaveClick = { onSaveClick(item.id, isSaved) },
+                onBookmarkClick = { onBookmarkClick(item.id, isBookmarked) },
                 onDeleteClick = {
                     feedToDelete = item.id
                     showDeleteDialog = true
@@ -336,9 +336,9 @@ fun ActualFeedContent(
 fun FeedCard(
     item: FeedItem,
     isLiked: Boolean,
-    isSaved: Boolean,
+    isBookmarked: Boolean,
     onLikeClick: () -> Unit,
-    onSaveClick: () -> Unit,
+    onBookmarkClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onUserClick: () -> Unit,
     onFollowBack: (String) -> Unit = {},
@@ -402,11 +402,11 @@ fun FeedCard(
                     }
                 }
 
-                IconButton(onClick = onSaveClick) {
+                IconButton(onClick = onBookmarkClick) {
                     Icon(
-                        imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+                        imageVector = if (isBookmarked) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
                         contentDescription = "저장",
-                        tint = if (isSaved) DarkRed else TextGray
+                        tint = if (isBookmarked) DarkRed else TextGray
                     )
                 }
             }
@@ -613,7 +613,8 @@ sealed class FeedItem(
     open val timestamp: Timestamp = Timestamp.now(),
     open val likeCount: Int = 0,
     open val commentCount: Int = 0,
-    open val type: String = ""
+    open val type: String = "",
+    open val isBookmarked: Boolean = false
 ) {
     data class BookReview(
         override val id: String = "",
@@ -626,10 +627,12 @@ sealed class FeedItem(
         val currentPage: Int = 0,
         val progress: Int = 0,
         val likedBy: List<String> = emptyList(),
+        val bookmarkedBy: List<String> = emptyList(),
         override val timestamp: Timestamp = Timestamp.now(),
         override val likeCount: Int = 0,
-        override val commentCount: Int = 0
-    ) : FeedItem(id, userName, timestamp, likeCount, commentCount, "BOOK_REVIEW")
+        override val commentCount: Int = 0,
+        override val isBookmarked: Boolean = false
+    ) : FeedItem(id, userName, timestamp, likeCount, commentCount, "BOOK_REVIEW", isBookmarked)
 
     data class FollowNotification(
         override val id: String = "",
@@ -673,7 +676,8 @@ fun DocumentSnapshot.toFeedItem(): FeedItem? {
 
             val bookReview = toObject(FeedItem.BookReview::class.java)?.copy(
                 id = this.id, // 문서 ID를 명시적으로 설정
-                book = book
+                book = book,
+                bookmarkedBy = get("bookmarkedBy") as? List<String> ?: emptyList()
             )
 
             // book 객체가 있으면 title을, 없으면 기존 bookTitle 필드를 사용

@@ -117,7 +117,8 @@ class AddFeedViewModel : ViewModel() {
                     timestamp = com.google.firebase.Timestamp.now(),
                     likeCount = 0,
                     commentCount = 0,
-                    likedBy = emptyList()
+                    likedBy = emptyList(),
+                    bookmarkedBy = emptyList()
                 )
 
                 feedRef.set(newFeed).await()

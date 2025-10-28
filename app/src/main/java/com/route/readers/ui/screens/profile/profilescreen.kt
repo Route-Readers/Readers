@@ -293,9 +293,9 @@ fun ProfileContent(
                     savedPosts = state.savedPosts,
                     isMyProfile = state.isMyProfile,
                     likedFeedIds = state.likedFeedIds,
-                    savedFeedIds = state.savedFeedIds,
+                    bookmarkedFeedIds = state.bookmarkedFeedIds,
                     onLikeClick = viewModel::toggleLike,
-                    onSaveClick = viewModel::toggleSave,
+                    onBookmarkClick = viewModel::toggleBookmark,
                     onDeleteClick = { feedId ->
                         feedToDelete = feedId
                         showDeleteDialog = true
@@ -313,9 +313,9 @@ fun PostsSection(
     savedPosts: List<FeedItem>,
     isMyProfile: Boolean,
     likedFeedIds: Set<String>,
-    savedFeedIds: Set<String>,
+    bookmarkedFeedIds: Set<String>,
     onLikeClick: (feedId: String, isLiked: Boolean) -> Unit,
-    onSaveClick: (feedId: String, isSaved: Boolean) -> Unit,
+    onBookmarkClick: (feedId: String, isBookmarked: Boolean) -> Unit,
     onDeleteClick: (feedId: String) -> Unit
 ) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
@@ -367,13 +367,13 @@ fun PostsSection(
             ) {
                 postsToShow.forEach { post ->
                     val isLiked = likedFeedIds.contains(post.id)
-                    val isSaved = savedFeedIds.contains(post.id)
+                    val isBookmarked = bookmarkedFeedIds.contains(post.id)
                     FeedCard(
                         item = post,
                         isLiked = isLiked,
-                        isSaved = isSaved,
+                        isBookmarked = isBookmarked,
                         onLikeClick = { onLikeClick(post.id, isLiked) },
-                        onSaveClick = { onSaveClick(post.id, isSaved) },
+                        onBookmarkClick = { onBookmarkClick(post.id, isBookmarked) },
                         onDeleteClick = { onDeleteClick(post.id) },
                         onUserClick = { }
                     )
