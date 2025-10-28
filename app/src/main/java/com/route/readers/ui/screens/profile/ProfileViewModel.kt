@@ -266,7 +266,11 @@ open class ProfileViewModel : ViewModel() {
                         .map { it.id }
                         .toSet()
 
-                    val savedFeedIds = user.savedFeeds.toSet()
+                    val bookmarkedFeedIds = allPosts
+                        .filterIsInstance<FeedItem.BookReview>()
+                        .filter { it.bookmarkedBy.contains(currentUserId) }
+                        .map { it.id }
+                        .toSet()
 
                     val (ongoing, completed) = challengesDeferred.await()
                         .partition { !it.isCompleted }
@@ -283,7 +287,7 @@ open class ProfileViewModel : ViewModel() {
                         myPosts = myPostsDeferred.await(),
                         savedPosts = savedPostsResult,
                         likedFeedIds = likedFeedIds,
-                        savedFeedIds = savedFeedIds
+                        bookmarkedFeedIds = bookmarkedFeedIds
                     )
                 } else {
                     _uiState.value = ProfileUiState.Error("프로필 정보를 변환하는 데 실패했습니다.")
@@ -310,15 +314,11 @@ open class ProfileViewModel : ViewModel() {
 
     private suspend fun fetchSavedPosts(userId: String): List<FeedItem> {
         return try {
-            val userDoc = db.collection("users").document(userId).get().await()
-            val savedFeedIds = userDoc.get("savedFeeds") as? List<String> ?: emptyList()
-
-            if (savedFeedIds.isEmpty()) {
-                emptyList()
-            } else {
-                val snapshot = db.collection("feeds").whereIn("id", savedFeedIds).get().await()
-                snapshot.documents.mapNotNull { it.toFeedItem() }
-            }
+            val snapshot = db.collection("feeds")
+                .whereArrayContains("bookmarkedBy", userId)
+                .get()
+                .await()
+            snapshot.documents.mapNotNull { it.toFeedItem() }
         } catch (e: Exception) {
             Log.e("ProfileViewModel", "Failed to fetch saved posts", e)
             emptyList()
@@ -588,29 +588,35 @@ open class ProfileViewModel : ViewModel() {
         }
     }
 
-    fun toggleSave(feedId: String, isCurrentlySaved: Boolean) {
+    fun toggleBookmark(feedId: String, isCurrentlyBookmarked: Boolean) {
         val currentUserId = auth.currentUser?.uid ?: return
-        viewModelScope.launch {
-            val userRef = db.collection("users").document(currentUserId)
-            try {
-                val operation = if (isCurrentlySaved) {
-                    FieldValue.arrayRemove(feedId)
-                } else {
-                    FieldValue.arrayUnion(feedId)
-                }
-                userRef.update("savedFeeds", operation).await()
 
-                val currentState = _uiState.value
-                if (currentState is ProfileUiState.Success) {
-                    val newSavedIds = if (isCurrentlySaved) {
-                        currentState.savedFeedIds - feedId
-                    } else {
-                        currentState.savedFeedIds + feedId
-                    }
-                    _uiState.value = currentState.copy(savedFeedIds = newSavedIds)
+        (_uiState.value as? ProfileUiState.Success)?.let { currentState ->
+            val newSavedPosts = if (isCurrentlyBookmarked) {
+                currentState.savedPosts.filterNot { it.id == feedId }
+            } else {
+                currentState.myPosts.find { it.id == feedId }?.let { currentState.savedPosts + it } ?: currentState.savedPosts
+            }
+            val newBookmarkedIds = if (isCurrentlyBookmarked) {
+                currentState.bookmarkedFeedIds - feedId
+            } else {
+                currentState.bookmarkedFeedIds + feedId
+            }
+            _uiState.value = currentState.copy(savedPosts = newSavedPosts, bookmarkedFeedIds = newBookmarkedIds)
+        }
+
+        viewModelScope.launch {
+            try {
+                val feedRef = db.collection("feeds").document(feedId)
+                val operation = if (isCurrentlyBookmarked) {
+                    FieldValue.arrayRemove(currentUserId)
+                } else {
+                    FieldValue.arrayUnion(currentUserId)
                 }
+                feedRef.update("bookmarkedBy", operation).await()
             } catch (e: Exception) {
-                Log.e("ProfileViewModel", "Error toggling save for feed $feedId", e)
+                Log.e("ProfileViewModel", "Error toggling bookmark for feed $feedId", e)
+                // Optionally revert UI changes on error
             }
         }
     }

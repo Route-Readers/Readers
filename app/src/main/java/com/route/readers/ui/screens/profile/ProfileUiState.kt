@@ -22,7 +22,7 @@ sealed class ProfileUiState {
         val isSelectionMode: Boolean = false,
         val selectedBookIds: Set<String> = emptySet(),
         val likedFeedIds: Set<String> = emptySet(),
-        val savedFeedIds: Set<String> = emptySet()
+        val bookmarkedFeedIds: Set<String> = emptySet()
     ) : ProfileUiState()
 
     data class Error(val message: String) : ProfileUiState()

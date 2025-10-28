@@ -19,7 +19,7 @@ sealed class FeedUiState {
     data class Success(
         val items: List<FeedItem>,
         val likedFeedIds: Set<String>,
-        val savedFeedIds: Set<String>,
+        val bookmarkedFeedIds: Set<String>,
         val followerInfoMap: Map<String, User> = emptyMap()
     ) : FeedUiState()
     data class Error(val message: String) : FeedUiState()
@@ -126,8 +126,6 @@ class FeedViewModel : ViewModel() {
                     return@launch
                 }
 
-                val savedFeedIdsFromUser = user?.savedFeeds?.toSet() ?: emptySet()
-
                 val querySnapshot = db.collection("feeds")
                     .orderBy("timestamp", Query.Direction.DESCENDING)
                     .limit(50)
@@ -143,7 +141,6 @@ class FeedViewModel : ViewModel() {
                     }
                 }
 
-                // 모든 피드 작성자의 정보 가져오기
                 val allUserIds = mutableSetOf<String>()
                 feeds.forEach { feed ->
                     when (feed) {
@@ -157,8 +154,6 @@ class FeedViewModel : ViewModel() {
                 
                 val followerInfoMap = if (allUserIds.isNotEmpty()) {
                     val userInfoMap = mutableMapOf<String, User>()
-                    
-                    // 사용자 정보를 배치로 가져오기 (Firestore의 whereIn 제한으로 인해 10개씩 나누어 처리)
                     allUserIds.chunked(10).forEach { userIdChunk ->
                         try {
                             val userDocs = db.collection("users")
@@ -173,8 +168,6 @@ class FeedViewModel : ViewModel() {
                             Log.e("FeedViewModel", "Error loading user info for chunk: $userIdChunk", e)
                         }
                     }
-                    
-                    Log.d("FeedViewModel", "Loaded user info for ${userInfoMap.size} users out of ${allUserIds.size}")
                     userInfoMap
                 } else {
                     emptyMap()
@@ -195,7 +188,13 @@ class FeedViewModel : ViewModel() {
                     .map { it.id }
                     .toSet()
 
-                _uiState.value = FeedUiState.Success(updatedFeeds, likedFeedIds, savedFeedIdsFromUser, followerInfoMap)
+                val bookmarkedFeedIds = updatedFeeds
+                    .filterIsInstance<FeedItem.BookReview>()
+                    .filter { it.bookmarkedBy.contains(currentUserId) }
+                    .map { it.id }
+                    .toSet()
+
+                _uiState.value = FeedUiState.Success(updatedFeeds, likedFeedIds, bookmarkedFeedIds, followerInfoMap)
 
             } catch (e: Exception) {
                 Log.e("FeedViewModel", "Error loading feeds", e)
@@ -255,29 +254,42 @@ class FeedViewModel : ViewModel() {
         }
     }
 
-    fun toggleSave(feedId: String, isCurrentlySaved: Boolean) {
+    fun toggleBookmark(feedId: String, isCurrentlyBookmarked: Boolean) {
         val currentUserId = auth.currentUser?.uid ?: return
-        viewModelScope.launch {
-            val userRef = db.collection("users").document(currentUserId)
-            try {
-                val operation = if (isCurrentlySaved) {
-                    FieldValue.arrayRemove(feedId)
-                } else {
-                    FieldValue.arrayUnion(feedId)
-                }
-                userRef.update("savedFeeds", operation).await()
 
-                val currentState = _uiState.value
-                if (currentState is FeedUiState.Success) {
-                    val newSavedIds = if (isCurrentlySaved) {
-                        currentState.savedFeedIds - feedId
+        _uiState.update { currentState ->
+            if (currentState is FeedUiState.Success) {
+                val updatedItems = currentState.items.map { item ->
+                    if (item.id == feedId && item is FeedItem.BookReview) {
+                        item.copy(
+                            isBookmarked = !isCurrentlyBookmarked,
+                            bookmarkedBy = if (isCurrentlyBookmarked) item.bookmarkedBy - currentUserId else item.bookmarkedBy + currentUserId
+                        )
                     } else {
-                        currentState.savedFeedIds + feedId
+                        item
                     }
-                    _uiState.value = currentState.copy(savedFeedIds = newSavedIds)
                 }
+                currentState.copy(
+                    items = updatedItems,
+                    bookmarkedFeedIds = if (isCurrentlyBookmarked) currentState.bookmarkedFeedIds - feedId else currentState.bookmarkedFeedIds + feedId
+                )
+            } else {
+                currentState
+            }
+        }
+
+        viewModelScope.launch {
+            try {
+                val feedRef = db.collection("feeds").document(feedId)
+                val operation = if (isCurrentlyBookmarked) {
+                    FieldValue.arrayRemove(currentUserId)
+                } else {
+                    FieldValue.arrayUnion(currentUserId)
+                }
+                feedRef.update("bookmarkedBy", operation).await()
             } catch (e: Exception) {
-                Log.e("FeedViewModel", "Error toggling save for feed $feedId", e)
+                Log.e("FeedViewModel", "Error toggling bookmark for feed $feedId. Reverting UI.", e)
+                loadFeeds(isRefresh = false) // Revert UI on error
             }
         }
     }
