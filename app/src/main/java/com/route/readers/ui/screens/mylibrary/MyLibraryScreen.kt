@@ -30,8 +30,12 @@ import coil.compose.AsyncImage
 import com.route.readers.R
 import com.route.readers.data.model.MyBook
 import com.route.readers.data.remote.MyLibraryRepository
+import com.route.readers.data.remote.FirestoreRepository
 import com.route.readers.ui.theme.*
 import kotlinx.coroutines.launch
+import kotlin.Pair
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Star
 
 @Composable
 fun MyLibraryScreen(
@@ -46,8 +50,11 @@ fun MyLibraryScreen(
     var isLoading by remember { mutableStateOf(true) }
     var showProgressDialogBook by remember { mutableStateOf<MyBook?>(null) }
     var showDeleteDialog by remember { mutableStateOf<MyBook?>(null) }
+    var showPostToFeedDialog by remember { mutableStateOf<Pair<MyBook, Int>?>(null) }
     var selectedBook by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+
+    val firestoreRepository = remember { FirestoreRepository() }
 
     fun refreshBooks() {
         scope.launch {
@@ -254,7 +261,7 @@ fun MyLibraryScreen(
                     Log.d("MyLibraryScreen", "Update result: $success")
                     if (success) {
                         refreshBooks()
-                        Toast.makeText(context, "진도가 업데이트되었습니다", Toast.LENGTH_SHORT).show()
+                        showPostToFeedDialog = Pair(book, currentPage)
                     } else {
                         Toast.makeText(context, "업데이트 실패. 다시 시도해주세요", Toast.LENGTH_SHORT).show()
                     }
@@ -280,6 +287,38 @@ fun MyLibraryScreen(
                         Toast.makeText(context, "삭제 실패. 다시 시도해주세요", Toast.LENGTH_SHORT).show()
                     }
                     showDeleteDialog = null
+                }
+            }
+        )
+    }
+
+    showPostToFeedDialog?.let { (book, currentPage) ->
+        PostToFeedDialog(
+            book = book,
+            onDismiss = { showPostToFeedDialog = null },
+            onPost = { rating, review ->
+                scope.launch {
+                    val progress = if (book.totalPages > 0) (currentPage.toFloat() / book.totalPages * 100).toInt() else 0
+                    val feedItem = com.route.readers.ui.screens.feed.FeedItem.BookReview(
+                        book = com.route.readers.data.model.Book(
+                            title = book.title,
+                            author = book.author,
+                            description = "", // MyBook doesn't have description
+                            isbn = book.isbn,
+                            cover = book.cover,
+                        ),
+                        review = review,
+                        rating = rating,
+                        currentPage = currentPage,
+                        progress = progress
+                    )
+                    val postSuccess = firestoreRepository.addFeedItem(feedItem)
+                    if (postSuccess) {
+                        Toast.makeText(context, "피드에 기록되었습니다", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "피드 기록에 실패했습니다", Toast.LENGTH_SHORT).show()
+                    }
+                    showPostToFeedDialog = null
                 }
             }
         )
@@ -472,6 +511,64 @@ fun ProgressUpdateDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("취소")
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PostToFeedDialog(
+    book: MyBook,
+    onDismiss: () -> Unit,
+    onPost: (rating: Int, review: String) -> Unit
+) {
+    var rating by remember { mutableStateOf(0) }
+    var review by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("피드에 기록 남기기") },
+        text = {
+            Column {
+                Text("『${book.title}』 읽기 진행 상황을 공유해보세요.")
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 별점
+                Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
+                    (1..5).forEach { star ->
+                        IconButton(onClick = { rating = star }) {
+                            Icon(
+                                imageVector = if (star <= rating) Icons.Filled.Star else Icons.Outlined.Star,
+                                contentDescription = "$star",
+                                tint = if (star <= rating) Color(0xFFFFD700) else Color.Gray
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // 한줄평
+                OutlinedTextField(
+                    value = review,
+                    onValueChange = { review = it },
+                    label = { Text("한줄평 (선택 사항)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onPost(rating, review) },
+                colors = ButtonDefaults.buttonColors(containerColor = DarkRed)
+            ) {
+                Text("포스팅")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("건너뛰기")
             }
         }
     )

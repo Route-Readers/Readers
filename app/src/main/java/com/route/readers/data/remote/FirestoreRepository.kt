@@ -4,12 +4,34 @@ import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.data.model.MyBook
+import com.route.readers.ui.screens.feed.FeedItem
 import kotlinx.coroutines.tasks.await
 
 class FirestoreRepository {
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
-    
+
+    private fun getFeedsCollection() = firestore.collection("feeds")
+
+    suspend fun addFeedItem(feedItem: FeedItem): Boolean {
+        return try {
+            val userId = auth.currentUser?.uid ?: return false
+            val user = firestore.collection("users").document(userId).get().await().toObject(com.route.readers.data.model.User::class.java)
+            val userName = user?.nickname ?: ""
+
+            val itemWithUser = when (feedItem) {
+                is FeedItem.BookReview -> feedItem.copy(authorId = userId, userName = userName)
+                is FeedItem.FollowNotification -> feedItem.copy(authorId = userId, userName = userName)
+            }
+
+            getFeedsCollection().add(itemWithUser).await()
+            true
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error adding feed item: ${e.message}", e)
+            false
+        }
+    }
+
     private fun getMyBooksCollection() = firestore.collection("my_books")
 
     suspend fun addBookToLibrary(book: MyBook): Boolean {

@@ -602,6 +602,8 @@ sealed class FeedItem(
         val bookTitle: String = book?.title ?: "",
         val review: String = "",
         val rating: Int = 0,
+        val currentPage: Int = 0,
+        val progress: Int = 0,
         val likedBy: List<String> = emptyList(),
         override val timestamp: Timestamp = Timestamp.now(),
         override val likeCount: Int = 0,
