@@ -117,7 +117,7 @@ fun BookSearchTab(
             OutlinedTextField(
                 value = searchText,
                 onValueChange = { searchText = it },
-                placeholder = { Text("책 제목으로 검색 (알라딘 API)") },
+                placeholder = { Text("책 제목으로 검색") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
