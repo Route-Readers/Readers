@@ -82,6 +82,7 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.route.readers.data.model.Book
 import com.route.readers.data.model.User
 import com.route.readers.ui.components.UserProfileImage
+import com.route.readers.ui.screens.attendance.AttendanceViewModel
 import com.route.readers.ui.theme.DarkRed
 import com.route.readers.ui.theme.ReadingGreen
 import com.route.readers.ui.theme.TextGray
@@ -106,7 +107,8 @@ fun FeedScreen(
     onNavigateToAddFeed: () -> Unit,
     onNavigateToOtherUserProfile: (String) -> Unit,
     onFollowBack: (String) -> Unit,
-    feedViewModel: FeedViewModel = viewModel()
+    feedViewModel: FeedViewModel = viewModel(),
+    attendanceViewModel: AttendanceViewModel
 ) {
     val uiState by feedViewModel.uiState.collectAsState()
     val isRefreshing by feedViewModel.isRefreshing.collectAsState()
@@ -115,6 +117,10 @@ fun FeedScreen(
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
     val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        attendanceViewModel.checkAttendance()
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -467,7 +473,9 @@ fun FeedCard(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             LinearProgressIndicator(
                                 progress = item.progress / 100f,
-                                modifier = Modifier.weight(1f).height(8.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(8.dp),
                                 color = ReadingGreen,
                                 trackColor = Color.LightGray
                             )
@@ -692,16 +700,15 @@ fun DocumentSnapshot.toFeedItem(): FeedItem? {
             }
 
             val bookReview = toObject(FeedItem.BookReview::class.java)?.copy(
-                id = this.id, // 문서 ID를 명시적으로 설정
+                id = this.id,
                 book = book,
                 bookmarkedBy = get("bookmarkedBy") as? List<String> ?: emptyList()
             )
 
-            // book 객체가 있으면 title을, 없으면 기존 bookTitle 필드를 사용
             bookReview?.copy(bookTitle = book?.title ?: bookReview.bookTitle)
         }
         "FOLLOW_NOTIFICATION" -> this.toObject(FeedItem.FollowNotification::class.java)?.copy(
-            id = this.id // 문서 ID를 명시적으로 설정
+            id = this.id
         )
         else -> null
     }

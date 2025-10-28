@@ -28,6 +28,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.route.readers.data.model.MyBook
 import com.route.readers.ui.components.BottomNavBar
 import com.route.readers.ui.components.BottomNavItem
+import com.route.readers.ui.screens.attendance.AttendanceViewModel
 import com.route.readers.ui.screens.community.AllUsersScreen
 import com.route.readers.ui.screens.community.CommunityScreen
 import com.route.readers.ui.screens.community.CommunityViewModel
@@ -44,6 +45,7 @@ import java.net.URLEncoder
 @Composable
 fun MainScreen(
     navController: NavHostController,
+    attendanceViewModel: AttendanceViewModel,
     onNavigateToOtherUserProfile: (String) -> Unit,
     onNavigateToAddFeed: () -> Unit,
     onNavigateToMyAccount: () -> Unit,
@@ -156,6 +158,7 @@ fun MainScreen(
             composable(BottomNavItem.Feed.route) {
                 selectedBook = null
                 FeedScreen(
+                    attendanceViewModel = attendanceViewModel,
                     onNavigateToAddFeed = onNavigateToAddFeed,
                     onNavigateToOtherUserProfile = { userId ->
                         bottomNavController.navigate("profile_route/$userId")
@@ -166,6 +169,7 @@ fun MainScreen(
             }
             composable(BottomNavItem.MyLibrary.route) {
                 MyLibraryScreen(
+                    attendanceViewModel = attendanceViewModel,
                     onBookSelected = { book ->
                         selectedBook = book
                     },

@@ -34,7 +34,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.notification.DailyNotificationScheduler
 import com.route.readers.ui.screens.MainScreen
 import com.route.readers.ui.screens.add_feed.AddFeedScreen
-import com.route.readers.ui.screens.attendance.AttendanceScreen // 추가
+import com.route.readers.ui.screens.attendance.AttendanceScreen
+import com.route.readers.ui.screens.attendance.AttendanceViewModel
 import com.route.readers.ui.screens.login.LoginScreen
 import com.route.readers.ui.screens.login.LoginViewModel
 import com.route.readers.ui.screens.login.OnboardingScreen
@@ -99,6 +100,7 @@ fun RootAppNavigation() {
         ?: throw IllegalStateException("LocalAppNavController not provided")
 
     val startDestination = "decision_route"
+    val attendanceViewModel: AttendanceViewModel = viewModel()
 
     NavHost(navController = appNavController, startDestination = startDestination) {
 
@@ -224,6 +226,7 @@ fun RootAppNavigation() {
         composable("main_app_content_route") {
             MainScreen(
                 navController = appNavController,
+                attendanceViewModel = attendanceViewModel,
                 onNavigateToOtherUserProfile = { userId ->
                     appNavController.navigate("profile_route/$userId")
                 },
@@ -233,7 +236,7 @@ fun RootAppNavigation() {
                 onNavigateToMyAccount = {
                     appNavController.navigate("account_route")
                 },
-                onNavigateToAttendance = { // 수정된 부분
+                onNavigateToAttendance = {
                     appNavController.navigate("attendance_route")
                 }
             )
@@ -243,14 +246,14 @@ fun RootAppNavigation() {
             AccountScreen(
                 onNavigateBack = { appNavController.popBackStack() },
                 onNavigateToPrivacy = {
-                    // TODO: 공개 범위 설정 화면으로 이동하는 로직 구현
                 }
             )
         }
 
-        composable("attendance_route") { // 추가된 부분
+        composable("attendance_route") {
             AttendanceScreen(
-                onNavigateBack = { appNavController.popBackStack() }
+                onNavigateBack = { appNavController.popBackStack() },
+                viewModel = attendanceViewModel
             )
         }
 
