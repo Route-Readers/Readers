@@ -142,7 +142,7 @@ class MyLibraryRepository {
                     isbn = myBook.isbn,
                     cover = myBook.cover,
                     categoryName = null,
-                    itemPage = myBook.totalPages.toString(),
+                    itemPage = myBook.totalPages,
                     currentPage = myBook.currentPage,
                     totalPages = myBook.totalPages,
                     progress = myBook.progressPercentage

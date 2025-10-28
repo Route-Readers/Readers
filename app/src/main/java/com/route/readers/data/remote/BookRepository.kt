@@ -52,7 +52,7 @@ class BookRepository {
 
             if (response.isSuccessful) {
                 // ▼▼▼ Elvis Operator(?:)를 사용하여 books가 null일 경우 안전하게 빈 리스트를 반환합니다. ▼▼▼
-                val books = response.body()?.books ?: emptyList()
+                val books = (response.body()?.books ?: emptyList()).filter { it.isbn.isNotBlank() }
                 if (books.isEmpty()) {
                     return emptyList()
                 }
@@ -92,7 +92,7 @@ class BookRepository {
             )
 
             if (response.isSuccessful) {
-                val basicBookList = response.body()?.books ?: emptyList()
+                val basicBookList = (response.body()?.books ?: emptyList()).filter { it.isbn.isNotBlank() }
                 if (basicBookList.isEmpty()) {
                     return emptyList()
                 }
