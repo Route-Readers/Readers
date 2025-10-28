@@ -120,11 +120,10 @@ fun MainScreen(
                     onProfileClick = {
                         if (currentUserId != null) {
                             bottomNavController.navigate("profile_route/$currentUserId") {
-                                popUpTo(bottomNavController.graph.findStartDestination().id) {
+                                popUpTo(BottomNavItem.Feed.route) {
                                     saveState = true
                                 }
                                 launchSingleTop = true
-                                restoreState = true
                             }
                         }
                     },

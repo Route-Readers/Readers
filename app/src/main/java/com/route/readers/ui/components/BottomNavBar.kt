@@ -71,11 +71,10 @@ fun BottomNavBar(
                         onStartReading()
                     } else {
                         navController.navigate(BottomNavItem.MyLibrary.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
+                            popUpTo(BottomNavItem.Feed.route) {
                                 saveState = true
                             }
                             launchSingleTop = true
-                            restoreState = true
                         }
                     }
                 },
@@ -107,11 +106,10 @@ fun BottomNavBar(
                     isSelected = isSelected,
                     onClick = {
                         navController.navigate(screen.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
+                            popUpTo(BottomNavItem.Feed.route) {
                                 saveState = true
                             }
                             launchSingleTop = true
-                            restoreState = true
                         }
                     }
                 )
@@ -139,11 +137,10 @@ fun BottomNavBar(
                             onProfileClick()
                         } else {
                             navController.navigate(screen.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
+                                popUpTo(BottomNavItem.Feed.route) {
                                     saveState = true
                                 }
                                 launchSingleTop = true
-                                restoreState = true
                             }
                         }
                     }
