@@ -31,7 +31,7 @@ sealed class BottomNavItem(val route: String, val title: String, val icon: Image
     object MyLibrary : BottomNavItem("mylibrary_screen", "내 서재", Icons.Filled.AccountCircle)
     object Search : BottomNavItem("search_screen", "검색", Icons.Filled.Search)
     object Community : BottomNavItem("community_screen", "커뮤니티", Icons.Filled.Explore)
-    object Profile : BottomNavItem("profile_screen", "프로필", Icons.Filled.AccountCircle)
+    object Profile : BottomNavItem("profile_route", "프로필", Icons.Filled.AccountCircle)
 }
 
 val sideNavItems = listOf(
@@ -94,9 +94,14 @@ fun BottomNavBar(
             horizontalArrangement = Arrangement.spacedBy(40.dp)
         ) {
             sideNavItems.take(2).forEach { screen ->
+                val isSelected = if (screen.route == "profile_route") {
+                    currentRoute?.startsWith("profile_route") == true
+                } else {
+                    currentRoute == screen.route
+                }
                 NavItem(
                     item = screen,
-                    isSelected = currentRoute == screen.route,
+                    isSelected = isSelected,
                     onClick = {
                         navController.navigate(screen.route) {
                             popUpTo(navController.graph.findStartDestination().id) {
@@ -117,9 +122,14 @@ fun BottomNavBar(
             horizontalArrangement = Arrangement.spacedBy(40.dp)
         ) {
             sideNavItems.drop(2).forEach { screen ->
+                val isSelected = if (screen.route == "profile_route") {
+                    currentRoute?.startsWith("profile_route") == true
+                } else {
+                    currentRoute == screen.route
+                }
                 NavItem(
                     item = screen,
-                    isSelected = currentRoute == screen.route,
+                    isSelected = isSelected,
                     onClick = {
                         if (screen.route == BottomNavItem.Profile.route) {
                             onProfileClick()
