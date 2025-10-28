@@ -31,6 +31,7 @@ import com.route.readers.R
 import com.route.readers.data.model.MyBook
 import com.route.readers.data.remote.MyLibraryRepository
 import com.route.readers.data.remote.FirestoreRepository
+import com.route.readers.ui.screens.attendance.AttendanceViewModel
 import com.route.readers.ui.theme.*
 import kotlinx.coroutines.launch
 import kotlin.Pair
@@ -42,7 +43,8 @@ fun MyLibraryScreen(
     onBookSelected: (MyBook?) -> Unit = {},
     showProgressDialog: Boolean = false,
     onProgressDialogDismiss: () -> Unit = {},
-    onNavigateToSearch: () -> Unit = {}
+    onNavigateToSearch: () -> Unit = {},
+    attendanceViewModel: AttendanceViewModel
 ) {
     val context = LocalContext.current
     val myLibraryRepository = remember { MyLibraryRepository() }
@@ -73,6 +75,7 @@ fun MyLibraryScreen(
 
     LaunchedEffect(Unit) {
         refreshBooks()
+        attendanceViewModel.checkAttendance()
     }
 
     LaunchedEffect(Unit) {
@@ -261,6 +264,7 @@ fun MyLibraryScreen(
                     Log.d("MyLibraryScreen", "Update result: $success")
                     if (success) {
                         refreshBooks()
+                        attendanceViewModel.checkAttendance()
                         showPostToFeedDialog = Pair(book, currentPage)
                     } else {
                         Toast.makeText(context, "업데이트 실패. 다시 시도해주세요", Toast.LENGTH_SHORT).show()
@@ -303,7 +307,7 @@ fun MyLibraryScreen(
                         book = com.route.readers.data.model.Book(
                             title = book.title,
                             author = book.author,
-                            description = "", // MyBook doesn't have description
+                            description = "",
                             isbn = book.isbn,
                             cover = book.cover,
                         ),
@@ -534,7 +538,6 @@ fun PostToFeedDialog(
                 Text("『${book.title}』 읽기 진행 상황을 공유해보세요.")
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 별점
                 Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
                     (1..5).forEach { star ->
                         IconButton(onClick = { rating = star }) {
@@ -549,7 +552,6 @@ fun PostToFeedDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // 한줄평
                 OutlinedTextField(
                     value = review,
                     onValueChange = { review = it },

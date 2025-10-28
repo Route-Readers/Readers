@@ -22,7 +22,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.ui.screens.MainScreen
 import com.route.readers.ui.screens.add_feed.AddFeedScreen
-import com.route.readers.ui.screens.attendance.AttendanceScreen // --- 1. import 추가 ---
+import com.route.readers.ui.screens.attendance.AttendanceScreen
+import com.route.readers.ui.screens.attendance.AttendanceViewModel
 import com.route.readers.ui.screens.login.LoginScreen
 import com.route.readers.ui.screens.login.LoginViewModel
 import com.route.readers.ui.screens.login.OnboardingScreen
@@ -41,6 +42,8 @@ import java.net.URLEncoder
 @Composable
 fun AppNavigation(navController: NavHostController) {
     val startDestination = "decision_route"
+
+    val attendanceViewModel: AttendanceViewModel = viewModel()
 
     NavHost(navController = navController, startDestination = startDestination) {
 
@@ -162,10 +165,10 @@ fun AppNavigation(navController: NavHostController) {
             )
         }
 
-        // --- 2. MainScreen에 onNavigateToAttendance 추가 ---
         composable("main_app_content_route") {
             MainScreen(
                 navController = navController,
+                attendanceViewModel = attendanceViewModel,
                 onNavigateToOtherUserProfile = { userId ->
                     navController.navigate("profile_route/$userId")
                 },
@@ -175,7 +178,7 @@ fun AppNavigation(navController: NavHostController) {
                 onNavigateToMyAccount = {
                     navController.navigate("account_route")
                 },
-                onNavigateToAttendance = { // 콜백 추가
+                onNavigateToAttendance = {
                     navController.navigate("attendance_route")
                 }
             )
@@ -289,12 +292,12 @@ fun AppNavigation(navController: NavHostController) {
             )
         }
 
-        // --- 3. AttendanceScreen 경로 추가 ---
         composable("attendance_route") {
             AttendanceScreen(
                 onNavigateBack = {
                     navController.popBackStack()
-                }
+                },
+                viewModel = attendanceViewModel
             )
         }
     }
