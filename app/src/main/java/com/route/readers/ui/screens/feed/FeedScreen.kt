@@ -95,6 +95,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import android.widget.Toast
 import kotlinx.coroutines.launch
 
 enum class SortOption(val displayName: String) {
@@ -114,8 +115,6 @@ fun FeedScreen(
     val uiState by feedViewModel.uiState.collectAsState()
     val isRefreshing by feedViewModel.isRefreshing.collectAsState()
     val pullToRefreshState = rememberPullToRefreshState()
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
     val context = LocalContext.current
 
@@ -124,7 +123,6 @@ fun FeedScreen(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(onClick = onNavigateToAddFeed, containerColor = DarkRed) {
                 Icon(Icons.Default.Add, contentDescription = "피드 추가", tint = White)
@@ -161,11 +159,11 @@ fun FeedScreen(
                                 onBookmarkClick = { feedId, isBookmarked ->
                                     feedViewModel.toggleBookmark(feedId, isBookmarked)
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar(
-                                            if (isBookmarked) "북마크에서 삭제했습니다." else "북마크에 추가했습니다."
-                                        )
-                                    }
+                                    Toast.makeText(
+                                        context,
+                                        if (isBookmarked) "북마크에서 삭제했습니다." else "북마크에 추가했습니다.",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
                                 },
                                 onDeleteFeed = { feedId ->
                                     feedViewModel.deleteFeed(feedId)
