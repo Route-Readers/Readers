@@ -34,6 +34,7 @@ import com.route.readers.data.model.BookClub
 import com.route.readers.data.model.ChatMessage
 import com.route.readers.ui.community.used_trade.UsedBookTradeScreen
 import com.route.readers.ui.components.NotificationIconWithBadge
+import com.route.readers.ui.theme.DarkRed
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -219,7 +220,7 @@ fun CommunityContent(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF2D2D2D))
+                colors = CardDefaults.cardColors(containerColor = DarkRed)
             ) {
                 Column(
                     modifier = Modifier.padding(20.dp)
@@ -462,7 +463,7 @@ fun CommunityContent(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF2D2D2D))
+                colors = CardDefaults.cardColors(containerColor = DarkRed)
             ) {
                 Row(
                     modifier = Modifier
