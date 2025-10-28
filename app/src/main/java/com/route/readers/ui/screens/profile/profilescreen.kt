@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import com.route.readers.R
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,7 +44,10 @@ import com.route.readers.data.model.Challenge
 import com.route.readers.data.model.User
 import com.route.readers.ui.screens.feed.FeedCard
 import com.route.readers.ui.screens.feed.FeedItem
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import com.route.readers.ui.theme.DarkRed
+import kotlinx.coroutines.launch
+
 
 @Composable
 fun ProfileScreen(
@@ -54,6 +58,9 @@ fun ProfileScreen(
     viewModel: ProfileViewModel
 ) {
     var showCustomization by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val haptic =  LocalHapticFeedback.current
 
     LaunchedEffect(key1 = userId) {
 
@@ -87,6 +94,7 @@ fun ProfileScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = Color(0xFFF5F5F5)
     ) { paddingValues ->
         Box(
@@ -131,7 +139,16 @@ fun ProfileScreen(
                             showCustomization = true
                         },
                         onBlockUser = { viewModel.blockUser(state.user.uid) },
-                        onUnblockUser = { viewModel.unblockUser(state.user.uid) }
+                        onUnblockUser = { viewModel.unblockUser(state.user.uid) },
+                        onBookmarkClick = { feedId, isBookmarked ->
+                            viewModel.toggleBookmark(feedId, isBookmarked)
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            scope.launch {
+                                snackbarHostState.showSnackbar(
+                                    if (isBookmarked) "북마크에서 삭제했습니다." else "북마크에 추가했습니다."
+                                )
+                            }
+                        }
                     )
                 }
             }
@@ -151,7 +168,8 @@ fun ProfileContent(
     onNavigateToSearch: () -> Unit,
     onNavigateToCustomization: () -> Unit,
     onBlockUser: () -> Unit,
-    onUnblockUser: () -> Unit
+    onUnblockUser: () -> Unit,
+    onBookmarkClick: (String, Boolean) -> Unit
 ) {
     val user = state.user
 
@@ -295,7 +313,7 @@ fun ProfileContent(
                     likedFeedIds = state.likedFeedIds,
                     bookmarkedFeedIds = state.bookmarkedFeedIds,
                     onLikeClick = viewModel::toggleLike,
-                    onBookmarkClick = viewModel::toggleBookmark,
+                    onBookmarkClick = onBookmarkClick,
                     onDeleteClick = { feedId ->
                         feedToDelete = feedId
                         showDeleteDialog = true

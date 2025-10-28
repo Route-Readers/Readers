@@ -88,6 +88,12 @@ import com.route.readers.ui.theme.TextGray
 import com.route.readers.ui.theme.White
 import java.text.SimpleDateFormat
 import java.util.Locale
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import kotlinx.coroutines.launch
 
 enum class SortOption(val displayName: String) {
     LATEST("최신순"),
@@ -105,8 +111,13 @@ fun FeedScreen(
     val uiState by feedViewModel.uiState.collectAsState()
     val isRefreshing by feedViewModel.isRefreshing.collectAsState()
     val pullToRefreshState = rememberPullToRefreshState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
+    val context = LocalContext.current
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             FloatingActionButton(onClick = onNavigateToAddFeed, containerColor = DarkRed) {
                 Icon(Icons.Default.Add, contentDescription = "피드 추가", tint = White)
@@ -142,6 +153,12 @@ fun FeedScreen(
                                 },
                                 onBookmarkClick = { feedId, isBookmarked ->
                                     feedViewModel.toggleBookmark(feedId, isBookmarked)
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            if (isBookmarked) "북마크에서 삭제했습니다." else "북마크에 추가했습니다."
+                                        )
+                                    }
                                 },
                                 onDeleteFeed = { feedId ->
                                     feedViewModel.deleteFeed(feedId)
