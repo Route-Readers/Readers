@@ -14,7 +14,7 @@ data class Book(
     @SerializedName("isbn13") val isbn: String = "",
     @SerializedName("cover") val cover: String = "",
     @SerializedName("categoryName") val categoryName: String? = null,
-    @SerializedName("itemPage") val itemPage: String? = null,
+    @SerializedName("itemPage") val itemPage: Int? = null,
     @SerializedName("subInfo") val subInfo: SubInfo? = null,
     @SerializedName("publisher") val publisher: String? = null,
     @SerializedName("pubDate") val pubDate: String? = null,
