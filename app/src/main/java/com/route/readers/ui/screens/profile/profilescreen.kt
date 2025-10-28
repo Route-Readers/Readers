@@ -289,7 +289,7 @@ fun ProfileContent(
 
             item {
                 PostsSection(
-                    myPosts = state.myPosts,
+                    myPosts = state.myPosts.filterIsInstance<FeedItem.BookReview>(),
                     savedPosts = state.savedPosts,
                     isMyProfile = state.isMyProfile,
                     likedFeedIds = state.likedFeedIds,
