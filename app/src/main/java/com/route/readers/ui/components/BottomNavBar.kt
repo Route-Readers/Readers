@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.google.firebase.auth.FirebaseAuth
 
 sealed class BottomNavItem(val route: String, val title: String, val icon: ImageVector) {
     object Feed : BottomNavItem("feed_screen", "피드", Icons.Filled.Home)
@@ -51,6 +52,7 @@ fun BottomNavBar(
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
 
     Box(
         modifier = modifier
@@ -95,7 +97,8 @@ fun BottomNavBar(
         ) {
             sideNavItems.take(2).forEach { screen ->
                 val isSelected = if (screen.route == "profile_route") {
-                    currentRoute?.startsWith("profile_route") == true
+                    val profileUserId = navBackStackEntry?.arguments?.getString("userId")
+                    currentRoute == "profile_route/{userId}" && profileUserId == currentUserId
                 } else {
                     currentRoute == screen.route
                 }
@@ -123,7 +126,8 @@ fun BottomNavBar(
         ) {
             sideNavItems.drop(2).forEach { screen ->
                 val isSelected = if (screen.route == "profile_route") {
-                    currentRoute?.startsWith("profile_route") == true
+                    val profileUserId = navBackStackEntry?.arguments?.getString("userId")
+                    currentRoute == "profile_route/{userId}" && profileUserId == currentUserId
                 } else {
                     currentRoute == screen.route
                 }
