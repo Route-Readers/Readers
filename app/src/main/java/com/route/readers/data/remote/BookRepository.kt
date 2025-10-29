@@ -51,7 +51,6 @@ class BookRepository {
             )
 
             if (response.isSuccessful) {
-                // ▼▼▼ Elvis Operator(?:)를 사용하여 books가 null일 경우 안전하게 빈 리스트를 반환합니다. ▼▼▼
                 val books = (response.body()?.books ?: emptyList()).filter { it.isbn.isNotBlank() }
                 if (books.isEmpty()) {
                     return emptyList()
@@ -141,15 +140,20 @@ class BookRepository {
         }
     }
 
+    suspend fun addFavoriteBook(userId: String, book: Book) {
+        if (userId.isBlank() || book.isbn.isBlank()) return
+        val favoriteRef = db.collection("users").document(userId)
+            .collection("favorites").document(book.isbn)
+        favoriteRef.set(book).await()
+    }
+
     suspend fun toggleFavoriteStatus(book: Book) {
         if (currentUserId.isBlank() || book.isbn.isBlank()) return
 
         val favoriteRef = db.collection("users").document(currentUserId)
             .collection("favorites").document(book.isbn)
 
-        // isFavorite는 val이므로 copy()를 통해 새 객체를 만들어야 함
         if (book.isFavorite) {
-            // Firestore에 저장할 때는 isFavorite를 false로 바꾼 새 객체를 저장
             favoriteRef.set(book.copy(isFavorite = false)).await()
         } else {
             favoriteRef.delete().await()

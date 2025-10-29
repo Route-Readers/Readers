@@ -190,6 +190,11 @@ fun FeedScreen(
                                         if (isInMyLibrary) "서재에서 삭제했습니다." else "서재에 추가했습니다.",
                                         Toast.LENGTH_SHORT
                                     ).show()
+                                },
+                                // onAddFavoriteBook 콜백을 여기서 전달 시작
+                                onAddFavoriteBook = { book ->
+                                    feedViewModel.addFavoriteBook(book)
+                                    Toast.makeText(context, "'${book.title}'을(를) 관심 도서에 추가했습니다.", Toast.LENGTH_SHORT).show()
                                 }
                             )
                         }
@@ -215,6 +220,7 @@ fun SortableFeedContent(
     myLibrary: List<String>,
     onToggleWishlist: (Book, Boolean) -> Unit,
     onToggleMyLibrary: (Book, Boolean) -> Unit,
+    onAddFavoriteBook: (Book) -> Unit // onAddFavoriteBook 콜백 추가
 ) {
     var sortOption by remember { mutableStateOf(SortOption.LATEST) }
     var menuExpanded by remember { mutableStateOf(false) }
@@ -292,7 +298,8 @@ fun SortableFeedContent(
             wishlist = wishlist,
             myLibrary = myLibrary,
             onToggleWishlist = onToggleWishlist,
-            onToggleMyLibrary = onToggleMyLibrary
+            onToggleMyLibrary = onToggleMyLibrary,
+            onAddFavoriteBook = onAddFavoriteBook // onAddFavoriteBook 콜백 전달
         )
     }
 }
@@ -314,6 +321,7 @@ fun ActualFeedContent(
     myLibrary: List<String>,
     onToggleWishlist: (Book, Boolean) -> Unit,
     onToggleMyLibrary: (Book, Boolean) -> Unit,
+    onAddFavoriteBook: (Book) -> Unit // onAddFavoriteBook 콜백 추가
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var feedToDelete by remember { mutableStateOf<String?>(null) }
@@ -382,7 +390,8 @@ fun ActualFeedContent(
                 wishlist = wishlist,
                 myLibrary = myLibrary,
                 onToggleWishlist = onToggleWishlist,
-                onToggleMyLibrary = onToggleMyLibrary
+                onToggleMyLibrary = onToggleMyLibrary,
+                onAddFavoriteBook = onAddFavoriteBook // onAddFavoriteBook 콜백 전달
             )
         }
     }
@@ -404,6 +413,7 @@ fun FeedCard(
     myLibrary: List<String>,
     onToggleWishlist: (Book, Boolean) -> Unit,
     onToggleMyLibrary: (Book, Boolean) -> Unit,
+    onAddFavoriteBook: (Book) -> Unit // <<< 여기 파라미터가 추가되었습니다.
 ) {
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
     var isBookCardExpanded by remember { mutableStateOf(false) }
@@ -489,7 +499,9 @@ fun FeedCard(
                                 isInWishlist = isInWishlist,
                                 isInMyLibrary = isInMyLibrary,
                                 onToggleWishlist = { onToggleWishlist(book, isInWishlist) },
-                                onToggleMyLibrary = { onToggleMyLibrary(book, isInMyLibrary) }
+                                onToggleMyLibrary = { onToggleMyLibrary(book, isInMyLibrary) },
+                                // <<< 여기서 onAddFavoriteBook 콜백을 SelectedBookCard에 전달합니다.
+                                onAddFavoriteBook = { onAddFavoriteBook(book) }
                             )
                         }
                     }
@@ -518,7 +530,7 @@ fun FeedCard(
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             LinearProgressIndicator(
-                                progress = item.progress / 100f,
+                                progress = { item.progress / 100f },
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(8.dp),
@@ -646,12 +658,13 @@ fun FeedCard(
 
 @Composable
 fun SelectedBookCard(
-    book: Book, 
+    book: Book,
     onClear: (() -> Unit)? = null,
     isInWishlist: Boolean,
     isInMyLibrary: Boolean,
     onToggleWishlist: () -> Unit,
-    onToggleMyLibrary: () -> Unit
+    onToggleMyLibrary: () -> Unit,
+    onAddFavoriteBook: () -> Unit // <<< 여기 파라미터가 추가되었습니다.
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -693,8 +706,9 @@ fun SelectedBookCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // '관심도서 추가' 버튼의 로직을 onAddFavoriteBook으로 변경
                 Button(
-                    onClick = onToggleWishlist,
+                    onClick = onAddFavoriteBook, // <<< 여기가 onToggleWishlist에서 onAddFavoriteBook으로 변경되었습니다.
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -703,7 +717,7 @@ fun SelectedBookCard(
                     ),
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
-                    Text(if (isInWishlist) "관심도서에서 삭제" else "관심도서 추가")
+                    Text(if (isInWishlist) "관심도서에 추가됨" else "관심도서 추가")
                 }
 
                 OutlinedButton(
