@@ -514,8 +514,8 @@ fun FeedCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "📚 ${item.book?.title ?: item.bookTitle}",
-                            fontWeight = FontWeight.Medium,
+                            text = "${item.book?.title ?: item.bookTitle}",
+                            fontWeight = FontWeight.Bold,
                             color = DarkRed,
                             modifier = Modifier.weight(1f)
                         )
