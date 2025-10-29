@@ -73,7 +73,7 @@ class FeedViewModel : ViewModel() {
             viewModelScope.launch {
                 try {
                     val updatedFollowerInfoMap = mutableMapOf<String, User>()
-                    
+
                     // 현재 피드에 있는 모든 사용자 ID 수집
                     val userIds = mutableSetOf<String>()
                     currentState.items.forEach { item ->
@@ -89,9 +89,9 @@ class FeedViewModel : ViewModel() {
                             }
                         }
                     }
-                    
+
                     Log.d("FeedViewModel", "Total userIds to refresh: ${userIds.size}")
-                    
+
                     // 각 사용자의 최신 정보 가져오기
                     for (userId in userIds) {
                         try {
@@ -107,7 +107,7 @@ class FeedViewModel : ViewModel() {
                             Log.e("FeedViewModel", "Error fetching user $userId", e)
                         }
                     }
-                    
+
                     Log.d("FeedViewModel", "Updating UI state with ${updatedFollowerInfoMap.size} users")
                     // UI 상태 업데이트
                     _uiState.value = currentState.copy(followerInfoMap = updatedFollowerInfoMap)
@@ -172,7 +172,7 @@ class FeedViewModel : ViewModel() {
                         }
                     }
                 }
-                
+
                 val followerInfoMap = if (allUserIds.isNotEmpty()) {
                     val userInfoMap = mutableMapOf<String, User>()
                     allUserIds.chunked(10).forEach { userIdChunk ->
@@ -374,10 +374,10 @@ class FeedViewModel : ViewModel() {
                 val detailedBook = bookRepository.getBookDetail(book.isbn)
                 val totalPages = detailedBook?.extractPageCount() ?: 0
                 myLibraryRepository.addBookToLibrary(MyBook(
-                    id = book.isbn, 
-                    title = book.title, 
-                    author = book.author, 
-                    cover = book.cover, 
+                    id = book.isbn,
+                    title = book.title,
+                    author = book.author,
+                    cover = book.cover,
                     isbn = book.isbn,
                     totalPages = totalPages,
                     currentPage = 0,

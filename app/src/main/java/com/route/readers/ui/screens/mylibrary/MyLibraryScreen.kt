@@ -259,15 +259,22 @@ fun MyLibraryScreen(
             onDismiss = { showProgressDialogBook = null },
             onUpdate = { currentPage ->
                 scope.launch {
-                    Log.d("MyLibraryScreen", "Updating progress: ${book.title} to page $currentPage")
-                    val success = myLibraryRepository.updateReadingProgress(book.isbn, currentPage)
-                    Log.d("MyLibraryScreen", "Update result: $success")
-                    if (success) {
-                        refreshBooks()
-                        attendanceViewModel.checkAttendance()
-                        showPostToFeedDialog = Pair(book, currentPage)
-                    } else {
-                        Toast.makeText(context, "업데이트 실패. 다시 시도해주세요", Toast.LENGTH_SHORT).show()
+                    if (currentPage > book.currentPage) {
+                        Log.d("MyLibraryScreen", "Updating progress: ${book.title} to page $currentPage")
+                        val success = myLibraryRepository.updateReadingProgress(book.isbn, currentPage)
+                        Log.d("MyLibraryScreen", "Update result: $success")
+                        if (success) {
+                            refreshBooks()
+                            attendanceViewModel.markReadingActivity()
+                            showPostToFeedDialog = Pair(book, currentPage)
+                        } else {
+                            Toast.makeText(context, "업데이트 실패. 다시 시도해주세요", Toast.LENGTH_SHORT).show()
+                        }
+                    } else if (currentPage == book.currentPage) {
+                        // 페이지 변화가 없을 때는 아무것도 안 함
+                    }
+                    else {
+                        Toast.makeText(context, "이전보다 높은 페이지를 입력해주세요", Toast.LENGTH_SHORT).show()
                     }
                     showProgressDialogBook = null
                 }
