@@ -172,7 +172,25 @@ fun FeedScreen(
                                 onFollowBack = { followerId ->
                                     feedViewModel.followBack(followerId)
                                 },
-                                followerInfoMap = state.followerInfoMap
+                                followerInfoMap = state.followerInfoMap,
+                                wishlist = state.wishlist,
+                                myLibrary = state.myLibrary,
+                                onToggleWishlist = { book, isInWishlist ->
+                                    feedViewModel.toggleWishlist(book, isInWishlist)
+                                    Toast.makeText(
+                                        context,
+                                        if (isInWishlist) "관심도서에서 삭제했습니다." else "관심도서에 추가했습니다.",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                },
+                                onToggleMyLibrary = { book, isInMyLibrary ->
+                                    feedViewModel.toggleMyLibrary(book, isInMyLibrary)
+                                    Toast.makeText(
+                                        context,
+                                        if (isInMyLibrary) "서재에서 삭제했습니다." else "서재에 추가했습니다.",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
                             )
                         }
                     }
@@ -193,6 +211,10 @@ fun SortableFeedContent(
     onNavigateToOtherUserProfile: (String) -> Unit,
     onFollowBack: (String) -> Unit,
     followerInfoMap: Map<String, User>,
+    wishlist: List<String>,
+    myLibrary: List<String>,
+    onToggleWishlist: (Book, Boolean) -> Unit,
+    onToggleMyLibrary: (Book, Boolean) -> Unit,
 ) {
     var sortOption by remember { mutableStateOf(SortOption.LATEST) }
     var menuExpanded by remember { mutableStateOf(false) }
@@ -266,7 +288,11 @@ fun SortableFeedContent(
             onDeleteFeed = onDeleteFeed,
             onNavigateToOtherUserProfile = onNavigateToOtherUserProfile,
             onFollowBack = onFollowBack,
-            followerInfoMap = followerInfoMap
+            followerInfoMap = followerInfoMap,
+            wishlist = wishlist,
+            myLibrary = myLibrary,
+            onToggleWishlist = onToggleWishlist,
+            onToggleMyLibrary = onToggleMyLibrary
         )
     }
 }
@@ -284,6 +310,10 @@ fun ActualFeedContent(
     onNavigateToOtherUserProfile: (String) -> Unit,
     onFollowBack: (String) -> Unit,
     followerInfoMap: Map<String, User> = emptyMap(),
+    wishlist: List<String>,
+    myLibrary: List<String>,
+    onToggleWishlist: (Book, Boolean) -> Unit,
+    onToggleMyLibrary: (Book, Boolean) -> Unit,
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var feedToDelete by remember { mutableStateOf<String?>(null) }
@@ -348,7 +378,11 @@ fun ActualFeedContent(
                 },
                 onFollowBack = onFollowBack,
                 followerInfoMap = followerInfoMap,
-                modifier = Modifier.padding(horizontal = 16.dp)
+                modifier = Modifier.padding(horizontal = 16.dp),
+                wishlist = wishlist,
+                myLibrary = myLibrary,
+                onToggleWishlist = onToggleWishlist,
+                onToggleMyLibrary = onToggleMyLibrary
             )
         }
     }
@@ -365,7 +399,11 @@ fun FeedCard(
     onUserClick: () -> Unit,
     onFollowBack: (String) -> Unit = {},
     followerInfoMap: Map<String, User> = emptyMap(),
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    wishlist: List<String>,
+    myLibrary: List<String>,
+    onToggleWishlist: (Book, Boolean) -> Unit,
+    onToggleMyLibrary: (Book, Boolean) -> Unit,
 ) {
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
     var isBookCardExpanded by remember { mutableStateOf(false) }
@@ -443,7 +481,16 @@ fun FeedCard(
                         exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top)
                     ) {
                         item.book?.let { book ->
-                            SelectedBookCard(book = book, onClear = null)
+                            val isInWishlist = wishlist.contains(book.isbn)
+                            val isInMyLibrary = myLibrary.contains(book.isbn)
+                            SelectedBookCard(
+                                book = book,
+                                onClear = null,
+                                isInWishlist = isInWishlist,
+                                isInMyLibrary = isInMyLibrary,
+                                onToggleWishlist = { onToggleWishlist(book, isInWishlist) },
+                                onToggleMyLibrary = { onToggleMyLibrary(book, isInMyLibrary) }
+                            )
                         }
                     }
 
@@ -598,7 +645,14 @@ fun FeedCard(
 }
 
 @Composable
-fun SelectedBookCard(book: Book, onClear: (() -> Unit)? = null) {
+fun SelectedBookCard(
+    book: Book, 
+    onClear: (() -> Unit)? = null,
+    isInWishlist: Boolean,
+    isInMyLibrary: Boolean,
+    onToggleWishlist: () -> Unit,
+    onToggleMyLibrary: () -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -640,26 +694,29 @@ fun SelectedBookCard(book: Book, onClear: (() -> Unit)? = null) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Button(
-                    onClick = { /* TODO: 관심도서 추가 로직 */ },
+                    onClick = onToggleWishlist,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = DarkRed,
+                        containerColor = if (isInWishlist) DarkRed.copy(alpha = 0.6f) else DarkRed,
                         contentColor = Color.White
                     ),
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
-                    Text("관심도서 추가")
+                    Text(if (isInWishlist) "관심도서에서 삭제" else "관심도서 추가")
                 }
 
                 OutlinedButton(
-                    onClick = { /* TODO: 서재에 추가 로직 */ },
+                    onClick = onToggleMyLibrary,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, DarkRed),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = if (isInMyLibrary) DarkRed.copy(alpha = 0.1f) else Color.Transparent
+                    ),
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
-                    Text("서재에 추가", color = DarkRed)
+                    Text(if (isInMyLibrary) "서재에서 삭제" else "서재에 추가", color = DarkRed)
                 }
             }
         }

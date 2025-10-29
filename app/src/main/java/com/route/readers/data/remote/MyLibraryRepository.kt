@@ -14,51 +14,14 @@ class MyLibraryRepository {
     
     private val firestoreRepository = FirestoreRepository()
     
-    suspend fun addBookToLibrary(book: Book): Boolean {
+    suspend fun addBookToLibrary(book: MyBook): Boolean {
         return try {
-            val currentBooks = _myBooks.value.toMutableList()
-            
-            // 이미 있는 책인지 확인 (ISBN으로 중복 체크)
-            if (!currentBooks.any { it.isbn == book.isbn }) {
-                // 페이지 정보 추출 (개선된 방식)
-                val totalPages = book.extractPageCount().let { pages ->
-                    if (pages > 0) pages else 0 // 페이지 정보가 없으면 0으로 설정
-                }
-                
-                Log.d("MyLibraryRepository", "Book: ${book.title}, Pages: $totalPages (itemPage: ${book.itemPage})")
-                
-                val bookWithProgress = book.copy(
-                    totalPages = totalPages,
-                    currentPage = 0,
-                    progress = 0
-                )
-                currentBooks.add(bookWithProgress)
-                _myBooks.value = currentBooks
-                
-                // Firestore에도 저장
-                val myBook = MyBook(
-                    id = book.isbn,
-                    userId = "", // FirestoreRepository에서 설정됨
-                    title = book.title,
-                    author = book.author,
-                    cover = book.cover,
-                    isbn = book.isbn,
-                    totalPages = totalPages,
-                    currentPage = 0,
-                    isCompleted = false,
-                    addedDate = System.currentTimeMillis(),
-                    lastReadDate = System.currentTimeMillis()
-                )
-                
-                val firestoreSuccess = firestoreRepository.addBookToLibrary(myBook)
-                Log.d("MyLibraryRepository", "Book added to Firestore: $firestoreSuccess")
-                
-                // 위젯 업데이트
+            val firestoreSuccess = firestoreRepository.addBookToLibrary(book)
+            if (firestoreSuccess) {
+                syncWithFirestore()
                 WidgetUpdateHelper.updateAllWidgets()
-                
-                return firestoreSuccess
             }
-            true
+            firestoreSuccess
         } catch (e: Exception) {
             Log.e("MyLibraryRepository", "Error adding book: ${e.message}", e)
             false

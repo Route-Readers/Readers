@@ -393,7 +393,11 @@ fun PostsSection(
                         onLikeClick = { onLikeClick(post.id, isLiked) },
                         onBookmarkClick = { onBookmarkClick(post.id, isBookmarked) },
                         onDeleteClick = { onDeleteClick(post.id) },
-                        onUserClick = { }
+                        onUserClick = { },
+                        wishlist = emptyList(),
+                        myLibrary = emptyList(),
+                        onToggleWishlist = { _, _ -> },
+                        onToggleMyLibrary = { _, _ -> }
                     )
                 }
             }
