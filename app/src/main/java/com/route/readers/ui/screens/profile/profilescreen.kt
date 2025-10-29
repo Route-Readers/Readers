@@ -1,7 +1,6 @@
 package com.route.readers.ui.screens.profile
 
 import android.net.Uri
-
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -12,24 +11,65 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SecondaryTabRow
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
-import com.route.readers.R
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -39,15 +79,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.route.readers.R
 import com.route.readers.data.model.Book
 import com.route.readers.data.model.Challenge
 import com.route.readers.data.model.User
 import com.route.readers.ui.screens.feed.FeedCard
 import com.route.readers.ui.screens.feed.FeedItem
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import com.route.readers.ui.theme.DarkRed
 import kotlinx.coroutines.launch
-
 
 @Composable
 fun ProfileScreen(
@@ -60,13 +99,10 @@ fun ProfileScreen(
     var showCustomization by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val haptic =  LocalHapticFeedback.current
+    val haptic = LocalHapticFeedback.current
 
     LaunchedEffect(key1 = userId) {
-
-
         viewModel.fetchUserProfile(userId)
-        // 팔로우 관계 동기화
         viewModel.syncFollowRelationship(userId)
     }
 
@@ -77,7 +113,6 @@ fun ProfileScreen(
         viewModel.clearSelectionMode()
     }
 
-    // 커스터마이제이션 화면 표시
     val currentState = uiState
     if (showCustomization && currentState is ProfileUiState.Success) {
         ProfileCustomizationScreen(
@@ -111,23 +146,18 @@ fun ProfileScreen(
                         state = state,
                         viewModel = viewModel,
                         onFollowClick = {
-
                             viewModel.followUser(state.user.uid)
-                            // 팔로우 후 동기화 실행
                             viewModel.syncFollowRelationship(state.user.uid)
                         },
                         onUnfollowClick = {
                             viewModel.unfollowUser(state.user.uid)
-                            // 언팔로우 후 동기화 실행
                             viewModel.syncFollowRelationship(state.user.uid)
                         },
                         onFollowListClick = { listType ->
                             onNavigateToFollowList(listType, state.user.nickname)
                         },
                         onUpdateProfileImage = { imageUri ->
-
                             if (imageUri == android.net.Uri.EMPTY) {
-
                                 showCustomization = true
                             } else {
                                 viewModel.updateProfileImage(imageUri)
@@ -135,7 +165,6 @@ fun ProfileScreen(
                         },
                         onNavigateToSearch = onNavigateToSearch,
                         onNavigateToCustomization = {
-
                             showCustomization = true
                         },
                         onBlockUser = { viewModel.blockUser(state.user.uid) },
@@ -218,10 +247,7 @@ fun ProfileContent(
                     onFollowListClick = onFollowListClick,
                     onUpdateProfileImage = onUpdateProfileImage,
                     onNavigateToCustomization = {
-
-
                         onNavigateToCustomization()
-
                     },
                     onBlockUser = onBlockUser,
                     onUnblockUser = onUnblockUser
@@ -321,7 +347,8 @@ fun ProfileContent(
                     wishlist = state.wishlist,
                     myLibrary = state.myLibrary,
                     onToggleWishlist = { book, isInWishlist -> viewModel.toggleWishlist(book, isInWishlist) },
-                    onToggleMyLibrary = { book, isInMyLibrary -> viewModel.toggleMyLibrary(book, isInMyLibrary) }
+                    onToggleMyLibrary = { book, isInMyLibrary -> viewModel.toggleMyLibrary(book, isInMyLibrary) },
+                    onAddFavoriteBook = { book -> viewModel.addFavoriteBook(book) }
                 )
             }
         }
@@ -342,7 +369,8 @@ fun PostsSection(
     wishlist: List<String>,
     myLibrary: List<String>,
     onToggleWishlist: (Book, Boolean) -> Unit,
-    onToggleMyLibrary: (Book, Boolean) -> Unit
+    onToggleMyLibrary: (Book, Boolean) -> Unit,
+    onAddFavoriteBook: (Book) -> Unit
 ) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = if (isMyProfile) listOf("내가 쓴 글", "저장한 글") else listOf("작성한 글")
@@ -394,6 +422,10 @@ fun PostsSection(
                 postsToShow.forEach { post ->
                     val isLiked = likedFeedIds.contains(post.id)
                     val isBookmarked = bookmarkedFeedIds.contains(post.id)
+                    // `FeedCard`가 있는 곳을 찾아서 수정해야 합니다.
+                    // 만약 `FeedCard`가 이 파일 내에 없다면 해당 파일을 열어서 수정해야 합니다.
+                    // 이 파일 내에 `FeedCard`의 정의가 없으므로, `FeedCard`가 정의된 파일에서 파라미터를 추가해야 합니다.
+                    // 가정: FeedCard는 `com.route.readers.ui.screens.feed` 패키지에 있습니다.
                     FeedCard(
                         item = post,
                         isLiked = isLiked,
@@ -405,7 +437,8 @@ fun PostsSection(
                         wishlist = wishlist,
                         myLibrary = myLibrary,
                         onToggleWishlist = onToggleWishlist,
-                        onToggleMyLibrary = onToggleMyLibrary
+                        onToggleMyLibrary = onToggleMyLibrary,
+                        onAddFavoriteBook = onAddFavoriteBook
                     )
                 }
             }
@@ -424,7 +457,6 @@ fun ProfileInfoSection(
     onFollowListClick: (String) -> Unit,
     onUpdateProfileImage: (android.net.Uri) -> Unit,
     onNavigateToCustomization: () -> Unit,
-
     onBlockUser: () -> Unit,
     onUnblockUser: () -> Unit
 ) {
@@ -450,11 +482,7 @@ fun ProfileInfoSection(
                 user = user,
                 isMyProfile = isMyProfile,
                 onImageClick = {
-
-
-
                     onNavigateToCustomization()
-
                 }
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -717,13 +745,9 @@ fun ProfileImage(
     onImageClick: () -> Unit
 ) {
     val modifier = Modifier.clickable(onClick = {
-
-
         if (isMyProfile) {
-
             onImageClick()
         } else {
-
         }
     })
 

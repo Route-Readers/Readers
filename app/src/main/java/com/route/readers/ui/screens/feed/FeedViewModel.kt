@@ -61,6 +61,17 @@ class FeedViewModel : ViewModel() {
         }
     }
 
+    fun addFavoriteBook(book: Book) {
+        val userId = auth.currentUser?.uid ?: return
+        viewModelScope.launch {
+            try {
+                bookRepository.addFavoriteBook(userId, book)
+            } catch (e: Exception) {
+                Log.e("FeedViewModel", "Failed to add favorite book", e)
+            }
+        }
+    }
+
     fun refreshFeeds() {
         loadFeeds(isRefresh = true)
     }
@@ -385,7 +396,7 @@ class FeedViewModel : ViewModel() {
                     addedDate = System.currentTimeMillis(),
                     lastReadDate = System.currentTimeMillis(),
                     completedDate = null
-                    ))
+                ))
             }
         }
     }

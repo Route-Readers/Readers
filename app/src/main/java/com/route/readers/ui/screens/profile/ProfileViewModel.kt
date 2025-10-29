@@ -2,7 +2,6 @@ package com.route.readers.ui.screens.profile
 
 import android.net.Uri
 import android.util.Log
-
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
@@ -45,6 +44,27 @@ open class ProfileViewModel : ViewModel() {
 
     private val _blockedUsers = MutableStateFlow<List<User>>(emptyList())
     val blockedUsers: StateFlow<List<User>> = _blockedUsers.asStateFlow()
+
+    fun addFavoriteBook(book: Book) {
+        val userId = currentUserId ?: return
+        val currentState = _uiState.value
+        if (currentState !is ProfileUiState.Success) return
+
+        viewModelScope.launch {
+            try {
+                bookRepository.addFavoriteBook(userId, book)
+
+                val updatedFavoriteBooks = (currentState.favoriteBooks + book).distinctBy { it.isbn }
+                _uiState.value = currentState.copy(
+                    favoriteBooks = updatedFavoriteBooks
+                )
+                Log.d("ProfileViewModel", "'${book.title}'을(를) 관심 도서에 추가했습니다.")
+
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "관심 도서 추가 실패", e)
+            }
+        }
+    }
 
     fun checkNicknameAvailability(nickname: String) {
         if (nickname.length !in 2..12) {
@@ -240,7 +260,6 @@ open class ProfileViewModel : ViewModel() {
                         followingCount = actualFollowingCount
                     )
                     val isMyProfile = targetUserId == currentUserId
-                    // 현재 사용자의 팔로잉 목록에서 상대방이 있는지 확인
                     val isFollowing = if (currentUserId != null) {
                         val currentUserDoc =
                             db.collection("users").document(currentUserId).get().await()
@@ -374,7 +393,6 @@ open class ProfileViewModel : ViewModel() {
                 val updates = mutableMapOf<String, Any?>()
                 updates["profileCharacter"] = character
                 updates["profileBackgroundColor"] = backgroundColor
-                // Clear profile image URL when using character
                 if (character != null) {
                     updates["profileImageUrl"] = null
                 }
@@ -626,7 +644,6 @@ open class ProfileViewModel : ViewModel() {
                 feedRef.update("bookmarkedBy", operation).await()
             } catch (e: Exception) {
                 Log.e("ProfileViewModel", "Error toggling bookmark for feed $feedId", e)
-                // Optionally revert UI changes on error
             }
         }
     }
@@ -743,7 +760,6 @@ open class ProfileViewModel : ViewModel() {
         }
     }
 
-    // 팔로우 관계 동기화 함수
     fun syncFollowRelationship(targetUserId: String) {
         if (currentUserId == null) return
 
@@ -760,20 +776,16 @@ open class ProfileViewModel : ViewModel() {
                 val shouldBeFollowing = currentUserFollowing.contains(targetUserId)
                 val isInTargetFollowers = targetUserFollowers.contains(currentUserId)
 
-                // 불일치 발견 시 수정
                 if (shouldBeFollowing && !isInTargetFollowers) {
-                    // 내가 팔로우하고 있는데 상대방 팔로워 목록에 없음 -> 상대방에 추가
                     db.collection("users").document(targetUserId)
                         .update("followers", FieldValue.arrayUnion(currentUserId))
                         .await()
                 } else if (!shouldBeFollowing && isInTargetFollowers) {
-                    // 내가 팔로우하지 않는데 상대방 팔로워 목록에 있음 -> 상대방에서 제거
                     db.collection("users").document(targetUserId)
                         .update("followers", FieldValue.arrayRemove(currentUserId))
                         .await()
                 }
 
-                // 프로필 다시 로드
                 fetchUserProfile(targetUserId)
             } catch (e: Exception) {
                 Log.e("ProfileViewModel", "동기화 실패", e)
@@ -807,19 +819,21 @@ open class ProfileViewModel : ViewModel() {
             val success = if (isInMyLibrary) {
                 myLibraryRepository.removeBookFromLibrary(book.isbn)
             } else {
-                myLibraryRepository.addBookToLibrary(MyBook(
-                    id = book.isbn, 
-                    title = book.title, 
-                    author = book.author, 
-                    cover = book.cover, 
-                    isbn = book.isbn,
-                    totalPages = book.extractPageCount(),
-                    currentPage = 0,
-                    isCompleted = false,
-                    addedDate = System.currentTimeMillis(),
-                    lastReadDate = System.currentTimeMillis(),
-                    completedDate = null
-                    ))
+                myLibraryRepository.addBookToLibrary(
+                    MyBook(
+                        id = book.isbn,
+                        title = book.title,
+                        author = book.author,
+                        cover = book.cover,
+                        isbn = book.isbn,
+                        totalPages = book.extractPageCount(),
+                        currentPage = 0,
+                        isCompleted = false,
+                        addedDate = System.currentTimeMillis(),
+                        lastReadDate = System.currentTimeMillis(),
+                        completedDate = null
+                    )
+                )
             }
             if (success) {
                 val currentState = _uiState.value
