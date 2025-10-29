@@ -2,6 +2,8 @@ package com.route.readers.data.model
 
 import com.google.firebase.firestore.Exclude
 import com.google.gson.annotations.SerializedName
+import android.util.Log
+
 
 data class SubInfo(
     @SerializedName("itemPage") val itemPage: Int? = null
@@ -25,8 +27,11 @@ data class Book(
     @get:Exclude
     val isFavorite: Boolean = false
 ) {
+
+
     fun extractPageCount(): Int {
-        return subInfo?.itemPage ?: 0
+        Log.d("Book", "subInfo: $subInfo, itemPage: $itemPage")
+        return subInfo?.itemPage ?: itemPage ?: 0
     }
 
     fun hasValidPageInfo(): Boolean {

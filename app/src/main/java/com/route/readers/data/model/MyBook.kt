@@ -28,16 +28,26 @@ data class MyBook(
             cover.contains("aladin.co.kr") && cover.contains("/cover/") -> {
                 cover.replace("/cover/", "/cover200/")
             }
+
             cover.contains("aladin.co.kr") && cover.contains("/cover150/") -> {
                 cover.replace("/cover150/", "/cover200/")
             }
+
             cover.contains("aladin.co.kr") && cover.contains("/cover85/") -> {
                 cover.replace("/cover85/", "/cover200/")
             }
+
             cover.contains("aladin.co.kr") && cover.contains("/cover75/") -> {
                 cover.replace("/cover75/", "/cover200/")
             }
+
             else -> cover
         }
+    }
+
+    @Exclude
+    fun extractPageCount(): Int {
+        // Implement page extraction logic here if needed
+        return totalPages
     }
 }

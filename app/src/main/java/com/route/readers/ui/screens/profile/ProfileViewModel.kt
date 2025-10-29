@@ -11,8 +11,11 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.route.readers.data.model.Book
 import com.route.readers.data.model.Challenge
+import com.route.readers.data.model.MyBook
 import com.route.readers.data.model.User
 import com.route.readers.data.remote.BookRepository
+import com.route.readers.data.remote.MyLibraryRepository
+import com.route.readers.data.remote.WishlistRepository
 import com.route.readers.ui.screens.feed.FeedItem
 import com.route.readers.ui.screens.feed.toFeedItem
 import kotlinx.coroutines.async
@@ -30,6 +33,8 @@ open class ProfileViewModel : ViewModel() {
     private val auth = FirebaseAuth.getInstance()
     private val storage = FirebaseStorage.getInstance()
     private val bookRepository = BookRepository()
+    private val wishlistRepository = WishlistRepository()
+    private val myLibraryRepository = MyLibraryRepository()
     private val currentUserId = auth.currentUser?.uid
 
     protected val _uiState = MutableStateFlow<ProfileUiState>(ProfileUiState.Loading)
@@ -272,6 +277,9 @@ open class ProfileViewModel : ViewModel() {
                         .map { it.id }
                         .toSet()
 
+                    val wishlist = wishlistRepository.getWishlist()
+                    val myLibrary = myLibraryRepository.getMyBooks().map { it.isbn }
+
                     val (ongoing, completed) = challengesDeferred.await()
                         .partition { !it.isCompleted }
 
@@ -287,7 +295,9 @@ open class ProfileViewModel : ViewModel() {
                         myPosts = myPostsDeferred.await(),
                         savedPosts = savedPostsResult,
                         likedFeedIds = likedFeedIds,
-                        bookmarkedFeedIds = bookmarkedFeedIds
+                        bookmarkedFeedIds = bookmarkedFeedIds,
+                        wishlist = wishlist,
+                        myLibrary = myLibrary
                     )
                 } else {
                     _uiState.value = ProfileUiState.Error("프로필 정보를 변환하는 데 실패했습니다.")
@@ -767,6 +777,60 @@ open class ProfileViewModel : ViewModel() {
                 fetchUserProfile(targetUserId)
             } catch (e: Exception) {
                 Log.e("ProfileViewModel", "동기화 실패", e)
+            }
+        }
+    }
+
+    fun toggleWishlist(book: Book, isInWishlist: Boolean) {
+        viewModelScope.launch {
+            val success = if (isInWishlist) {
+                wishlistRepository.removeFromWishlist(book.isbn)
+            } else {
+                wishlistRepository.addToWishlist(book)
+            }
+            if (success) {
+                val currentState = _uiState.value
+                if (currentState is ProfileUiState.Success) {
+                    val updatedWishlist = if (isInWishlist) {
+                        currentState.wishlist - book.isbn
+                    } else {
+                        currentState.wishlist + book.isbn
+                    }
+                    _uiState.value = currentState.copy(wishlist = updatedWishlist)
+                }
+            }
+        }
+    }
+
+    fun toggleMyLibrary(book: Book, isInMyLibrary: Boolean) {
+        viewModelScope.launch {
+            val success = if (isInMyLibrary) {
+                myLibraryRepository.removeBookFromLibrary(book.isbn)
+            } else {
+                myLibraryRepository.addBookToLibrary(MyBook(
+                    id = book.isbn, 
+                    title = book.title, 
+                    author = book.author, 
+                    cover = book.cover, 
+                    isbn = book.isbn,
+                    totalPages = book.extractPageCount(),
+                    currentPage = 0,
+                    isCompleted = false,
+                    addedDate = System.currentTimeMillis(),
+                    lastReadDate = System.currentTimeMillis(),
+                    completedDate = null
+                    ))
+            }
+            if (success) {
+                val currentState = _uiState.value
+                if (currentState is ProfileUiState.Success) {
+                    val updatedMyLibrary = if (isInMyLibrary) {
+                        currentState.myLibrary - book.isbn
+                    } else {
+                        currentState.myLibrary + book.isbn
+                    }
+                    _uiState.value = currentState.copy(myLibrary = updatedMyLibrary)
+                }
             }
         }
     }

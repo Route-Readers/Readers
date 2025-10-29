@@ -57,15 +57,15 @@ class ReadingProgressWidget : AppWidgetProvider() {
                 val books = repository.myBooks.value
                 
                 val currentBook = books
-                    .filter { it.progress < 100 }
-                    .maxByOrNull { it.progress }
+                    .filter { it.progressPercentage < 100 }
+                    .maxByOrNull { it.progressPercentage }
                 
                 CoroutineScope(Dispatchers.Main).launch {
                     if (currentBook != null) {
                         views.setTextViewText(R.id.widget_book_title, currentBook.title)
                         views.setTextViewText(R.id.widget_book_author, currentBook.author)
-                        views.setTextViewText(R.id.widget_progress, "${currentBook.progress}%")
-                        views.setProgressBar(R.id.widget_progress_bar, 100, currentBook.progress, false)
+                        views.setTextViewText(R.id.widget_progress, "${currentBook.progressPercentage}%")
+                        views.setProgressBar(R.id.widget_progress_bar, 100, currentBook.progressPercentage, false)
                         
                         // 페이지 정보 표시
                         val pageInfo = if (currentBook.totalPages > 0) {

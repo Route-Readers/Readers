@@ -7,7 +7,12 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.route.readers.data.model.Book
+import com.route.readers.data.model.MyBook
 import com.route.readers.data.model.User
+import com.route.readers.data.remote.BookRepository
+import com.route.readers.data.remote.MyLibraryRepository
+import com.route.readers.data.remote.WishlistRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -20,7 +25,9 @@ sealed class FeedUiState {
         val items: List<FeedItem>,
         val likedFeedIds: Set<String>,
         val bookmarkedFeedIds: Set<String>,
-        val followerInfoMap: Map<String, User> = emptyMap()
+        val followerInfoMap: Map<String, User> = emptyMap(),
+        val wishlist: List<String> = emptyList(),
+        val myLibrary: List<String> = emptyList()
     ) : FeedUiState()
     data class Error(val message: String) : FeedUiState()
 }
@@ -29,6 +36,9 @@ class FeedViewModel : ViewModel() {
 
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
+    private val wishlistRepository = WishlistRepository()
+    private val myLibraryRepository = MyLibraryRepository()
+    private val bookRepository = BookRepository()
 
     private val _uiState = MutableStateFlow<FeedUiState>(FeedUiState.Loading)
     val uiState = _uiState.asStateFlow()
@@ -38,6 +48,17 @@ class FeedViewModel : ViewModel() {
 
     init {
         loadFeeds(isRefresh = false)
+        myLibraryRepository.onLibraryUpdate = {
+            loadFeeds(isRefresh = true)
+        }
+        viewModelScope.launch {
+            myLibraryRepository.myBooks.collect {
+                val currentState = _uiState.value
+                if (currentState is FeedUiState.Success) {
+                    _uiState.value = currentState.copy(myLibrary = it.map { it.isbn })
+                }
+            }
+        }
     }
 
     fun refreshFeeds() {
@@ -194,7 +215,10 @@ class FeedViewModel : ViewModel() {
                     .map { it.id }
                     .toSet()
 
-                _uiState.value = FeedUiState.Success(updatedFeeds, likedFeedIds, bookmarkedFeedIds, followerInfoMap)
+                val wishlist = wishlistRepository.getWishlist()
+                val myLibrary = myLibraryRepository.getMyBooks().map { it.isbn }
+
+                _uiState.value = FeedUiState.Success(updatedFeeds, likedFeedIds, bookmarkedFeedIds, followerInfoMap, wishlist, myLibrary)
 
             } catch (e: Exception) {
                 Log.e("FeedViewModel", "Error loading feeds", e)
@@ -317,6 +341,51 @@ class FeedViewModel : ViewModel() {
                 loadFeeds(isRefresh = false)
             } catch (e: Exception) {
                 Log.e("FeedViewModel", "Error following back user $followerId", e)
+            }
+        }
+    }
+
+    fun toggleWishlist(book: Book, isInWishlist: Boolean) {
+        viewModelScope.launch {
+            val success = if (isInWishlist) {
+                wishlistRepository.removeFromWishlist(book.isbn)
+            } else {
+                wishlistRepository.addToWishlist(book)
+            }
+            if (success) {
+                val currentState = _uiState.value
+                if (currentState is FeedUiState.Success) {
+                    val updatedWishlist = if (isInWishlist) {
+                        currentState.wishlist - book.isbn
+                    } else {
+                        currentState.wishlist + book.isbn
+                    }
+                    _uiState.value = currentState.copy(wishlist = updatedWishlist)
+                }
+            }
+        }
+    }
+
+    fun toggleMyLibrary(book: Book, isInMyLibrary: Boolean) {
+        viewModelScope.launch {
+            if (isInMyLibrary) {
+                myLibraryRepository.removeBookFromLibrary(book.isbn)
+            } else {
+                val detailedBook = bookRepository.getBookDetail(book.isbn)
+                val totalPages = detailedBook?.extractPageCount() ?: 0
+                myLibraryRepository.addBookToLibrary(MyBook(
+                    id = book.isbn, 
+                    title = book.title, 
+                    author = book.author, 
+                    cover = book.cover, 
+                    isbn = book.isbn,
+                    totalPages = totalPages,
+                    currentPage = 0,
+                    isCompleted = false,
+                    addedDate = System.currentTimeMillis(),
+                    lastReadDate = System.currentTimeMillis(),
+                    completedDate = null
+                    ))
             }
         }
     }

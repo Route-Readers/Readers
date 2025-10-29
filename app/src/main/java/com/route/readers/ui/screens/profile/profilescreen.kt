@@ -317,7 +317,11 @@ fun ProfileContent(
                     onDeleteClick = { feedId ->
                         feedToDelete = feedId
                         showDeleteDialog = true
-                    }
+                    },
+                    wishlist = state.wishlist,
+                    myLibrary = state.myLibrary,
+                    onToggleWishlist = { book, isInWishlist -> viewModel.toggleWishlist(book, isInWishlist) },
+                    onToggleMyLibrary = { book, isInMyLibrary -> viewModel.toggleMyLibrary(book, isInMyLibrary) }
                 )
             }
         }
@@ -334,7 +338,11 @@ fun PostsSection(
     bookmarkedFeedIds: Set<String>,
     onLikeClick: (feedId: String, isLiked: Boolean) -> Unit,
     onBookmarkClick: (feedId: String, isBookmarked: Boolean) -> Unit,
-    onDeleteClick: (feedId: String) -> Unit
+    onDeleteClick: (feedId: String) -> Unit,
+    wishlist: List<String>,
+    myLibrary: List<String>,
+    onToggleWishlist: (Book, Boolean) -> Unit,
+    onToggleMyLibrary: (Book, Boolean) -> Unit
 ) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = if (isMyProfile) listOf("내가 쓴 글", "저장한 글") else listOf("작성한 글")
@@ -393,7 +401,11 @@ fun PostsSection(
                         onLikeClick = { onLikeClick(post.id, isLiked) },
                         onBookmarkClick = { onBookmarkClick(post.id, isBookmarked) },
                         onDeleteClick = { onDeleteClick(post.id) },
-                        onUserClick = { }
+                        onUserClick = { },
+                        wishlist = wishlist,
+                        myLibrary = myLibrary,
+                        onToggleWishlist = onToggleWishlist,
+                        onToggleMyLibrary = onToggleMyLibrary
                     )
                 }
             }

@@ -39,6 +39,7 @@ import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import com.route.readers.R
 import com.route.readers.data.model.Book
+import com.route.readers.data.model.MyBook
 import com.route.readers.data.remote.FirestoreRepository
 import com.route.readers.data.remote.MyLibraryRepository
 import com.route.readers.ui.theme.*
@@ -189,7 +190,16 @@ fun BookSearchTab(
                 isInLibrary = isInLibrary,
                 onAddToLibrary = {
                     scope.launch {
-                        val success = myLibraryRepository.addBookToLibrary(it)
+                        val totalPages = it.extractPageCount()
+                        val myBook = MyBook(
+                            id = it.isbn,
+                            title = it.title,
+                            author = it.author,
+                            cover = it.cover,
+                            isbn = it.isbn,
+                            totalPages = totalPages
+                        )
+                        val success = myLibraryRepository.addBookToLibrary(myBook)
                         if (success) {
                             isInLibrary = true
                         }
