@@ -4,8 +4,11 @@ import android.util.Log
 import com.route.readers.data.model.Book
 import com.route.readers.data.model.MyBook
 import com.route.readers.widget.WidgetUpdateHelper
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 class MyLibraryRepository {
     
@@ -13,11 +16,14 @@ class MyLibraryRepository {
     val myBooks: StateFlow<List<MyBook>> = _myBooks
     
     private val firestoreRepository = FirestoreRepository()
+    private val repositoryScope = CoroutineScope(Dispatchers.IO)
 
     var onLibraryUpdate: (() -> Unit)? = null
 
     init {
-        syncWithFirestore()
+        repositoryScope.launch {
+            syncWithFirestore()
+        }
     }
     
     suspend fun addBookToLibrary(book: MyBook): Boolean {
@@ -77,18 +83,18 @@ class MyLibraryRepository {
         }
     }
     
-    fun syncWithFirestore() {
-        
+    suspend fun syncWithFirestore() {
+        try {
+            val firestoreBooks = firestoreRepository.getMyBooks()
+            _myBooks.value = firestoreBooks
+            Log.d("MyLibraryRepository", "Synced ${firestoreBooks.size} books from Firestore")
+        } catch (e: Exception) {
+            Log.e("MyLibraryRepository", "Error syncing with Firestore: ${e.message}", e)
+        }
     }
 
     suspend fun getMyBooks(): List<MyBook> {
-        return try {
-            val books = firestoreRepository.getMyBooks()
-            _myBooks.value = books
-            books
-        } catch (e: Exception) {
-            Log.e("MyLibraryRepository", "Error getting books: ${e.message}", e)
-            emptyList()
-        }
+        syncWithFirestore()
+        return _myBooks.value
     }
 }
