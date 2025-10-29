@@ -10,6 +10,7 @@ import com.google.firebase.firestore.Query
 import com.route.readers.data.model.Book
 import com.route.readers.data.model.MyBook
 import com.route.readers.data.model.User
+import com.route.readers.data.remote.BookRepository
 import com.route.readers.data.remote.MyLibraryRepository
 import com.route.readers.data.remote.WishlistRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,6 +38,7 @@ class FeedViewModel : ViewModel() {
     private val auth = FirebaseAuth.getInstance()
     private val wishlistRepository = WishlistRepository()
     private val myLibraryRepository = MyLibraryRepository()
+    private val bookRepository = BookRepository()
 
     private val _uiState = MutableStateFlow<FeedUiState>(FeedUiState.Loading)
     val uiState = _uiState.asStateFlow()
@@ -46,6 +48,17 @@ class FeedViewModel : ViewModel() {
 
     init {
         loadFeeds(isRefresh = false)
+        myLibraryRepository.onLibraryUpdate = {
+            loadFeeds(isRefresh = true)
+        }
+        viewModelScope.launch {
+            myLibraryRepository.myBooks.collect {
+                val currentState = _uiState.value
+                if (currentState is FeedUiState.Success) {
+                    _uiState.value = currentState.copy(myLibrary = it.map { it.isbn })
+                }
+            }
+        }
     }
 
     fun refreshFeeds() {
@@ -355,33 +368,24 @@ class FeedViewModel : ViewModel() {
 
     fun toggleMyLibrary(book: Book, isInMyLibrary: Boolean) {
         viewModelScope.launch {
-            val success = if (isInMyLibrary) {
+            if (isInMyLibrary) {
                 myLibraryRepository.removeBookFromLibrary(book.isbn)
             } else {
+                val detailedBook = bookRepository.getBookDetail(book.isbn)
+                val totalPages = detailedBook?.extractPageCount() ?: 0
                 myLibraryRepository.addBookToLibrary(MyBook(
                     id = book.isbn, 
                     title = book.title, 
                     author = book.author, 
                     cover = book.cover, 
                     isbn = book.isbn,
-                    totalPages = 0,
+                    totalPages = totalPages,
                     currentPage = 0,
                     isCompleted = false,
                     addedDate = System.currentTimeMillis(),
                     lastReadDate = System.currentTimeMillis(),
                     completedDate = null
                     ))
-            }
-            if (success) {
-                val currentState = _uiState.value
-                if (currentState is FeedUiState.Success) {
-                    val updatedMyLibrary = if (isInMyLibrary) {
-                        currentState.myLibrary - book.isbn
-                    } else {
-                        currentState.myLibrary + book.isbn
-                    }
-                    _uiState.value = currentState.copy(myLibrary = updatedMyLibrary)
-                }
             }
         }
     }

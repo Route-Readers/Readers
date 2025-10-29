@@ -9,10 +9,16 @@ import kotlinx.coroutines.flow.StateFlow
 
 class MyLibraryRepository {
     
-    private val _myBooks = MutableStateFlow<List<Book>>(emptyList())
-    val myBooks: StateFlow<List<Book>> = _myBooks
+    private val _myBooks = MutableStateFlow<List<MyBook>>(emptyList())
+    val myBooks: StateFlow<List<MyBook>> = _myBooks
     
     private val firestoreRepository = FirestoreRepository()
+
+    var onLibraryUpdate: (() -> Unit)? = null
+
+    init {
+        syncWithFirestore()
+    }
     
     suspend fun addBookToLibrary(book: MyBook): Boolean {
         return try {
@@ -20,6 +26,7 @@ class MyLibraryRepository {
             if (firestoreSuccess) {
                 syncWithFirestore()
                 WidgetUpdateHelper.updateAllWidgets()
+                onLibraryUpdate?.invoke()
             }
             firestoreSuccess
         } catch (e: Exception) {
@@ -34,23 +41,7 @@ class MyLibraryRepository {
             val success = firestoreRepository.updateReadingProgress(isbn, currentPage)
             
             if (success) {
-                // 로컬 상태도 업데이트
-                val currentBooks = _myBooks.value.toMutableList()
-                val bookIndex = currentBooks.indexOfFirst { it.isbn == isbn }
-                
-                if (bookIndex != -1) {
-                    val book = currentBooks[bookIndex]
-                    val progress = if (book.totalPages > 0) {
-                        ((currentPage.toFloat() / book.totalPages) * 100).toInt()
-                    } else 0
-                    
-                    currentBooks[bookIndex] = book.copy(
-                        currentPage = currentPage,
-                        progress = progress
-                    )
-                    _myBooks.value = currentBooks
-                }
-                
+                syncWithFirestore()
                 // 위젯 업데이트
                 WidgetUpdateHelper.updateAllWidgets()
             }
@@ -64,15 +55,13 @@ class MyLibraryRepository {
     
     suspend fun removeBookFromLibrary(isbn: String): Boolean {
         return try {
-            val currentBooks = _myBooks.value.toMutableList()
-            currentBooks.removeAll { it.isbn == isbn }
-            _myBooks.value = currentBooks
-            
-            // 위젯 업데이트
-            WidgetUpdateHelper.updateAllWidgets()
-            
-            // Firestore에서도 삭제
-            return firestoreRepository.removeBookFromLibrary(isbn)
+            val success = firestoreRepository.removeBookFromLibrary(isbn)
+            if (success) {
+                syncWithFirestore()
+                WidgetUpdateHelper.updateAllWidgets()
+                onLibraryUpdate?.invoke()
+            }
+            success
         } catch (e: Exception) {
             Log.e("MyLibraryRepository", "Error removing book: ${e.message}", e)
             false
@@ -81,46 +70,22 @@ class MyLibraryRepository {
     
     suspend fun isBookInLibrary(isbn: String): Boolean {
         return try {
-            // 메모리상 확인
-            val inMemory = _myBooks.value.any { it.isbn == isbn }
-            if (inMemory) return true
-            
-            // Firestore에서 확인
-            val firestoreBooks = firestoreRepository.getMyBooks()
-            return firestoreBooks.any { it.isbn == isbn }
+            _myBooks.value.any { it.isbn == isbn }
         } catch (e: Exception) {
             Log.e("MyLibraryRepository", "Error checking book existence: ${e.message}", e)
-            _myBooks.value.any { it.isbn == isbn }
+            false
         }
     }
     
-    suspend fun syncWithFirestore() {
-        try {
-            val firestoreBooks = firestoreRepository.getMyBooks()
-            val memoryBooks = firestoreBooks.map { myBook ->
-                Book(
-                    title = myBook.title,
-                    author = myBook.author,
-                    description = "",
-                    isbn = myBook.isbn,
-                    cover = myBook.cover,
-                    categoryName = null,
-                    itemPage = myBook.totalPages,
-                    currentPage = myBook.currentPage,
-                    totalPages = myBook.totalPages,
-                    progress = myBook.progressPercentage
-                )
-            }
-            _myBooks.value = memoryBooks
-            Log.d("MyLibraryRepository", "Synced ${memoryBooks.size} books from Firestore")
-        } catch (e: Exception) {
-            Log.e("MyLibraryRepository", "Error syncing with Firestore: ${e.message}", e)
-        }
+    fun syncWithFirestore() {
+        
     }
 
     suspend fun getMyBooks(): List<MyBook> {
         return try {
-            firestoreRepository.getMyBooks()
+            val books = firestoreRepository.getMyBooks()
+            _myBooks.value = books
+            books
         } catch (e: Exception) {
             Log.e("MyLibraryRepository", "Error getting books: ${e.message}", e)
             emptyList()

@@ -190,12 +190,14 @@ fun BookSearchTab(
                 isInLibrary = isInLibrary,
                 onAddToLibrary = {
                     scope.launch {
+                        val totalPages = it.extractPageCount()
                         val myBook = MyBook(
                             id = it.isbn,
                             title = it.title,
                             author = it.author,
                             cover = it.cover,
-                            isbn = it.isbn
+                            isbn = it.isbn,
+                            totalPages = totalPages
                         )
                         val success = myLibraryRepository.addBookToLibrary(myBook)
                         if (success) {
