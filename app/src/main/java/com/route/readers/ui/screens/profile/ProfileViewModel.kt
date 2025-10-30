@@ -284,6 +284,26 @@ open class ProfileViewModel : ViewModel() {
                     }.await()
 
                     val allPosts = (myPostsDeferred.await() + savedPostsResult).distinctBy { it.id }
+
+                    val authorIds = allPosts.mapNotNull {
+                        when (it) {
+                            is FeedItem.BookReview -> it.authorId
+                            is FeedItem.FollowNotification -> it.authorId
+                        }
+                    }.distinct()
+
+                    val userInfoMap = if (authorIds.isNotEmpty()) {
+                        db.collection("users").whereIn("uid", authorIds).get().await()
+                            .toObjects(User::class.java)
+                            .associateBy { it.uid }
+                            .toMutableMap()
+                    } else {
+                        mutableMapOf()
+                    }
+
+                    userInfoMap[updatedUser.uid] = updatedUser
+
+
                     val likedFeedIds = allPosts
                         .filterIsInstance<FeedItem.BookReview>()
                         .filter { it.likedBy.contains(currentUserId) }
@@ -317,7 +337,7 @@ open class ProfileViewModel : ViewModel() {
                         bookmarkedFeedIds = bookmarkedFeedIds,
                         wishlist = wishlist,
                         myLibrary = myLibrary,
-                        userInfoMap = mapOf(updatedUser.uid to updatedUser)
+                        userInfoMap = userInfoMap
                     )
                 } else {
                     _uiState.value = ProfileUiState.Error("프로필 정보를 변환하는 데 실패했습니다.")
