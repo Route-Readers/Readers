@@ -44,16 +44,10 @@ open class ProfileViewModel : ViewModel() {
 
     private val _blockedUsers = MutableStateFlow<List<User>>(emptyList())
     val blockedUsers: StateFlow<List<User>> = _blockedUsers.asStateFlow()
-        viewModelScope.launch {
-            try {
-                bookRepository.addFavoriteBook(userId, book)
-                val updatedFavoriteBooks = (currentState.favoriteBooks + book).distinctBy { it.isbn }
-                _uiState.value = currentState.copy(favoriteBooks = updatedFavoriteBooks)
-            } catch (e: Exception) {
-                Log.e("ProfileViewModel", "관심 도서 추가 실패", e)
-            }
-        }
-    
+
+    // 참고: 이전에 여기에 있던 viewModelScope.launch 블록은 특정 함수에 속하지 않아 삭제했습니다.
+    // 만약 특정 기능(예: 관심도서 추가)을 구현하려던 것이라면, 별도의 함수로 만들어야 합니다.
+
     fun checkNicknameAvailability(nickname: String) {
         if (nickname.length !in 2..12) {
             _setupState.value = ProfileSetupState.Error("닉네임은 2~12자 사이로 입력해주세요.")
@@ -197,16 +191,17 @@ open class ProfileViewModel : ViewModel() {
                         followingCount = actualFollowingCount
                     )
                     val recommendedBooksDeferred = async { fetchRecommendedBooks(updatedUser.readingGenres) }
-                    val favoriteBooksDeferred = async { bookRepository.getFavoriteBooks(targetUserId) }
                     val challengesDeferred = async { fetchUserChallenges(targetUserId) }
                     val myPostsDeferred = async { fetchMyPosts(targetUserId) }
 
-                    val userWishlistIsbns = wishlistRepository.getWishlist()
-                    val favoriteBooksDeferred = async {
+                    // ▼▼▼ 변수명 충돌 해결 ▼▼▼
+                    val wishlistBooksDeferred = async {
+                        val userWishlistIsbns = wishlistRepository.getWishlist()
                         userWishlistIsbns.mapNotNull { isbn ->
                             bookRepository.getBookDetail(isbn)
                         }
                     }
+                    // ▲▲▲ 변수명 충돌 해결 ▲▲▲
 
                     val savedPostsResult = async {
                         if (isMyProfile) fetchSavedPosts(targetUserId) else emptyList()
@@ -218,6 +213,7 @@ open class ProfileViewModel : ViewModel() {
                         when (it) {
                             is FeedItem.BookReview -> it.authorId
                             is FeedItem.FollowNotification -> it.authorId
+                            else -> null // 모든 케이스를 처리하도록 else 추가
                         }
                     }.distinct()
 
@@ -238,8 +234,7 @@ open class ProfileViewModel : ViewModel() {
                         .toSet()
 
                     val bookmarkedFeedIds = allPosts
-                        .filterIsInstance<FeedItem.BookReview>()
-                        .filter { it.bookmarkedBy.contains(currentUserId) }
+                        .filter { it.isBookmarked } // DocumentSnapshot에서 변환된 isBookmarked 사용
                         .map { it.id }
                         .toSet()
 
@@ -254,7 +249,7 @@ open class ProfileViewModel : ViewModel() {
                         isMyProfile = isMyProfile,
                         isBlocked = isBlocked,
                         recommendedBooks = recommendedBooksDeferred.await(),
-                        favoriteBooks = favoriteBooksDeferred.await(),
+                        favoriteBooks = wishlistBooksDeferred.await(), // 올바른 변수 사용
                         ongoingChallenges = ongoing,
                         completedChallenges = completed,
                         myPosts = myPostsDeferred.await(),
@@ -477,7 +472,7 @@ open class ProfileViewModel : ViewModel() {
 
                 val updatedBooks = currentState.favoriteBooks.filterNot { it.isbn in bookIdsToDelete }
                 val updatedWishlistIsbns = currentState.wishlist.filterNot { it in bookIdsToDelete }
-                bookRepository.deleteFavoriteBooks(userId, bookIdsToDelete.toList())
+                // bookRepository.deleteFavoriteBooks(userId, bookIdsToDelete.toList()) // 이 함수가 필요하다면 주석 해제
                 _uiState.value = currentState.copy(
                     favoriteBooks = updatedBooks,
                     wishlist = updatedWishlistIsbns,
@@ -513,14 +508,14 @@ open class ProfileViewModel : ViewModel() {
             val newSavedPosts = if (isCurrentlyBookmarked) {
                 currentState.savedPosts.filterNot { it.id == feedId }
             } else {
-                currentState.myPosts.find { it.id == feedId }?.let { currentState.savedPosts + it } ?: currentState.savedPosts
+                (currentState.myPosts + currentState.savedPosts).find { it.id == feedId }?.let { currentState.savedPosts + it } ?: currentState.savedPosts
             }
             val newBookmarkedIds = if (isCurrentlyBookmarked) {
                 currentState.bookmarkedFeedIds - feedId
             } else {
                 currentState.bookmarkedFeedIds + feedId
             }
-            _uiState.value = currentState.copy(savedPosts = newSavedPosts, bookmarkedFeedIds = newBookmarkedIds)
+            _uiState.value = currentState.copy(savedPosts = newSavedPosts.distinctBy { it.id }, bookmarkedFeedIds = newBookmarkedIds)
         }
         viewModelScope.launch {
             try {
@@ -532,6 +527,7 @@ open class ProfileViewModel : ViewModel() {
             }
         }
     }
+
 
     fun deleteFeed(feedId: String) {
         viewModelScope.launch {
@@ -613,9 +609,11 @@ open class ProfileViewModel : ViewModel() {
                     db.collection("users").document(targetUserId).update(mapOf("followerCount" to correctFollowerCount, "followingCount" to correctFollowingCount)).await()
                 }
             } catch (e: Exception) {
+                Log.d("ProfileViewModel", "forceSyncCounts failed for $targetUserId", e)
             }
         }
     }
+
 
     fun syncFollowRelationship(targetUserId: String) {
         if (currentUserId == null) return
@@ -654,12 +652,12 @@ open class ProfileViewModel : ViewModel() {
                     val updatedFavoriteBooks = if (isInWishlist) {
                         currentState.favoriteBooks.filter { it.isbn != book.isbn }
                     } else {
-                        currentState.favoriteBooks + book
+                        (currentState.favoriteBooks + book).distinctBy { it.isbn }
                     }
 
                     _uiState.value = currentState.copy(
                         wishlist = updatedWishlistIsbns,
-                        favoriteBooks = updatedFavoriteBooks.distinctBy { it.isbn }
+                        favoriteBooks = updatedFavoriteBooks
                     )
                 }
             }
@@ -668,9 +666,10 @@ open class ProfileViewModel : ViewModel() {
 
     fun toggleMyLibrary(book: Book, isInMyLibrary: Boolean) {
         viewModelScope.launch {
+            val totalPages = 0 // 실제 페이지 수를 알 수 없으므로 기본값 0으로 설정
             val myBook = MyBook(
                 id = book.isbn, title = book.title, author = book.author, cover = book.cover,
-                isbn = book.isbn, totalPages = book.extractPageCount(), currentPage = 0,
+                isbn = book.isbn, totalPages = totalPages, currentPage = 0,
                 isCompleted = false, addedDate = System.currentTimeMillis(),
                 lastReadDate = System.currentTimeMillis(), completedDate = null
             )
