@@ -211,10 +211,11 @@ fun SortableFeedContent(
     onToggleWishlist: (Book, Boolean) -> Unit,
     onToggleMyLibrary: (Book, Boolean) -> Unit
 ) {
+    // 1. 정렬 상태를 관리하는 변수
     var sortOption by remember { mutableStateOf(SortOption.LATEST) }
-    var menuExpanded by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
 
+    // 2. 정렬 상태에 따라 피드 목록을 정렬
     val sortedFeedItems = remember(feedItems, sortOption) {
         when (sortOption) {
             SortOption.LATEST -> feedItems.sortedByDescending { it.timestamp }
@@ -222,57 +223,36 @@ fun SortableFeedContent(
         }
     }
 
+    // 3. 정렬 방식이 변경되면 스크롤을 맨 위로 이동
     LaunchedEffect(sortOption) {
         listState.scrollToItem(index = 0)
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
+        // 4. 정렬 버튼 UI (기존 Box와 Row 구조에서 Text만 남김)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp),
+                .padding(end = 16.dp, top = 8.dp, bottom = 8.dp), // 패딩 조정
             contentAlignment = Alignment.CenterEnd
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = sortOption.displayName,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = TextGray
-                )
-                Box {
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "정렬 메뉴",
-                            tint = TextGray
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(SortOption.LATEST.displayName) },
-                            onClick = {
-                                sortOption = SortOption.LATEST
-                                menuExpanded = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(SortOption.POPULAR.displayName) },
-                            onClick = {
-                                sortOption = SortOption.POPULAR
-                                menuExpanded = false
-                            }
-                        )
+            Text(
+                text = sortOption.displayName,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = TextGray,
+                modifier = Modifier.clickable {
+                    // 텍스트를 클릭하면 정렬 방식을 변경 (LATEST -> POPULAR, POPULAR -> LATEST)
+                    sortOption = if (sortOption == SortOption.LATEST) {
+                        SortOption.POPULAR
+                    } else {
+                        SortOption.LATEST
                     }
                 }
-            }
+            )
         }
 
+        // 5. 정렬된 데이터를 보여주는 ActualFeedContent 호출
         ActualFeedContent(
             listState = listState,
             feedItems = sortedFeedItems,
