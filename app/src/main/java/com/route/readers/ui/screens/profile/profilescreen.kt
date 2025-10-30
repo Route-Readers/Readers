@@ -295,6 +295,7 @@ fun ProfileContent(
                         }
                         sections.add("favorite" to "관심 도서")
                         sections.add("challenges" to "독서 챌린지")
+                        sections.add("achievements" to "내 업적")
                         sections.add("posts" to "내 활동")
 
                         sections.forEachIndexed { index, (key, title) ->
@@ -305,6 +306,7 @@ fun ProfileContent(
                                     "recommended" -> Icons.Rounded.Star
                                     "favorite" -> Icons.Rounded.Favorite
                                     "challenges" -> Icons.Default.CheckCircle
+                                    "achievements" -> Icons.Rounded.Star
                                     "posts" -> Icons.Rounded.Bookmark
                                     else -> Icons.Rounded.Bookmark
                                 },
@@ -349,6 +351,16 @@ fun ProfileContent(
                                         completedChallenges = state.completedChallenges,
                                         onChallengeClick = { }
                                     )
+                                    "achievements" -> {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 24.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text("아직 달성한 업적이 없습니다.", color = Color.Gray)
+                                        }
+                                    }
                                     "posts" -> PostsSection(
                                         myPosts = state.myPosts.filterIsInstance<FeedItem.BookReview>().sortedByDescending { it.timestamp },
                                         savedPosts = state.savedPosts,
