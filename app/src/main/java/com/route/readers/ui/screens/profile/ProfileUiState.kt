@@ -24,7 +24,8 @@ sealed class ProfileUiState {
         val likedFeedIds: Set<String> = emptySet(),
         val bookmarkedFeedIds: Set<String> = emptySet(),
         val wishlist: List<String> = emptyList(),
-        val myLibrary: List<String> = emptyList()
+        val myLibrary: List<String> = emptyList(),
+        val userInfoMap: Map<String, User> = emptyMap()
     ) : ProfileUiState()
 
     data class Error(val message: String) : ProfileUiState()
