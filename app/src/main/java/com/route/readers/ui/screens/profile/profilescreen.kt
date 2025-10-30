@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Palette
@@ -208,6 +209,7 @@ fun ProfileContent(
     onBookmarkClick: (String, Boolean) -> Unit
 ) {
     val user = state.user
+    val isPrivateAndNotFollowing = user.isPrivate && !state.isMyProfile && !state.isFollowing
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var feedToDelete by remember { mutableStateOf<String?>(null) }
@@ -270,6 +272,10 @@ fun ProfileContent(
                 ) {
                     Text("차단된 사용자입니다.", color = Color.Gray)
                 }
+            }
+        } else if (isPrivateAndNotFollowing) {
+            item {
+                PrivateProfileContent()
             }
         } else {
             item {
@@ -1037,5 +1043,25 @@ fun ExpandableProfileSection(
                 content()
             }
         }
+    }
+}
+
+@Composable
+fun PrivateProfileContent() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 48.dp, bottom = 48.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Default.Lock,
+            contentDescription = "비공개 계정",
+            modifier = Modifier.size(48.dp),
+            tint = Color.Gray
+        )
+        Text("비공개 계정입니다.", color = Color.Gray, fontSize = 16.sp)
+        Text("콘텐츠를 보려면 이 계정을 팔로우하세요.", color = Color.Gray, fontSize = 14.sp)
     }
 }
