@@ -235,13 +235,11 @@ fun ProfileContent(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp) // 전체 아이템 간의 간격
     ) {
         item {
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-
-        item {
+            // 프로필 정보 섹션
             Column(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -278,11 +276,12 @@ fun ProfileContent(
                 PrivateProfileContent()
             }
         } else {
+            // 모든 콘텐츠를 담는 단일 카드
             item {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 24.dp),
+                        .padding(horizontal = 16.dp), // 카드 좌우 여백
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -290,7 +289,7 @@ fun ProfileContent(
                     Column(
                         modifier = Modifier.padding(vertical = 8.dp)
                     ) {
-                        var expandedState by remember { mutableStateOf<String?>(null) }
+                        var expandedState by remember { mutableStateOf<String?>("posts") } // '내 활동'을 기본으로 펼침
                         val sections = mutableListOf<Pair<String, String>>()
 
                         if (user.readingGenres.isNotEmpty() || user.readingStyles.isNotEmpty()) {
@@ -381,9 +380,8 @@ fun ProfileContent(
                                         },
                                         wishlist = state.wishlist,
                                         myLibrary = state.myLibrary,
-                                        onToggleWishlist = { book, isInWishlist -> viewModel.toggleWishlist(book, isInWishlist) },
-                                        onToggleMyLibrary = { book, isInMyLibrary -> viewModel.toggleMyLibrary(book, isInMyLibrary) },
-                                        onAddFavoriteBook = { book -> viewModel.addFavoriteBook(book) },
+                                        onToggleWishlist = viewModel::toggleWishlist,
+                                        onToggleMyLibrary = viewModel::toggleMyLibrary,
                                         userInfoMap = state.userInfoMap
                                     )
                                 }
@@ -394,56 +392,6 @@ fun ProfileContent(
                         }
                     }
                 }
-            }
-            item {
-                Column(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(32.dp),
-                ) {
-                    if (state.recommendedBooks.isNotEmpty()) {
-                        RecommendedBooksSection(
-                            books = state.recommendedBooks,
-                            onBookClick = { }
-                        )
-                    }
-
-                    FavoriteBooksSection(
-                        books = state.favoriteBooks,
-                        isSelectionMode = state.isSelectionMode,
-                        selectedBookIds = state.selectedBookIds,
-                        onToggleSelection = viewModel::toggleBookSelection,
-                        onStartSelectionMode = viewModel::startSelectionMode,
-                        onDeleteClick = viewModel::deleteSelectedFavoriteBooks,
-                        onBookClick = { },
-                        onNavigateToSearch = onNavigateToSearch
-                    )
-
-                    ChallengesSection(
-                        ongoingChallenges = state.ongoingChallenges,
-                        completedChallenges = state.completedChallenges,
-                        onChallengeClick = { }
-                    )
-                }
-            }
-
-            item {
-                PostsSection(
-                    myPosts = state.myPosts.filterIsInstance<FeedItem.BookReview>().sortedByDescending { it.timestamp },
-                    savedPosts = state.savedPosts,
-                    isMyProfile = state.isMyProfile,
-                    likedFeedIds = state.likedFeedIds,
-                    bookmarkedFeedIds = state.bookmarkedFeedIds,
-                    onLikeClick = viewModel::toggleLike,
-                    onBookmarkClick = onBookmarkClick,
-                    onDeleteClick = { feedId ->
-                        feedToDelete = feedId
-                        showDeleteDialog = true
-                    },
-                    wishlist = state.wishlist,
-                    myLibrary = state.myLibrary,
-                    onToggleWishlist = { book, isInWishlist -> viewModel.toggleWishlist(book, isInWishlist) },
-                    onToggleMyLibrary = { book, isInMyLibrary -> viewModel.toggleMyLibrary(book, isInMyLibrary) }
-                )
             }
         }
     }
@@ -463,9 +411,7 @@ fun PostsSection(
     wishlist: List<String>,
     myLibrary: List<String>,
     onToggleWishlist: (Book, Boolean) -> Unit,
-
     onToggleMyLibrary: (Book, Boolean) -> Unit,
-    onAddFavoriteBook: (Book) -> Unit,
     userInfoMap: Map<String, User> = emptyMap()
 ) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
@@ -525,13 +471,11 @@ fun PostsSection(
                         onLikeClick = { onLikeClick(post.id, isLiked) },
                         onBookmarkClick = { onBookmarkClick(post.id, isBookmarked) },
                         onDeleteClick = { onDeleteClick(post.id) },
-                        onUserClick = { },
+                        onUserClick = { /* 프로필 화면에서는 다른 유저 프로필로 이동하지 않음 */ },
                         wishlist = wishlist,
                         myLibrary = myLibrary,
                         onToggleWishlist = onToggleWishlist,
-
                         onToggleMyLibrary = onToggleMyLibrary,
-                        onAddFavoriteBook = onAddFavoriteBook,
                         followerInfoMap = userInfoMap
                     )
                 }
@@ -565,7 +509,7 @@ fun ProfileInfoSection(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier.padding(vertical = 24.dp),
@@ -646,7 +590,8 @@ fun RecommendedBooksSection(
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp)
         ) {
             items(books, key = { it.isbn }) { book ->
                 BookCardItem(
@@ -677,7 +622,7 @@ fun FavoriteBooksSection(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 12.dp),
+                    .padding(bottom = 12.dp, end = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.End
             ) {
@@ -692,6 +637,7 @@ fun FavoriteBooksSection(
         } else {
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp)
             ) {
                 items(books, key = { it.isbn }) { book ->
                     BookCardItem(
@@ -729,7 +675,7 @@ fun FavoriteBooksSection(
                         showDeleteDialog = false
                     }
                 ) {
-                    Text("삭제")
+                    Text("삭제", color = DarkRed)
                 }
             },
             dismissButton = {
@@ -916,6 +862,7 @@ fun EmptyFavoriteBooks(onNavigateToSearch: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .height(180.dp)
+            .padding(horizontal = 16.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(Color.White)
             .border(
@@ -956,7 +903,9 @@ fun ChallengesSection(
     onChallengeClick: (Challenge) -> Unit
 ) {
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         ChallengeCategory(
@@ -1091,7 +1040,7 @@ fun ExpandableProfileSection(
         }
 
         AnimatedVisibility(visible = isExpanded) {
-            Column(modifier = Modifier.padding(bottom = 16.dp, start = 16.dp, end = 16.dp)) {
+            Column(modifier = Modifier.padding(bottom = 16.dp)) {
                 content()
             }
         }
