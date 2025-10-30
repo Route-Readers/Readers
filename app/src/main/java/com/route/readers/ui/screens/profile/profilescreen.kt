@@ -365,7 +365,8 @@ fun ProfileContent(
                                         myLibrary = state.myLibrary,
                                         onToggleWishlist = { book, isInWishlist -> viewModel.toggleWishlist(book, isInWishlist) },
                                         onToggleMyLibrary = { book, isInMyLibrary -> viewModel.toggleMyLibrary(book, isInMyLibrary) },
-                                        onAddFavoriteBook = { book -> viewModel.addFavoriteBook(book) }
+                                        onAddFavoriteBook = { book -> viewModel.addFavoriteBook(book) },
+                                        userInfoMap = state.userInfoMap
                                     )
                                 }
                             }
@@ -395,7 +396,8 @@ fun PostsSection(
     myLibrary: List<String>,
     onToggleWishlist: (Book, Boolean) -> Unit,
     onToggleMyLibrary: (Book, Boolean) -> Unit,
-    onAddFavoriteBook: (Book) -> Unit
+    onAddFavoriteBook: (Book) -> Unit,
+    userInfoMap: Map<String, User> = emptyMap()
 ) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = if (isMyProfile) listOf("내가 쓴 글", "저장한 글") else listOf("작성한 글")
@@ -459,7 +461,8 @@ fun PostsSection(
                         myLibrary = myLibrary,
                         onToggleWishlist = onToggleWishlist,
                         onToggleMyLibrary = onToggleMyLibrary,
-                        onAddFavoriteBook = onAddFavoriteBook
+                        onAddFavoriteBook = onAddFavoriteBook,
+                        followerInfoMap = userInfoMap
                     )
                 }
             }

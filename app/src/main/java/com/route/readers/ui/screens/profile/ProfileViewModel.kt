@@ -316,7 +316,8 @@ open class ProfileViewModel : ViewModel() {
                         likedFeedIds = likedFeedIds,
                         bookmarkedFeedIds = bookmarkedFeedIds,
                         wishlist = wishlist,
-                        myLibrary = myLibrary
+                        myLibrary = myLibrary,
+                        userInfoMap = mapOf(updatedUser.uid to updatedUser)
                     )
                 } else {
                     _uiState.value = ProfileUiState.Error("프로필 정보를 변환하는 데 실패했습니다.")
@@ -406,7 +407,10 @@ open class ProfileViewModel : ViewModel() {
                     profileBackgroundColor = backgroundColor,
                     profileImageUrl = if (character != null) null else currentState.user.profileImageUrl
                 )
-                _uiState.value = currentState.copy(user = updatedUser)
+                _uiState.value = currentState.copy(
+                    user = updatedUser,
+                    userInfoMap = currentState.userInfoMap + (updatedUser.uid to updatedUser)
+                )
 
             } catch (e: Exception) {
                 Log.e("ProfileViewModel", "Failed to update profile character", e)
