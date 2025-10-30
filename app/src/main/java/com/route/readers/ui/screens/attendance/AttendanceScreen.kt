@@ -53,6 +53,8 @@ fun AttendanceScreen(
     viewModel: AttendanceViewModel
 ) {
     val attendanceDataMap by viewModel.attendanceData.collectAsState()
+    val totalAttendanceDays by viewModel.totalAttendanceDays.collectAsState()
+    val specialRewardDays by viewModel.specialRewardDays.collectAsState()
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -74,6 +76,34 @@ fun AttendanceScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로 가기")
+                    }
+                },
+                actions = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(end = 8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = "총 출석일",
+                            tint = Color(0xFFF57C00)
+                        )
+                        Text(
+                            text = "$totalAttendanceDays 일",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(start = 4.dp, end = 8.dp)
+                        )
+
+                        Icon(
+                            Icons.Filled.Book,
+                            contentDescription = "총 독서일",
+                            tint = Color(0xFF8B0000)
+                        )
+                        Text(
+                            text = "$specialRewardDays 일",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
@@ -190,15 +220,17 @@ private fun DayContent(day: Day, attendanceData: AttendanceData?) {
                     "leaf_1", "leaf_2" -> Icon(
                         imageVector = Icons.Filled.Book,
                         contentDescription = "특별 보상",
-                        tint = Color.Green,
+                        tint = Color(0xFF8B0000),
                         modifier = Modifier.size(20.dp)
                     )
-                    else -> Icon(
-                        Icons.Default.Check,
-                        "출석",
-                        tint = Color(0xFFF57C00),
-                        modifier = Modifier.size(20.dp)
-                    )
+                    else -> if (attendanceData?.consecutiveDays ?: 0 > 0) {
+                        Icon(
+                            Icons.Default.Check,
+                            "출석",
+                            tint = Color(0xFFF57C00),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         } else {
