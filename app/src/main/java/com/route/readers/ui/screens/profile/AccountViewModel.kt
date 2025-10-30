@@ -46,15 +46,15 @@ class AccountViewModel : ViewModel() {
     fun updateUserPrivacySetting(isPrivate: Boolean) {
         val userId = auth.currentUser?.uid ?: return
         viewModelScope.launch {
+            _isLoading.value = true
             _isPrivateAccount.value = isPrivate
             val userRef = db.collection("users").document(userId)
             userRef.update("isPrivate", isPrivate)
                 .addOnSuccessListener {
-                    // 성공 처리 (필요 시)
+                    _isLoading.value = false
                 }
                 .addOnFailureListener {
-                    // 실패 처리 (예: 이전 상태로 롤백)
-                    fetchUserPrivacySetting() // 실패 시 다시 원래 값으로 돌림
+                    fetchUserPrivacySetting() 
                 }
         }
     }

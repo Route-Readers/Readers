@@ -29,5 +29,6 @@ data class User(
     val readBookCount: Int = 0,
     val isCurrentlyReading: Boolean = false,
     val consecutiveDays: Int = 0,
-    val lastLoginDate: String = ""
+    val lastLoginDate: String = "",
+    val isPrivate: Boolean = false
 )

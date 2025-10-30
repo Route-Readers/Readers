@@ -781,4 +781,3 @@ fun DocumentSnapshot.toFeedItem(): FeedItem? {
         else -> null
     }
 }
-

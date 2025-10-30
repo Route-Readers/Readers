@@ -3,8 +3,9 @@ package com.route.readers.ui.screens.profile
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -14,8 +15,6 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -35,12 +34,19 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.rounded.Bookmark
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -67,7 +73,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -185,7 +193,7 @@ fun ProfileScreen(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ProfileContent(
     state: ProfileUiState.Success,
@@ -201,6 +209,7 @@ fun ProfileContent(
     onBookmarkClick: (String, Boolean) -> Unit
 ) {
     val user = state.user
+    val isPrivateAndNotFollowing = user.isPrivate && !state.isMyProfile && !state.isFollowing
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var feedToDelete by remember { mutableStateOf<String?>(null) }
@@ -246,9 +255,7 @@ fun ProfileContent(
                     onUnfollowClick = onUnfollowClick,
                     onFollowListClick = onFollowListClick,
                     onUpdateProfileImage = onUpdateProfileImage,
-                    onNavigateToCustomization = {
-                        onNavigateToCustomization()
-                    },
+                    onNavigateToCustomization = onNavigateToCustomization,
                     onBlockUser = onBlockUser,
                     onUnblockUser = onUnblockUser
                 )
@@ -266,40 +273,128 @@ fun ProfileContent(
                     Text("차단된 사용자입니다.", color = Color.Gray)
                 }
             }
+        } else if (isPrivateAndNotFollowing) {
+            item {
+                PrivateProfileContent()
+            }
         } else {
             item {
-                Column(
+                Card(
                     modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .padding(top = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(24.dp),
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 24.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    if (user.readingGenres.isNotEmpty()) {
-                        ProfileDetailCard("선호 장르") {
-                            FlowRow(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                user.readingGenres.forEach { genre -> Chip(label = genre) }
-                            }
-                        }
-                    }
+                    Column(
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    ) {
+                        var expandedState by remember { mutableStateOf<String?>(null) }
+                        val sections = mutableListOf<Pair<String, String>>()
 
-                    if (user.readingStyles.isNotEmpty()) {
-                        ProfileDetailCard("독서 스타일") {
-                            FlowRow(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                        if (user.readingGenres.isNotEmpty() || user.readingStyles.isNotEmpty()) {
+                            sections.add("taste" to "독서 취향")
+                        }
+                        if (state.recommendedBooks.isNotEmpty()) {
+                            sections.add("recommended" to "추천 도서")
+                        }
+                        sections.add("favorite" to "관심 도서")
+                        sections.add("challenges" to "독서 챌린지")
+                        sections.add("achievements" to "내 업적")
+                        sections.add("posts" to "내 활동")
+
+                        sections.forEachIndexed { index, (key, title) ->
+                            ExpandableProfileSection(
+                                title = title,
+                                icon = when (key) {
+                                    "taste" -> Icons.Rounded.Palette
+                                    "recommended" -> Icons.Rounded.Star
+                                    "favorite" -> Icons.Rounded.Favorite
+                                    "challenges" -> Icons.Default.CheckCircle
+                                    "achievements" -> Icons.Rounded.Star
+                                    "posts" -> Icons.Rounded.Bookmark
+                                    else -> Icons.Rounded.Bookmark
+                                },
+                                isExpanded = expandedState == key,
+                                onToggle = {
+                                    expandedState = if (expandedState == key) null else key
+                                }
                             ) {
-                                user.readingStyles.forEach { style -> Chip(label = style) }
+                                when (key) {
+                                    "taste" -> {
+                                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                            if (user.readingGenres.isNotEmpty()) {
+                                                Text("선호 장르", fontWeight = FontWeight.SemiBold, color = Color.Gray)
+                                                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                    items(user.readingGenres) { genre -> Chip(label = genre) }
+                                                }
+                                            }
+                                            if (user.readingStyles.isNotEmpty()) {
+                                                Text("독서 스타일", fontWeight = FontWeight.SemiBold, color = Color.Gray)
+                                                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                    items(user.readingStyles) { style -> Chip(label = style) }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    "recommended" -> RecommendedBooksSection(
+                                        books = state.recommendedBooks,
+                                        onBookClick = { }
+                                    )
+                                    "favorite" -> FavoriteBooksSection(
+                                        books = state.favoriteBooks,
+                                        isSelectionMode = state.isSelectionMode,
+                                        selectedBookIds = state.selectedBookIds,
+                                        onToggleSelection = viewModel::toggleBookSelection,
+                                        onStartSelectionMode = viewModel::startSelectionMode,
+                                        onDeleteClick = viewModel::deleteSelectedFavoriteBooks,
+                                        onBookClick = { },
+                                        onNavigateToSearch = onNavigateToSearch
+                                    )
+                                    "challenges" -> ChallengesSection(
+                                        ongoingChallenges = state.ongoingChallenges,
+                                        completedChallenges = state.completedChallenges,
+                                        onChallengeClick = { }
+                                    )
+                                    "achievements" -> {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 24.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text("아직 달성한 업적이 없습니다.", color = Color.Gray)
+                                        }
+                                    }
+                                    "posts" -> PostsSection(
+                                        myPosts = state.myPosts.filterIsInstance<FeedItem.BookReview>().sortedByDescending { it.timestamp },
+                                        savedPosts = state.savedPosts,
+                                        isMyProfile = state.isMyProfile,
+                                        likedFeedIds = state.likedFeedIds,
+                                        bookmarkedFeedIds = state.bookmarkedFeedIds,
+                                        onLikeClick = viewModel::toggleLike,
+                                        onBookmarkClick = onBookmarkClick,
+                                        onDeleteClick = { feedId ->
+                                            feedToDelete = feedId
+                                            showDeleteDialog = true
+                                        },
+                                        wishlist = state.wishlist,
+                                        myLibrary = state.myLibrary,
+                                        onToggleWishlist = { book, isInWishlist -> viewModel.toggleWishlist(book, isInWishlist) },
+                                        onToggleMyLibrary = { book, isInMyLibrary -> viewModel.toggleMyLibrary(book, isInMyLibrary) },
+                                        onAddFavoriteBook = { book -> viewModel.addFavoriteBook(book) },
+                                        userInfoMap = state.userInfoMap
+                                    )
+                                }
+                            }
+                            if (index < sections.size - 1) {
+                                Divider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFF0F0F0))
                             }
                         }
                     }
                 }
             }
-
             item {
                 Column(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp),
@@ -368,7 +463,10 @@ fun PostsSection(
     wishlist: List<String>,
     myLibrary: List<String>,
     onToggleWishlist: (Book, Boolean) -> Unit,
-    onToggleMyLibrary: (Book, Boolean) -> Unit
+
+    onToggleMyLibrary: (Book, Boolean) -> Unit,
+    onAddFavoriteBook: (Book) -> Unit,
+    userInfoMap: Map<String, User> = emptyMap()
 ) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = if (isMyProfile) listOf("내가 쓴 글", "저장한 글") else listOf("작성한 글")
@@ -414,16 +512,12 @@ fun PostsSection(
             }
         } else {
             Column(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier.padding(top = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 postsToShow.forEach { post ->
                     val isLiked = likedFeedIds.contains(post.id)
                     val isBookmarked = bookmarkedFeedIds.contains(post.id)
-                    // `FeedCard`가 있는 곳을 찾아서 수정해야 합니다.
-                    // 만약 `FeedCard`가 이 파일 내에 없다면 해당 파일을 열어서 수정해야 합니다.
-                    // 이 파일 내에 `FeedCard`의 정의가 없으므로, `FeedCard`가 정의된 파일에서 파라미터를 추가해야 합니다.
-                    // 가정: FeedCard는 `com.route.readers.ui.screens.feed` 패키지에 있습니다.
                     FeedCard(
                         item = post,
                         isLiked = isLiked,
@@ -435,7 +529,10 @@ fun PostsSection(
                         wishlist = wishlist,
                         myLibrary = myLibrary,
                         onToggleWishlist = onToggleWishlist,
-                        onToggleMyLibrary = onToggleMyLibrary
+
+                        onToggleMyLibrary = onToggleMyLibrary,
+                        onAddFavoriteBook = onAddFavoriteBook,
+                        followerInfoMap = userInfoMap
                     )
                 }
             }
@@ -457,7 +554,7 @@ fun ProfileInfoSection(
     onBlockUser: () -> Unit,
     onUnblockUser: () -> Unit
 ) {
-    val singlePhotoPickerLauncher = rememberLauncherForActivityResult(
+    rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
         onResult = { uri ->
             uri?.let { onUpdateProfileImage(it) }
@@ -543,35 +640,13 @@ fun ProfileInfoSection(
 }
 
 @Composable
-fun ProfileDetailCard(title: String, content: @Composable () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(12.dp))
-            content()
-        }
-    }
-}
-
-@Composable
 fun RecommendedBooksSection(
     books: List<Book>,
     onBookClick: (Book) -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = "회원님을 위한 추천 도서",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(start = 4.dp, bottom = 16.dp)
-        )
         LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(horizontal = 4.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(books, key = { it.isbn }) { book ->
                 BookCardItem(
@@ -598,19 +673,14 @@ fun FavoriteBooksSection(
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 4.dp, bottom = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = "관심 도서",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
-            if (isSelectionMode) {
+        if (isSelectionMode) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.End
+            ) {
                 IconButton(onClick = { if (selectedBookIds.isNotEmpty()) showDeleteDialog = true }) {
                     Icon(Icons.Default.Delete, contentDescription = "선택한 도서 삭제")
                 }
@@ -622,7 +692,6 @@ fun FavoriteBooksSection(
         } else {
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(horizontal = 4.dp)
             ) {
                 items(books, key = { it.isbn }) { book ->
                     BookCardItem(
@@ -744,7 +813,6 @@ fun ProfileImage(
     val modifier = Modifier.clickable(onClick = {
         if (isMyProfile) {
             onImageClick()
-        } else {
         }
     })
 
@@ -913,9 +981,9 @@ fun ChallengeCategory(
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = title,
-            fontSize = 18.sp,
+            fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(start = 4.dp, bottom = 16.dp)
+            modifier = Modifier.padding(bottom = 12.dp)
         )
         if (challenges.isEmpty()) {
             Text(
@@ -942,7 +1010,7 @@ fun ChallengeItem(challenge: Challenge, onClick: () -> Unit) {
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFAFAFA))
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -975,5 +1043,77 @@ fun ChallengeItem(challenge: Challenge, onClick: () -> Unit) {
                 trackColor = Color.LightGray.copy(alpha = 0.5f)
             )
         }
+    }
+}
+
+@Composable
+fun ExpandableProfileSection(
+    title: String,
+    icon: ImageVector,
+    isExpanded: Boolean,
+    onToggle: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    val rotationAngle by animateFloatAsState(targetValue = if (isExpanded) 90f else 0f, label = "rotation")
+
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onToggle)
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = title,
+                    tint = when (icon) {
+                        Icons.Rounded.Palette -> Color(0xFF9CCC65)
+                        Icons.Rounded.Star -> Color(0xFFEC407A)
+                        Icons.Rounded.Favorite -> Color(0xFF42A5F5)
+                        Icons.Default.CheckCircle -> Color(0xFFFFCA28)
+                        else -> Color.Gray
+                    }
+                )
+                Text(text = title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            }
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowRight,
+                contentDescription = if (isExpanded) "접기" else "펼치기",
+                modifier = Modifier.rotate(rotationAngle),
+                tint = Color.Gray
+            )
+        }
+
+        AnimatedVisibility(visible = isExpanded) {
+            Column(modifier = Modifier.padding(bottom = 16.dp, start = 16.dp, end = 16.dp)) {
+                content()
+            }
+        }
+    }
+}
+
+@Composable
+fun PrivateProfileContent() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 48.dp, bottom = 48.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Default.Lock,
+            contentDescription = "비공개 계정",
+            modifier = Modifier.size(48.dp),
+            tint = Color.Gray
+        )
+        Text("비공개 계정입니다.", color = Color.Gray, fontSize = 16.sp)
+        Text("콘텐츠를 보려면 이 계정을 팔로우하세요.", color = Color.Gray, fontSize = 14.sp)
     }
 }
