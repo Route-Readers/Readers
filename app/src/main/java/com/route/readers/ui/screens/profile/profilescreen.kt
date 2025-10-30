@@ -395,6 +395,56 @@ fun ProfileContent(
                     }
                 }
             }
+            item {
+                Column(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(32.dp),
+                ) {
+                    if (state.recommendedBooks.isNotEmpty()) {
+                        RecommendedBooksSection(
+                            books = state.recommendedBooks,
+                            onBookClick = { }
+                        )
+                    }
+
+                    FavoriteBooksSection(
+                        books = state.favoriteBooks,
+                        isSelectionMode = state.isSelectionMode,
+                        selectedBookIds = state.selectedBookIds,
+                        onToggleSelection = viewModel::toggleBookSelection,
+                        onStartSelectionMode = viewModel::startSelectionMode,
+                        onDeleteClick = viewModel::deleteSelectedFavoriteBooks,
+                        onBookClick = { },
+                        onNavigateToSearch = onNavigateToSearch
+                    )
+
+                    ChallengesSection(
+                        ongoingChallenges = state.ongoingChallenges,
+                        completedChallenges = state.completedChallenges,
+                        onChallengeClick = { }
+                    )
+                }
+            }
+
+            item {
+                PostsSection(
+                    myPosts = state.myPosts.filterIsInstance<FeedItem.BookReview>().sortedByDescending { it.timestamp },
+                    savedPosts = state.savedPosts,
+                    isMyProfile = state.isMyProfile,
+                    likedFeedIds = state.likedFeedIds,
+                    bookmarkedFeedIds = state.bookmarkedFeedIds,
+                    onLikeClick = viewModel::toggleLike,
+                    onBookmarkClick = onBookmarkClick,
+                    onDeleteClick = { feedId ->
+                        feedToDelete = feedId
+                        showDeleteDialog = true
+                    },
+                    wishlist = state.wishlist,
+                    myLibrary = state.myLibrary,
+                    onToggleWishlist = { book, isInWishlist -> viewModel.toggleWishlist(book, isInWishlist) },
+                    onToggleMyLibrary = { book, isInMyLibrary -> viewModel.toggleMyLibrary(book, isInMyLibrary) }
+                )
+            }
         }
     }
 }
@@ -413,6 +463,7 @@ fun PostsSection(
     wishlist: List<String>,
     myLibrary: List<String>,
     onToggleWishlist: (Book, Boolean) -> Unit,
+
     onToggleMyLibrary: (Book, Boolean) -> Unit,
     onAddFavoriteBook: (Book) -> Unit,
     userInfoMap: Map<String, User> = emptyMap()
@@ -478,6 +529,7 @@ fun PostsSection(
                         wishlist = wishlist,
                         myLibrary = myLibrary,
                         onToggleWishlist = onToggleWishlist,
+
                         onToggleMyLibrary = onToggleMyLibrary,
                         onAddFavoriteBook = onAddFavoriteBook,
                         followerInfoMap = userInfoMap

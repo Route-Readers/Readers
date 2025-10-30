@@ -1,5 +1,6 @@
 package com.route.readers.ui.screens.feed
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -36,15 +37,12 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -67,13 +65,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.layout.offset
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -90,13 +89,6 @@ import com.route.readers.ui.theme.TextGray
 import com.route.readers.ui.theme.White
 import java.text.SimpleDateFormat
 import java.util.Locale
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
-import android.widget.Toast
-import kotlinx.coroutines.launch
 
 enum class SortOption(val displayName: String) {
     LATEST("최신순"),
@@ -138,66 +130,66 @@ fun FeedScreen(
             isRefreshing = isRefreshing,
             onRefresh = { feedViewModel.refreshFeeds() }
         ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                when (val state = uiState) {
-                    is FeedUiState.Loading -> CircularProgressIndicator()
-                    is FeedUiState.Error -> Text(text = state.message)
-                    is FeedUiState.Success -> {
-                        if (state.items.isEmpty()) {
+            when (val state = uiState) {
+                is FeedUiState.Loading -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
+                is FeedUiState.Error -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(text = state.message)
+                    }
+                }
+                is FeedUiState.Success -> {
+                    if (state.items.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text("표시할 피드가 없습니다.")
-                        } else {
-                            SortableFeedContent(
-                                feedItems = state.items,
-                                likedFeedIds = state.likedFeedIds,
-                                bookmarkedFeedIds = state.bookmarkedFeedIds,
-                                onLikeClick = { feedId, isLiked ->
-                                    feedViewModel.toggleLike(feedId, isLiked)
-                                },
-                                onBookmarkClick = { feedId, isBookmarked ->
-                                    feedViewModel.toggleBookmark(feedId, isBookmarked)
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    Toast.makeText(
-                                        context,
-                                        if (isBookmarked) "북마크에서 삭제했습니다." else "북마크에 추가했습니다.",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                },
-                                onDeleteFeed = { feedId ->
-                                    feedViewModel.deleteFeed(feedId)
-                                },
-                                onNavigateToOtherUserProfile = onNavigateToOtherUserProfile,
-                                onFollowBack = { followerId ->
-                                    feedViewModel.followBack(followerId)
-                                },
-                                followerInfoMap = state.followerInfoMap,
-                                wishlist = state.wishlist,
-                                myLibrary = state.myLibrary,
-                                onToggleWishlist = { book, isInWishlist ->
-                                    feedViewModel.toggleWishlist(book, isInWishlist)
-                                    Toast.makeText(
-                                        context,
-                                        if (isInWishlist) "관심도서에서 삭제했습니다." else "관심도서에 추가했습니다.",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                },
-                                onToggleMyLibrary = { book, isInMyLibrary ->
-                                    feedViewModel.toggleMyLibrary(book, isInMyLibrary)
-                                    Toast.makeText(
-                                        context,
-                                        if (isInMyLibrary) "서재에서 삭제했습니다." else "서재에 추가했습니다.",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                },
-                                // onAddFavoriteBook 콜백을 여기서 전달 시작
-                                onAddFavoriteBook = { book ->
-                                    feedViewModel.addFavoriteBook(book)
-                                    Toast.makeText(context, "'${book.title}'을(를) 관심 도서에 추가했습니다.", Toast.LENGTH_SHORT).show()
-                                }
-                            )
                         }
+                    } else {
+                        SortableFeedContent(
+                            feedItems = state.items,
+                            likedFeedIds = state.likedFeedIds,
+                            bookmarkedFeedIds = state.bookmarkedFeedIds,
+                            onLikeClick = { feedId, isLiked ->
+                                feedViewModel.toggleLike(feedId, isLiked)
+                            },
+                            onBookmarkClick = { feedId, isBookmarked ->
+                                feedViewModel.toggleBookmark(feedId, isBookmarked)
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                Toast.makeText(
+                                    context,
+                                    if (isBookmarked) "북마크에서 삭제했습니다." else "북마크에 추가했습니다.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            },
+                            onDeleteFeed = { feedId ->
+                                feedViewModel.deleteFeed(feedId)
+                            },
+                            onNavigateToOtherUserProfile = onNavigateToOtherUserProfile,
+                            onFollowBack = { followerId ->
+                                feedViewModel.followBack(followerId)
+                            },
+                            followerInfoMap = state.followerInfoMap,
+                            wishlist = state.wishlist,
+                            myLibrary = state.myLibrary,
+                            onToggleWishlist = { book, isInWishlist ->
+                                feedViewModel.toggleWishlist(book, isInWishlist)
+                                Toast.makeText(
+                                    context,
+                                    if (isInWishlist) "관심도서에서 삭제했습니다." else "관심도서에 추가했습니다.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            },
+                            onToggleMyLibrary = { book, isInMyLibrary ->
+                                feedViewModel.toggleMyLibrary(book, isInMyLibrary)
+                                Toast.makeText(
+                                    context,
+                                    if (isInMyLibrary) "서재에서 삭제했습니다." else "서재에 추가했습니다.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        )
                     }
                 }
             }
@@ -219,11 +211,9 @@ fun SortableFeedContent(
     wishlist: List<String>,
     myLibrary: List<String>,
     onToggleWishlist: (Book, Boolean) -> Unit,
-    onToggleMyLibrary: (Book, Boolean) -> Unit,
-    onAddFavoriteBook: (Book) -> Unit // onAddFavoriteBook 콜백 추가
+    onToggleMyLibrary: (Book, Boolean) -> Unit
 ) {
     var sortOption by remember { mutableStateOf(SortOption.LATEST) }
-    var menuExpanded by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
 
     val sortedFeedItems = remember(feedItems, sortOption) {
@@ -241,47 +231,24 @@ fun SortableFeedContent(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp),
+                .padding(end = 8.dp),
             contentAlignment = Alignment.CenterEnd
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = sortOption.displayName,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = TextGray
-                )
-                Box {
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "정렬 메뉴",
-                            tint = TextGray
-                        )
+            Text(
+                text = sortOption.displayName,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = TextGray,
+                modifier = Modifier
+                    .clickable {
+                        sortOption = if (sortOption == SortOption.LATEST) {
+                            SortOption.POPULAR
+                        } else {
+                            SortOption.LATEST
+                        }
                     }
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(SortOption.LATEST.displayName) },
-                            onClick = {
-                                sortOption = SortOption.LATEST
-                                menuExpanded = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(SortOption.POPULAR.displayName) },
-                            onClick = {
-                                sortOption = SortOption.POPULAR
-                                menuExpanded = false
-                            }
-                        )
-                    }
-                }
-            }
+                    .padding(vertical = 4.dp) // 텍스트 위아래로 클릭 영역 확보
+            )
         }
 
         ActualFeedContent(
@@ -298,8 +265,7 @@ fun SortableFeedContent(
             wishlist = wishlist,
             myLibrary = myLibrary,
             onToggleWishlist = onToggleWishlist,
-            onToggleMyLibrary = onToggleMyLibrary,
-            onAddFavoriteBook = onAddFavoriteBook // onAddFavoriteBook 콜백 전달
+            onToggleMyLibrary = onToggleMyLibrary
         )
     }
 }
@@ -320,8 +286,7 @@ fun ActualFeedContent(
     wishlist: List<String>,
     myLibrary: List<String>,
     onToggleWishlist: (Book, Boolean) -> Unit,
-    onToggleMyLibrary: (Book, Boolean) -> Unit,
-    onAddFavoriteBook: (Book) -> Unit // onAddFavoriteBook 콜백 추가
+    onToggleMyLibrary: (Book, Boolean) -> Unit
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var feedToDelete by remember { mutableStateOf<String?>(null) }
@@ -361,8 +326,8 @@ fun ActualFeedContent(
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(vertical = 8.dp), // 상하단에 약간의 여백 추가
+        verticalArrangement = Arrangement.spacedBy(8.dp) // 카드 사이 간격을 8dp로 조정
     ) {
         items(feedItems, key = { it.id }) { item ->
             val isLiked = likedFeedIds.contains(item.id)
@@ -386,12 +351,13 @@ fun ActualFeedContent(
                 },
                 onFollowBack = onFollowBack,
                 followerInfoMap = followerInfoMap,
-                modifier = Modifier.padding(horizontal = 16.dp),
+                // ▼▼▼ 핵심 수정 부분 ▼▼▼
+                modifier = Modifier, // FeedCard 자체에 padding을 주지 않음
+                // ▲▲▲ 핵심 수정 부분 ▲▲▲
                 wishlist = wishlist,
                 myLibrary = myLibrary,
                 onToggleWishlist = onToggleWishlist,
-                onToggleMyLibrary = onToggleMyLibrary,
-                onAddFavoriteBook = onAddFavoriteBook // onAddFavoriteBook 콜백 전달
+                onToggleMyLibrary = onToggleMyLibrary
             )
         }
     }
@@ -412,19 +378,20 @@ fun FeedCard(
     wishlist: List<String>,
     myLibrary: List<String>,
     onToggleWishlist: (Book, Boolean) -> Unit,
-    onToggleMyLibrary: (Book, Boolean) -> Unit,
-    onAddFavoriteBook: (Book) -> Unit // <<< 여기 파라미터가 추가되었습니다.
+    onToggleMyLibrary: (Book, Boolean) -> Unit
 ) {
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
     var isBookCardExpanded by remember { mutableStateOf(false) }
 
+    // ▼▼▼ 핵심 수정 부분 ▼▼▼
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(0.dp), // 좌우 여백을 없애기 위해 직각으로 설정
         colors = CardDefaults.cardColors(containerColor = White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp) // 그림자 제거
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        // Card 내부의 Column에 패딩을 줘서 내용물만 안쪽으로 보이게 함
+        Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -451,7 +418,7 @@ fun FeedCard(
                     } else {
                         Box(
                             modifier = Modifier
-                                .size(40.dp)
+                                .size(30.dp)
                                 .clip(CircleShape)
                                 .background(DarkRed),
                             contentAlignment = Alignment.Center
@@ -499,9 +466,7 @@ fun FeedCard(
                                 isInWishlist = isInWishlist,
                                 isInMyLibrary = isInMyLibrary,
                                 onToggleWishlist = { onToggleWishlist(book, isInWishlist) },
-                                onToggleMyLibrary = { onToggleMyLibrary(book, isInMyLibrary) },
-                                // <<< 여기서 onAddFavoriteBook 콜백을 SelectedBookCard에 전달합니다.
-                                onAddFavoriteBook = { onAddFavoriteBook(book) }
+                                onToggleMyLibrary = { onToggleMyLibrary(book, isInMyLibrary) }
                             )
                         }
                     }
@@ -558,12 +523,12 @@ fun FeedCard(
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(text = item.review, fontSize = 14.sp)
 
-                    Spacer(modifier = Modifier.height(8.dp)) // Spacer after review text
-                    Row( // This is the Row containing like/delete buttons
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row( // This is the inner Row for like icon and count
+                        Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.clickable(onClick = onLikeClick)
                         ) {
@@ -571,9 +536,9 @@ fun FeedCard(
                                 imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                                 contentDescription = "좋아요",
                                 tint = if (isLiked) DarkRed else TextGray,
-                                modifier = Modifier.size(24.dp) // Explicit icon size
+                                modifier = Modifier.size(24.dp)
                             )
-                            Spacer(modifier = Modifier.width(4.dp)) // Reintroduce small spacing
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(text = item.likeCount.toString(), fontSize = 14.sp, color = TextGray)
                         }
 
@@ -615,12 +580,12 @@ fun FeedCard(
                             color = White
                         )
                     }
-                    Spacer(modifier = Modifier.height(8.dp)) // Spacer after follow notification button
-                    Row( // Moved like/delete row for FollowNotification
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row( // This is the inner Row for like icon and count
+                        Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.clickable(onClick = onLikeClick)
                         ) {
@@ -628,9 +593,9 @@ fun FeedCard(
                                 imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                                 contentDescription = "좋아요",
                                 tint = if (isLiked) DarkRed else TextGray,
-                                modifier = Modifier.size(24.dp) // Explicit icon size
+                                modifier = Modifier.size(24.dp)
                             )
-                            Spacer(modifier = Modifier.width(4.dp)) // 이걸로 좋아요 아이콘과 좋아요수 간격 조정 가능해요
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(text = item.likeCount.toString(), fontSize = 14.sp, color = TextGray)
                         }
 
@@ -663,8 +628,7 @@ fun SelectedBookCard(
     isInWishlist: Boolean,
     isInMyLibrary: Boolean,
     onToggleWishlist: () -> Unit,
-    onToggleMyLibrary: () -> Unit,
-    onAddFavoriteBook: () -> Unit // <<< 여기 파라미터가 추가되었습니다.
+    onToggleMyLibrary: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -706,9 +670,8 @@ fun SelectedBookCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // '관심도서 추가' 버튼의 로직을 onAddFavoriteBook으로 변경
                 Button(
-                    onClick = onAddFavoriteBook, // <<< 여기가 onToggleWishlist에서 onAddFavoriteBook으로 변경되었습니다.
+                    onClick = onToggleWishlist,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -717,7 +680,7 @@ fun SelectedBookCard(
                     ),
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
-                    Text(if (isInWishlist) "관심도서에 추가됨" else "관심도서 추가")
+                    Text(if (isInWishlist) "관심도서에서 삭제" else "관심도서 추가")
                 }
 
                 OutlinedButton(
