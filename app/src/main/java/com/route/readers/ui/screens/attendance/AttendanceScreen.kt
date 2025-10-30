@@ -97,7 +97,7 @@ fun AttendanceScreen(
                         Icon(
                             Icons.Filled.Book,
                             contentDescription = "총 독서일",
-                            tint = Color.Green
+                            tint = Color(0xFF8B0000)
                         )
                         Text(
                             text = "$specialRewardDays 일",
@@ -220,7 +220,7 @@ private fun DayContent(day: Day, attendanceData: AttendanceData?) {
                     "leaf_1", "leaf_2" -> Icon(
                         imageVector = Icons.Filled.Book,
                         contentDescription = "특별 보상",
-                        tint = Color.Green,
+                        tint = Color(0xFF8B0000),
                         modifier = Modifier.size(20.dp)
                     )
                     else -> if (attendanceData?.consecutiveDays ?: 0 > 0) {
