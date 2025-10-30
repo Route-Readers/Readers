@@ -36,9 +36,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Bookmark
-import androidx.compose.material.icons.rounded.Category
 import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.ModeOfTravel
+import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -288,11 +287,8 @@ fun ProfileContent(
                         var expandedState by remember { mutableStateOf<String?>(null) }
                         val sections = mutableListOf<Pair<String, String>>()
 
-                        if (user.readingGenres.isNotEmpty()) {
-                            sections.add("genres" to "선호 장르")
-                        }
-                        if (user.readingStyles.isNotEmpty()) {
-                            sections.add("styles" to "독서 스타일")
+                        if (user.readingGenres.isNotEmpty() || user.readingStyles.isNotEmpty()) {
+                            sections.add("taste" to "독서 취향")
                         }
                         if (state.recommendedBooks.isNotEmpty()) {
                             sections.add("recommended" to "추천 도서")
@@ -305,8 +301,7 @@ fun ProfileContent(
                             ExpandableProfileSection(
                                 title = title,
                                 icon = when (key) {
-                                    "genres" -> Icons.Rounded.Category
-                                    "styles" -> Icons.Rounded.ModeOfTravel
+                                    "taste" -> Icons.Rounded.Palette
                                     "recommended" -> Icons.Rounded.Star
                                     "favorite" -> Icons.Rounded.Favorite
                                     "challenges" -> Icons.Default.CheckCircle
@@ -319,17 +314,19 @@ fun ProfileContent(
                                 }
                             ) {
                                 when (key) {
-                                    "genres" -> {
-                                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            items(user.readingGenres) { genre ->
-                                                Chip(label = genre)
+                                    "taste" -> {
+                                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                            if (user.readingGenres.isNotEmpty()) {
+                                                Text("선호 장르", fontWeight = FontWeight.SemiBold, color = Color.Gray)
+                                                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                    items(user.readingGenres) { genre -> Chip(label = genre) }
+                                                }
                                             }
-                                        }
-                                    }
-                                    "styles" -> {
-                                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            items(user.readingStyles) { style ->
-                                                Chip(label = style)
+                                            if (user.readingStyles.isNotEmpty()) {
+                                                Text("독서 스타일", fontWeight = FontWeight.SemiBold, color = Color.Gray)
+                                                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                    items(user.readingStyles) { style -> Chip(label = style) }
+                                                }
                                             }
                                         }
                                     }
@@ -1003,6 +1000,7 @@ fun ExpandableProfileSection(
                     imageVector = icon,
                     contentDescription = title,
                     tint = when (icon) {
+                        Icons.Rounded.Palette -> Color(0xFF9CCC65)
                         Icons.Rounded.Star -> Color(0xFFEC407A)
                         Icons.Rounded.Favorite -> Color(0xFF42A5F5)
                         Icons.Default.CheckCircle -> Color(0xFFFFCA28)
