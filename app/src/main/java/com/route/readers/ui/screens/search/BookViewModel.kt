@@ -8,10 +8,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import com.route.readers.data.remote.WishlistRepository
 
 class BookViewModel : ViewModel() {
 
     private val bookRepository = BookRepository()
+    private val wishlistRepository = WishlistRepository()
 
     private val _books = MutableStateFlow<List<Book>>(emptyList())
     val books: StateFlow<List<Book>> = _books.asStateFlow()
@@ -33,6 +35,13 @@ class BookViewModel : ViewModel() {
 
     private var currentPage = 1
     private val pageSize = 10
+
+    private suspend fun applyFavoriteStatusToBooks(books: List<Book>): List<Book> {
+        val wishlistIsbns = wishlistRepository.getWishlist().toSet()
+        return books.map { book ->
+            book.copy(isFavorite = wishlistIsbns.contains(book.isbn))
+        }
+    }
 
     fun searchBooks(query: String, isNewSearch: Boolean = true) {
         if (query.isBlank()) {
@@ -57,9 +66,9 @@ class BookViewModel : ViewModel() {
                 val result = bookRepository.getBookSearch(query.trim(), currentPage, pageSize)
 
                 if (isNewSearch) {
-                    _books.value = result
+                    _books.value = applyFavoriteStatusToBooks(result)
                 } else {
-                    _books.value = _books.value + result
+                    _books.value = applyFavoriteStatusToBooks(_books.value + result)
                 }
 
                 _hasMoreResults.value = result.size >= pageSize
@@ -92,7 +101,7 @@ class BookViewModel : ViewModel() {
             _errorMessage.value = null
             try {
                 val result = bookRepository.getBookList()
-                _books.value = result
+                _books.value = applyFavoriteStatusToBooks(result)
                 _hasMoreResults.value = false
                 if (result.isEmpty()) {
                     _errorMessage.value = "신간 도서를 불러올 수 없습니다"
@@ -120,8 +129,13 @@ class BookViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                val bookToUpdate = book.copy(isFavorite = newFavoriteStatus)
-                bookRepository.toggleFavoriteStatus(bookToUpdate)
+                if (newFavoriteStatus) {
+                    wishlistRepository.addToWishlist(book)
+                } else {
+                    wishlistRepository.removeFromWishlist(book.isbn)
+                }
+                // After successful update, re-apply favorite status to all books
+                applyFavoriteStatusToBooks(_books.value)
             } catch (e: Exception) {
                 _books.value = originalBooks
             }

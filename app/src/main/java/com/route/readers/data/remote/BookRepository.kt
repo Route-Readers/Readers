@@ -67,7 +67,7 @@ class BookRepository {
                         }
                     }.map { it.await() }
                 }
-                applyFavoriteStatus(detailedBooks)
+                detailedBooks
             } else {
                 emptyList()
             }
@@ -107,7 +107,7 @@ class BookRepository {
                         }
                     }.map { it.await() }
                 }
-                applyFavoriteStatus(detailedBooks)
+                detailedBooks
             } else {
                 emptyList()
             }
@@ -140,63 +140,5 @@ class BookRepository {
         }
     }
 
-    suspend fun addFavoriteBook(userId: String, book: Book) {
-        if (userId.isBlank() || book.isbn.isBlank()) return
-        val favoriteRef = db.collection("users").document(userId)
-            .collection("favorites").document(book.isbn)
-        favoriteRef.set(book).await()
-    }
 
-    suspend fun toggleFavoriteStatus(book: Book) {
-        if (currentUserId.isBlank() || book.isbn.isBlank()) return
-
-        val favoriteRef = db.collection("users").document(currentUserId)
-            .collection("favorites").document(book.isbn)
-
-        if (book.isFavorite) {
-            favoriteRef.set(book.copy(isFavorite = false)).await()
-        } else {
-            favoriteRef.delete().await()
-        }
-    }
-
-    suspend fun getFavoriteBooks(userId: String): List<Book> {
-        if (userId.isBlank()) return emptyList()
-
-        return try {
-            val snapshot = db.collection("users").document(userId)
-                .collection("favorites").get().await()
-            snapshot.documents.mapNotNull { document ->
-                document.toObject(Book::class.java)?.copy(isFavorite = true)
-            }
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-    private suspend fun applyFavoriteStatus(books: List<Book>): List<Book> {
-        if (currentUserId.isBlank()) return books
-
-        val favoriteIsbns = getFavoriteBooks(currentUserId).map { it.isbn }.toSet()
-        return books.map { book ->
-            if (favoriteIsbns.contains(book.isbn)) {
-                book.copy(isFavorite = true)
-            } else {
-                book
-            }
-        }
-    }
-
-    suspend fun deleteFavoriteBooks(userId: String, bookIds: List<String>) {
-        if (userId.isBlank() || bookIds.isEmpty()) return
-
-        val favoriteCollectionRef = db.collection("users").document(userId).collection("favorites")
-        val batch = db.batch()
-
-        bookIds.forEach { bookId ->
-            batch.delete(favoriteCollectionRef.document(bookId))
-        }
-
-        batch.commit().await()
-    }
 }
