@@ -2,9 +2,12 @@ package com.route.readers.ui.screens
 
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -42,6 +45,7 @@ import com.route.readers.ui.screens.profile.ProfileViewModel
 import com.route.readers.ui.screens.search.SearchScreen
 import java.net.URLEncoder
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
     navController: NavHostController,
@@ -52,26 +56,13 @@ fun MainScreen(
     onNavigateToAttendance: () -> Unit
 ) {
     val bottomNavController = rememberNavController()
-    val communityViewModel: CommunityViewModel = viewModel()
     val mainViewModel: MainViewModel = viewModel()
-
     val currentUserId = remember { FirebaseAuth.getInstance().currentUser?.uid }
-
     var selectedBook by remember { mutableStateOf<MyBook?>(null) }
     var showProgressDialog by remember { mutableStateOf(false) }
-
     val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-
     var showLogoutDialog by remember { mutableStateOf(false) }
-
-    val routesWithFeedTopBar = listOf(
-        BottomNavItem.Feed.route,
-        BottomNavItem.MyLibrary.route,
-        BottomNavItem.Search.route,
-        BottomNavItem.Community.route,
-        "profile_route/{userId}"
-    )
 
     if (showLogoutDialog) {
         AlertDialog(
@@ -79,52 +70,55 @@ fun MainScreen(
             title = { Text("로그아웃") },
             text = { Text("정말 로그아웃 하시겠습니까?") },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        showLogoutDialog = false
-                        FirebaseAuth.getInstance().signOut()
-                        navController.navigate("onboarding_route") {
-                            popUpTo(navController.graph.id) { inclusive = true }
-                        }
+                TextButton(onClick = {
+                    showLogoutDialog = false
+                    FirebaseAuth.getInstance().signOut()
+                    navController.navigate("onboarding_route") {
+                        popUpTo(navController.graph.id) { inclusive = true }
                     }
-                ) { Text("로그아웃") }
+                }) { Text("로그아웃") }
             },
             dismissButton = {
-                TextButton(onClick = { showLogoutDialog = false }) {
-                    Text("취소")
-                }
+                TextButton(onClick = { showLogoutDialog = false }) { Text("취소") }
             }
         )
     }
 
     Scaffold(
         topBar = {
-            if (currentRoute in routesWithFeedTopBar) {
+            val shouldShowTopBar = currentRoute in listOf(
+                BottomNavItem.Feed.route,
+                BottomNavItem.MyLibrary.route,
+                BottomNavItem.Search.route,
+                BottomNavItem.Community.route,
+                "profile_route/{userId}"
+            )
+            if (shouldShowTopBar) {
                 val consecutiveDays by mainViewModel.consecutiveDays.collectAsState()
                 FeedTopAppBar(
                     consecutiveDays = consecutiveDays,
-                    onBlockListClick = {
-                        bottomNavController.navigate("blockList")
-                    },
-                    onLogoutClick = {
-                        showLogoutDialog = true
-                    },
+                    onBlockListClick = { bottomNavController.navigate("blockList") },
+                    onLogoutClick = { showLogoutDialog = true },
                     onMyAccountClick = onNavigateToMyAccount,
                     onAttendanceClick = onNavigateToAttendance
                 )
             }
         },
         bottomBar = {
-            val routesWithBottomBar = routesWithFeedTopBar
+            val routesWithBottomBar = listOf(
+                BottomNavItem.Feed.route,
+                BottomNavItem.MyLibrary.route,
+                BottomNavItem.Search.route,
+                BottomNavItem.Community.route,
+                "profile_route/{userId}"
+            )
             if (currentRoute in routesWithBottomBar) {
                 BottomNavBar(
                     navController = bottomNavController,
                     onProfileClick = {
                         if (currentUserId != null) {
                             bottomNavController.navigate("profile_route/$currentUserId") {
-                                popUpTo(BottomNavItem.Feed.route) {
-                                    saveState = true
-                                }
+                                popUpTo(BottomNavItem.Feed.route) { saveState = true }
                                 launchSingleTop = true
                             }
                         }
@@ -133,9 +127,7 @@ fun MainScreen(
                     onStartReading = {
                         selectedBook?.let {
                             bottomNavController.navigate(BottomNavItem.MyLibrary.route) {
-                                popUpTo(bottomNavController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
+                                popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
                                 launchSingleTop = true
                                 restoreState = true
                             }
@@ -144,14 +136,18 @@ fun MainScreen(
                     }
                 )
             }
-        }
+        },
+        // Scaffold의 기본 컨테이너 색상을 지정
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         NavHost(
             navController = bottomNavController,
             startDestination = BottomNavItem.Feed.route,
             modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize(),
+                .padding(innerPadding) // 이 패딩이 TopAppBar와 BottomAppBar 영역을 모두 포함
+                .fillMaxSize()
+                // NavHost 자체에 배경색을 지정하여 흰색 여백이 생기지 않도록 함
+                .background(MaterialTheme.colorScheme.background),
             enterTransition = { EnterTransition.None },
             exitTransition = { ExitTransition.None }
         ) {
@@ -163,23 +159,19 @@ fun MainScreen(
                     onNavigateToOtherUserProfile = { userId ->
                         bottomNavController.navigate("profile_route/$userId")
                     },
-                    onFollowBack = { followerId ->
-                    }
+                    onFollowBack = { followerId -> /* 맞팔 로직 */ }
                 )
             }
+            // ... 다른 composable들은 그대로 유지 ...
             composable(BottomNavItem.MyLibrary.route) {
                 MyLibraryScreen(
                     attendanceViewModel = attendanceViewModel,
-                    onBookSelected = { book ->
-                        selectedBook = book
-                    },
+                    onBookSelected = { book -> selectedBook = book },
                     showProgressDialog = showProgressDialog,
                     onProgressDialogDismiss = { showProgressDialog = false },
                     onNavigateToSearch = {
                         bottomNavController.navigate(BottomNavItem.Search.route) {
-                            popUpTo(bottomNavController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
+                            popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
                             launchSingleTop = true
                             restoreState = true
                         }
@@ -192,23 +184,17 @@ fun MainScreen(
             }
             composable(BottomNavItem.Community.route) {
                 selectedBook = null
+                val communityViewModel: CommunityViewModel = viewModel()
                 CommunityScreen(
-                    onNavigateToFriendsList = {
-                        bottomNavController.navigate("friends_list")
-                    },
-                    onNavigateToNotifications = {
-                        bottomNavController.navigate("notifications")
-                    }
+                    onNavigateToFriendsList = { bottomNavController.navigate("friends_list") },
+                    onNavigateToNotifications = { bottomNavController.navigate("notifications") }
                 )
             }
             composable("friends_list") {
+                val communityViewModel: CommunityViewModel = viewModel()
                 AllUsersScreen(
-                    onNavigateBack = {
-                        bottomNavController.popBackStack()
-                    },
-                    onUserClick = { userId ->
-                        bottomNavController.navigate("profile_route/$userId")
-                    }
+                    onNavigateBack = { bottomNavController.popBackStack() },
+                    onUserClick = { userId -> bottomNavController.navigate("profile_route/$userId") }
                 )
             }
             composable(
@@ -227,9 +213,7 @@ fun MainScreen(
                         },
                         onNavigateToSearch = {
                             bottomNavController.navigate(BottomNavItem.Search.route) {
-                                popUpTo(bottomNavController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
+                                popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
                                 launchSingleTop = true
                                 restoreState = true
                             }
@@ -238,11 +222,7 @@ fun MainScreen(
                 }
             }
             composable("notifications") {
-                NotificationScreen(
-                    onNavigateBack = {
-                        bottomNavController.popBackStack()
-                    }
-                )
+                NotificationScreen(onNavigateBack = { bottomNavController.popBackStack() })
             }
             composable("blockList") {
                 BlockedUserScreen(onNavigateBack = { bottomNavController.popBackStack() })

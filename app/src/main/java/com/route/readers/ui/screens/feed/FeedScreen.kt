@@ -49,7 +49,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -114,18 +113,14 @@ fun FeedScreen(
         attendanceViewModel.checkAttendance()
     }
 
-    Scaffold(
-        floatingActionButton = {
-            FloatingActionButton(onClick = onNavigateToAddFeed, containerColor = DarkRed) {
-                Icon(Icons.Default.Add, contentDescription = "피드 추가", tint = White)
-            }
-        },
-        containerColor = Color(0xFFF5F5F5)
-    ) { paddingValues ->
+    // ▼▼▼ 핵심 수정 부분: Scaffold를 Box로 변경 ▼▼▼
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF5F5F5)) // 배경색을 Box에 직접 지정
+    ) {
         PullToRefreshBox(
-            modifier = Modifier
-                .padding(paddingValues)
-                .fillMaxSize(),
+            modifier = Modifier.fillMaxSize(),
             state = pullToRefreshState,
             isRefreshing = isRefreshing,
             onRefresh = { feedViewModel.refreshFeeds() }
@@ -147,6 +142,7 @@ fun FeedScreen(
                             Text("표시할 피드가 없습니다.")
                         }
                     } else {
+                        // FAB이 가리는 영역을 고려하여 LazyColumn 자체에 하단 패딩을 추가
                         SortableFeedContent(
                             feedItems = state.items,
                             likedFeedIds = state.likedFeedIds,
@@ -194,6 +190,17 @@ fun FeedScreen(
                 }
             }
         }
+
+        // FAB를 Box의 자식으로 배치하고, 오른쪽 아래로 정렬
+        FloatingActionButton(
+            onClick = onNavigateToAddFeed,
+            containerColor = DarkRed,
+            modifier = Modifier
+                .align(Alignment.BottomEnd) // Box의 오른쪽 아래에 위치
+                .padding(16.dp) // 화면 가장자리로부터의 여백
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "피드 추가", tint = White)
+        }
     }
 }
 
@@ -231,7 +238,7 @@ fun SortableFeedContent(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(end = 8.dp),
+                .padding(horizontal = 16.dp), // 좌우 패딩을 16dp로 변경하여 정렬
             contentAlignment = Alignment.CenterEnd
         ) {
             Text(
@@ -247,7 +254,7 @@ fun SortableFeedContent(
                             SortOption.LATEST
                         }
                     }
-                    .padding(vertical = 4.dp) // 텍스트 위아래로 클릭 영역 확보
+                    .padding(vertical = 12.dp) // 텍스트 위아래로 클릭 영역 및 여백 확보
             )
         }
 
@@ -326,8 +333,10 @@ fun ActualFeedContent(
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(vertical = 8.dp), // 상하단에 약간의 여백 추가
-        verticalArrangement = Arrangement.spacedBy(8.dp) // 카드 사이 간격을 8dp로 조정
+        // ▼▼▼ 핵심 수정 부분 ▼▼▼
+        // FAB이 가리는 영역을 고려하여 하단에 충분한 패딩을 추가
+        contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(feedItems, key = { it.id }) { item ->
             val isLiked = likedFeedIds.contains(item.id)
@@ -351,9 +360,7 @@ fun ActualFeedContent(
                 },
                 onFollowBack = onFollowBack,
                 followerInfoMap = followerInfoMap,
-                // ▼▼▼ 핵심 수정 부분 ▼▼▼
-                modifier = Modifier, // FeedCard 자체에 padding을 주지 않음
-                // ▲▲▲ 핵심 수정 부분 ▲▲▲
+                modifier = Modifier,
                 wishlist = wishlist,
                 myLibrary = myLibrary,
                 onToggleWishlist = onToggleWishlist,
@@ -383,17 +390,19 @@ fun FeedCard(
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
     var isBookCardExpanded by remember { mutableStateOf(false) }
 
-    // ▼▼▼ 핵심 수정 부분 ▼▼▼
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(0.dp), // 좌우 여백을 없애기 위해 직각으로 설정
+        shape = RoundedCornerShape(0.dp),
         colors = CardDefaults.cardColors(containerColor = White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp) // 그림자 제거
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        // Card 내부의 Column에 패딩을 줘서 내용물만 안쪽으로 보이게 함
-        Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
+        // 내부 요소에 개별적으로 padding 적용
+        Column {
+            // 1. 사용자 프로필 정보 Row
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 8.dp, top = 16.dp, bottom = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -410,35 +419,27 @@ fun FeedCard(
                     val userInfo = followerInfoMap[userIdForProfile]
 
                     if (userInfo != null) {
-                        UserProfileImage(
-                            user = userInfo,
-                            size = 40.dp,
-                            fontSize = 20.sp
-                        )
+                        UserProfileImage(user = userInfo, size = 40.dp, fontSize = 20.sp)
                     } else {
                         Box(
                             modifier = Modifier
-                                .size(30.dp)
+                                .size(40.dp)
                                 .clip(CircleShape)
                                 .background(DarkRed),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = item.userName.firstOrNull()?.toString() ?: "R",
-                                color = White,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold
+                                color = White, fontSize = 20.sp, fontWeight = FontWeight.Bold
                             )
                         }
                     }
-
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(text = item.userName, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = DarkRed)
                         Text(text = formatTimestamp(item.timestamp), color = TextGray, fontSize = 12.sp)
                     }
                 }
-
                 IconButton(onClick = onBookmarkClick) {
                     Icon(
                         imageVector = if (isBookmarked) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
@@ -448,84 +449,82 @@ fun FeedCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
+            // 2. 피드 콘텐츠
             when (item) {
                 is FeedItem.BookReview -> {
-                    AnimatedVisibility(
-                        visible = isBookCardExpanded,
-                        enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
-                        exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top)
-                    ) {
-                        item.book?.let { book ->
-                            val isInWishlist = wishlist.contains(book.isbn)
-                            val isInMyLibrary = myLibrary.contains(book.isbn)
-                            SelectedBookCard(
-                                book = book,
-                                onClear = null,
-                                isInWishlist = isInWishlist,
-                                isInMyLibrary = isInMyLibrary,
-                                onToggleWishlist = { onToggleWishlist(book, isInWishlist) },
-                                onToggleMyLibrary = { onToggleMyLibrary(book, isInMyLibrary) }
+                    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        AnimatedVisibility(
+                            visible = isBookCardExpanded,
+                            enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
+                            exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top)
+                        ) {
+                            item.book?.let { book ->
+                                val isInWishlist = wishlist.contains(book.isbn)
+                                val isInMyLibrary = myLibrary.contains(book.isbn)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                SelectedBookCard(
+                                    book = book,
+                                    onClear = null,
+                                    isInWishlist = isInWishlist,
+                                    isInMyLibrary = isInMyLibrary,
+                                    onToggleWishlist = { onToggleWishlist(book, isInWishlist) },
+                                    onToggleMyLibrary = { onToggleMyLibrary(book, isInMyLibrary) }
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { isBookCardExpanded = !isBookCardExpanded }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "${item.book?.title ?: item.bookTitle}",
+                                fontWeight = FontWeight.Bold, color = DarkRed, modifier = Modifier.weight(1f)
+                            )
+                            Icon(
+                                imageVector = if (isBookCardExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                                contentDescription = if (isBookCardExpanded) "접기" else "펼치기", tint = TextGray
                             )
                         }
+
+                        if (item.progress > 0) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                LinearProgressIndicator(
+                                    progress = { item.progress / 100f },
+                                    modifier = Modifier.weight(1f).height(8.dp),
+                                    color = ReadingGreen,
+                                    trackColor = Color.LightGray
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "${item.progress}% (${item.currentPage}p)",
+                                    fontSize = 12.sp, fontWeight = FontWeight.Bold, color = ReadingGreen
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            repeat(5) { index ->
+                                Icon(imageVector = Icons.Filled.Favorite, contentDescription = null, tint = if (index < item.rating) DarkRed else Color.LightGray)
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("${item.rating}/5", fontSize = 12.sp, color = TextGray)
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(text = item.review, fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
                     }
 
+                    // 3. 좋아요 / 삭제 버튼 Row
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { isBookCardExpanded = !isBookCardExpanded }
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "${item.book?.title ?: item.bookTitle}",
-                            fontWeight = FontWeight.Bold,
-                            color = DarkRed,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Icon(
-                            imageVector = if (isBookCardExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                            contentDescription = if (isBookCardExpanded) "접기" else "펼치기",
-                            tint = TextGray
-                        )
-                    }
-
-                    if (item.progress > 0) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            LinearProgressIndicator(
-                                progress = { item.progress / 100f },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(8.dp),
-                                color = ReadingGreen,
-                                trackColor = Color.LightGray
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "${item.progress}% (${item.currentPage}p)",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = ReadingGreen
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        repeat(5) { index ->
-                            Icon(imageVector = Icons.Filled.Favorite, contentDescription = null, tint = if (index < item.rating) DarkRed else Color.LightGray)
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("${item.rating}/5", fontSize = 12.sp, color = TextGray)
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = item.review, fontSize = 14.sp)
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
+                            .padding(start = 16.dp, end = 8.dp, bottom = 12.dp, top = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(
@@ -541,77 +540,52 @@ fun FeedCard(
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(text = item.likeCount.toString(), fontSize = 14.sp, color = TextGray)
                         }
-
                         Spacer(modifier = Modifier.weight(1f))
-
-                        val canDelete = when (item) {
-                            is FeedItem.BookReview -> item.authorId == currentUserId
-                            is FeedItem.FollowNotification -> item.receiverId == currentUserId
-                        }
-                        if (canDelete) {
+                        if (item.authorId == currentUserId) {
                             IconButton(onClick = onDeleteClick) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "삭제",
-                                    tint = TextGray
-                                )
+                                Icon(imageVector = Icons.Default.Delete, contentDescription = "삭제", tint = TextGray)
                             }
                         }
                     }
                 }
                 is FeedItem.FollowNotification -> {
-                    val followerName = followerInfoMap[item.followerId]?.nickname ?: "알 수 없는 사용자"
-                    Text(
-                        text = "👥 ${followerName}님이 팔로우했습니다!",
-                        fontWeight = FontWeight.Medium,
-                        color = DarkRed,
-                        fontSize = 16.sp
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Button(
-                        onClick = { onFollowBack(item.followerId) },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (item.isFollowedBack) DarkRed else Color.Gray
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                        val followerName = followerInfoMap[item.followerId]?.nickname ?: "알 수 없는 사용자"
                         Text(
-                            text = if (item.isFollowedBack) "맞팔 완료" else "맞팔하기",
-                            color = White
+                            text = "👥 ${followerName}님이 팔로우했습니다!",
+                            fontWeight = FontWeight.Medium, color = DarkRed, fontSize = 16.sp
                         )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.clickable(onClick = onLikeClick)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(
+                            onClick = { onFollowBack(item.followerId) },
+                            colors = ButtonDefaults.buttonColors(containerColor = if (item.isFollowedBack) DarkRed else Color.Gray),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(
-                                imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                                contentDescription = "좋아요",
-                                tint = if (isLiked) DarkRed else TextGray,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(text = item.likeCount.toString(), fontSize = 14.sp, color = TextGray)
+                            Text(text = if (item.isFollowedBack) "맞팔 완료" else "맞팔하기", color = White)
                         }
-
-                        Spacer(modifier = Modifier.weight(1f))
-
-                        val canDelete = when (item) {
-                            is FeedItem.BookReview -> item.authorId == currentUserId
-                            is FeedItem.FollowNotification -> item.receiverId == currentUserId
-                        }
-                        if (canDelete) {
-                            IconButton(onClick = onDeleteClick) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.clickable(onClick = onLikeClick)
+                            ) {
                                 Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "삭제",
-                                    tint = TextGray
+                                    imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                                    contentDescription = "좋아요",
+                                    tint = if (isLiked) DarkRed else TextGray,
+                                    modifier = Modifier.size(24.dp)
                                 )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(text = item.likeCount.toString(), fontSize = 14.sp, color = TextGray)
+                            }
+                            Spacer(modifier = Modifier.weight(1f))
+                            if (item.receiverId == currentUserId) {
+                                IconButton(onClick = onDeleteClick) {
+                                    Icon(imageVector = Icons.Default.Delete, contentDescription = "삭제", tint = TextGray)
+                                }
                             }
                         }
                     }
@@ -621,6 +595,7 @@ fun FeedCard(
     }
 }
 
+// SelectedBookCard, FeedItem, formatTimestamp, toFeedItem 함수는 그대로 유지
 @Composable
 fun SelectedBookCard(
     book: Book,
@@ -633,7 +608,8 @@ fun SelectedBookCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
