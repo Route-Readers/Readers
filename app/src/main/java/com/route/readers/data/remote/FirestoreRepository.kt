@@ -2,6 +2,7 @@ package com.route.readers.data.remote
 
 import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.data.model.MyBook
 import com.route.readers.ui.screens.feed.FeedItem
@@ -32,19 +33,18 @@ class FirestoreRepository {
         }
     }
 
-    private fun getMyBooksCollection() = firestore.collection("my_books")
+    private fun getMyBooksCollection() = firestore.collection("users")
 
     suspend fun addBookToLibrary(book: MyBook): Boolean {
         return try {
             val userId = auth.currentUser?.uid ?: return false
             Log.d("FirestoreRepository", "Adding book: ${book.title} for user: $userId")
-            
-            val bookData = book.copy(userId = userId)
-            
-            getMyBooksCollection()
-                .document("${userId}_${book.isbn}")
-                .set(bookData)
+
+            getMyBooksCollection().document(userId)
+                .collection("myLibrary").document(book.isbn)
+                .set(book)
                 .await()
+
             Log.d("FirestoreRepository", "Book added successfully")
             true
         } catch (e: Exception) {
@@ -57,9 +57,9 @@ class FirestoreRepository {
         return try {
             val userId = auth.currentUser?.uid ?: return emptyList()
             Log.d("FirestoreRepository", "Getting books for user: $userId")
-            
-            val result = getMyBooksCollection()
-                .whereEqualTo("userId", userId)
+
+            val result = getMyBooksCollection().document(userId)
+                .collection("myLibrary")
                 .get()
                 .await()
                 .toObjects(MyBook::class.java)
@@ -71,35 +71,30 @@ class FirestoreRepository {
         }
     }
 
-    suspend fun updateReadingProgress(isbn: String, currentPage: Int): Boolean {
+    suspend fun updateReadingProgress(isbn: String, currentPage: Int, isCompleted: Boolean): Boolean {
         return try {
             val userId = auth.currentUser?.uid ?: return false
-            Log.d("FirestoreRepository", "Updating progress for $isbn to page $currentPage")
-            
-            // 먼저 해당 책이 존재하는지 확인
-            val docRef = getMyBooksCollection().document("${userId}_${isbn}")
-            val document = docRef.get().await()
-            
-            if (!document.exists()) {
-                Log.e("FirestoreRepository", "Book not found: ${userId}_${isbn}")
-                return false
-            }
-            
-            val totalPages = document.getLong("totalPages")?.toInt() ?: 0
-            val isCompleted = if (totalPages > 0) currentPage >= totalPages else false
-            
+            Log.d("FirestoreRepository", "Updating progress for $isbn to page $currentPage. Completed: $isCompleted")
+
+            val docRef = getMyBooksCollection().document(userId)
+                .collection("myLibrary").document(isbn)
+
             val updateData = mutableMapOf<String, Any>(
                 "currentPage" to currentPage,
-                "lastReadDate" to System.currentTimeMillis(),
-                "isCompleted" to isCompleted
+                "lastReadDate" to System.currentTimeMillis()
             )
-            
+
             if (isCompleted) {
+                updateData["isCompleted"] = true
                 updateData["completedDate"] = System.currentTimeMillis()
+            } else {
+                updateData["isCompleted"] = false
+                updateData["completedDate"] = FieldValue.delete()
             }
-            
+
+
             docRef.update(updateData).await()
-            Log.d("FirestoreRepository", "Progress updated successfully. Completed: $isCompleted")
+            Log.d("FirestoreRepository", "Progress updated successfully.")
             true
         } catch (e: Exception) {
             Log.e("FirestoreRepository", "Error updating progress: ${e.message}", e)
@@ -111,9 +106,9 @@ class FirestoreRepository {
         return try {
             val userId = auth.currentUser?.uid ?: return false
             Log.d("FirestoreRepository", "Removing book: $isbn for user: $userId")
-            
-            getMyBooksCollection()
-                .document("${userId}_${isbn}")
+
+            getMyBooksCollection().document(userId)
+                .collection("myLibrary").document(isbn)
                 .delete()
                 .await()
             Log.d("FirestoreRepository", "Book removed successfully")
@@ -128,9 +123,9 @@ class FirestoreRepository {
         return try {
             val userId = auth.currentUser?.uid ?: return false
             Log.d("FirestoreRepository", "Marking book as completed: $isbn")
-            
-            getMyBooksCollection()
-                .document("${userId}_${isbn}")
+
+            getMyBooksCollection().document(userId)
+                .collection("myLibrary").document(isbn)
                 .update(
                     mapOf(
                         "isCompleted" to true,
@@ -154,12 +149,12 @@ class FirestoreRepository {
                 "userId" to userId,
                 "timestamp" to System.currentTimeMillis()
             )
-            
+
             firestore.collection("test_connections")
                 .document("test_${userId}_${System.currentTimeMillis()}")
                 .set(testData)
                 .await()
-            
+
             Log.d("FirestoreRepository", "Test connection successful")
             true
         } catch (e: Exception) {
