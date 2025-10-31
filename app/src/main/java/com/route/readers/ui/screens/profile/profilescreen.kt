@@ -96,7 +96,9 @@ import com.route.readers.ui.screens.feed.FeedCard
 import com.route.readers.ui.screens.feed.FeedItem
 import com.route.readers.ui.theme.DarkRed
 import kotlinx.coroutines.launch
+import kotlin.text.toFloat
 
+// 불필요한 import문이 있다면 제거해도 좋습니다.
 
 @Composable
 fun ProfileScreen(
@@ -357,13 +359,11 @@ fun ProfileContent(
                                         onNavigateToSearch = onNavigateToSearch
                                     )
 
-                                    // ▼▼▼ 2단계: ChallengesSection 호출 부분 수정 ▼▼▼
                                     "challenges" -> ChallengesSection(
-                                        ongoingChallenges = emptyList(), // 빈 리스트를 전달하여 오류 방지
-                                        completedChallenges = emptyList(), // 빈 리스트를 전달하여 오류 방지
+                                        ongoingChallenges = emptyList(), // 하드코딩된 값 제거 후 빈 리스트 전달
+                                        completedChallenges = emptyList(),
                                         onChallengeClick = { }
                                     )
-                                    // ▲▲▲ 2단계 수정 완료 ▲▲▲
 
                                     "achievements" -> AchievementsSection(
                                         achievements = state.achievements,
@@ -403,7 +403,6 @@ fun ProfileContent(
 }
 
 
-// ... 이하 다른 Composable 함수들은 모두 그대로 유지 ...
 @Composable
 fun AchievementsSection(
     achievements: List<Achievement>,
@@ -1089,8 +1088,10 @@ fun ChallengeItem(challenge: Challenge, onClick: () -> Unit) {
                 }
             }
             Text(text = challenge.description, fontSize = 14.sp, color = Color.Gray)
+
+            // ▼▼▼ 다른 AI가 알려준 최종 수정 부분 ▼▼▼
             LinearProgressIndicator(
-                progress = { challenge.progress / 100f },
+                progress = { challenge.progress.toString().toFloat() / 100f }, // Int를 Float으로 변환하여 실수 나눗셈 수행
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(8.dp)
@@ -1098,6 +1099,7 @@ fun ChallengeItem(challenge: Challenge, onClick: () -> Unit) {
                 color = DarkRed,
                 trackColor = Color.LightGray.copy(alpha = 0.5f)
             )
+            // ▲▲▲ 여기까지 수정 ▲▲▲
         }
     }
 }
