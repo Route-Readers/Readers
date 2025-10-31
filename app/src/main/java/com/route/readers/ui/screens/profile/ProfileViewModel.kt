@@ -23,9 +23,22 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
+
+data class Achievement(
+    val id: String,
+    val title: String,
+    val description: String,
+    val currentProgress: Int,
+    val targetProgress: Int,
+) {
+    val isCompleted: Boolean
+        get() = currentProgress >= targetProgress
+}
+
 
 open class ProfileViewModel : ViewModel() {
     private val db = FirebaseFirestore.getInstance()
@@ -44,9 +57,6 @@ open class ProfileViewModel : ViewModel() {
 
     private val _blockedUsers = MutableStateFlow<List<User>>(emptyList())
     val blockedUsers: StateFlow<List<User>> = _blockedUsers.asStateFlow()
-
-    // 참고: 이전에 여기에 있던 viewModelScope.launch 블록은 특정 함수에 속하지 않아 삭제했습니다.
-    // 만약 특정 기능(예: 관심도서 추가)을 구현하려던 것이라면, 별도의 함수로 만들어야 합니다.
 
     fun checkNicknameAvailability(nickname: String) {
         if (nickname.length !in 2..12) {
@@ -146,6 +156,8 @@ open class ProfileViewModel : ViewModel() {
                     val isMyProfile = targetUserId == currentUserId
                     val isFollowing = if (currentUserId != null) user.followers.contains(currentUserId) else false
 
+                    val achievements = getAchievementsForUser(user.readBookCount.toInt())
+
                     if (user.isPrivate && !isMyProfile) {
                         _uiState.value = ProfileUiState.Success(
                             user = user,
@@ -156,6 +168,7 @@ open class ProfileViewModel : ViewModel() {
                             favoriteBooks = emptyList(),
                             ongoingChallenges = emptyList(),
                             completedChallenges = emptyList(),
+                            achievements = achievements,
                             myPosts = emptyList(),
                             savedPosts = emptyList(),
                             likedFeedIds = emptySet(),
@@ -194,14 +207,12 @@ open class ProfileViewModel : ViewModel() {
                     val challengesDeferred = async { fetchUserChallenges(targetUserId) }
                     val myPostsDeferred = async { fetchMyPosts(targetUserId) }
 
-                    // ▼▼▼ 변수명 충돌 해결 ▼▼▼
                     val wishlistBooksDeferred = async {
                         val userWishlistIsbns = wishlistRepository.getWishlist()
                         userWishlistIsbns.mapNotNull { isbn ->
                             bookRepository.getBookDetail(isbn)
                         }
                     }
-                    // ▲▲▲ 변수명 충돌 해결 ▲▲▲
 
                     val savedPostsResult = async {
                         if (isMyProfile) fetchSavedPosts(targetUserId) else emptyList()
@@ -213,7 +224,7 @@ open class ProfileViewModel : ViewModel() {
                         when (it) {
                             is FeedItem.BookReview -> it.authorId
                             is FeedItem.FollowNotification -> it.authorId
-                            else -> null // 모든 케이스를 처리하도록 else 추가
+                            else -> null
                         }
                     }.distinct()
 
@@ -234,7 +245,7 @@ open class ProfileViewModel : ViewModel() {
                         .toSet()
 
                     val bookmarkedFeedIds = allPosts
-                        .filter { it.isBookmarked } // DocumentSnapshot에서 변환된 isBookmarked 사용
+                        .filter { it.isBookmarked }
                         .map { it.id }
                         .toSet()
 
@@ -249,9 +260,10 @@ open class ProfileViewModel : ViewModel() {
                         isMyProfile = isMyProfile,
                         isBlocked = isBlocked,
                         recommendedBooks = recommendedBooksDeferred.await(),
-                        favoriteBooks = wishlistBooksDeferred.await(), // 올바른 변수 사용
+                        favoriteBooks = wishlistBooksDeferred.await(),
                         ongoingChallenges = ongoing,
                         completedChallenges = completed,
+                        achievements = achievements,
                         myPosts = myPostsDeferred.await(),
                         savedPosts = savedPostsResult,
                         likedFeedIds = likedFeedIds,
@@ -268,6 +280,67 @@ open class ProfileViewModel : ViewModel() {
                 Log.e("ProfileViewModel", "fetchUserProfile failed", e)
             }
         }
+    }
+
+    fun onBookFinished() {
+        if (currentUserId == null) return
+
+        val currentState = _uiState.value
+        if (currentState !is ProfileUiState.Success) return
+
+        viewModelScope.launch {
+            try {
+                val userRef = db.collection("users").document(currentUserId)
+                userRef.update("readBookCount", FieldValue.increment(1)).await()
+
+                val newReadBookCount = currentState.user.readBookCount + 1
+                val updatedUser = currentState.user.copy(readBookCount = newReadBookCount)
+                val updatedAchievements = getAchievementsForUser(newReadBookCount.toInt())
+
+                _uiState.update {
+                    (it as ProfileUiState.Success).copy(
+                        user = updatedUser,
+                        achievements = updatedAchievements
+                    )
+                }
+
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Failed to update read book count.", e)
+            }
+        }
+    }
+
+    private fun getAchievementsForUser(readBookCount: Int): List<Achievement> {
+        return listOf(
+            Achievement(
+                id = "read_1",
+                title = "책 1권 읽기",
+                description = "첫 번째 책을 완독하세요",
+                currentProgress = readBookCount,
+                targetProgress = 1
+            ),
+            Achievement(
+                id = "read_10",
+                title = "책 10권 읽기",
+                description = "10권의 책을 완독하세요",
+                currentProgress = readBookCount,
+                targetProgress = 10
+            ),
+            Achievement(
+                id = "read_50",
+                title = "책 50권 읽기",
+                description = "50권의 책을 완독하세요",
+                currentProgress = readBookCount,
+                targetProgress = 50
+            ),
+            Achievement(
+                id = "read_100",
+                title = "책 100권 읽기",
+                description = "100권의 책을 완독하세요",
+                currentProgress = readBookCount,
+                targetProgress = 100
+            )
+        )
     }
 
     private suspend fun fetchMyPosts(userId: String): List<FeedItem> {
@@ -472,7 +545,6 @@ open class ProfileViewModel : ViewModel() {
 
                 val updatedBooks = currentState.favoriteBooks.filterNot { it.isbn in bookIdsToDelete }
                 val updatedWishlistIsbns = currentState.wishlist.filterNot { it in bookIdsToDelete }
-                // bookRepository.deleteFavoriteBooks(userId, bookIdsToDelete.toList()) // 이 함수가 필요하다면 주석 해제
                 _uiState.value = currentState.copy(
                     favoriteBooks = updatedBooks,
                     wishlist = updatedWishlistIsbns,
@@ -527,7 +599,6 @@ open class ProfileViewModel : ViewModel() {
             }
         }
     }
-
 
     fun deleteFeed(feedId: String) {
         viewModelScope.launch {
@@ -614,7 +685,6 @@ open class ProfileViewModel : ViewModel() {
         }
     }
 
-
     fun syncFollowRelationship(targetUserId: String) {
         if (currentUserId == null) return
         viewModelScope.launch {
@@ -666,7 +736,7 @@ open class ProfileViewModel : ViewModel() {
 
     fun toggleMyLibrary(book: Book, isInMyLibrary: Boolean) {
         viewModelScope.launch {
-            val totalPages = 0 // 실제 페이지 수를 알 수 없으므로 기본값 0으로 설정
+            val totalPages = 0
             val myBook = MyBook(
                 id = book.isbn, title = book.title, author = book.author, cover = book.cover,
                 isbn = book.isbn, totalPages = totalPages, currentPage = 0,

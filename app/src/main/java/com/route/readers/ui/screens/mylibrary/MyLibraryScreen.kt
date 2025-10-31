@@ -19,6 +19,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -26,25 +27,29 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.route.readers.R
 import com.route.readers.data.model.MyBook
 import com.route.readers.data.remote.MyLibraryRepository
 import com.route.readers.data.remote.FirestoreRepository
 import com.route.readers.ui.screens.attendance.AttendanceViewModel
+import com.route.readers.ui.screens.profile.ProfileViewModel
 import com.route.readers.ui.theme.*
 import kotlinx.coroutines.launch
 import kotlin.Pair
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
 
+private enum class FilterState {
+    ALL, READING, COMPLETED
+}
+
 @Composable
 fun MyLibraryScreen(
-    onBookSelected: (MyBook?) -> Unit = {},
-    showProgressDialog: Boolean = false,
-    onProgressDialogDismiss: () -> Unit = {},
-    onNavigateToSearch: () -> Unit = {},
-    attendanceViewModel: AttendanceViewModel
+    onNavigateToSearch: () -> Unit,
+    attendanceViewModel: AttendanceViewModel,
+    profileViewModel: ProfileViewModel = viewModel()
 ) {
     val context = LocalContext.current
     val myLibraryRepository = remember { MyLibraryRepository() }
@@ -55,6 +60,17 @@ fun MyLibraryScreen(
     var showPostToFeedDialog by remember { mutableStateOf<Pair<MyBook, Int>?>(null) }
     var selectedBook by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    var selectedFilter by remember { mutableStateOf(FilterState.ALL) }
+
+    val filteredBooks by remember {
+        derivedStateOf {
+            when (selectedFilter) {
+                FilterState.ALL -> books
+                FilterState.READING -> books.filter { !it.isCompleted }
+                FilterState.COMPLETED -> books.filter { it.isCompleted }
+            }
+        }
+    }
 
     val firestoreRepository = remember { FirestoreRepository() }
 
@@ -76,35 +92,6 @@ fun MyLibraryScreen(
     LaunchedEffect(Unit) {
         refreshBooks()
         attendanceViewModel.checkAttendance()
-    }
-
-    LaunchedEffect(Unit) {
-        while (true) {
-            kotlinx.coroutines.delay(2000)
-            if (!isLoading) {
-                scope.launch {
-                    try {
-                        val newBooks = myLibraryRepository.getMyBooks()
-                        if (newBooks.size != books.size || newBooks != books) {
-                            books = newBooks
-                            Log.d("MyLibraryScreen", "Books auto-updated: ${books.size}")
-                        }
-                    } catch (e: Exception) {
-                        Log.e("MyLibraryScreen", "Auto-refresh error: ${e.message}")
-                    }
-                }
-            }
-        }
-    }
-
-    LaunchedEffect(showProgressDialog) {
-        if (showProgressDialog) {
-            val book = books.find { it.isbn == selectedBook }
-            book?.let {
-                showProgressDialogBook = it
-                onProgressDialogDismiss()
-            }
-        }
     }
 
     Column(
@@ -193,57 +180,43 @@ fun MyLibraryScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "${books.size}",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = DarkRed
-                        )
-                        Text("총 책 수", fontSize = 12.sp, color = TextGray)
-                    }
-
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        val readingBooks = books.count { it.currentPage > 0 && !it.isCompleted }
-                        Text(
-                            text = "$readingBooks",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = ReadingGreen
-                        )
-                        Text("읽는 중", fontSize = 12.sp, color = TextGray)
-                    }
-
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        val completedBooks = books.count { it.isCompleted }
-                        Text(
-                            text = "$completedBooks",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = DarkRed
-                        )
-                        Text("완독", fontSize = 12.sp, color = TextGray)
-                    }
+                    FilterChip(
+                        count = books.size,
+                        label = "총 책 수",
+                        isSelected = selectedFilter == FilterState.ALL,
+                        onClick = { selectedFilter = FilterState.ALL }
+                    )
+                    FilterChip(
+                        count = books.count { !it.isCompleted },
+                        label = "읽는 중",
+                        isSelected = selectedFilter == FilterState.READING,
+                        onClick = { selectedFilter = FilterState.READING }
+                    )
+                    FilterChip(
+                        count = books.count { it.isCompleted },
+                        label = "완독",
+                        isSelected = selectedFilter == FilterState.COMPLETED,
+                        onClick = { selectedFilter = FilterState.COMPLETED }
+                    )
                 }
             }
 
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(books) { book ->
+                items(filteredBooks, key = { it.isbn }) { book ->
                     MyBookCard(
                         book = book,
                         isSelected = selectedBook == book.isbn,
                         onProgressClick = {
                             if (selectedBook == book.isbn) {
                                 selectedBook = null
-                                onBookSelected(null)
                             } else {
                                 selectedBook = book.isbn
-                                onBookSelected(book)
+                                showProgressDialogBook = book
                             }
                         },
                         onDeleteClick = { showDeleteDialog = book }
@@ -259,21 +232,24 @@ fun MyLibraryScreen(
             onDismiss = { showProgressDialogBook = null },
             onUpdate = { currentPage ->
                 scope.launch {
-                    if (currentPage > book.currentPage) {
-                        Log.d("MyLibraryScreen", "Updating progress: ${book.title} to page $currentPage")
-                        val success = myLibraryRepository.updateReadingProgress(book.isbn, currentPage)
-                        Log.d("MyLibraryScreen", "Update result: $success")
+                    if (currentPage >= book.currentPage) {
+                        val isCompleted = currentPage == book.totalPages && book.totalPages > 0
+                        val success = myLibraryRepository.updateReadingProgress(book.isbn, currentPage, isCompleted)
+
                         if (success) {
+                            if (isCompleted && !book.isCompleted) {
+                                profileViewModel.onBookFinished()
+                                Toast.makeText(context, "완독을 축하합니다!", Toast.LENGTH_LONG).show()
+                            }
                             refreshBooks()
                             attendanceViewModel.markReadingActivity()
-                            showPostToFeedDialog = Pair(book, currentPage)
+                            if (isCompleted) {
+                                showPostToFeedDialog = Pair(book, currentPage)
+                            }
                         } else {
                             Toast.makeText(context, "업데이트 실패. 다시 시도해주세요", Toast.LENGTH_SHORT).show()
                         }
-                    } else if (currentPage == book.currentPage) {
-                        // 페이지 변화가 없을 때는 아무것도 안 함
-                    }
-                    else {
+                    } else {
                         Toast.makeText(context, "이전보다 높은 페이지를 입력해주세요", Toast.LENGTH_SHORT).show()
                     }
                     showProgressDialogBook = null
@@ -288,9 +264,7 @@ fun MyLibraryScreen(
             onDismiss = { showDeleteDialog = null },
             onConfirm = {
                 scope.launch {
-                    Log.d("MyLibraryScreen", "Deleting book: ${book.title}")
                     val success = myLibraryRepository.removeBookFromLibrary(book.isbn)
-                    Log.d("MyLibraryScreen", "Delete result: $success")
                     if (success) {
                         refreshBooks()
                         Toast.makeText(context, "책이 삭제되었습니다", Toast.LENGTH_SHORT).show()
@@ -337,6 +311,37 @@ fun MyLibraryScreen(
 }
 
 @Composable
+fun FilterChip(
+    count: Int,
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val borderColor = if (isSelected) DarkRed else Color.Transparent
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .border(2.dp, borderColor, RoundedCornerShape(8.dp))
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = "$count",
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (isSelected) DarkRed else Color.Black
+        )
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            color = if (isSelected) DarkRed else TextGray
+        )
+    }
+}
+
+
+@Composable
 fun MyBookCard(
     book: MyBook,
     isSelected: Boolean = false,
@@ -368,11 +373,13 @@ fun MyBookCard(
             modifier = Modifier.padding(16.dp)
         ) {
             AsyncImage(
-                model = book.getHighQualityImageUrl().ifEmpty { null },
+                model = book.cover.ifEmpty { null },
                 contentDescription = "책 표지",
                 modifier = Modifier
-                    .size(80.dp, 100.dp)
-                    .background(ReadingGreen, RoundedCornerShape(8.dp)),
+                    .width(80.dp)
+                    .height(120.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color.LightGray),
                 contentScale = ContentScale.Crop,
                 error = painterResource(R.mipmap.readerslogo),
                 placeholder = painterResource(R.mipmap.readerslogo)
@@ -397,24 +404,27 @@ fun MyBookCard(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
+                val progressPercentage = book.progressPercentage
+
                 Text(
-                    text = if (book.isCompleted) "완독!" else "${book.progressPercentage}%",
+                    text = if (book.isCompleted) "완독!" else "$progressPercentage%",
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Bold,
                     color = when {
                         book.isCompleted -> DarkRed
-                        book.progressPercentage == 0 -> TextGray
+                        progressPercentage == 0 -> TextGray
                         else -> ReadingGreen
                     }
                 )
 
                 LinearProgressIndicator(
-                    progress = if (book.isCompleted) 1f else book.progressPercentage / 100f,
+                    progress = { if (book.isCompleted) 1f else progressPercentage / 100f },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(8.dp),
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(4.dp)),
                     color = if (book.isCompleted) DarkRed else ReadingGreen,
-                    trackColor = Color.LightGray
+                    trackColor = Color.LightGray.copy(alpha = 0.4f)
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -475,7 +485,7 @@ fun DeleteConfirmDialog(
 fun ProgressUpdateDialog(
     book: MyBook,
     onDismiss: () -> Unit,
-    onUpdate: (Int) -> Unit
+    onUpdate: (currentPage: Int) -> Unit
 ) {
     var currentPageText by remember { mutableStateOf(book.currentPage.toString()) }
     var isError by remember { mutableStateOf(false) }
@@ -490,7 +500,7 @@ fun ProgressUpdateDialog(
                 OutlinedTextField(
                     value = currentPageText,
                     onValueChange = {
-                        currentPageText = it
+                        currentPageText = it.filter { char -> char.isDigit() }
                         isError = false
                     },
                     label = { Text("현재 페이지") },
@@ -506,12 +516,10 @@ fun ProgressUpdateDialog(
             Button(
                 onClick = {
                     val page = currentPageText.toIntOrNull()
-                    Log.d("ProgressDialog", "Input: $currentPageText, Parsed: $page, Total: ${book.totalPages}")
                     if (page != null && page >= 0 && page <= book.totalPages) {
                         onUpdate(page)
                     } else {
                         isError = true
-                        Log.w("ProgressDialog", "Invalid page number: $currentPageText")
                     }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = DarkRed)
@@ -569,7 +577,9 @@ fun PostToFeedDialog(
         },
         confirmButton = {
             Button(
-                onClick = { onPost(rating, review) },
+                onClick = {
+                    onPost(rating, review)
+                },
                 colors = ButtonDefaults.buttonColors(containerColor = DarkRed)
             ) {
                 Text("포스팅")

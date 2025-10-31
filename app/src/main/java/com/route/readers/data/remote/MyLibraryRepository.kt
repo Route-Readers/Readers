@@ -1,7 +1,6 @@
 package com.route.readers.data.remote
 
 import android.util.Log
-import com.route.readers.data.model.Book
 import com.route.readers.data.model.MyBook
 import com.route.readers.widget.WidgetUpdateHelper
 import kotlinx.coroutines.CoroutineScope
@@ -11,10 +10,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 class MyLibraryRepository {
-    
+
     private val _myBooks = MutableStateFlow<List<MyBook>>(emptyList())
     val myBooks: StateFlow<List<MyBook>> = _myBooks
-    
+
     private val firestoreRepository = FirestoreRepository()
     private val repositoryScope = CoroutineScope(Dispatchers.IO)
 
@@ -25,7 +24,7 @@ class MyLibraryRepository {
             syncWithFirestore()
         }
     }
-    
+
     suspend fun addBookToLibrary(book: MyBook): Boolean {
         return try {
             val firestoreSuccess = firestoreRepository.addBookToLibrary(book)
@@ -40,25 +39,23 @@ class MyLibraryRepository {
             false
         }
     }
-    
-    suspend fun updateReadingProgress(isbn: String, currentPage: Int): Boolean {
+
+    suspend fun updateReadingProgress(isbn: String, currentPage: Int, isCompleted: Boolean): Boolean {
         return try {
-            // Firestore에서 직접 업데이트
-            val success = firestoreRepository.updateReadingProgress(isbn, currentPage)
-            
+            val success = firestoreRepository.updateReadingProgress(isbn, currentPage, isCompleted)
+
             if (success) {
                 syncWithFirestore()
-                // 위젯 업데이트
                 WidgetUpdateHelper.updateAllWidgets()
             }
-            
+
             success
         } catch (e: Exception) {
             Log.e("MyLibraryRepository", "Error updating progress: ${e.message}", e)
             false
         }
     }
-    
+
     suspend fun removeBookFromLibrary(isbn: String): Boolean {
         return try {
             val success = firestoreRepository.removeBookFromLibrary(isbn)
@@ -73,7 +70,7 @@ class MyLibraryRepository {
             false
         }
     }
-    
+
     suspend fun isBookInLibrary(isbn: String): Boolean {
         return try {
             _myBooks.value.any { it.isbn == isbn }
@@ -82,7 +79,7 @@ class MyLibraryRepository {
             false
         }
     }
-    
+
     suspend fun syncWithFirestore() {
         try {
             val firestoreBooks = firestoreRepository.getMyBooks()

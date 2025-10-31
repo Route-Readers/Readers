@@ -1,6 +1,7 @@
 package com.route.readers.data.model
 
 import com.google.firebase.firestore.Exclude
+import com.google.firebase.firestore.PropertyName
 
 data class MyBook(
     val id: String = "",
@@ -10,11 +11,14 @@ data class MyBook(
     val cover: String = "",
     val isbn: String = "",
     val totalPages: Int = 0,
-    val currentPage: Int = 0,
-    val isCompleted: Boolean = false,
+    var currentPage: Int = 0,
+
+    @get:PropertyName("isCompleted")
+    var isCompleted: Boolean = false,
+
     val addedDate: Long = System.currentTimeMillis(),
-    val lastReadDate: Long = System.currentTimeMillis(),
-    val completedDate: Long? = null
+    var lastReadDate: Long = System.currentTimeMillis(),
+    var completedDate: Long? = null
 ) {
     @get:Exclude
     val progressPercentage: Int
@@ -47,7 +51,6 @@ data class MyBook(
 
     @Exclude
     fun extractPageCount(): Int {
-        // Implement page extraction logic here if needed
         return totalPages
     }
 }

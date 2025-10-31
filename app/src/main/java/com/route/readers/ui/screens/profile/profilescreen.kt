@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.rounded.Bookmark
+import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Star
@@ -236,10 +237,9 @@ fun ProfileContent(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp) // 전체 아이템 간의 간격
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            // 프로필 정보 섹션
             Column(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -276,12 +276,11 @@ fun ProfileContent(
                 PrivateProfileContent()
             }
         } else {
-            // 모든 콘텐츠를 담는 단일 카드
             item {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp), // 카드 좌우 여백
+                        .padding(horizontal = 16.dp),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -289,7 +288,7 @@ fun ProfileContent(
                     Column(
                         modifier = Modifier.padding(vertical = 8.dp)
                     ) {
-                        var expandedState by remember { mutableStateOf<String?>("posts") } // '내 활동'을 기본으로 펼침
+                        var expandedState by remember { mutableStateOf<String?>("posts") }
                         val sections = mutableListOf<Pair<String, String>>()
 
                         if (user.readingGenres.isNotEmpty() || user.readingStyles.isNotEmpty()) {
@@ -300,7 +299,7 @@ fun ProfileContent(
                         }
                         sections.add("favorite" to "관심 도서")
                         sections.add("challenges" to "독서 챌린지")
-                        sections.add("achievements" to "내 업적")
+                        sections.add("achievements" to "업적")
                         sections.add("posts" to "내 활동")
 
                         sections.forEachIndexed { index, (key, title) ->
@@ -311,7 +310,7 @@ fun ProfileContent(
                                     "recommended" -> Icons.Rounded.Star
                                     "favorite" -> Icons.Rounded.Favorite
                                     "challenges" -> Icons.Default.CheckCircle
-                                    "achievements" -> Icons.Rounded.Star
+                                    "achievements" -> Icons.Rounded.EmojiEvents
                                     "posts" -> Icons.Rounded.Bookmark
                                     else -> Icons.Rounded.Bookmark
                                 },
@@ -322,7 +321,10 @@ fun ProfileContent(
                             ) {
                                 when (key) {
                                     "taste" -> {
-                                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                        Column(
+                                            modifier = Modifier.padding(horizontal = 16.dp),
+                                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                                        ) {
                                             if (user.readingGenres.isNotEmpty()) {
                                                 Text("선호 장르", fontWeight = FontWeight.SemiBold, color = Color.Gray)
                                                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -337,10 +339,12 @@ fun ProfileContent(
                                             }
                                         }
                                     }
+
                                     "recommended" -> RecommendedBooksSection(
                                         books = state.recommendedBooks,
                                         onBookClick = { }
                                     )
+
                                     "favorite" -> FavoriteBooksSection(
                                         books = state.favoriteBooks,
                                         isSelectionMode = state.isSelectionMode,
@@ -351,23 +355,21 @@ fun ProfileContent(
                                         onBookClick = { },
                                         onNavigateToSearch = onNavigateToSearch
                                     )
+
                                     "challenges" -> ChallengesSection(
                                         ongoingChallenges = state.ongoingChallenges,
                                         completedChallenges = state.completedChallenges,
                                         onChallengeClick = { }
                                     )
-                                    "achievements" -> {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 24.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text("아직 달성한 업적이 없습니다.", color = Color.Gray)
-                                        }
-                                    }
+
+                                    "achievements" -> AchievementsSection(
+                                        achievements = state.achievements,
+                                        onAchievementClick = { }
+                                    )
+
                                     "posts" -> PostsSection(
-                                        myPosts = state.myPosts.filterIsInstance<FeedItem.BookReview>().sortedByDescending { it.timestamp },
+                                        myPosts = state.myPosts.filterIsInstance<FeedItem.BookReview>()
+                                            .sortedByDescending { it.timestamp },
                                         savedPosts = state.savedPosts,
                                         isMyProfile = state.isMyProfile,
                                         likedFeedIds = state.likedFeedIds,
@@ -396,6 +398,106 @@ fun ProfileContent(
         }
     }
 }
+
+@Composable
+fun AchievementsSection(
+    achievements: List<Achievement>,
+    onAchievementClick: (Achievement) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        if (achievements.isEmpty()) {
+            Text(
+                "아직 달성한 업적이 없어요.",
+                color = Color.Gray,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp),
+                textAlign = TextAlign.Center
+            )
+        } else {
+            achievements.forEach { achievement ->
+                AchievementItem(achievement = achievement, onClick = { onAchievementClick(achievement) })
+            }
+        }
+    }
+}
+
+@Composable
+fun AchievementItem(achievement: Achievement, onClick: () -> Unit) {
+    val progress = (achievement.currentProgress.toFloat() / achievement.targetProgress.toFloat()).coerceIn(0f, 1f)
+    val isCompleted = achievement.isCompleted
+
+    val cardBackgroundColor = if (isCompleted) Color(0xFFE8F5E9) else Color.White
+    val cardBorderColor = if (isCompleted) Color(0xFFC8E6C9) else Color.LightGray.copy(alpha = 0.5f)
+    val progressColor = if (isCompleted) Color(0xFF4CAF50) else Color.Black
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = cardBackgroundColor),
+        border = BorderStroke(1.dp, cardBorderColor)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(text = achievement.title, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                if (isCompleted) {
+                    Box(
+                        modifier = Modifier
+                            .background(Color(0xFF4CAF50), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text("완료", color = Color.White, fontSize = 12.sp)
+                    }
+                }
+            }
+            Text(text = achievement.description, fontSize = 14.sp, color = Color.DarkGray)
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${achievement.currentProgress} / ${achievement.targetProgress}",
+                    fontSize = 12.sp,
+                    color = Color.Gray
+                )
+                Text(
+                    text = "${(progress * 100).toInt()}%",
+                    fontSize = 12.sp,
+                    color = Color.Gray,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(10.dp)
+                    .clip(RoundedCornerShape(5.dp)),
+                color = progressColor,
+                trackColor = Color.LightGray.copy(alpha = 0.4f)
+            )
+        }
+    }
+}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -471,7 +573,7 @@ fun PostsSection(
                         onLikeClick = { onLikeClick(post.id, isLiked) },
                         onBookmarkClick = { onBookmarkClick(post.id, isBookmarked) },
                         onDeleteClick = { onDeleteClick(post.id) },
-                        onUserClick = { /* 프로필 화면에서는 다른 유저 프로필로 이동하지 않음 */ },
+                        onUserClick = { },
                         wishlist = wishlist,
                         myLibrary = myLibrary,
                         onToggleWishlist = onToggleWishlist,
@@ -1026,6 +1128,7 @@ fun ExpandableProfileSection(
                         Icons.Rounded.Star -> Color(0xFFEC407A)
                         Icons.Rounded.Favorite -> Color(0xFF42A5F5)
                         Icons.Default.CheckCircle -> Color(0xFFFFCA28)
+                        Icons.Rounded.EmojiEvents -> Color(0xFFFFA726)
                         else -> Color.Gray
                     }
                 )
