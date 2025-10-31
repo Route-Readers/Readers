@@ -13,6 +13,7 @@ import com.route.readers.data.model.Challenge
 import com.route.readers.data.model.MyBook
 import com.route.readers.data.model.User
 import com.route.readers.data.remote.BookRepository
+import com.route.readers.data.remote.FirestoreRepository // FirestoreRepository 임포트
 import com.route.readers.data.remote.MyLibraryRepository
 import com.route.readers.data.remote.WishlistRepository
 import com.route.readers.ui.screens.feed.FeedItem
@@ -47,6 +48,7 @@ open class ProfileViewModel : ViewModel() {
     private val bookRepository = BookRepository()
     private val wishlistRepository = WishlistRepository()
     private val myLibraryRepository = MyLibraryRepository()
+    private val firestoreRepository = FirestoreRepository() // FirestoreRepository 인스턴스 생성
     private val currentUserId = auth.currentUser?.uid
 
     protected val _uiState = MutableStateFlow<ProfileUiState>(ProfileUiState.Loading)
@@ -285,27 +287,24 @@ open class ProfileViewModel : ViewModel() {
     fun onBookFinished() {
         if (currentUserId == null) return
 
-        val currentState = _uiState.value
-        if (currentState !is ProfileUiState.Success) return
-
         viewModelScope.launch {
-            try {
-                val userRef = db.collection("users").document(currentUserId)
-                userRef.update("readBookCount", FieldValue.increment(1)).await()
+            val success = firestoreRepository.incrementReadBookCount()
+            if (success) {
+                val currentState = _uiState.value
+                if (currentState is ProfileUiState.Success) {
+                    val newReadBookCount = currentState.user.readBookCount + 1
+                    val updatedUser = currentState.user.copy(readBookCount = newReadBookCount)
+                    val updatedAchievements = getAchievementsForUser(newReadBookCount.toInt())
 
-                val newReadBookCount = currentState.user.readBookCount + 1
-                val updatedUser = currentState.user.copy(readBookCount = newReadBookCount)
-                val updatedAchievements = getAchievementsForUser(newReadBookCount.toInt())
-
-                _uiState.update {
-                    (it as ProfileUiState.Success).copy(
-                        user = updatedUser,
-                        achievements = updatedAchievements
-                    )
+                    _uiState.update {
+                        (it as ProfileUiState.Success).copy(
+                            user = updatedUser,
+                            achievements = updatedAchievements
+                        )
+                    }
                 }
-
-            } catch (e: Exception) {
-                Log.e("ProfileViewModel", "Failed to update read book count.", e)
+            } else {
+                Log.e("ProfileViewModel", "Failed to update read book count via repository.")
             }
         }
     }

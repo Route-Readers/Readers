@@ -86,6 +86,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.route.readers.R
@@ -103,7 +104,7 @@ fun ProfileScreen(
     onNavigateToFollowList: (listType: String, nickname: String) -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToCustomization: () -> Unit = {},
-    viewModel: ProfileViewModel
+    viewModel: ProfileViewModel = viewModel()
 ) {
     var showCustomization by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -166,7 +167,7 @@ fun ProfileScreen(
                             onNavigateToFollowList(listType, state.user.nickname)
                         },
                         onUpdateProfileImage = { imageUri ->
-                            if (imageUri == android.net.Uri.EMPTY) {
+                            if (imageUri == Uri.EMPTY) {
                                 showCustomization = true
                             } else {
                                 viewModel.updateProfileImage(imageUri)
@@ -237,7 +238,8 @@ fun ProfileContent(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(bottom = 16.dp)
     ) {
         item {
             Column(
@@ -498,7 +500,6 @@ fun AchievementItem(achievement: Achievement, onClick: () -> Unit) {
     }
 }
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PostsSection(
@@ -595,14 +596,14 @@ fun ProfileInfoSection(
     onFollowClick: () -> Unit,
     onUnfollowClick: () -> Unit,
     onFollowListClick: (String) -> Unit,
-    onUpdateProfileImage: (android.net.Uri) -> Unit,
+    onUpdateProfileImage: (Uri) -> Unit,
     onNavigateToCustomization: () -> Unit,
     onBlockUser: () -> Unit,
     onUnblockUser: () -> Unit
 ) {
-    rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-        onResult = { uri ->
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+        onResult = { uri: Uri? ->
             uri?.let { onUpdateProfileImage(it) }
         }
     )
@@ -640,6 +641,7 @@ fun ProfileInfoSection(
                 ProfileInfoItem(count = user.readBookCount.toString(), label = "읽은 책")
             }
 
+            // '프로필 편집' 버튼과 '팔로우/언팔로우' 버튼 로직 분리
             if (!isMyProfile) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Column(
@@ -858,11 +860,11 @@ fun ProfileImage(
     isMyProfile: Boolean,
     onImageClick: () -> Unit
 ) {
-    val modifier = Modifier.clickable(onClick = {
-        if (isMyProfile) {
-            onImageClick()
-        }
-    })
+    val modifier = if (isMyProfile) {
+        Modifier.clickable(onClick = onImageClick)
+    } else {
+        Modifier
+    }
 
     val backgroundColor = try {
         user.profileBackgroundColor?.let { Color(android.graphics.Color.parseColor(it)) } ?: DarkRed
@@ -1046,9 +1048,10 @@ fun ChallengeCategory(
                 textAlign = TextAlign.Center
             )
         } else {
-            challenges.forEach { challenge ->
-                ChallengeItem(challenge = challenge, onClick = { onChallengeClick(challenge) })
-                Spacer(modifier = Modifier.height(12.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                challenges.forEach { challenge ->
+                    ChallengeItem(challenge = challenge, onClick = { onChallengeClick(challenge) })
+                }
             }
         }
     }
