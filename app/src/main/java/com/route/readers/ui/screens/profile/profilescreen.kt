@@ -90,12 +90,13 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.route.readers.R
 import com.route.readers.data.model.Book
-import com.route.readers.data.model.Challenge
+import com.route.readers.data.model.Challenge // Challenge 모델은 여전히 필요할 수 있으므로 유지
 import com.route.readers.data.model.User
 import com.route.readers.ui.screens.feed.FeedCard
 import com.route.readers.ui.screens.feed.FeedItem
 import com.route.readers.ui.theme.DarkRed
 import kotlinx.coroutines.launch
+
 
 @Composable
 fun ProfileScreen(
@@ -356,11 +357,13 @@ fun ProfileContent(
                                         onNavigateToSearch = onNavigateToSearch
                                     )
 
+                                    // ▼▼▼ 2단계: ChallengesSection 호출 부분 수정 ▼▼▼
                                     "challenges" -> ChallengesSection(
-                                        ongoingChallenges = state.ongoingChallenges,
-                                        completedChallenges = state.completedChallenges,
+                                        ongoingChallenges = emptyList(), // 빈 리스트를 전달하여 오류 방지
+                                        completedChallenges = emptyList(), // 빈 리스트를 전달하여 오류 방지
                                         onChallengeClick = { }
                                     )
+                                    // ▲▲▲ 2단계 수정 완료 ▲▲▲
 
                                     "achievements" -> AchievementsSection(
                                         achievements = state.achievements,
@@ -399,6 +402,8 @@ fun ProfileContent(
     }
 }
 
+
+// ... 이하 다른 Composable 함수들은 모두 그대로 유지 ...
 @Composable
 fun AchievementsSection(
     achievements: List<Achievement>,
@@ -1038,7 +1043,7 @@ fun ChallengeCategory(
         )
         if (challenges.isEmpty()) {
             Text(
-                "아직 ${title.replace(" ", "이 ")} 없어요.",
+                "아직 ${title}가 없어요.",
                 color = Color.Gray,
                 modifier = Modifier
                     .fillMaxWidth()

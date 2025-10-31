@@ -9,7 +9,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.route.readers.data.model.Book
-import com.route.readers.data.model.Challenge
+// import com.route.readers.data.model.Challenge // 더 이상 사용하지 않으므로 삭제
 import com.route.readers.data.model.MyBook
 import com.route.readers.data.model.User
 import com.route.readers.data.remote.BookRepository
@@ -166,8 +166,6 @@ open class ProfileViewModel : ViewModel() {
                             isBlocked = false,
                             recommendedBooks = emptyList(),
                             favoriteBooks = emptyList(),
-                            ongoingChallenges = emptyList(),
-                            completedChallenges = emptyList(),
                             achievements = achievements,
                             myPosts = emptyList(),
                             savedPosts = emptyList(),
@@ -204,7 +202,6 @@ open class ProfileViewModel : ViewModel() {
                         followingCount = actualFollowingCount
                     )
                     val recommendedBooksDeferred = async { fetchRecommendedBooks(updatedUser.readingGenres) }
-                    val challengesDeferred = async { fetchUserChallenges(targetUserId) }
                     val myPostsDeferred = async { fetchMyPosts(targetUserId) }
 
                     val wishlistBooksDeferred = async {
@@ -252,8 +249,7 @@ open class ProfileViewModel : ViewModel() {
                     val wishlist = wishlistRepository.getWishlist()
                     val myLibrary = myLibraryRepository.getMyBooks().map { it.isbn }
 
-                    val (ongoing, completed) = challengesDeferred.await().partition { !it.isCompleted }
-
+                    // ▼▼▼ 챌린지 파라미터가 제거된 최종 UI State 생성 ▼▼▼
                     _uiState.value = ProfileUiState.Success(
                         user = updatedUser,
                         isFollowing = isFollowing,
@@ -261,8 +257,6 @@ open class ProfileViewModel : ViewModel() {
                         isBlocked = isBlocked,
                         recommendedBooks = recommendedBooksDeferred.await(),
                         favoriteBooks = wishlistBooksDeferred.await(),
-                        ongoingChallenges = ongoing,
-                        completedChallenges = completed,
                         achievements = achievements,
                         myPosts = myPostsDeferred.await(),
                         savedPosts = savedPostsResult,
@@ -272,6 +266,8 @@ open class ProfileViewModel : ViewModel() {
                         myLibrary = myLibrary,
                         userInfoMap = userInfoMap
                     )
+                    // ▲▲▲ 여기까지 수정 ▲▲▲
+
                 } else {
                     _uiState.value = ProfileUiState.Error("프로필 정보를 변환하는 데 실패했습니다.")
                 }
@@ -367,14 +363,6 @@ open class ProfileViewModel : ViewModel() {
             Log.e("ProfileViewModel", "Failed to fetch saved posts", e)
             emptyList()
         }
-    }
-
-    private suspend fun fetchUserChallenges(userId: String): List<Challenge> {
-        return listOf(
-            Challenge("c1", "소설 5권 읽기", "한 달 동안 소설 5권 읽기에 도전하세요.", 60, 100, false),
-            Challenge("c2", "자기계발서 정복", "올해 안에 자기계발서 10권 읽기", 20, 100, false),
-            Challenge("c3", "2024년 상반기 독서왕", "상반기 동안 30권 읽기 챌린지", 100, 100, true)
-        )
     }
 
     fun updateProfileImage(imageUri: Uri) {
