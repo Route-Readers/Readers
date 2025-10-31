@@ -17,6 +17,7 @@ sealed class ProfileUiState {
         val favoriteBooks: List<Book>,
         val ongoingChallenges: List<Challenge>,
         val completedChallenges: List<Challenge>,
+        val achievements: List<Achievement>,
         val myPosts: List<FeedItem>,
         val savedPosts: List<FeedItem>,
         val isSelectionMode: Boolean = false,

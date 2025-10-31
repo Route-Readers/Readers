@@ -23,9 +23,24 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
+
+// ▼▼▼ [추가] 업적 데이터 클래스 정의 ▼▼▼
+data class Achievement(
+    val id: String,
+    val title: String,
+    val description: String,
+    val currentProgress: Int,
+    val targetProgress: Int,
+) {
+    val isCompleted: Boolean
+        get() = currentProgress >= targetProgress
+}
+// ▲▲▲ [추가] 업적 데이터 클래스 정의 ▲▲▲
+
 
 open class ProfileViewModel : ViewModel() {
     private val db = FirebaseFirestore.getInstance()
@@ -120,7 +135,7 @@ open class ProfileViewModel : ViewModel() {
             "level" to 1,
             "followerCount" to 0,
             "followingCount" to 0,
-            "readBookCount" to 0,
+            "readBookCount" to 0, // 초기 값 0으로 설정
             "followers" to emptyList<String>(),
             "following" to emptyList<String>(),
             "isCurrentlyReading" to false,
@@ -146,6 +161,10 @@ open class ProfileViewModel : ViewModel() {
                     val isMyProfile = targetUserId == currentUserId
                     val isFollowing = if (currentUserId != null) user.followers.contains(currentUserId) else false
 
+                    // ▼▼▼ [수정] 업적 업데이트 로직 추가 ▼▼▼
+                    val achievements = getAchievementsForUser(user.readBookCount.toInt())
+                    // ▲▲▲ [수정] 업적 업데이트 로직 추가 ▲▲▲
+
                     if (user.isPrivate && !isMyProfile) {
                         _uiState.value = ProfileUiState.Success(
                             user = user,
@@ -156,6 +175,7 @@ open class ProfileViewModel : ViewModel() {
                             favoriteBooks = emptyList(),
                             ongoingChallenges = emptyList(),
                             completedChallenges = emptyList(),
+                            achievements = achievements, // 비공개 프로필에도 업적은 표시되도록 함 (선택사항)
                             myPosts = emptyList(),
                             savedPosts = emptyList(),
                             likedFeedIds = emptySet(),
@@ -194,14 +214,12 @@ open class ProfileViewModel : ViewModel() {
                     val challengesDeferred = async { fetchUserChallenges(targetUserId) }
                     val myPostsDeferred = async { fetchMyPosts(targetUserId) }
 
-                    // ▼▼▼ 변수명 충돌 해결 ▼▼▼
                     val wishlistBooksDeferred = async {
                         val userWishlistIsbns = wishlistRepository.getWishlist()
                         userWishlistIsbns.mapNotNull { isbn ->
                             bookRepository.getBookDetail(isbn)
                         }
                     }
-                    // ▲▲▲ 변수명 충돌 해결 ▲▲▲
 
                     val savedPostsResult = async {
                         if (isMyProfile) fetchSavedPosts(targetUserId) else emptyList()
@@ -213,7 +231,7 @@ open class ProfileViewModel : ViewModel() {
                         when (it) {
                             is FeedItem.BookReview -> it.authorId
                             is FeedItem.FollowNotification -> it.authorId
-                            else -> null // 모든 케이스를 처리하도록 else 추가
+                            else -> null
                         }
                     }.distinct()
 
@@ -234,7 +252,7 @@ open class ProfileViewModel : ViewModel() {
                         .toSet()
 
                     val bookmarkedFeedIds = allPosts
-                        .filter { it.isBookmarked } // DocumentSnapshot에서 변환된 isBookmarked 사용
+                        .filter { it.isBookmarked }
                         .map { it.id }
                         .toSet()
 
@@ -243,15 +261,17 @@ open class ProfileViewModel : ViewModel() {
 
                     val (ongoing, completed) = challengesDeferred.await().partition { !it.isCompleted }
 
+                    // ▼▼▼ [수정] ProfileUiState.Success 에 achievements 추가 ▼▼▼
                     _uiState.value = ProfileUiState.Success(
                         user = updatedUser,
                         isFollowing = isFollowing,
                         isMyProfile = isMyProfile,
                         isBlocked = isBlocked,
                         recommendedBooks = recommendedBooksDeferred.await(),
-                        favoriteBooks = wishlistBooksDeferred.await(), // 올바른 변수 사용
+                        favoriteBooks = wishlistBooksDeferred.await(),
                         ongoingChallenges = ongoing,
                         completedChallenges = completed,
+                        achievements = achievements,
                         myPosts = myPostsDeferred.await(),
                         savedPosts = savedPostsResult,
                         likedFeedIds = likedFeedIds,
@@ -260,6 +280,7 @@ open class ProfileViewModel : ViewModel() {
                         myLibrary = myLibrary,
                         userInfoMap = userInfoMap
                     )
+                    // ▲▲▲ [수정] ProfileUiState.Success 에 achievements 추가 ▲▲▲
                 } else {
                     _uiState.value = ProfileUiState.Error("프로필 정보를 변환하는 데 실패했습니다.")
                 }
@@ -269,6 +290,86 @@ open class ProfileViewModel : ViewModel() {
             }
         }
     }
+
+    // ▼▼▼ [추가] 책 읽기 완료 시 호출할 함수 ▼▼▼
+    /**
+     * 사용자가 책 한 권을 100% 다 읽었을 때 호출됩니다.
+     * Firestore의 'readBookCount'를 1 증가시키고,
+     * UI 상태의 업적 정보를 업데이트합니다.
+     */
+    fun onBookFinished() {
+        if (currentUserId == null) return
+
+        val currentState = _uiState.value
+        if (currentState !is ProfileUiState.Success) return
+
+        viewModelScope.launch {
+            try {
+                // Firestore 데이터 업데이트
+                val userRef = db.collection("users").document(currentUserId)
+                userRef.update("readBookCount", FieldValue.increment(1)).await()
+
+                // 로컬 UI 상태 업데이트
+                val newReadBookCount = currentState.user.readBookCount + 1
+                val updatedUser = currentState.user.copy(readBookCount = newReadBookCount)
+                val updatedAchievements = getAchievementsForUser(newReadBookCount.toInt())
+
+                _uiState.update {
+                    (it as ProfileUiState.Success).copy(
+                        user = updatedUser,
+                        achievements = updatedAchievements
+                    )
+                }
+
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Failed to update read book count.", e)
+                // 실패 시 UI 롤백은 선택적으로 구현
+            }
+        }
+    }
+    // ▲▲▲ [추가] 책 읽기 완료 시 호출할 함수 ▲▲▲
+
+
+    // ▼▼▼ [추가] 읽은 책 수에 따라 업적 목록을 생성하는 함수 ▼▼▼
+    /**
+     * 사용자의 읽은 책 수를 기반으로 업적 리스트를 생성합니다.
+     * @param readBookCount 사용자가 현재까지 읽은 책의 총 권수
+     * @return Achievement 객체 리스트
+     */
+    private fun getAchievementsForUser(readBookCount: Int): List<Achievement> {
+        return listOf(
+            Achievement(
+                id = "read_1",
+                title = "책 1권 읽기",
+                description = "첫 번째 책을 완독하세요",
+                currentProgress = readBookCount,
+                targetProgress = 1
+            ),
+            Achievement(
+                id = "read_10",
+                title = "책 10권 읽기",
+                description = "10권의 책을 완독하세요",
+                currentProgress = readBookCount,
+                targetProgress = 10
+            ),
+            Achievement(
+                id = "read_50",
+                title = "책 50권 읽기",
+                description = "50권의 책을 완독하세요",
+                currentProgress = readBookCount,
+                targetProgress = 50
+            ),
+            Achievement(
+                id = "read_100",
+                title = "책 100권 읽기",
+                description = "100권의 책을 완독하세요",
+                currentProgress = readBookCount,
+                targetProgress = 100
+            )
+        )
+    }
+    // ▲▲▲ [추가] 읽은 책 수에 따라 업적 목록을 생성하는 함수 ▲▲▲
+
 
     private suspend fun fetchMyPosts(userId: String): List<FeedItem> {
         return try {
@@ -296,6 +397,7 @@ open class ProfileViewModel : ViewModel() {
         }
     }
 
+    // 이 함수는 현재 더미 데이터를 반환하고 있습니다. 필요시 실제 데이터를 가져오도록 수정해야 합니다.
     private suspend fun fetchUserChallenges(userId: String): List<Challenge> {
         return listOf(
             Challenge("c1", "소설 5권 읽기", "한 달 동안 소설 5권 읽기에 도전하세요.", 60, 100, false),
