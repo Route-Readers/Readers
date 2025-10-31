@@ -47,10 +47,7 @@ private enum class FilterState {
 
 @Composable
 fun MyLibraryScreen(
-    onBookSelected: (MyBook?) -> Unit = {},
-    showProgressDialog: Boolean = false,
-    onProgressDialogDismiss: () -> Unit = {},
-    onNavigateToSearch: () -> Unit = {},
+    onNavigateToSearch: () -> Unit,
     attendanceViewModel: AttendanceViewModel,
     profileViewModel: ProfileViewModel = viewModel()
 ) {
@@ -95,16 +92,6 @@ fun MyLibraryScreen(
     LaunchedEffect(Unit) {
         refreshBooks()
         attendanceViewModel.checkAttendance()
-    }
-
-    LaunchedEffect(showProgressDialog) {
-        if (showProgressDialog) {
-            val book = books.find { it.isbn == selectedBook }
-            book?.let {
-                showProgressDialogBook = it
-                onProgressDialogDismiss()
-            }
-        }
     }
 
     Column(
@@ -220,17 +207,16 @@ fun MyLibraryScreen(
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(filteredBooks, key = { it.id }) { book ->
+                items(filteredBooks, key = { it.isbn }) { book ->
                     MyBookCard(
                         book = book,
                         isSelected = selectedBook == book.isbn,
                         onProgressClick = {
                             if (selectedBook == book.isbn) {
                                 selectedBook = null
-                                onBookSelected(null)
                             } else {
                                 selectedBook = book.isbn
-                                onBookSelected(book)
+                                showProgressDialogBook = book
                             }
                         },
                         onDeleteClick = { showDeleteDialog = book }
@@ -253,7 +239,7 @@ fun MyLibraryScreen(
                         if (success) {
                             if (isCompleted && !book.isCompleted) {
                                 profileViewModel.onBookFinished()
-                                Toast.makeText(context, "🎉 완독을 축하합니다! 업적이 업데이트되었습니다.", Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, "완독을 축하합니다!", Toast.LENGTH_LONG).show()
                             }
                             refreshBooks()
                             attendanceViewModel.markReadingActivity()
@@ -278,9 +264,7 @@ fun MyLibraryScreen(
             onDismiss = { showDeleteDialog = null },
             onConfirm = {
                 scope.launch {
-                    Log.d("MyLibraryScreen", "Deleting book: ${book.title}")
                     val success = myLibraryRepository.removeBookFromLibrary(book.isbn)
-                    Log.d("MyLibraryScreen", "Delete result: $success")
                     if (success) {
                         refreshBooks()
                         Toast.makeText(context, "책이 삭제되었습니다", Toast.LENGTH_SHORT).show()
@@ -532,12 +516,10 @@ fun ProgressUpdateDialog(
             Button(
                 onClick = {
                     val page = currentPageText.toIntOrNull()
-                    Log.d("ProgressDialog", "Input: $currentPageText, Parsed: $page, Total: ${book.totalPages}")
                     if (page != null && page >= 0 && page <= book.totalPages) {
                         onUpdate(page)
                     } else {
                         isError = true
-                        Log.w("ProgressDialog", "Invalid page number: $currentPageText")
                     }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = DarkRed)
@@ -595,7 +577,9 @@ fun PostToFeedDialog(
         },
         confirmButton = {
             Button(
-                onClick = { onPost(rating, review) },
+                onClick = {
+                    onPost(rating, review)
+                },
                 colors = ButtonDefaults.buttonColors(containerColor = DarkRed)
             ) {
                 Text("포스팅")

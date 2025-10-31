@@ -59,7 +59,6 @@ fun MainScreen(
     val mainViewModel: MainViewModel = viewModel()
     val currentUserId = remember { FirebaseAuth.getInstance().currentUser?.uid }
     var selectedBook by remember { mutableStateOf<MyBook?>(null) }
-    var showProgressDialog by remember { mutableStateOf(false) }
     val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     var showLogoutDialog by remember { mutableStateOf(false) }
@@ -124,29 +123,18 @@ fun MainScreen(
                         }
                     },
                     selectedBook = selectedBook,
-                    onStartReading = {
-                        selectedBook?.let {
-                            bottomNavController.navigate(BottomNavItem.MyLibrary.route) {
-                                popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                            showProgressDialog = true
-                        }
-                    }
+                    onStartReading = { }
                 )
             }
         },
-        // Scaffold의 기본 컨테이너 색상을 지정
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         NavHost(
             navController = bottomNavController,
             startDestination = BottomNavItem.Feed.route,
             modifier = Modifier
-                .padding(innerPadding) // 이 패딩이 TopAppBar와 BottomAppBar 영역을 모두 포함
+                .padding(innerPadding)
                 .fillMaxSize()
-                // NavHost 자체에 배경색을 지정하여 흰색 여백이 생기지 않도록 함
                 .background(MaterialTheme.colorScheme.background),
             enterTransition = { EnterTransition.None },
             exitTransition = { ExitTransition.None }
@@ -159,16 +147,12 @@ fun MainScreen(
                     onNavigateToOtherUserProfile = { userId ->
                         bottomNavController.navigate("profile_route/$userId")
                     },
-                    onFollowBack = { followerId -> /* 맞팔 로직 */ }
+                    onFollowBack = { }
                 )
             }
-            // ... 다른 composable들은 그대로 유지 ...
             composable(BottomNavItem.MyLibrary.route) {
                 MyLibraryScreen(
                     attendanceViewModel = attendanceViewModel,
-                    onBookSelected = { book -> selectedBook = book },
-                    showProgressDialog = showProgressDialog,
-                    onProgressDialogDismiss = { showProgressDialog = false },
                     onNavigateToSearch = {
                         bottomNavController.navigate(BottomNavItem.Search.route) {
                             popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
