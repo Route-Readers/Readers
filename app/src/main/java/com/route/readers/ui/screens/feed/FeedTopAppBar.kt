@@ -1,4 +1,4 @@
-package com.route.readers.ui.screens.feed
+package com.route.readers.ui.screens.feedimport
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -46,11 +46,15 @@ fun FeedTopAppBar(
     TopAppBar(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // ▼▼▼ 핵심 수정 부분 ▼▼▼
+                // 적응형 아이콘(XML) 대신 실제 이미지인 foreground 리소스를 사용합니다.
                 Image(
-                    painter = painterResource(id = R.mipmap.readerslogo),
+                    painter = painterResource(id = R.mipmap.app_icon_foreground),
                     contentDescription = "Readers Logo",
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(32.dp) // 크기를 약간 키워서 보기 좋게 조절
                 )
+                // ▲▲▲ 핵심 수정 부분 ▲▲▲
+
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Readers",
