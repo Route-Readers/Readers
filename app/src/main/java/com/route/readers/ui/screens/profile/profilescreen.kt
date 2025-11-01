@@ -103,6 +103,7 @@ fun ProfileScreen(
     userId: String,
     onNavigateToFollowList: (listType: String, nickname: String) -> Unit,
     onNavigateToSearch: () -> Unit,
+    onNavigateToMyBookList: () -> Unit,
     onNavigateToCustomization: () -> Unit = {},
     viewModel: ProfileViewModel = viewModel()
 ) {
@@ -177,6 +178,7 @@ fun ProfileScreen(
                         onNavigateToCustomization = {
                             showCustomization = true
                         },
+                        onNavigateToMyBookList = onNavigateToMyBookList,
                         onBlockUser = { viewModel.blockUser(state.user.uid) },
                         onUnblockUser = { viewModel.unblockUser(state.user.uid) },
                         onBookmarkClick = { feedId, isBookmarked ->
@@ -206,6 +208,7 @@ fun ProfileContent(
     onUpdateProfileImage: (Uri) -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToCustomization: () -> Unit,
+    onNavigateToMyBookList: () -> Unit,
     onBlockUser: () -> Unit,
     onUnblockUser: () -> Unit,
     onBookmarkClick: (String, Boolean) -> Unit
@@ -256,6 +259,7 @@ fun ProfileContent(
                     onFollowListClick = onFollowListClick,
                     onUpdateProfileImage = onUpdateProfileImage,
                     onNavigateToCustomization = onNavigateToCustomization,
+                    onNavigateToMyBookList = onNavigateToMyBookList,
                     onBlockUser = onBlockUser,
                     onUnblockUser = onUnblockUser
                 )
@@ -598,6 +602,7 @@ fun ProfileInfoSection(
     onFollowListClick: (String) -> Unit,
     onUpdateProfileImage: (Uri) -> Unit,
     onNavigateToCustomization: () -> Unit,
+    onNavigateToMyBookList: () -> Unit,
     onBlockUser: () -> Unit,
     onUnblockUser: () -> Unit
 ) {
@@ -638,10 +643,13 @@ fun ProfileInfoSection(
             ) {
                 ProfileInfoItem(count = user.followerCount.toString(), label = "팔로워", onClick = { onFollowListClick("followers") })
                 ProfileInfoItem(count = user.followingCount.toString(), label = "팔로잉", onClick = { onFollowListClick("following") })
-                ProfileInfoItem(count = user.readBookCount.toString(), label = "읽은 책")
+                ProfileInfoItem(
+                    count = user.readBookCount.toString(),
+                    label = "읽은 책",
+                    onClick = if (isMyProfile) onNavigateToMyBookList else null
+                )
             }
 
-            // '프로필 편집' 버튼과 '팔로우/언팔로우' 버튼 로직 분리
             if (!isMyProfile) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Column(
