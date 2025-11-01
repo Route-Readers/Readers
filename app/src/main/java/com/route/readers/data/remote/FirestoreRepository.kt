@@ -119,13 +119,23 @@ class FirestoreRepository {
                 author = book.author,
                 cover = book.cover
             )
-            getReadBooksCollection()?.document(book.isbn)?.set(readBookData)?.await()
+            val readBookDocRef = getReadBooksCollection()?.document(book.isbn)
+            val userDocRef = getUsersCollection().document(userId)
+
+            firestore.runTransaction { transaction ->
+                val snapshot = transaction.get(readBookDocRef!!)
+                if (!snapshot.exists()) {
+                    transaction.set(readBookDocRef, readBookData)
+                    transaction.update(userDocRef, "readBookCount", FieldValue.increment(1))
+                }
+            }.await()
             true
         } catch (e: Exception) {
             Log.e("FirestoreRepository", "Error marking book as read", e)
             false
         }
     }
+
 
     suspend fun getReadBooks(): List<Book> {
         return try {
