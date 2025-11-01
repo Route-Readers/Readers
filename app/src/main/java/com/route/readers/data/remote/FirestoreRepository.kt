@@ -4,6 +4,7 @@ import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.route.readers.data.model.Book
 import com.route.readers.data.model.MyBook
 import com.route.readers.ui.screens.feed.FeedItem
 import kotlinx.coroutines.tasks.await
@@ -37,6 +38,9 @@ class FirestoreRepository {
 
     private fun getMyBooksCollection() =
         auth.currentUser?.uid?.let { getUsersCollection().document(it).collection("myLibrary") }
+
+    private fun getReadBooksCollection() =
+        auth.currentUser?.uid?.let { getUsersCollection().document(it).collection("readBooks") }
 
     suspend fun addBookToLibrary(book: MyBook): Boolean {
         return try {
@@ -103,6 +107,32 @@ class FirestoreRepository {
         } catch (e: Exception) {
             Log.e("FirestoreRepository", "Error marking book as completed: ${e.message}", e)
             false
+        }
+    }
+
+    suspend fun markBookAsRead(book: MyBook): Boolean {
+        val userId = auth.currentUser?.uid ?: return false
+        return try {
+            val readBookData = Book(
+                isbn = book.isbn,
+                title = book.title,
+                author = book.author,
+                cover = book.cover
+            )
+            getReadBooksCollection()?.document(book.isbn)?.set(readBookData)?.await()
+            true
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error marking book as read", e)
+            false
+        }
+    }
+
+    suspend fun getReadBooks(): List<Book> {
+        return try {
+            getReadBooksCollection()?.get()?.await()?.toObjects(Book::class.java) ?: emptyList()
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error fetching read books", e)
+            emptyList()
         }
     }
 

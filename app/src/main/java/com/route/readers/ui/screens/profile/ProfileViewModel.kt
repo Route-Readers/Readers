@@ -178,6 +178,7 @@ open class ProfileViewModel : ViewModel() {
                             wishlist = emptyList(),
                             myLibrary = emptyList(),
                             myLibraryBooks = emptyList(),
+                            readBooks = emptyList(),
                             userInfoMap = emptyMap()
                         )
                         return@launch
@@ -209,6 +210,7 @@ open class ProfileViewModel : ViewModel() {
                     val recommendedBooksDeferred = async { fetchRecommendedBooks(updatedUser.readingGenres) }
                     val challengesDeferred = async { fetchUserChallenges(targetUserId) }
                     val myPostsDeferred = async { fetchMyPosts(targetUserId) }
+                    val readBooksDeferred = async { firestoreRepository.getReadBooks() }
 
                     val wishlistBooksDeferred = async {
                         val userWishlistIsbns = wishlistRepository.getWishlist()
@@ -275,6 +277,7 @@ open class ProfileViewModel : ViewModel() {
                         wishlist = wishlist,
                         myLibrary = myLibraryIsbns,
                         myLibraryBooks = myLibraryBooks,
+                        readBooks = readBooksDeferred.await(),
                         userInfoMap = userInfoMap
                     )
                 } else {

@@ -28,6 +28,7 @@ sealed class ProfileUiState {
         val wishlist: List<String> = emptyList(),
         val myLibrary: List<String> = emptyList(),
         val myLibraryBooks: List<MyBook> = emptyList(),
+        val readBooks: List<Book> = emptyList(),
         val userInfoMap: Map<String, User> = emptyMap()
     ) : ProfileUiState()
 

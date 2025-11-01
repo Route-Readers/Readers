@@ -1,6 +1,7 @@
 package com.route.readers.ui.screens.profile
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.geometry.isEmpty
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -42,7 +43,6 @@ fun MyBookListScreen(
     val uiState by viewModel.uiState.collectAsState()
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
 
-    // 화면이 처음 로드될 때 사용자 프로필 정보를 가져옵니다.
     LaunchedEffect(key1 = currentUserId) {
         if (currentUserId != null) {
             viewModel.fetchUserProfile(currentUserId)
@@ -72,19 +72,9 @@ fun MyBookListScreen(
         Column(modifier = Modifier.padding(paddingValues)) {
             when (val state = uiState) {
                 is ProfileUiState.Success -> {
-                    // myLibraryBooks 리스트에서 isCompleted가 true인 책만 필터링합니다.
-                    val completedBooks = state.myLibraryBooks
-                        .filter { it.isCompleted }
-                        .map { myBook ->
-                            Book(
-                                title = myBook.title,
-                                author = myBook.author,
-                                cover = myBook.cover,
-                                isbn = myBook.isbn
-                            )
-                        }
+                    val readBooks = state.readBooks
 
-                    if (completedBooks.isEmpty()) {
+                    if (readBooks.isEmpty()) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -105,11 +95,10 @@ fun MyBookListScreen(
                             verticalArrangement = Arrangement.spacedBy(16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            items(completedBooks, key = { it.isbn }) { book ->
+                            items(readBooks, key = { it.isbn }) { book ->
                                 BookCardItem(
                                     book = book,
                                     onClick = {
-                                        // TODO: 각 책을 클릭했을 때의 동작을 여기에 구현하세요. (예: 책 상세 페이지로 이동)
                                     }
                                 )
                             }
