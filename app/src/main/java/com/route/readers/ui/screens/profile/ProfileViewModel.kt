@@ -168,7 +168,8 @@ open class ProfileViewModel : ViewModel() {
                         user = user.copy(readBookCount = actualReadBookCount)
                     }
 
-                    val achievements = getAchievementsForUser(user.readBookCount.toInt())
+                    val allAchievements = getAchievementsForUser(user.readBookCount.toInt())
+                    val (ongoingAchievements, completedAchievements) = allAchievements.partition { !it.isCompleted }
 
                     if (user.isPrivate && !isMyProfile) {
                         _uiState.value = ProfileUiState.Success(
@@ -180,7 +181,8 @@ open class ProfileViewModel : ViewModel() {
                             favoriteBooks = emptyList(),
                             ongoingChallenges = emptyList(),
                             completedChallenges = emptyList(),
-                            achievements = achievements,
+                            ongoingAchievements = ongoingAchievements,
+                            completedAchievements = completedAchievements,
                             myPosts = emptyList(),
                             savedPosts = emptyList(),
                             likedFeedIds = emptySet(),
@@ -284,7 +286,8 @@ open class ProfileViewModel : ViewModel() {
                         favoriteBooks = wishlistBooksDeferred.await(),
                         ongoingChallenges = ongoing,
                         completedChallenges = completed,
-                        achievements = achievements,
+                        ongoingAchievements = ongoingAchievements,
+                        completedAchievements = completedAchievements,
                         myPosts = myPostsDeferred.await(),
                         savedPosts = savedPostsResult,
                         likedFeedIds = likedFeedIds,

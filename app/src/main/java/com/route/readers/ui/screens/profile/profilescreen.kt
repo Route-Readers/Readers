@@ -58,6 +58,7 @@ import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
@@ -369,7 +370,8 @@ fun ProfileContent(
                                     )
 
                                     "achievements" -> AchievementsSection(
-                                        achievements = state.achievements,
+                                        ongoingAchievements = state.ongoingAchievements,
+                                        completedAchievements = state.completedAchievements,
                                         onAchievementClick = { }
                                     )
 
@@ -407,31 +409,61 @@ fun ProfileContent(
 
 @Composable
 fun AchievementsSection(
-    achievements: List<Achievement>,
+    ongoingAchievements: List<Achievement>,
+    completedAchievements: List<Achievement>,
     onAchievementClick: (Achievement) -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        if (achievements.isEmpty()) {
-            Text(
-                "아직 달성한 업적이 없어요.",
-                color = Color.Gray,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 24.dp),
-                textAlign = TextAlign.Center
-            )
-        } else {
-            achievements.forEach { achievement ->
-                AchievementItem(achievement = achievement, onClick = { onAchievementClick(achievement) })
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
+    val tabs = listOf("진행 중", "완료")
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        TabRow(
+            selectedTabIndex = selectedTabIndex,
+            containerColor = Color.White,
+            contentColor = DarkRed,
+            indicator = { tabPositions ->
+                TabRowDefaults.Indicator(
+                    Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                    color = DarkRed
+                )
+            }
+        ) {
+            tabs.forEachIndexed { index, title ->
+                Tab(
+                    selected = selectedTabIndex == index,
+                    onClick = { selectedTabIndex = index },
+                    text = { Text(text = title) }
+                )
+            }
+        }
+
+        val achievementsToShow = if (selectedTabIndex == 0) ongoingAchievements else completedAchievements
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(top = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (achievementsToShow.isEmpty()) {
+                Text(
+                    text = if (selectedTabIndex == 0) "진행 중인 업적이 없어요." else "완료한 업적이 없어요.",
+                    color = Color.Gray,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
+                    textAlign = TextAlign.Center
+                )
+            } else {
+                achievementsToShow.forEach { achievement ->
+                    AchievementItem(achievement = achievement, onClick = { onAchievementClick(achievement) })
+                }
             }
         }
     }
 }
+
 
 @Composable
 fun AchievementItem(achievement: Achievement, onClick: () -> Unit) {
@@ -1048,7 +1080,7 @@ fun ChallengeCategory(
         )
         if (challenges.isEmpty()) {
             Text(
-                "아직 ${title.replace(" ", "이 ")} 없어요.",
+                text = "아직 ${title.replace(" ", "이 ")} 없어요.",
                 color = Color.Gray,
                 modifier = Modifier
                     .fillMaxWidth()
