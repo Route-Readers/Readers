@@ -18,7 +18,8 @@ sealed class ProfileUiState {
         val favoriteBooks: List<Book>,
         val ongoingChallenges: List<Challenge>,
         val completedChallenges: List<Challenge>,
-        val achievements: List<Achievement>,
+        val ongoingAchievements: List<Achievement>,
+        val completedAchievements: List<Achievement>,
         val myPosts: List<FeedItem>,
         val savedPosts: List<FeedItem>,
         val isSelectionMode: Boolean = false,
@@ -28,6 +29,7 @@ sealed class ProfileUiState {
         val wishlist: List<String> = emptyList(),
         val myLibrary: List<String> = emptyList(),
         val myLibraryBooks: List<MyBook> = emptyList(),
+        val readBooks: List<Book> = emptyList(),
         val userInfoMap: Map<String, User> = emptyMap()
     ) : ProfileUiState()
 

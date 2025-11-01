@@ -24,7 +24,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
@@ -68,7 +67,8 @@ open class ProfileViewModel : ViewModel() {
         _setupState.value = ProfileSetupState.Loading
         viewModelScope.launch {
             try {
-                val documents = db.collection("users").whereEqualTo("nickname", nickname).get().await()
+                val documents =
+                    db.collection("users").whereEqualTo("nickname", nickname).get().await()
                 if (documents.isEmpty) {
                     _setupState.value = ProfileSetupState.Error("사용 가능한 닉네임입니다.")
                 } else {
@@ -152,13 +152,24 @@ open class ProfileViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val userDocument = db.collection("users").document(targetUserId).get().await()
-                val user: User? = userDocument.toObject(User::class.java)
+                var user: User? = userDocument.toObject(User::class.java)
 
                 if (user != null) {
                     val isMyProfile = targetUserId == currentUserId
-                    val isFollowing = if (currentUserId != null) user.followers.contains(currentUserId) else false
+                    val isFollowing =
+                        if (currentUserId != null) user.followers.contains(currentUserId) else false
 
-                    val achievements = getAchievementsForUser(user.readBookCount.toInt())
+                    val readBooks = firestoreRepository.getReadBooks()
+                    val actualReadBookCount = readBooks.size.toLong()
+
+                    if (user.readBookCount != actualReadBookCount) {
+                        db.collection("users").document(targetUserId)
+                            .update("readBookCount", actualReadBookCount).await()
+                        user = user.copy(readBookCount = actualReadBookCount)
+                    }
+
+                    val allAchievements = getAchievementsForUser(user.readBookCount.toInt())
+                    val (ongoingAchievements, completedAchievements) = allAchievements.partition { !it.isCompleted }
 
                     if (user.isPrivate && !isMyProfile) {
                         _uiState.value = ProfileUiState.Success(
@@ -170,7 +181,8 @@ open class ProfileViewModel : ViewModel() {
                             favoriteBooks = emptyList(),
                             ongoingChallenges = emptyList(),
                             completedChallenges = emptyList(),
-                            achievements = achievements,
+                            ongoingAchievements = ongoingAchievements,
+                            completedAchievements = completedAchievements,
                             myPosts = emptyList(),
                             savedPosts = emptyList(),
                             likedFeedIds = emptySet(),
@@ -178,13 +190,16 @@ open class ProfileViewModel : ViewModel() {
                             wishlist = emptyList(),
                             myLibrary = emptyList(),
                             myLibraryBooks = emptyList(),
+                            readBooks = emptyList(),
                             userInfoMap = emptyMap()
                         )
                         return@launch
                     }
 
-                    val currentUserDoc = currentUserId?.let { db.collection("users").document(it).get().await() }
-                    val currentUserBlocked = currentUserDoc?.toObject(User::class.java)?.blockedUsers ?: emptyList()
+                    val currentUserDoc =
+                        currentUserId?.let { db.collection("users").document(it).get().await() }
+                    val currentUserBlocked =
+                        currentUserDoc?.toObject(User::class.java)?.blockedUsers ?: emptyList()
                     val isBlocked = currentUserBlocked.contains(targetUserId)
 
                     val validFollowers = user.followers.filter { it != targetUserId }
@@ -194,10 +209,12 @@ open class ProfileViewModel : ViewModel() {
 
                     if (user.followerCount != actualFollowerCount || user.followingCount != actualFollowingCount) {
                         db.collection("users").document(targetUserId)
-                            .update(mapOf(
-                                "followerCount" to actualFollowerCount,
-                                "followingCount" to actualFollowingCount
-                            )).await()
+                            .update(
+                                mapOf(
+                                    "followerCount" to actualFollowerCount,
+                                    "followingCount" to actualFollowingCount
+                                )
+                            ).await()
                     }
 
                     val updatedUser = user.copy(
@@ -206,7 +223,8 @@ open class ProfileViewModel : ViewModel() {
                         followerCount = actualFollowerCount,
                         followingCount = actualFollowingCount
                     )
-                    val recommendedBooksDeferred = async { fetchRecommendedBooks(updatedUser.readingGenres) }
+                    val recommendedBooksDeferred =
+                        async { fetchRecommendedBooks(updatedUser.readingGenres) }
                     val challengesDeferred = async { fetchUserChallenges(targetUserId) }
                     val myPostsDeferred = async { fetchMyPosts(targetUserId) }
 
@@ -256,7 +274,8 @@ open class ProfileViewModel : ViewModel() {
                     val myLibraryBooks = myLibraryRepository.getMyBooks()
                     val myLibraryIsbns = myLibraryBooks.map { it.isbn }
 
-                    val (ongoing, completed) = challengesDeferred.await().partition { !it.isCompleted }
+                    val (ongoing, completed) =
+                        challengesDeferred.await().partition { !it.isCompleted }
 
                     _uiState.value = ProfileUiState.Success(
                         user = updatedUser,
@@ -267,7 +286,8 @@ open class ProfileViewModel : ViewModel() {
                         favoriteBooks = wishlistBooksDeferred.await(),
                         ongoingChallenges = ongoing,
                         completedChallenges = completed,
-                        achievements = achievements,
+                        ongoingAchievements = ongoingAchievements,
+                        completedAchievements = completedAchievements,
                         myPosts = myPostsDeferred.await(),
                         savedPosts = savedPostsResult,
                         likedFeedIds = likedFeedIds,
@@ -275,6 +295,7 @@ open class ProfileViewModel : ViewModel() {
                         wishlist = wishlist,
                         myLibrary = myLibraryIsbns,
                         myLibraryBooks = myLibraryBooks,
+                        readBooks = readBooks,
                         userInfoMap = userInfoMap
                     )
                 } else {
@@ -283,31 +304,6 @@ open class ProfileViewModel : ViewModel() {
             } catch (e: Exception) {
                 _uiState.value = ProfileUiState.Error("프로필을 불러오는 중 오류가 발생했습니다: ${e.message}")
                 Log.e("ProfileViewModel", "fetchUserProfile failed", e)
-            }
-        }
-    }
-
-    fun onBookFinished() {
-        if (currentUserId == null) return
-
-        viewModelScope.launch {
-            val success = firestoreRepository.incrementReadBookCount()
-            if (success) {
-                val currentState = _uiState.value
-                if (currentState is ProfileUiState.Success) {
-                    val newReadBookCount = currentState.user.readBookCount + 1
-                    val updatedUser = currentState.user.copy(readBookCount = newReadBookCount)
-                    val updatedAchievements = getAchievementsForUser(newReadBookCount.toInt())
-
-                    _uiState.update {
-                        (it as ProfileUiState.Success).copy(
-                            user = updatedUser,
-                            achievements = updatedAchievements
-                        )
-                    }
-                }
-            } else {
-                Log.e("ProfileViewModel", "Failed to update read book count via repository.")
             }
         }
     }
@@ -386,7 +382,8 @@ open class ProfileViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val imageUrl = uploadProfileImage(imageUri)
-                db.collection("users").document(currentUserId).update("profileImageUrl", imageUrl).await()
+                db.collection("users").document(currentUserId).update("profileImageUrl", imageUrl)
+                    .await()
                 val updatedUser = currentState.user.copy(profileImageUrl = imageUrl)
                 _uiState.value = currentState.copy(user = updatedUser)
             } catch (e: Exception) {
@@ -445,11 +442,16 @@ open class ProfileViewModel : ViewModel() {
             try {
                 val targetUserRef = db.collection("users").document(targetUserId)
                 val currentUserRef = db.collection("users").document(currentUserId)
-                val currentUserName = currentUserRef.get().await().getString("nickname") ?: "알 수 없음"
+                val currentUserName =
+                    currentUserRef.get().await().getString("nickname") ?: "알 수 없음"
                 db.runBatch { batch ->
                     batch.update(targetUserRef, "followers", FieldValue.arrayUnion(currentUserId))
                     batch.update(targetUserRef, "followerCount", FieldValue.increment(1))
-                    batch.update(currentUserRef, "following", FieldValue.arrayUnion(targetUserId))
+                    batch.update(
+                        currentUserRef,
+                        "following",
+                        FieldValue.arrayUnion(targetUserId)
+                    )
                     batch.update(currentUserRef, "followingCount", FieldValue.increment(1))
                 }.await()
                 val followNotification = hashMapOf(
@@ -478,9 +480,17 @@ open class ProfileViewModel : ViewModel() {
                 val targetUserRef = db.collection("users").document(targetUserId)
                 val currentUserRef = db.collection("users").document(currentUserId)
                 db.runBatch { batch ->
-                    batch.update(targetUserRef, "followers", FieldValue.arrayRemove(currentUserId))
+                    batch.update(
+                        targetUserRef,
+                        "followers",
+                        FieldValue.arrayRemove(currentUserId)
+                    )
                     batch.update(targetUserRef, "followerCount", FieldValue.increment(-1))
-                    batch.update(currentUserRef, "following", FieldValue.arrayRemove(targetUserId))
+                    batch.update(
+                        currentUserRef,
+                        "following",
+                        FieldValue.arrayRemove(targetUserId)
+                    )
                     batch.update(currentUserRef, "followingCount", FieldValue.increment(-1))
                 }.await()
             } catch (e: Exception) {
@@ -494,14 +504,21 @@ open class ProfileViewModel : ViewModel() {
         if (currentState is ProfileUiState.Success) {
             val user = currentState.user
             if (!currentState.isMyProfile) {
-                val newFollowerCount = if (nowFollowing) user.followerCount + 1 else (user.followerCount - 1).coerceAtLeast(0)
+                val newFollowerCount =
+                    if (nowFollowing) user.followerCount + 1 else (user.followerCount - 1).coerceAtLeast(
+                        0
+                    )
                 _uiState.value = currentState.copy(
                     isFollowing = nowFollowing,
                     user = user.copy(followerCount = newFollowerCount)
                 )
             } else {
-                val newFollowingCount = if (nowFollowing) user.followingCount + 1 else (user.followingCount - 1).coerceAtLeast(0)
-                _uiState.value = currentState.copy(user = user.copy(followingCount = newFollowingCount))
+                val newFollowingCount =
+                    if (nowFollowing) user.followingCount + 1 else (user.followingCount - 1).coerceAtLeast(
+                        0
+                    )
+                _uiState.value =
+                    currentState.copy(user = user.copy(followingCount = newFollowingCount))
             }
         } else {
             fetchUserProfile(targetUserId)
@@ -517,20 +534,23 @@ open class ProfileViewModel : ViewModel() {
             }
             _uiState.value = currentState.copy(selectedBookIds = newSelectedIds)
             if (newSelectedIds.isEmpty()) {
-                _uiState.value = currentState.copy(isSelectionMode = false, selectedBookIds = emptySet())
+                _uiState.value =
+                    currentState.copy(isSelectionMode = false, selectedBookIds = emptySet())
             }
         }
     }
 
     fun startSelectionMode(bookId: String) {
         (_uiState.value as? ProfileUiState.Success)?.let { currentState ->
-            _uiState.value = currentState.copy(isSelectionMode = true, selectedBookIds = setOf(bookId))
+            _uiState.value =
+                currentState.copy(isSelectionMode = true, selectedBookIds = setOf(bookId))
         }
     }
 
     fun clearSelectionMode() {
         (_uiState.value as? ProfileUiState.Success)?.let { currentState ->
-            _uiState.value = currentState.copy(isSelectionMode = false, selectedBookIds = emptySet())
+            _uiState.value =
+                currentState.copy(isSelectionMode = false, selectedBookIds = emptySet())
         }
     }
 
@@ -545,8 +565,10 @@ open class ProfileViewModel : ViewModel() {
                     wishlistRepository.removeFromWishlist(isbn)
                 }
 
-                val updatedBooks = currentState.favoriteBooks.filterNot { it.isbn in bookIdsToDelete }
-                val updatedWishlistIsbns = currentState.wishlist.filterNot { it in bookIdsToDelete }
+                val updatedBooks =
+                    currentState.favoriteBooks.filterNot { it.isbn in bookIdsToDelete }
+                val updatedWishlistIsbns =
+                    currentState.wishlist.filterNot { it in bookIdsToDelete }
                 _uiState.value = currentState.copy(
                     favoriteBooks = updatedBooks,
                     wishlist = updatedWishlistIsbns,
@@ -582,19 +604,24 @@ open class ProfileViewModel : ViewModel() {
             val newSavedPosts = if (isCurrentlyBookmarked) {
                 currentState.savedPosts.filterNot { it.id == feedId }
             } else {
-                (currentState.myPosts + currentState.savedPosts).find { it.id == feedId }?.let { currentState.savedPosts + it } ?: currentState.savedPosts
+                (currentState.myPosts + currentState.savedPosts).find { it.id == feedId }
+                    ?.let { currentState.savedPosts + it } ?: currentState.savedPosts
             }
             val newBookmarkedIds = if (isCurrentlyBookmarked) {
                 currentState.bookmarkedFeedIds - feedId
             } else {
                 currentState.bookmarkedFeedIds + feedId
             }
-            _uiState.value = currentState.copy(savedPosts = newSavedPosts.distinctBy { it.id }, bookmarkedFeedIds = newBookmarkedIds)
+            _uiState.value = currentState.copy(
+                savedPosts = newSavedPosts.distinctBy { it.id },
+                bookmarkedFeedIds = newBookmarkedIds
+            )
         }
         viewModelScope.launch {
             try {
                 val feedRef = db.collection("feeds").document(feedId)
-                val operation = if (isCurrentlyBookmarked) FieldValue.arrayRemove(currentUserId) else FieldValue.arrayUnion(currentUserId)
+                val operation = if (isCurrentlyBookmarked) FieldValue.arrayRemove(currentUserId)
+                else FieldValue.arrayUnion(currentUserId)
                 feedRef.update("bookmarkedBy", operation).await()
             } catch (e: Exception) {
                 Log.e("ProfileViewModel", "Error toggling bookmark for feed $feedId", e)
@@ -620,7 +647,8 @@ open class ProfileViewModel : ViewModel() {
         if (currentUserId == null) return
         viewModelScope.launch {
             try {
-                db.collection("users").document(currentUserId).update("blockedUsers", FieldValue.arrayUnion(userIdToBlock)).await()
+                db.collection("users").document(currentUserId)
+                    .update("blockedUsers", FieldValue.arrayUnion(userIdToBlock)).await()
                 val currentState = _uiState.value
                 if (currentState is ProfileUiState.Success) {
                     _uiState.value = currentState.copy(isBlocked = true)
@@ -641,7 +669,8 @@ open class ProfileViewModel : ViewModel() {
         }
         viewModelScope.launch {
             try {
-                db.collection("users").document(currentUserId).update("blockedUsers", FieldValue.arrayRemove(userIdToUnblock)).await()
+                db.collection("users").document(currentUserId)
+                    .update("blockedUsers", FieldValue.arrayRemove(userIdToUnblock)).await()
             } catch (e: Exception) {
                 Log.e("ProfileViewModel", "Error unblocking user $userIdToUnblock", e)
                 _blockedUsers.value = originalBlockedUsers
@@ -658,9 +687,12 @@ open class ProfileViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val userDoc = db.collection("users").document(currentUserId).get().await()
-                val blockedUserIds = userDoc.toObject(User::class.java)?.blockedUsers ?: emptyList()
+                val blockedUserIds =
+                    userDoc.toObject(User::class.java)?.blockedUsers ?: emptyList()
                 if (blockedUserIds.isNotEmpty()) {
-                    val blockedUsersList = db.collection("users").whereIn("uid", blockedUserIds).get().await().toObjects(User::class.java)
+                    val blockedUsersList =
+                        db.collection("users").whereIn("uid", blockedUserIds).get().await()
+                            .toObjects(User::class.java)
                     _blockedUsers.value = blockedUsersList
                 } else {
                     _blockedUsers.value = emptyList()
@@ -679,7 +711,12 @@ open class ProfileViewModel : ViewModel() {
                 if (user != null) {
                     val correctFollowerCount = user.followers.filter { it != targetUserId }.size.toLong()
                     val correctFollowingCount = user.following.filter { it != targetUserId }.size.toLong()
-                    db.collection("users").document(targetUserId).update(mapOf("followerCount" to correctFollowerCount, "followingCount" to correctFollowingCount)).await()
+                    db.collection("users").document(targetUserId).update(
+                        mapOf(
+                            "followerCount" to correctFollowerCount,
+                            "followingCount" to correctFollowingCount
+                        )
+                    ).await()
                 }
             } catch (e: Exception) {
                 Log.d("ProfileViewModel", "forceSyncCounts failed for $targetUserId", e)
@@ -693,14 +730,18 @@ open class ProfileViewModel : ViewModel() {
             try {
                 val currentUserDoc = db.collection("users").document(currentUserId).get().await()
                 val targetUserDoc = db.collection("users").document(targetUserId).get().await()
-                val currentUserFollowing = currentUserDoc.get("following") as? List<String> ?: emptyList()
-                val targetUserFollowers = targetUserDoc.get("followers") as? List<String> ?: emptyList()
+                val currentUserFollowing =
+                    currentUserDoc.get("following") as? List<String> ?: emptyList()
+                val targetUserFollowers =
+                    targetUserDoc.get("followers") as? List<String> ?: emptyList()
                 val shouldBeFollowing = currentUserFollowing.contains(targetUserId)
                 val isInTargetFollowers = targetUserFollowers.contains(currentUserId)
                 if (shouldBeFollowing && !isInTargetFollowers) {
-                    db.collection("users").document(targetUserId).update("followers", FieldValue.arrayUnion(currentUserId)).await()
+                    db.collection("users").document(targetUserId)
+                        .update("followers", FieldValue.arrayUnion(currentUserId)).await()
                 } else if (!shouldBeFollowing && isInTargetFollowers) {
-                    db.collection("users").document(targetUserId).update("followers", FieldValue.arrayRemove(currentUserId)).await()
+                    db.collection("users").document(targetUserId)
+                        .update("followers", FieldValue.arrayRemove(currentUserId)).await()
                 }
                 fetchUserProfile(targetUserId)
             } catch (e: Exception) {
@@ -711,7 +752,8 @@ open class ProfileViewModel : ViewModel() {
 
     fun toggleWishlist(book: Book, isInWishlist: Boolean) {
         viewModelScope.launch {
-            val success = if (isInWishlist) wishlistRepository.removeFromWishlist(book.isbn) else wishlistRepository.addToWishlist(book)
+            val success = if (isInWishlist) wishlistRepository.removeFromWishlist(book.isbn)
+            else wishlistRepository.addToWishlist(book)
             if (success) {
                 val currentState = _uiState.value
                 if (currentState is ProfileUiState.Success) {
@@ -745,11 +787,15 @@ open class ProfileViewModel : ViewModel() {
                 isCompleted = false, addedDate = System.currentTimeMillis(),
                 lastReadDate = System.currentTimeMillis(), completedDate = null
             )
-            val success = if (isInMyLibrary) myLibraryRepository.removeBookFromLibrary(book.isbn) else myLibraryRepository.addBookToLibrary(myBook)
+            val success =
+                if (isInMyLibrary) myLibraryRepository.removeBookFromLibrary(book.isbn) else myLibraryRepository.addBookToLibrary(
+                    myBook
+                )
             if (success) {
                 val currentState = _uiState.value
                 if (currentState is ProfileUiState.Success) {
-                    val updatedMyLibrary = if (isInMyLibrary) currentState.myLibrary - book.isbn else currentState.myLibrary + book.isbn
+                    val updatedMyLibrary =
+                        if (isInMyLibrary) currentState.myLibrary - book.isbn else currentState.myLibrary + book.isbn
                     _uiState.value = currentState.copy(myLibrary = updatedMyLibrary)
                 }
             }

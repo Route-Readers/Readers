@@ -238,7 +238,7 @@ fun MyLibraryScreen(
 
                         if (success) {
                             if (isCompleted && !book.isCompleted) {
-                                profileViewModel.onBookFinished()
+                                firestoreRepository.markBookAsRead(book.isbn)
                                 Toast.makeText(context, "완독을 축하합니다!", Toast.LENGTH_LONG).show()
                             }
                             refreshBooks()

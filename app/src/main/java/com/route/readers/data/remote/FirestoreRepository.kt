@@ -4,6 +4,7 @@ import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.route.readers.data.model.Book
 import com.route.readers.data.model.MyBook
 import com.route.readers.ui.screens.feed.FeedItem
 import kotlinx.coroutines.tasks.await
@@ -11,6 +12,7 @@ import kotlinx.coroutines.tasks.await
 class FirestoreRepository {
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
+    private val bookRepository = BookRepository()
 
     private fun getFeedsCollection() = firestore.collection("feeds")
     private fun getUsersCollection() = firestore.collection("users")
@@ -37,6 +39,9 @@ class FirestoreRepository {
 
     private fun getMyBooksCollection() =
         auth.currentUser?.uid?.let { getUsersCollection().document(it).collection("myLibrary") }
+
+    private fun getReadBooksCollection() =
+        auth.currentUser?.uid?.let { getUsersCollection().document(it).collection("readBooks") }
 
     suspend fun addBookToLibrary(book: MyBook): Boolean {
         return try {
@@ -103,6 +108,43 @@ class FirestoreRepository {
         } catch (e: Exception) {
             Log.e("FirestoreRepository", "Error marking book as completed: ${e.message}", e)
             false
+        }
+    }
+
+    suspend fun markBookAsRead(isbn: String): Boolean {
+        val userId = auth.currentUser?.uid ?: return false
+        return try {
+            val fullBookDetail = bookRepository.getBookDetail(isbn)
+
+            if (fullBookDetail != null) {
+                val readBookDocRef = getReadBooksCollection()?.document(isbn)
+                val userDocRef = getUsersCollection().document(userId)
+
+                firestore.runTransaction { transaction ->
+                    val snapshot = transaction.get(readBookDocRef!!)
+                    if (!snapshot.exists()) {
+                        transaction.set(readBookDocRef, fullBookDetail)
+                        transaction.update(userDocRef, "readBookCount", FieldValue.increment(1))
+                    }
+                }.await()
+                true
+            } else {
+                Log.e("FirestoreRepository", "Failed to get book details for ISBN: $isbn")
+                false
+            }
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error marking book as read", e)
+            false
+        }
+    }
+
+
+    suspend fun getReadBooks(): List<Book> {
+        return try {
+            getReadBooksCollection()?.get()?.await()?.toObjects(Book::class.java) ?: emptyList()
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error fetching read books", e)
+            emptyList()
         }
     }
 

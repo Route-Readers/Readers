@@ -26,7 +26,7 @@ data class User(
     val followerCount: Long = 0,
     val followingCount: Long = 0,
 
-    val readBookCount: Int = 0,
+    val readBookCount: Long = 0, // Int에서 Long으로 변경
     val isCurrentlyReading: Boolean = false,
     val consecutiveDays: Int = 0,
     val lastLoginDate: String = "",
