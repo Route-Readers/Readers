@@ -1,6 +1,7 @@
 package com.route.readers.ui.screens.profile
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,6 +11,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -18,12 +20,16 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.firebase.auth.FirebaseAuth
 import com.route.readers.data.model.Book
 import com.route.readers.ui.theme.DarkRed
 
@@ -31,10 +37,17 @@ import com.route.readers.ui.theme.DarkRed
 @Composable
 fun MyBookListScreen(
     onBack: () -> Unit,
-    // ProfileViewModel을 공유하여 현재 상태의 myLibraryBooks 리스트를 가져옵니다.
     viewModel: ProfileViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+
+    // 화면이 처음 로드될 때 사용자 프로필 정보를 가져옵니다.
+    LaunchedEffect(key1 = currentUserId) {
+        if (currentUserId != null) {
+            viewModel.fetchUserProfile(currentUserId)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -59,18 +72,31 @@ fun MyBookListScreen(
         Column(modifier = Modifier.padding(paddingValues)) {
             when (val state = uiState) {
                 is ProfileUiState.Success -> {
-                    // MyBook 객체를 Book 객체로 변환합니다.
-                    val readBooks = state.myLibraryBooks.map { myBook ->
-                        Book(
-                            title = myBook.title,
-                            author = myBook.author,
-                            cover = myBook.cover,
-                            isbn = myBook.isbn
-                        )
-                    }
+                    // myLibraryBooks 리스트에서 isCompleted가 true인 책만 필터링합니다.
+                    val completedBooks = state.myLibraryBooks
+                        .filter { it.isCompleted }
+                        .map { myBook ->
+                            Book(
+                                title = myBook.title,
+                                author = myBook.author,
+                                cover = myBook.cover,
+                                isbn = myBook.isbn
+                            )
+                        }
 
-                    if (readBooks.isEmpty()) {
-                        // TODO: 읽은 책이 없을 때 보여줄 화면을 여기에 구현하세요. (예: Text("아직 읽은 책이 없어요."))
+                    if (completedBooks.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "아직 완독한 책이 없어요.",
+                                color = Color.Gray,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     } else {
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(3),
@@ -79,8 +105,7 @@ fun MyBookListScreen(
                             verticalArrangement = Arrangement.spacedBy(16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            items(readBooks) { book ->
-                                // BookCardItem을 재사용하여 책 정보를 표시합니다.
+                            items(completedBooks, key = { it.isbn }) { book ->
                                 BookCardItem(
                                     book = book,
                                     onClick = {
@@ -91,9 +116,28 @@ fun MyBookListScreen(
                         }
                     }
                 }
-                // 로딩 중이나 에러 상태일 때의 UI 처리
-                is ProfileUiState.Loading -> { /* TODO: 로딩 인디케이터 표시 */ }
-                is ProfileUiState.Error -> { /* TODO: 에러 메시지 표시 */ }
+                is ProfileUiState.Loading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+                is ProfileUiState.Error -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "오류가 발생했습니다: ${state.message}",
+                            color = Color.Gray,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
             }
         }
     }
