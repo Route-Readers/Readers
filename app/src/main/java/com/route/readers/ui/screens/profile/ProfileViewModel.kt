@@ -13,7 +13,7 @@ import com.route.readers.data.model.Challenge
 import com.route.readers.data.model.MyBook
 import com.route.readers.data.model.User
 import com.route.readers.data.remote.BookRepository
-import com.route.readers.data.remote.FirestoreRepository // FirestoreRepository 임포트
+import com.route.readers.data.remote.FirestoreRepository
 import com.route.readers.data.remote.MyLibraryRepository
 import com.route.readers.data.remote.WishlistRepository
 import com.route.readers.ui.screens.feed.FeedItem
@@ -48,7 +48,7 @@ open class ProfileViewModel : ViewModel() {
     private val bookRepository = BookRepository()
     private val wishlistRepository = WishlistRepository()
     private val myLibraryRepository = MyLibraryRepository()
-    private val firestoreRepository = FirestoreRepository() // FirestoreRepository 인스턴스 생성
+    private val firestoreRepository = FirestoreRepository()
     private val currentUserId = auth.currentUser?.uid
 
     protected val _uiState = MutableStateFlow<ProfileUiState>(ProfileUiState.Loading)
@@ -177,6 +177,7 @@ open class ProfileViewModel : ViewModel() {
                             bookmarkedFeedIds = emptySet(),
                             wishlist = emptyList(),
                             myLibrary = emptyList(),
+                            myLibraryBooks = emptyList(),
                             userInfoMap = emptyMap()
                         )
                         return@launch
@@ -252,7 +253,8 @@ open class ProfileViewModel : ViewModel() {
                         .toSet()
 
                     val wishlist = wishlistRepository.getWishlist()
-                    val myLibrary = myLibraryRepository.getMyBooks().map { it.isbn }
+                    val myLibraryBooks = myLibraryRepository.getMyBooks()
+                    val myLibraryIsbns = myLibraryBooks.map { it.isbn }
 
                     val (ongoing, completed) = challengesDeferred.await().partition { !it.isCompleted }
 
@@ -271,7 +273,8 @@ open class ProfileViewModel : ViewModel() {
                         likedFeedIds = likedFeedIds,
                         bookmarkedFeedIds = bookmarkedFeedIds,
                         wishlist = wishlist,
-                        myLibrary = myLibrary,
+                        myLibrary = myLibraryIsbns,
+                        myLibraryBooks = myLibraryBooks,
                         userInfoMap = userInfoMap
                     )
                 } else {

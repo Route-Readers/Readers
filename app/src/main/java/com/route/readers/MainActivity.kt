@@ -42,6 +42,7 @@ import com.route.readers.ui.screens.login.OnboardingScreen
 import com.route.readers.ui.screens.login.SignUpScreen
 import com.route.readers.ui.screens.profile.AccountScreen
 import com.route.readers.ui.screens.profile.FollowListScreen
+import com.route.readers.ui.screens.profile.MyBookListScreen
 import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.profile.ProfileSetupScreen
 import com.route.readers.ui.screens.profile.ProfileViewModel
@@ -273,6 +274,12 @@ fun RootAppNavigation() {
                     },
                     onNavigateToSearch = {
                         appNavController.navigate("search_route")
+                    },
+                    onNavigateToMyBookList = {
+                        appNavController.navigate("my_book_list_route")
+                    },
+                    onNavigateToCustomization = {
+                        appNavController.navigate("profile_customization_route")
                     }
                 )
             }
@@ -310,6 +317,12 @@ fun RootAppNavigation() {
         composable("add_feed_route") {
             AddFeedScreen(
                 onNavigateBack = { appNavController.popBackStack() }
+            )
+        }
+
+        composable("my_book_list_route") {
+            MyBookListScreen(
+                onBack = { appNavController.popBackStack() }
             )
         }
     }

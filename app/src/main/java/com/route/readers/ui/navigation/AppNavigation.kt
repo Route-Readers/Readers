@@ -31,6 +31,7 @@ import com.route.readers.ui.screens.login.SignUpScreen
 import com.route.readers.ui.screens.profile.AccountScreen
 import com.route.readers.ui.screens.profile.FollowListScreen
 import com.route.readers.ui.screens.profile.FollowListViewModel
+import com.route.readers.ui.screens.profile.MyBookListScreen
 import com.route.readers.ui.screens.profile.ProfileCustomizationScreen
 import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.profile.ProfileSetupScreen
@@ -188,7 +189,6 @@ fun AppNavigation(navController: NavHostController) {
             AccountScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToPrivacy = {
-                    // TODO: Implement privacy screen navigation
                 }
             )
         }
@@ -209,6 +209,9 @@ fun AppNavigation(navController: NavHostController) {
                     },
                     onNavigateToSearch = {
                         navController.navigate("search_route")
+                    },
+                    onNavigateToMyBookList = {
+                        navController.navigate("my_book_list_route")
                     },
                     onNavigateToCustomization = {
                         Log.d("AppNavigation", "onNavigateToCustomization called - about to navigate")
@@ -282,6 +285,12 @@ fun AppNavigation(navController: NavHostController) {
                     onBack = { navController.popBackStack() }
                 )
             }
+        }
+
+        composable("my_book_list_route") {
+            MyBookListScreen(
+                onBack = { navController.popBackStack() }
+            )
         }
 
         composable("add_feed_route") {

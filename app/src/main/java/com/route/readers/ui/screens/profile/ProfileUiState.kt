@@ -2,6 +2,7 @@ package com.route.readers.ui.screens.profile
 
 import com.route.readers.data.model.Book
 import com.route.readers.data.model.Challenge
+import com.route.readers.data.model.MyBook
 import com.route.readers.data.model.User
 import com.route.readers.ui.screens.feed.FeedItem
 
@@ -26,6 +27,7 @@ sealed class ProfileUiState {
         val bookmarkedFeedIds: Set<String> = emptySet(),
         val wishlist: List<String> = emptyList(),
         val myLibrary: List<String> = emptyList(),
+        val myLibraryBooks: List<MyBook> = emptyList(),
         val userInfoMap: Map<String, User> = emptyMap()
     ) : ProfileUiState()
 
