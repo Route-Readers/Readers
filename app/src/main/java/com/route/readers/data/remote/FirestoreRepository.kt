@@ -12,6 +12,7 @@ import kotlinx.coroutines.tasks.await
 class FirestoreRepository {
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
+    private val bookRepository = BookRepository()
 
     private fun getFeedsCollection() = firestore.collection("feeds")
     private fun getUsersCollection() = firestore.collection("users")
@@ -110,26 +111,27 @@ class FirestoreRepository {
         }
     }
 
-    suspend fun markBookAsRead(book: MyBook): Boolean {
+    suspend fun markBookAsRead(isbn: String): Boolean {
         val userId = auth.currentUser?.uid ?: return false
         return try {
-            val readBookData = Book(
-                isbn = book.isbn,
-                title = book.title,
-                author = book.author,
-                cover = book.cover
-            )
-            val readBookDocRef = getReadBooksCollection()?.document(book.isbn)
-            val userDocRef = getUsersCollection().document(userId)
+            val fullBookDetail = bookRepository.getBookDetail(isbn)
 
-            firestore.runTransaction { transaction ->
-                val snapshot = transaction.get(readBookDocRef!!)
-                if (!snapshot.exists()) {
-                    transaction.set(readBookDocRef, readBookData)
-                    transaction.update(userDocRef, "readBookCount", FieldValue.increment(1))
-                }
-            }.await()
-            true
+            if (fullBookDetail != null) {
+                val readBookDocRef = getReadBooksCollection()?.document(isbn)
+                val userDocRef = getUsersCollection().document(userId)
+
+                firestore.runTransaction { transaction ->
+                    val snapshot = transaction.get(readBookDocRef!!)
+                    if (!snapshot.exists()) {
+                        transaction.set(readBookDocRef, fullBookDetail)
+                        transaction.update(userDocRef, "readBookCount", FieldValue.increment(1))
+                    }
+                }.await()
+                true
+            } else {
+                Log.e("FirestoreRepository", "Failed to get book details for ISBN: $isbn")
+                false
+            }
         } catch (e: Exception) {
             Log.e("FirestoreRepository", "Error marking book as read", e)
             false
