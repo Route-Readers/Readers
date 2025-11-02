@@ -159,7 +159,8 @@ open class ProfileViewModel : ViewModel() {
                     val isFollowing =
                         if (currentUserId != null) user.followers.contains(currentUserId) else false
 
-                    val readBooks = firestoreRepository.getReadBooks()
+                    val readBooksDeferred = async { firestoreRepository.getReadBooks(targetUserId) }
+                    val readBooks = readBooksDeferred.await()
                     val actualReadBookCount = readBooks.size.toLong()
 
                     if (user.readBookCount != actualReadBookCount) {
@@ -177,6 +178,7 @@ open class ProfileViewModel : ViewModel() {
                             isFollowing = isFollowing,
                             isMyProfile = isMyProfile,
                             isBlocked = false,
+                            readBooks = emptyList(),
                             recommendedBooks = emptyList(),
                             favoriteBooks = emptyList(),
                             ongoingChallenges = emptyList(),
@@ -190,7 +192,6 @@ open class ProfileViewModel : ViewModel() {
                             wishlist = emptyList(),
                             myLibrary = emptyList(),
                             myLibraryBooks = emptyList(),
-                            readBooks = emptyList(),
                             userInfoMap = emptyMap()
                         )
                         return@launch
@@ -282,6 +283,7 @@ open class ProfileViewModel : ViewModel() {
                         isFollowing = isFollowing,
                         isMyProfile = isMyProfile,
                         isBlocked = isBlocked,
+                        readBooks = readBooks,
                         recommendedBooks = recommendedBooksDeferred.await(),
                         favoriteBooks = wishlistBooksDeferred.await(),
                         ongoingChallenges = ongoing,
@@ -295,7 +297,6 @@ open class ProfileViewModel : ViewModel() {
                         wishlist = wishlist,
                         myLibrary = myLibraryIsbns,
                         myLibraryBooks = myLibraryBooks,
-                        readBooks = readBooks,
                         userInfoMap = userInfoMap
                     )
                 } else {
