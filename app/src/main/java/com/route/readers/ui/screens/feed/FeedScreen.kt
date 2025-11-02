@@ -559,10 +559,10 @@ fun FeedCard(
                         Spacer(modifier = Modifier.height(12.dp))
                         Button(
                             onClick = { onFollowBack(item.followerId) },
-                            colors = ButtonDefaults.buttonColors(containerColor = if (item.isFollowedBack) DarkRed else Color.Gray),
+                            colors = ButtonDefaults.buttonColors(containerColor = if (item.isFollowedBack) Color.Gray else DarkRed),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(text = if (item.isFollowedBack) "맞팔 완료" else "맞팔하기", color = White)
+                            Text(text = if (item.isFollowedBack) "팔로잉" else "맞팔하기", color = White)
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(
@@ -752,9 +752,13 @@ fun DocumentSnapshot.toFeedItem(): FeedItem? {
 
             bookReview?.copy(bookTitle = book?.title ?: bookReview.bookTitle)
         }
-        "FOLLOW_NOTIFICATION" -> this.toObject(FeedItem.FollowNotification::class.java)?.copy(
-            id = this.id
-        )
+        "FOLLOW_NOTIFICATION" -> {
+            val notification = this.toObject(FeedItem.FollowNotification::class.java)
+            notification?.copy(
+                id = this.id,
+                timestamp = getTimestamp("timestamp") ?: Timestamp.now()
+            )
+        }
         else -> null
     }
 }
