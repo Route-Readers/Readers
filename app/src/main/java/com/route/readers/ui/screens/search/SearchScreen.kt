@@ -22,6 +22,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -58,12 +59,12 @@ fun SearchScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
+            .background(MaterialTheme.colorScheme.background)
     ) {
         TabRow(
             selectedTabIndex = selectedTab,
-            containerColor = DarkRed,
-            contentColor = White
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary
         ) {
             Tab(
                 selected = selectedTab == 0,
@@ -87,7 +88,7 @@ fun SearchScreen(
     }
 }
 
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BookSearchTab(
     viewModel: BookViewModel,
@@ -118,12 +119,18 @@ fun BookSearchTab(
             OutlinedTextField(
                 value = searchText,
                 onValueChange = { searchText = it },
-                placeholder = { Text("책 제목으로 검색") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                placeholder = { Text("책 제목으로 검색", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { performSearch() }),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer
+                ),
                 trailingIcon = {
                     TextButton(
                         onClick = { performSearch() },
@@ -159,9 +166,9 @@ fun BookSearchTab(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator()
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("검색 중...", color = TextGray)
+                        Text("검색 중...", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -173,7 +180,7 @@ fun BookSearchTab(
                     "\"$currentQuery\" 검색 결과 (${books.size}권)",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = DarkRed
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
         }
@@ -216,11 +223,11 @@ fun BookSearchTab(
                     contentAlignment = Alignment.Center
                 ) {
                     if (isLoadingMore) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = DarkRed)
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.primary)
                     } else {
                         Button(
                             onClick = { viewModel.loadMoreBooks() },
-                            colors = ButtonDefaults.buttonColors(containerColor = DarkRed),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                             shape = RoundedCornerShape(20.dp)
                         ) {
                             Text("더보기")
@@ -234,7 +241,7 @@ fun BookSearchTab(
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = White),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -247,7 +254,7 @@ fun BookSearchTab(
                                 "신간 도서",
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = DarkRed
+                                color = MaterialTheme.colorScheme.primary
                             )
                             TextButton(onClick = { viewModel.getNewBooks() }) {
                                 Text("불러오기")
@@ -256,7 +263,7 @@ fun BookSearchTab(
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             "최신 출간 도서를 확인해보세요",
-                            color = TextGray,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 14.sp
                         )
                     }
@@ -275,7 +282,7 @@ fun BookSearchResultCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(12.dp)
     ) {
         Row(
@@ -287,7 +294,8 @@ fun BookSearchResultCard(
                 contentDescription = "책 표지",
                 modifier = Modifier
                     .size(80.dp, 100.dp)
-                    .background(ReadingGreen, RoundedCornerShape(8.dp)),
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.secondaryContainer),
                 contentScale = ContentScale.Crop,
                 error = painterResource(R.mipmap.readerslogo)
             )
@@ -299,20 +307,21 @@ fun BookSearchResultCard(
                     text = book.title,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    maxLines = 2
+                    maxLines = 2,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = book.author,
                     fontSize = 14.sp,
-                    color = TextGray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 if (!book.categoryName.isNullOrEmpty()) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = book.categoryName,
                         fontSize = 12.sp,
-                        color = DarkRed
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
                 val pageCount = book.extractPageCount()
@@ -321,7 +330,7 @@ fun BookSearchResultCard(
                     Text(
                         text = "${pageCount}페이지",
                         fontSize = 12.sp,
-                        color = TextGray
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
@@ -336,8 +345,8 @@ fun BookSearchResultCard(
                         Button(
                             onClick = { },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.LightGray,
-                                contentColor = Color.DarkGray
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                             ),
                             modifier = Modifier.height(32.dp),
                             enabled = false,
@@ -348,7 +357,7 @@ fun BookSearchResultCard(
                     } else {
                         Button(
                             onClick = { onAddToLibrary(book) },
-                            colors = ButtonDefaults.buttonColors(containerColor = DarkRed),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                             modifier = Modifier.height(32.dp),
                             contentPadding = PaddingValues(horizontal = 12.dp)
                         ) {
@@ -361,9 +370,9 @@ fun BookSearchResultCard(
                         modifier = Modifier.height(32.dp),
                         shape = RoundedCornerShape(50),
                         colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = DarkRed
+                            contentColor = MaterialTheme.colorScheme.primary
                         ),
-                        border = BorderStroke(1.dp, DarkRed),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
                         contentPadding = PaddingValues(horizontal = 12.dp)
                     ) {
                         Text(if (isInLibrary) "읽기" else "읽기 시작", fontSize = 12.sp)
@@ -375,14 +384,14 @@ fun BookSearchResultCard(
                 Icon(
                     imageVector = if (book.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                     contentDescription = "관심 도서",
-                    tint = if (book.isFavorite) DarkRed else Color.Gray
+                    tint = if (book.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
     }
 }
 
-@OptIn(ExperimentalPermissionsApi::class)
+@OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @SuppressLint("MissingPermission")
 @Composable
 fun LibrarySearchTab(
@@ -445,14 +454,14 @@ fun LibrarySearchTab(
     ) {
         item {
             Column {
-                Text("찾고 있는 책을 검색하여", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Text("주변 도서관의 소장 정보를 확인해보세요.", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text("찾고 있는 책을 검색하여", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                Text("주변 도서관의 소장 정보를 확인해보세요.", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = searchText,
                     onValueChange = { searchText = it },
-                    placeholder = { Text("도서관에서 찾을 책 검색") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    placeholder = { Text("도서관에서 찾을 책 검색", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -460,7 +469,13 @@ fun LibrarySearchTab(
                         selectedBook = null
                         libraryViewModel.resetState()
                         bookViewModel.searchBooks(searchText)
-                    })
+                    }),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color.Transparent,
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer
+                    )
                 )
             }
         }
@@ -472,7 +487,7 @@ fun LibrarySearchTab(
                 Box(modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 32.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             }
         } else if (books.isNotEmpty()) {
@@ -493,11 +508,11 @@ fun LibrarySearchTab(
                         .fillMaxWidth()
                         .padding(top = 32.dp), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator()
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 if (selectedBook != null) "『${selectedBook?.title}』 소장 정보를 검색 중입니다..." else "주변 도서관을 검색 중입니다...",
-                                color = TextGray
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -511,7 +526,7 @@ fun LibrarySearchTab(
                             text = if (selectedBook != null) "『${selectedBook?.title}』 소장 도서관" else "내 주변 도서관",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            color = DarkRed
+                            color = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
@@ -519,7 +534,8 @@ fun LibrarySearchTab(
                 if (currentLibraryState.libraries.isEmpty()) {
                     item {
                         Text(
-                            if (selectedBook != null) "주변에 해당 책을 소장한 도서관이 없습니다." else "주변에 검색된 도서관이 없습니다."
+                            if (selectedBook != null) "주변에 해당 책을 소장한 도서관이 없습니다." else "주변에 검색된 도서관이 없습니다.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 } else {
@@ -540,10 +556,10 @@ fun LibrarySearchTab(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(currentLibraryState.message, color = MaterialTheme.colorScheme.error)
-                        Spacer(modifier = Modifier.height(8.dp))
                         Button(onClick = {
                             if (!permissionState.allPermissionsGranted) {
                                 permissionState.launchMultiplePermissionRequest()
@@ -559,7 +575,7 @@ fun LibrarySearchTab(
             is LibraryUiState.Idle -> {
                 if (books.isEmpty() && !isLoadingBooks) {
                     item {
-                        // Empty state
+                        // Empty state can be added here if needed
                     }
                 }
             }
@@ -574,7 +590,7 @@ fun SimpleBookCard(book: Book, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(12.dp)
     ) {
         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -583,14 +599,15 @@ fun SimpleBookCard(book: Book, onClick: () -> Unit) {
                 contentDescription = "책 표지",
                 modifier = Modifier
                     .size(40.dp, 60.dp)
-                    .background(ReadingGreen, RoundedCornerShape(4.dp)),
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(MaterialTheme.colorScheme.secondaryContainer),
                 contentScale = ContentScale.Crop,
                 error = painterResource(R.mipmap.readerslogo)
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(book.title, fontWeight = FontWeight.Bold, maxLines = 1)
-                Text(book.author, color = TextGray, fontSize = 12.sp, maxLines = 1)
+                Text(book.title, fontWeight = FontWeight.Bold, maxLines = 1, color = MaterialTheme.colorScheme.onSurface)
+                Text(book.author, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, maxLines = 1)
             }
         }
     }
@@ -606,13 +623,13 @@ fun LibraryResultCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(12.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(libraryName, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text(libraryName, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
             Spacer(modifier = Modifier.height(4.dp))
-            Text(address, color = TextGray, fontSize = 12.sp)
+            Text(address, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
             Spacer(modifier = Modifier.height(12.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -620,9 +637,10 @@ fun LibraryResultCard(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 if (showLoanStatus) {
+                    val loanStatusColor = if (isLoanAvailable) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
                     Text(
                         text = if (isLoanAvailable) "✓ 대출 가능" else "✗ 대출 중 또는 불가",
-                        color = if (isLoanAvailable) Color(0xFF4CAF50) else DarkRed,
+                        color = loanStatusColor,
                         fontWeight = FontWeight.Bold
                     )
                 } else {
@@ -631,7 +649,7 @@ fun LibraryResultCard(
                 Text(
                     text = "${String.format("%.1f", distance / 1000)}km",
                     fontWeight = FontWeight.Bold,
-                    color = DarkRed
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
         }

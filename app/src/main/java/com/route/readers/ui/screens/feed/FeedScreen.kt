@@ -49,6 +49,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -85,8 +86,6 @@ import com.route.readers.ui.components.UserProfileImage
 import com.route.readers.ui.screens.attendance.AttendanceViewModel
 import com.route.readers.ui.theme.DarkRed
 import com.route.readers.ui.theme.ReadingGreen
-import com.route.readers.ui.theme.TextGray
-import com.route.readers.ui.theme.White
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -114,11 +113,10 @@ fun FeedScreen(
         attendanceViewModel.checkAttendance()
     }
 
-    // ▼▼▼ 핵심 수정 부분: Scaffold를 Box로 변경 ▼▼▼
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5)) // 배경색을 Box에 직접 지정
+            .background(MaterialTheme.colorScheme.background)
     ) {
         PullToRefreshBox(
             modifier = Modifier.fillMaxSize(),
@@ -134,16 +132,15 @@ fun FeedScreen(
                 }
                 is FeedUiState.Error -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(text = state.message)
+                        Text(text = state.message, color = MaterialTheme.colorScheme.error)
                     }
                 }
                 is FeedUiState.Success -> {
                     if (state.items.isEmpty()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("표시할 피드가 없습니다.")
+                            Text("표시할 피드가 없습니다.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     } else {
-                        // FAB이 가리는 영역을 고려하여 LazyColumn 자체에 하단 패딩을 추가
                         SortableFeedContent(
                             feedItems = state.items,
                             likedFeedIds = state.likedFeedIds,
@@ -192,15 +189,15 @@ fun FeedScreen(
             }
         }
 
-        // FAB를 Box의 자식으로 배치하고, 오른쪽 아래로 정렬
         FloatingActionButton(
             onClick = onNavigateToAddFeed,
-            containerColor = DarkRed,
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
             modifier = Modifier
-                .align(Alignment.BottomEnd) // Box의 오른쪽 아래에 위치
-                .padding(16.dp) // 화면 가장자리로부터의 여백
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
         ) {
-            Icon(Icons.Default.Add, contentDescription = "피드 추가", tint = White)
+            Icon(Icons.Default.Add, contentDescription = "피드 추가")
         }
     }
 }
@@ -239,14 +236,14 @@ fun SortableFeedContent(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp), // 좌우 패딩을 16dp로 변경하여 정렬
+                .padding(horizontal = 16.dp),
             contentAlignment = Alignment.CenterEnd
         ) {
             Text(
                 text = sortOption.displayName,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
-                color = TextGray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .clickable {
                         sortOption = if (sortOption == SortOption.LATEST) {
@@ -255,7 +252,7 @@ fun SortableFeedContent(
                             SortOption.LATEST
                         }
                     }
-                    .padding(vertical = 12.dp) // 텍스트 위아래로 클릭 영역 및 여백 확보
+                    .padding(vertical = 12.dp)
             )
         }
 
@@ -315,7 +312,7 @@ fun ActualFeedContent(
                         feedToDelete = null
                     }
                 ) {
-                    Text("예", color = DarkRed)
+                    Text("예", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
@@ -325,7 +322,7 @@ fun ActualFeedContent(
                         feedToDelete = null
                     }
                 ) {
-                    Text("아니요", color = TextGray)
+                    Text("아니요", color = MaterialTheme.colorScheme.onSurface)
                 }
             }
         )
@@ -334,8 +331,6 @@ fun ActualFeedContent(
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
-        // ▼▼▼ 핵심 수정 부분 ▼▼▼
-        // FAB이 가리는 영역을 고려하여 하단에 충분한 패딩을 추가
         contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -394,12 +389,10 @@ fun FeedCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(0.dp),
-        colors = CardDefaults.cardColors(containerColor = White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        // 내부 요소에 개별적으로 padding 적용
         Column {
-            // 1. 사용자 프로필 정보 Row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -426,31 +419,30 @@ fun FeedCard(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(CircleShape)
-                                .background(DarkRed),
+                                .background(MaterialTheme.colorScheme.primary),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = item.userName.firstOrNull()?.toString() ?: "R",
-                                color = White, fontSize = 20.sp, fontWeight = FontWeight.Bold
+                                color = MaterialTheme.colorScheme.onPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold
                             )
                         }
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
-                        Text(text = item.userName, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = DarkRed)
-                        Text(text = formatTimestamp(item.timestamp), color = TextGray, fontSize = 12.sp)
+                        Text(text = item.userName, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+                        Text(text = formatTimestamp(item.timestamp), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                     }
                 }
                 IconButton(onClick = onBookmarkClick) {
                     Icon(
                         imageVector = if (isBookmarked) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
                         contentDescription = "저장",
-                        tint = if (isBookmarked) DarkRed else TextGray
+                        tint = if (isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            // 2. 피드 콘텐츠
             when (item) {
                 is FeedItem.BookReview -> {
                     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
@@ -484,11 +476,11 @@ fun FeedCard(
                         ) {
                             Text(
                                 text = "${item.book?.title ?: item.bookTitle}",
-                                fontWeight = FontWeight.Bold, color = DarkRed, modifier = Modifier.weight(1f)
+                                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f)
                             )
                             Icon(
                                 imageVector = if (isBookCardExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                                contentDescription = if (isBookCardExpanded) "접기" else "펼치기", tint = TextGray
+                                contentDescription = if (isBookCardExpanded) "접기" else "펼치기", tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
 
@@ -497,9 +489,9 @@ fun FeedCard(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 LinearProgressIndicator(
                                     progress = { item.progress / 100f },
-                                    modifier = Modifier.weight(1f).height(8.dp),
+                                    modifier = Modifier.weight(1f).height(8.dp).clip(RoundedCornerShape(4.dp)),
                                     color = ReadingGreen,
-                                    trackColor = Color.LightGray
+                                    trackColor = MaterialTheme.colorScheme.surfaceVariant
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
@@ -511,17 +503,17 @@ fun FeedCard(
 
                         Spacer(modifier = Modifier.height(4.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            val starColor = Color(0xFFFFD700)
                             repeat(5) { index ->
-                                Icon(imageVector = Icons.Filled.Star, contentDescription = null, tint = if (index < item.rating) Color(0xFFFFD700) else Color.LightGray)
+                                Icon(imageVector = Icons.Filled.Star, contentDescription = null, tint = if (index < item.rating) starColor else MaterialTheme.colorScheme.surfaceVariant)
                             }
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("${item.rating}/5", fontSize = 12.sp, color = TextGray)
+                            Text("${item.rating}/5", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = item.review, fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
+                        Text(text = item.review, fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp), color = MaterialTheme.colorScheme.onSurface)
                     }
 
-                    // 3. 좋아요 / 삭제 버튼 Row
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -535,16 +527,16 @@ fun FeedCard(
                             Icon(
                                 imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                                 contentDescription = "좋아요",
-                                tint = if (isLiked) DarkRed else TextGray,
+                                tint = if (isLiked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(24.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(text = item.likeCount.toString(), fontSize = 14.sp, color = TextGray)
+                            Text(text = item.likeCount.toString(), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Spacer(modifier = Modifier.weight(1f))
                         if (item.authorId == currentUserId) {
                             IconButton(onClick = onDeleteClick) {
-                                Icon(imageVector = Icons.Default.Delete, contentDescription = "삭제", tint = TextGray)
+                                Icon(imageVector = Icons.Default.Delete, contentDescription = "삭제", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
@@ -554,15 +546,18 @@ fun FeedCard(
                         val followerName = followerInfoMap[item.followerId]?.nickname ?: "알 수 없는 사용자"
                         Text(
                             text = "👥 ${followerName}님이 팔로우했습니다!",
-                            fontWeight = FontWeight.Medium, color = DarkRed, fontSize = 16.sp
+                            fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.primary, fontSize = 16.sp
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Button(
                             onClick = { onFollowBack(item.followerId) },
-                            colors = ButtonDefaults.buttonColors(containerColor = if (item.isFollowedBack) Color.Gray else DarkRed),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (item.isFollowedBack) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primary,
+                                contentColor = if (item.isFollowedBack) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onPrimary
+                            ),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(text = if (item.isFollowedBack) "팔로잉" else "맞팔하기", color = White)
+                            Text(text = if (item.isFollowedBack) "팔로잉" else "맞팔하기")
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(
@@ -576,16 +571,16 @@ fun FeedCard(
                                 Icon(
                                     imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                                     contentDescription = "좋아요",
-                                    tint = if (isLiked) DarkRed else TextGray,
+                                    tint = if (isLiked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(24.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text(text = item.likeCount.toString(), fontSize = 14.sp, color = TextGray)
+                                Text(text = item.likeCount.toString(), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Spacer(modifier = Modifier.weight(1f))
                             if (item.receiverId == currentUserId) {
                                 IconButton(onClick = onDeleteClick) {
-                                    Icon(imageVector = Icons.Default.Delete, contentDescription = "삭제", tint = TextGray)
+                                    Icon(imageVector = Icons.Default.Delete, contentDescription = "삭제", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                         }
@@ -596,7 +591,6 @@ fun FeedCard(
     }
 }
 
-// SelectedBookCard, FeedItem, formatTimestamp, toFeedItem 함수는 그대로 유지
 @Composable
 fun SelectedBookCard(
     book: Book,
@@ -609,8 +603,8 @@ fun SelectedBookCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(2.dp)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+        elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -630,13 +624,13 @@ fun SelectedBookCard(
                 )
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(book.title, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, lineHeight = 22.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(book.title, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, lineHeight = 22.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(book.author, color = Color.DarkGray, fontSize = 14.sp)
+                    Text(book.author, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
                 }
                 if (onClear != null) {
                     IconButton(onClick = onClear, modifier = Modifier.size(24.dp)) {
-                        Icon(Icons.Default.Clear, contentDescription = "선택 취소")
+                        Icon(Icons.Default.Clear, contentDescription = "선택 취소", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -652,8 +646,8 @@ fun SelectedBookCard(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isInWishlist) DarkRed.copy(alpha = 0.6f) else DarkRed,
-                        contentColor = Color.White
+                        containerColor = if (isInWishlist) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     ),
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
@@ -664,13 +658,14 @@ fun SelectedBookCard(
                     onClick = onToggleMyLibrary,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, DarkRed),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = if (isInMyLibrary) DarkRed.copy(alpha = 0.1f) else Color.Transparent
+                        containerColor = if (isInMyLibrary) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else Color.Transparent,
+                        contentColor = MaterialTheme.colorScheme.primary
                     ),
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
-                    Text(if (isInMyLibrary) "서재에서 삭제" else "서재에 추가", color = DarkRed)
+                    Text(if (isInMyLibrary) "서재에서 삭제" else "서재에 추가")
                 }
             }
         }

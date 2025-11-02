@@ -9,6 +9,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,37 +29,59 @@ fun BookClubScreen(
     viewModel: BookClubViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("북클럽") }
+                title = { Text("북클럽") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                )
             )
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { viewModel.showCreateDialog() }
+                onClick = { viewModel.showCreateDialog() },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
                 Icon(Icons.Default.Add, contentDescription = "북클럽 만들기")
             }
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(uiState.bookClubs) { bookClub ->
-                BookClubCard(
-                    bookClub = bookClub,
-                    onJoinClick = { viewModel.joinBookClub(bookClub.id) }
+        if (uiState.bookClubs.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "아직 생성된 북클럽이 없습니다.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(uiState.bookClubs) { bookClub ->
+                    BookClubCard(
+                        bookClub = bookClub,
+                        onJoinClick = { viewModel.joinBookClub(bookClub.id) }
+                    )
+                }
             }
         }
     }
-    
+
     if (uiState.showCreateDialog) {
         CreateBookClubDialog(
             onDismiss = { viewModel.hideCreateDialog() },
@@ -77,10 +101,9 @@ fun CreateBookClubDialog(
     var searchResults by remember { mutableStateOf<List<Book>>(emptyList()) }
     var isSearching by remember { mutableStateOf(false) }
     var showDropdown by remember { mutableStateOf(false) }
-    
+
     val bookRepository = remember { com.route.readers.data.remote.BookRepository() }
-    
-    // 책 검색 함수
+
     LaunchedEffect(bookTitle) {
         if (bookTitle.length >= 2) {
             isSearching = true
@@ -99,7 +122,7 @@ fun CreateBookClubDialog(
             showDropdown = false
         }
     }
-    
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("새 북클럽 만들기") },
@@ -109,16 +132,16 @@ fun CreateBookClubDialog(
                     value = clubName,
                     onValueChange = { clubName = it },
                     label = { Text("클럽 이름") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
-                
+
                 Spacer(modifier = Modifier.height(16.dp))
-                
-                // 책 검색 필드
+
                 Column {
                     OutlinedTextField(
                         value = bookTitle,
-                        onValueChange = { 
+                        onValueChange = {
                             bookTitle = it
                             if (it != selectedBook?.title) {
                                 selectedBook = null
@@ -126,6 +149,7 @@ fun CreateBookClubDialog(
                         },
                         label = { Text("현재 읽을 책") },
                         modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
                         trailingIcon = {
                             if (isSearching) {
                                 CircularProgressIndicator(
@@ -135,14 +159,14 @@ fun CreateBookClubDialog(
                             }
                         }
                     )
-                    
-                    // 검색 결과 드롭다운
+
                     if (showDropdown && searchResults.isNotEmpty()) {
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(max = 200.dp),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                         ) {
                             LazyColumn {
                                 items(searchResults) { book ->
@@ -159,8 +183,7 @@ fun CreateBookClubDialog(
                         }
                     }
                 }
-                
-                // 선택된 책 정보 표시
+
                 selectedBook?.let { book ->
                     Spacer(modifier = Modifier.height(16.dp))
                     Card(
@@ -181,14 +204,15 @@ fun CreateBookClubDialog(
                                     .clip(RoundedCornerShape(4.dp)),
                                 contentScale = ContentScale.Crop
                             )
-                            
+
                             Spacer(modifier = Modifier.width(12.dp))
-                            
+
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = book.title,
                                     style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
                                     text = book.author,
@@ -213,7 +237,8 @@ fun CreateBookClubDialog(
             TextButton(onClick = onDismiss) {
                 Text("취소")
             }
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.surface
     )
 }
 
@@ -237,14 +262,15 @@ fun BookSearchItem(
                 .clip(RoundedCornerShape(4.dp)),
             contentScale = ContentScale.Crop
         )
-        
+
         Spacer(modifier = Modifier.width(12.dp))
-        
+
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = book.title,
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = book.author,

@@ -1,7 +1,6 @@
 package com.route.readers.ui.screens.attendance
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -107,7 +106,12 @@ fun AttendanceScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             )
         }
     ) { paddingValues ->
@@ -116,7 +120,7 @@ fun AttendanceScreen(
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()
-                .background(Color.White)
+                .background(MaterialTheme.colorScheme.background)
                 .verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -136,7 +140,7 @@ fun AttendanceScreen(
                             text = "${monthState.currentMonth.year}년",
                             style = MaterialTheme.typography.bodyLarge.copy(
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color.Gray
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         )
                         Spacer(modifier = Modifier.height(8.dp))
@@ -145,31 +149,28 @@ fun AttendanceScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                                contentDescription = "이전 달",
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clickable {
-                                        monthState.currentMonth = monthState.currentMonth.minusMonths(1)
-                                    }
-                            )
+                            IconButton(onClick = { monthState.currentMonth = monthState.currentMonth.minusMonths(1) }) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                                    contentDescription = "이전 달",
+                                    modifier = Modifier.size(48.dp)
+                                )
+                            }
                             Text(
                                 text = monthState.currentMonth.format(DateTimeFormatter.ofPattern("M월", Locale.KOREAN)),
                                 style = MaterialTheme.typography.headlineLarge.copy(
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 ),
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             )
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                contentDescription = "다음 달",
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clickable {
-                                        monthState.currentMonth = monthState.currentMonth.plusMonths(1)
-                                    }
-                            )
+                            IconButton(onClick = { monthState.currentMonth = monthState.currentMonth.plusMonths(1) }) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                    contentDescription = "다음 달",
+                                    modifier = Modifier.size(48.dp)
+                                )
+                            }
                         }
                     }
                 },
@@ -180,7 +181,7 @@ fun AttendanceScreen(
                                 textAlign = TextAlign.Center,
                                 text = dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale.KOREAN),
                                 modifier = Modifier.weight(1f),
-                                style = MaterialTheme.typography.bodySmall.copy(color = Color.Gray)
+                                style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
                             )
                         }
                     }
@@ -224,7 +225,8 @@ private fun DayContent(day: Day, attendanceData: AttendanceData?) {
                         tint = Color(0xFF8B0000),
                         modifier = Modifier.size(20.dp)
                     )
-                    else -> if (attendanceData?.consecutiveDays ?: 0 > 0) {
+
+                    else -> if ((attendanceData?.points ?: 0) > 0) {
                         Icon(
                             Icons.Default.Check,
                             "출석",
@@ -237,7 +239,7 @@ private fun DayContent(day: Day, attendanceData: AttendanceData?) {
         } else {
             Text(
                 text = day.date.dayOfMonth.toString(),
-                color = if (day.date.dayOfWeek == DayOfWeek.SUNDAY) Color.Red else Color.Black
+                color = if (day.date.dayOfWeek == DayOfWeek.SUNDAY) Color.Red else MaterialTheme.colorScheme.onSurface
             )
         }
     }

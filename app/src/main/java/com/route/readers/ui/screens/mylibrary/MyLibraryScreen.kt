@@ -97,7 +97,7 @@ fun MyLibraryScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
+            .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
         Row(
@@ -111,7 +111,7 @@ fun MyLibraryScreen(
                 text = "내 서재",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color = DarkRed
+                color = MaterialTheme.colorScheme.primary
             )
         }
 
@@ -123,9 +123,9 @@ fun MyLibraryScreen(
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    CircularProgressIndicator(color = DarkRed)
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("책 목록을 불러오는 중...", color = TextGray)
+                    Text("책 목록을 불러오는 중...", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         } else if (books.isEmpty()) {
@@ -143,20 +143,20 @@ fun MyLibraryScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "서재가 비어있습니다",
-                        color = DarkRed,
+                        color = MaterialTheme.colorScheme.primary,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "검색에서 책을 추가해보세요",
-                        color = TextGray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 16.sp
                     )
                     Spacer(modifier = Modifier.height(24.dp))
                     Button(
                         onClick = { onNavigateToSearch() },
-                        colors = ButtonDefaults.buttonColors(containerColor = DarkRed),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         shape = CircleShape,
                         modifier = Modifier.size(56.dp),
                         contentPadding = PaddingValues(0.dp)
@@ -164,7 +164,7 @@ fun MyLibraryScreen(
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = "책 추가하기",
-                            tint = White
+                            tint = MaterialTheme.colorScheme.onPrimary
                         )
                     }
                 }
@@ -174,7 +174,7 @@ fun MyLibraryScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),
-                colors = CardDefaults.cardColors(containerColor = White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Row(
@@ -315,7 +315,7 @@ fun FilterChip(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val borderColor = if (isSelected) DarkRed else Color.Transparent
+    val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
@@ -328,16 +328,15 @@ fun FilterChip(
             text = "$count",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
-            color = if (isSelected) DarkRed else Color.Black
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
         )
         Text(
             text = label,
             fontSize = 12.sp,
-            color = if (isSelected) DarkRed else TextGray
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
-
 
 @Composable
 fun MyBookCard(
@@ -353,16 +352,16 @@ fun MyBookCard(
             .then(
                 if (isSelected) Modifier.border(
                     3.dp,
-                    DarkRed,
+                    MaterialTheme.colorScheme.primary,
                     RoundedCornerShape(12.dp)
                 ) else Modifier
             ),
         colors = CardDefaults.cardColors(
             containerColor = when {
-                isSelected -> DarkRed.copy(alpha = 0.1f)
-                book.isCompleted -> DarkRed.copy(alpha = 0.1f)
-                book.currentPage > 0 -> ReadingGreen.copy(alpha = 0.1f)
-                else -> White
+                isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                book.isCompleted -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                book.currentPage > 0 -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
+                else -> MaterialTheme.colorScheme.surface
             }
         ),
         shape = RoundedCornerShape(12.dp)
@@ -377,7 +376,7 @@ fun MyBookCard(
                     .width(80.dp)
                     .height(120.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color.LightGray),
+                    .background(MaterialTheme.colorScheme.surfaceContainer),
                 contentScale = ContentScale.Crop,
                 error = painterResource(R.mipmap.readerslogo),
                 placeholder = painterResource(R.mipmap.readerslogo)
@@ -392,27 +391,29 @@ fun MyBookCard(
                     text = book.title,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    maxLines = 2
+                    maxLines = 2,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = book.author,
                     fontSize = 14.sp,
-                    color = TextGray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
                 val progressPercentage = book.progressPercentage
+                val progressColor = when {
+                    book.isCompleted -> MaterialTheme.colorScheme.primary
+                    progressPercentage == 0 -> MaterialTheme.colorScheme.onSurfaceVariant
+                    else -> MaterialTheme.colorScheme.tertiary
+                }
 
                 Text(
                     text = if (book.isCompleted) "완독!" else "$progressPercentage%",
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Bold,
-                    color = when {
-                        book.isCompleted -> DarkRed
-                        progressPercentage == 0 -> TextGray
-                        else -> ReadingGreen
-                    }
+                    color = progressColor
                 )
 
                 LinearProgressIndicator(
@@ -421,15 +422,15 @@ fun MyBookCard(
                         .fillMaxWidth()
                         .height(8.dp)
                         .clip(RoundedCornerShape(4.dp)),
-                    color = if (book.isCompleted) DarkRed else ReadingGreen,
-                    trackColor = Color.LightGray.copy(alpha = 0.4f)
+                    color = progressColor,
+                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.4f)
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "${book.currentPage} / ${book.totalPages} 페이지",
                     fontSize = 12.sp,
-                    color = TextGray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -439,7 +440,7 @@ fun MyBookCard(
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "삭제",
-                    tint = Color.Gray
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -455,26 +456,27 @@ fun DeleteConfirmDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text("책을 서재에서 삭제하시겠습니까?")
+            Text("책을 서재에서 삭제하시겠습니까?", color = MaterialTheme.colorScheme.onSurface)
         },
         text = {
-            Text("'$bookTitle'을(를) 서재에서 삭제합니다.")
+            Text("'$bookTitle'을(를) 서재에서 삭제합니다.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         },
         confirmButton = {
             TextButton(
                 onClick = onConfirm
             ) {
-                Text("예", color = Color.Red)
+                Text("예", color = MaterialTheme.colorScheme.error)
             }
         },
         dismissButton = {
             Button(
                 onClick = onDismiss,
-                colors = ButtonDefaults.buttonColors(containerColor = DarkRed)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
-                Text("아니오", color = White)
+                Text("아니오", color = MaterialTheme.colorScheme.onPrimary)
             }
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.surface
     )
 }
 
@@ -493,7 +495,7 @@ fun ProgressUpdateDialog(
         title = { Text("읽은 페이지 업데이트") },
         text = {
             Column {
-                Text("${book.title}")
+                Text("『${book.title}』")
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = currentPageText,
@@ -520,7 +522,7 @@ fun ProgressUpdateDialog(
                         isError = true
                     }
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = DarkRed)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Text("업데이트")
             }
@@ -529,7 +531,8 @@ fun ProgressUpdateDialog(
             TextButton(onClick = onDismiss) {
                 Text("취소")
             }
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.surface
     )
 }
 
@@ -542,6 +545,7 @@ fun PostToFeedDialog(
 ) {
     var rating by remember { mutableStateOf(0) }
     var review by remember { mutableStateOf("") }
+    val starColor = Color(0xFFFFD700)
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -557,7 +561,7 @@ fun PostToFeedDialog(
                             Icon(
                                 imageVector = if (star <= rating) Icons.Filled.Star else Icons.Outlined.Star,
                                 contentDescription = "$star",
-                                tint = if (star <= rating) Color(0xFFFFD700) else Color.Gray
+                                tint = if (star <= rating) starColor else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -578,7 +582,7 @@ fun PostToFeedDialog(
                 onClick = {
                     onPost(rating, review)
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = DarkRed)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Text("포스팅")
             }
@@ -587,6 +591,7 @@ fun PostToFeedDialog(
             TextButton(onClick = onDismiss) {
                 Text("건너뛰기")
             }
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.surface
     )
 }

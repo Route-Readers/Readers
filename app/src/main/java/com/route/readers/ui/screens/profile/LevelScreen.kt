@@ -35,6 +35,7 @@ import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -52,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.firebase.auth.FirebaseAuth
+import com.route.readers.ui.theme.DarkRed
 
 data class LevelInfo(
     val currentLevel: Int,
@@ -91,7 +93,6 @@ fun calculateLevelInfo(totalPoints: Int): LevelInfo {
     )
 }
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LevelScreen(
@@ -118,9 +119,15 @@ fun LevelScreen(
                             contentDescription = "뒤로가기"
                         )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
+                )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -167,7 +174,6 @@ fun LevelInfoCard(
 ) {
     val pointsToNext = (pointsForNextLevel - currentPoints).coerceAtLeast(0)
     val progress = if (pointsForNextLevel > 0) currentPoints.toFloat() / pointsForNextLevel.toFloat() else 0f
-    val darkRed = Color(0xFFC62828)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -186,7 +192,7 @@ fun LevelInfoCard(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF2C2C2C)),
+                        .background(MaterialTheme.colorScheme.onSurface),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -200,13 +206,14 @@ fun LevelInfoCard(
                 Column {
                     Text(
                         text = if (currentLevel >= 10) "Level $currentLevel (MAX)" else "Level $currentLevel",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     if (currentLevel < 10) {
                         Text(
                             text = "$pointsToNext points to next level",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Gray
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -219,8 +226,8 @@ fun LevelInfoCard(
                         .fillMaxWidth()
                         .height(24.dp)
                         .clip(RoundedCornerShape(12.dp)),
-                    color = darkRed,
-                    trackColor = darkRed.copy(alpha = 0.3f)
+                    color = DarkRed,
+                    trackColor = DarkRed.copy(alpha = 0.3f)
                 )
 
                 Row(
@@ -251,11 +258,11 @@ fun LevelInfoCard(
                     Text(
                         text = "$currentPoints",
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black.copy(alpha = 0.7f)
+                        color = Color.White
                     )
                     Text(
                         text = "/$pointsForNextLevel",
-                        color = Color.Gray
+                        color = Color.White.copy(alpha = 0.7f)
                     )
                 }
             }
@@ -271,7 +278,6 @@ fun AchievementsSection(
 ) {
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabs = listOf("진행 중", "완료")
-    val darkRed = Color(0xFFC62828)
 
     val achievementPoints = mapOf(
         "read_1" to 50,
@@ -298,16 +304,17 @@ fun AchievementsSection(
         Text(
             text = "업적",
             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-            modifier = Modifier.padding(bottom = 8.dp)
+            modifier = Modifier.padding(bottom = 8.dp),
+            color = MaterialTheme.colorScheme.onSurface
         )
         TabRow(
             selectedTabIndex = selectedTabIndex,
             containerColor = Color.Transparent,
-            contentColor = darkRed,
+            contentColor = DarkRed,
             indicator = { tabPositions ->
                 TabRowDefaults.SecondaryIndicator(
                     modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
-                    color = darkRed
+                    color = DarkRed
                 )
             }
         ) {
@@ -319,7 +326,7 @@ fun AchievementsSection(
                         Text(
                             text = title,
                             fontWeight = FontWeight.Bold,
-                            color = if (selectedTabIndex == index) darkRed else Color.Gray
+                            color = if (selectedTabIndex == index) DarkRed else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 )
@@ -332,9 +339,11 @@ fun AchievementsSection(
             val achievementsToShow = if (selectedTabIndex == 0) inProgress else completed
             if (achievementsToShow.isEmpty()) {
                 Text(
-                    text = if(selectedTabIndex == 0) "진행 중인 업적이 없습니다." else "완료된 업적이 없습니다.",
-                    modifier = Modifier.align(Alignment.CenterHorizontally).padding(vertical = 20.dp),
-                    color = Color.Gray
+                    text = if (selectedTabIndex == 0) "진행 중인 업적이 없습니다." else "완료된 업적이 없습니다.",
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(vertical = 20.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
                 achievementsToShow.forEach { achievement ->
@@ -371,12 +380,13 @@ fun AchievementItem(
             Text(
                 text = achievement.title,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = achievement.description,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -388,21 +398,24 @@ fun AchievementItem(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 LinearProgressIndicator(
                     progress = { progress },
-                    modifier = Modifier.weight(1f).height(8.dp).clip(CircleShape),
-                    color = Color.Black,
-                    trackColor = Color.Black.copy(alpha = 0.1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(8.dp)
+                        .clip(CircleShape),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
                 )
                 Text(
                     text = "$progressPercentage%",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Bold
                 )
             }
             Text(
                 text = "$currentProgressClamped / ${achievement.targetProgress}",
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             if (achievement.isCompleted) {
@@ -412,8 +425,10 @@ fun AchievementItem(
                     enabled = !isClaimed,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isClaimed) Color.LightGray else Color(0xFFC62828),
-                        contentColor = Color.White
+                        containerColor = DarkRed,
+                        contentColor = Color.White,
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurface
                     )
                 ) {
                     Text(if (isClaimed) "획득 완료" else "$points 포인트 받기")
@@ -425,48 +440,26 @@ fun AchievementItem(
 
 @Composable
 fun LevelIndicator(level: Int, isFilled: Boolean) {
-    val darkRed = Color(0xFFC62828)
     Box(
         modifier = Modifier
             .size(24.dp)
             .clip(CircleShape)
-            .background(if (isFilled) darkRed else Color.Transparent),
+            .background(if (isFilled) DarkRed else Color.Transparent),
         contentAlignment = Alignment.Center
     ) {
         if (!isFilled) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 drawCircle(
-                    color = darkRed.copy(alpha = 0.5f),
+                    color = DarkRed.copy(alpha = 0.5f),
                     radius = size.minDimension / 2.0f
                 )
             }
         }
         Text(
             text = level.toString(),
-            color = if (isFilled) Color.White else Color.Gray,
+            color = if (isFilled) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = FontWeight.Bold,
             fontSize = 12.sp
-        )
-    }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFFF0F0F0)
-@Composable
-fun LevelScreenPreview() {
-    Column(
-        modifier = Modifier.padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
-    ) {
-        val levelInfo = calculateLevelInfo(550)
-        LevelInfoCard(
-            currentLevel = levelInfo.currentLevel,
-            currentPoints = levelInfo.currentPoints,
-            pointsForNextLevel = levelInfo.pointsForNextLevel
-        )
-        AchievementsSection(
-            readBookCount = 25,
-            claimedAchievements = listOf("read_1", "read_10"),
-            onClaimPoints = { _, _ -> }
         )
     }
 }
