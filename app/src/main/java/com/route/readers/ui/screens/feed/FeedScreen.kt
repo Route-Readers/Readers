@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -511,7 +512,7 @@ fun FeedCard(
                         Spacer(modifier = Modifier.height(4.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             repeat(5) { index ->
-                                Icon(imageVector = Icons.Filled.Favorite, contentDescription = null, tint = if (index < item.rating) DarkRed else Color.LightGray)
+                                Icon(imageVector = Icons.Filled.Star, contentDescription = null, tint = if (index < item.rating) Color(0xFFFFD700) else Color.LightGray)
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("${item.rating}/5", fontSize = 12.sp, color = TextGray)
