@@ -92,12 +92,15 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.route.readers.R
 import com.route.readers.data.model.Book
-import com.route.readers.data.model.Challenge
+import com.route.readers.data.model.Challenge // Challenge 모델은 여전히 필요할 수 있으므로 유지
 import com.route.readers.data.model.User
 import com.route.readers.ui.screens.feed.FeedCard
 import com.route.readers.ui.screens.feed.FeedItem
 import com.route.readers.ui.theme.DarkRed
 import kotlinx.coroutines.launch
+import kotlin.text.toFloat
+
+// 불필요한 import문이 있다면 제거해도 좋습니다.
 
 @Composable
 fun ProfileScreen(
@@ -368,8 +371,8 @@ fun ProfileContent(
                                     )
 
                                     "challenges" -> ChallengesSection(
-                                        ongoingChallenges = state.ongoingChallenges,
-                                        completedChallenges = state.completedChallenges,
+                                        ongoingChallenges = emptyList(), // 하드코딩된 값 제거 후 빈 리스트 전달
+                                        completedChallenges = emptyList(),
                                         onChallengeClick = { }
                                     )
 
@@ -410,6 +413,7 @@ fun ProfileContent(
         }
     }
 }
+
 
 @Composable
 fun AchievementsSection(
@@ -1093,7 +1097,7 @@ fun ChallengeCategory(
         )
         if (challenges.isEmpty()) {
             Text(
-                text = "아직 ${title.replace(" ", "이 ")} 없어요.",
+                "아직 ${title}가 없어요.",
                 color = Color.Gray,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1140,8 +1144,10 @@ fun ChallengeItem(challenge: Challenge, onClick: () -> Unit) {
                 }
             }
             Text(text = challenge.description, fontSize = 14.sp, color = Color.Gray)
+
+            // ▼▼▼ 다른 AI가 알려준 최종 수정 부분 ▼▼▼
             LinearProgressIndicator(
-                progress = { challenge.progress / 100f },
+                progress = { challenge.progress.toString().toFloat() / 100f }, // Int를 Float으로 변환하여 실수 나눗셈 수행
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(8.dp)
@@ -1149,6 +1155,7 @@ fun ChallengeItem(challenge: Challenge, onClick: () -> Unit) {
                 color = DarkRed,
                 trackColor = Color.LightGray.copy(alpha = 0.5f)
             )
+            // ▲▲▲ 여기까지 수정 ▲▲▲
         }
     }
 }
