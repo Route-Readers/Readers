@@ -10,7 +10,18 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,9 +31,19 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material3.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -45,6 +66,7 @@ import com.route.readers.ui.theme.White
 
 enum class MenuItemType {
     PRIVACY,
+    ACTIVITY,
     TERMS,
     CONTACT
 }
@@ -61,15 +83,13 @@ data class AccountMenuItem(
 @Composable
 fun AccountScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToPrivacy: () -> Unit,
-    viewModel: AccountViewModel = viewModel() // ViewModel 주입
+    viewModel: AccountViewModel = viewModel()
 ) {
     val context = LocalContext.current
     var isPrivacyMenuExpanded by remember { mutableStateOf(false) }
+    var isActivityMenuExpanded by remember { mutableStateOf(false) }
 
-    // ViewModel에서 상태를 가져옵니다.
-    val isPrivateAccount by viewModel.isPrivateAccount.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
 
     val menuItems = listOf(
         AccountMenuItem(
@@ -78,6 +98,13 @@ fun AccountScreen(
             subtitle = "프로필 및 활동 공개 설정",
             icon = Icons.Default.Lock,
             onClick = { isPrivacyMenuExpanded = !isPrivacyMenuExpanded }
+        ),
+        AccountMenuItem(
+            type = MenuItemType.ACTIVITY,
+            title = "내 활동",
+            subtitle = "내가 남긴 기록 확인하기",
+            icon = Icons.Default.History,
+            onClick = { isActivityMenuExpanded = !isActivityMenuExpanded }
         ),
         AccountMenuItem(
             type = MenuItemType.TERMS,
@@ -130,31 +157,78 @@ fun AccountScreen(
         },
         containerColor = Color(0xFFF5F5F5)
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(menuItems) { item ->
-                Column {
-                    AccountMenuItemCard(item = item)
-                    if (item.type == MenuItemType.PRIVACY) {
-                        AnimatedVisibility(
-                            visible = isPrivacyMenuExpanded,
-                            enter = expandVertically(animationSpec = tween(300)) + fadeIn(animationSpec = tween(300)),
-                            exit = shrinkVertically(animationSpec = tween(300)) + fadeOut(animationSpec = tween(300))
-                        ) {
-                            // 로딩 중일 때는 스위치를 비활성화합니다.
-                            PrivacyToggle(
-                                isPrivate = isPrivateAccount,
-                                onToggle = { newState ->
-                                    // 스위치를 누르면 ViewModel을 통해 상태를 업데이트합니다.
-                                    viewModel.updateUserPrivacySetting(newState)
-                                },
-                                enabled = !isLoading
-                            )
+        when (val state = uiState) {
+            is ProfileUiState.Loading -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
+
+            is ProfileUiState.Error -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(text = state.message)
+                }
+            }
+
+            is ProfileUiState.Success -> {
+                LazyColumn(
+                    modifier = Modifier
+                        .padding(paddingValues)
+                        .padding(horizontal = 16.dp),
+                    contentPadding = PaddingValues(vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(menuItems) { item ->
+                        Column {
+                            AccountMenuItemCard(item = item)
+
+                            if (item.type == MenuItemType.PRIVACY) {
+                                AnimatedVisibility(
+                                    visible = isPrivacyMenuExpanded,
+                                    enter = expandVertically(animationSpec = tween(300)) + fadeIn(
+                                        animationSpec = tween(300)
+                                    ),
+                                    exit = shrinkVertically(animationSpec = tween(300)) + fadeOut(
+                                        animationSpec = tween(300)
+                                    )
+                                ) {
+                                    PrivacyToggle(
+                                        isPrivate = state.user.isPrivate,
+                                        onToggle = { newState ->
+                                            viewModel.updateUserPrivacySetting(newState)
+                                        },
+                                        enabled = true
+                                    )
+                                }
+                            }
+
+                            if (item.type == MenuItemType.ACTIVITY) {
+                                AnimatedVisibility(
+                                    visible = isActivityMenuExpanded,
+                                    enter = expandVertically(animationSpec = tween(300)) + fadeIn(
+                                        animationSpec = tween(300)
+                                    ),
+                                    exit = shrinkVertically(animationSpec = tween(300)) + fadeOut(
+                                        animationSpec = tween(300)
+                                    )
+                                ) {
+                                    PostsSection(
+                                        myPosts = state.myPosts,
+                                        savedPosts = state.savedPosts,
+                                        isMyProfile = state.isMyProfile,
+                                        likedFeedIds = state.likedFeedIds,
+                                        bookmarkedFeedIds = state.bookmarkedFeedIds,
+                                        onLikeClick = viewModel::toggleLike,
+                                        onBookmarkClick = viewModel::toggleBookmark,
+                                        onDeleteClick = viewModel::deleteFeed,
+                                        wishlist = state.wishlist,
+                                        myLibrary = state.myLibrary,
+                                        onToggleWishlist = viewModel::toggleWishlist,
+                                        onToggleMyLibrary = viewModel::toggleMyLibrary,
+                                        userInfoMap = state.userInfoMap
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -215,7 +289,7 @@ fun AccountMenuItemCard(item: AccountMenuItem) {
 fun PrivacyToggle(
     isPrivate: Boolean,
     onToggle: (Boolean) -> Unit,
-    enabled: Boolean // enabled 파라미터 추가
+    enabled: Boolean
 ) {
     Column(
         modifier = Modifier
@@ -240,7 +314,7 @@ fun PrivacyToggle(
             Switch(
                 checked = isPrivate,
                 onCheckedChange = onToggle,
-                enabled = enabled, // 스위치 활성화/비활성화
+                enabled = enabled,
                 thumbContent = {
                     Icon(
                         imageVector = if (isPrivate) Icons.Default.Check else Icons.Default.Remove,
@@ -260,7 +334,6 @@ fun PrivacyToggle(
                     uncheckedThumbColor = White,
                     checkedBorderColor = Color.Transparent,
                     uncheckedBorderColor = Color.Transparent,
-                    // 비활성화 상태 색상
                     disabledCheckedTrackColor = DarkRed.copy(alpha = 0.2f),
                     disabledUncheckedTrackColor = Color.LightGray.copy(alpha = 0.5f)
                 )

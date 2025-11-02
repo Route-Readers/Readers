@@ -258,8 +258,7 @@ fun RootAppNavigation() {
 
         composable("account_route") {
             AccountScreen(
-                onNavigateBack = { appNavController.popBackStack() },
-                onNavigateToPrivacy = {}
+                onNavigateBack = { appNavController.popBackStack() }
             )
         }
 
