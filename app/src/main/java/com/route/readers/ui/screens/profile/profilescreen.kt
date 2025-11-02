@@ -683,7 +683,7 @@ fun ProfileInfoSection(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(text = user.nickname, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            Chip(label = "레벨 $level", onClick = onNavigateToLevel)
+            LevelChip(level = level, onClick = onNavigateToLevel)
             Spacer(modifier = Modifier.height(16.dp))
 
             Row(
@@ -1243,5 +1243,32 @@ fun PrivateProfileContent() {
         )
         Text("비공개 계정입니다.", color = Color.Gray, fontSize = 16.sp)
         Text("콘텐츠를 보려면 이 계정을 팔로우하세요.", color = Color.Gray, fontSize = 14.sp)
+    }
+}
+
+@Composable
+fun LevelChip(level: Int, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .clip(CircleShape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(Color(0xFF2C2C2C)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = level.toString(),
+                color = Color(0xFFF0E68C),
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            )
+        }
     }
 }
