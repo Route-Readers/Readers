@@ -404,7 +404,7 @@ fun SignUpScreen(
 @Preview(showBackground = true)
 @Composable
 fun DefaultSignUpScreenPreview() {
-    ReadersTheme {
+    ReadersTheme(darkTheme = false) {
         SignUpScreen(
             onSignUpSuccess = {},
             onNavigateToLogin = {},

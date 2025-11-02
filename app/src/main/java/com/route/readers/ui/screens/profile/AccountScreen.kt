@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Brightness4
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.HelpOutline
@@ -67,6 +68,7 @@ import com.route.readers.ui.theme.White
 enum class MenuItemType {
     PRIVACY,
     ACTIVITY,
+    DISPLAY,
     TERMS,
     CONTACT
 }
@@ -88,8 +90,13 @@ fun AccountScreen(
     val context = LocalContext.current
     var isPrivacyMenuExpanded by remember { mutableStateOf(false) }
     var isActivityMenuExpanded by remember { mutableStateOf(false) }
+    var isDisplayMenuExpanded by remember { mutableStateOf(false) }
 
     val uiState by viewModel.uiState.collectAsState()
+    val isDarkMode by viewModel.isDarkMode.collectAsState()
+    val onDarkModeChange: (Boolean) -> Unit = { newDarkModeState ->
+        viewModel.updateDarkModeSetting(newDarkModeState)
+    }
 
     val menuItems = listOf(
         AccountMenuItem(
@@ -97,14 +104,33 @@ fun AccountScreen(
             title = "공개 범위",
             subtitle = "프로필 및 활동 공개 설정",
             icon = Icons.Default.Lock,
-            onClick = { isPrivacyMenuExpanded = !isPrivacyMenuExpanded }
+            onClick = {
+                isPrivacyMenuExpanded = !isPrivacyMenuExpanded
+                isActivityMenuExpanded = false
+                isDisplayMenuExpanded = false
+            }
         ),
         AccountMenuItem(
             type = MenuItemType.ACTIVITY,
             title = "내 활동",
             subtitle = "내가 남긴 기록 확인하기",
             icon = Icons.Default.History,
-            onClick = { isActivityMenuExpanded = !isActivityMenuExpanded }
+            onClick = {
+                isActivityMenuExpanded = !isActivityMenuExpanded
+                isPrivacyMenuExpanded = false
+                isDisplayMenuExpanded = false
+            }
+        ),
+        AccountMenuItem(
+            type = MenuItemType.DISPLAY,
+            title = "화면",
+            subtitle = "다크 모드 등 화면 설정",
+            icon = Icons.Default.Brightness4,
+            onClick = {
+                isDisplayMenuExpanded = !isDisplayMenuExpanded
+                isPrivacyMenuExpanded = false
+                isActivityMenuExpanded = false
+            }
         ),
         AccountMenuItem(
             type = MenuItemType.TERMS,
@@ -229,6 +255,23 @@ fun AccountScreen(
                                     )
                                 }
                             }
+
+                            if (item.type == MenuItemType.DISPLAY) {
+                                AnimatedVisibility(
+                                    visible = isDisplayMenuExpanded,
+                                    enter = expandVertically(animationSpec = tween(300)) + fadeIn(
+                                        animationSpec = tween(300)
+                                    ),
+                                    exit = shrinkVertically(animationSpec = tween(300)) + fadeOut(
+                                        animationSpec = tween(300)
+                                    )
+                                ) {
+                                    DarkModeToggle(
+                                        isDarkMode = isDarkMode,
+                                        onToggle = onDarkModeChange
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -336,6 +379,47 @@ fun PrivacyToggle(
                     uncheckedBorderColor = Color.Transparent,
                     disabledCheckedTrackColor = DarkRed.copy(alpha = 0.2f),
                     disabledUncheckedTrackColor = Color.LightGray.copy(alpha = 0.5f)
+                )
+            )
+        }
+    }
+}
+
+@Composable
+fun DarkModeToggle(
+    isDarkMode: Boolean,
+    onToggle: (Boolean) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .padding(top = 2.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
+            .background(White)
+            .padding(horizontal = 20.dp, vertical = 16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "다크 모드",
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp,
+                color = Color.Black
+            )
+
+            Switch(
+                checked = isDarkMode,
+                onCheckedChange = onToggle,
+                colors = SwitchDefaults.colors(
+                    checkedTrackColor = DarkRed.copy(alpha = 0.5f),
+                    uncheckedTrackColor = Color.LightGray,
+                    checkedThumbColor = White,
+                    uncheckedThumbColor = White,
+                    checkedBorderColor = Color.Transparent,
+                    uncheckedBorderColor = Color.Transparent
                 )
             )
         }

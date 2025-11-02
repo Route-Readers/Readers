@@ -224,7 +224,7 @@ private fun DayContent(day: Day, attendanceData: AttendanceData?) {
                         tint = Color(0xFF8B0000),
                         modifier = Modifier.size(20.dp)
                     )
-                    else -> if (attendanceData?.consecutiveDays ?: 0 > 0) {
+                    else -> if ((attendanceData?.points ?: 0) > 0) {
                         Icon(
                             Icons.Default.Check,
                             "출석",
