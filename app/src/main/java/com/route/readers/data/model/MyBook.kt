@@ -12,6 +12,7 @@ data class MyBook(
     val isbn: String = "",
     val totalPages: Int = 0,
     var currentPage: Int = 0,
+    val categoryName: String? = null,
 
     @get:PropertyName("isCompleted")
     var isCompleted: Boolean = false,

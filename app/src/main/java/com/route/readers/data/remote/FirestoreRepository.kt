@@ -11,41 +11,20 @@ import kotlinx.coroutines.tasks.await
 class FirestoreRepository {
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
+    private val bookRepository = BookRepository()
 
-    private fun getFeedsCollection() = firestore.collection("feeds")
+    private fun getUsersCollection() = firestore.collection("users")
 
-    suspend fun addFeedItem(feedItem: FeedItem): Boolean {
-        return try {
-            val userId = auth.currentUser?.uid ?: return false
-            val user = firestore.collection("users").document(userId).get().await().toObject(com.route.readers.data.model.User::class.java)
-            val userName = user?.nickname ?: ""
+    private fun getMyBooksCollection(userId: String) =
+        getUsersCollection().document(userId).collection("myLibrary")
 
-            val itemWithUser = when (feedItem) {
-                is FeedItem.BookReview -> feedItem.copy(authorId = userId, userName = userName)
-                is FeedItem.FollowNotification -> feedItem.copy(authorId = userId, userName = userName)
-            }
-
-            getFeedsCollection().add(itemWithUser).await()
-            true
-        } catch (e: Exception) {
-            Log.e("FirestoreRepository", "Error adding feed item: ${e.message}", e)
-            false
-        }
-    }
-
-    private fun getMyBooksCollection() = firestore.collection("users")
+    private fun getReadBooksCollection(userId: String) =
+        getUsersCollection().document(userId).collection("readBooks")
 
     suspend fun addBookToLibrary(book: MyBook): Boolean {
         return try {
             val userId = auth.currentUser?.uid ?: return false
-            Log.d("FirestoreRepository", "Adding book: ${book.title} for user: $userId")
-
-            getMyBooksCollection().document(userId)
-                .collection("myLibrary").document(book.isbn)
-                .set(book)
-                .await()
-
-            Log.d("FirestoreRepository", "Book added successfully")
+            getMyBooksCollection(userId).document(book.isbn).set(book).await()
             true
         } catch (e: Exception) {
             Log.e("FirestoreRepository", "Error adding book: ${e.message}", e)
@@ -56,45 +35,48 @@ class FirestoreRepository {
     suspend fun getMyBooks(): List<MyBook> {
         return try {
             val userId = auth.currentUser?.uid ?: return emptyList()
-            Log.d("FirestoreRepository", "Getting books for user: $userId")
-
-            val result = getMyBooksCollection().document(userId)
-                .collection("myLibrary")
-                .get()
-                .await()
-                .toObjects(MyBook::class.java)
-            Log.d("FirestoreRepository", "Got ${result.size} books")
-            result
+            getMyBooksCollection(userId).get().await()?.toObjects(MyBook::class.java)
+                ?: emptyList()
         } catch (e: Exception) {
             Log.e("FirestoreRepository", "Error getting books: ${e.message}", e)
             emptyList()
         }
     }
 
-    suspend fun updateReadingProgress(isbn: String, currentPage: Int, isCompleted: Boolean): Boolean {
+    suspend fun updateReadingProgress(
+        isbn: String,
+        currentPage: Int,
+        isCompleted: Boolean
+    ): Boolean {
+        val userId = auth.currentUser?.uid ?: return false
         return try {
-            val userId = auth.currentUser?.uid ?: return false
-            Log.d("FirestoreRepository", "Updating progress for $isbn to page $currentPage. Completed: $isCompleted")
+            val docRef = getMyBooksCollection(userId).document(isbn)
+            val bookSnapshot = docRef.get().await()
+            val book = bookSnapshot.toObject(MyBook::class.java)
 
-            val docRef = getMyBooksCollection().document(userId)
-                .collection("myLibrary").document(isbn)
+            if (book != null) {
+                val updateData = mutableMapOf<String, Any>(
+                    "currentPage" to currentPage,
+                    "lastReadDate" to System.currentTimeMillis()
+                )
 
-            val updateData = mutableMapOf<String, Any>(
-                "currentPage" to currentPage,
-                "lastReadDate" to System.currentTimeMillis()
-            )
-
-            if (isCompleted) {
-                updateData["isCompleted"] = true
-                updateData["completedDate"] = System.currentTimeMillis()
-            } else {
-                updateData["isCompleted"] = false
-                updateData["completedDate"] = FieldValue.delete()
+                if (isCompleted) {
+                    updateData["isCompleted"] = true
+                    val completedDate = System.currentTimeMillis()
+                    updateData["completedDate"] = completedDate
+                    val completedBook = book.copy(
+                        currentPage = currentPage,
+                        isCompleted = true,
+                        completedDate = completedDate
+                    )
+                    getReadBooksCollection(userId).document(isbn).set(completedBook).await()
+                } else {
+                    updateData["isCompleted"] = false
+                    updateData["completedDate"] = FieldValue.delete()
+                    getReadBooksCollection(userId).document(isbn).delete().await()
+                }
+                docRef.update(updateData).await()
             }
-
-
-            docRef.update(updateData).await()
-            Log.d("FirestoreRepository", "Progress updated successfully.")
             true
         } catch (e: Exception) {
             Log.e("FirestoreRepository", "Error updating progress: ${e.message}", e)
@@ -105,13 +87,7 @@ class FirestoreRepository {
     suspend fun removeBookFromLibrary(isbn: String): Boolean {
         return try {
             val userId = auth.currentUser?.uid ?: return false
-            Log.d("FirestoreRepository", "Removing book: $isbn for user: $userId")
-
-            getMyBooksCollection().document(userId)
-                .collection("myLibrary").document(isbn)
-                .delete()
-                .await()
-            Log.d("FirestoreRepository", "Book removed successfully")
+            getMyBooksCollection(userId).document(isbn).delete().await()
             true
         } catch (e: Exception) {
             Log.e("FirestoreRepository", "Error removing book: ${e.message}", e)
@@ -120,23 +96,105 @@ class FirestoreRepository {
     }
 
     suspend fun markBookAsCompleted(isbn: String): Boolean {
+        val userId = auth.currentUser?.uid ?: return false
         return try {
-            val userId = auth.currentUser?.uid ?: return false
-            Log.d("FirestoreRepository", "Marking book as completed: $isbn")
+            val myBookRef = getMyBooksCollection(userId).document(isbn)
+            val bookSnapshot = myBookRef.get().await()
+            val book = bookSnapshot.toObject(MyBook::class.java)
 
-            getMyBooksCollection().document(userId)
-                .collection("myLibrary").document(isbn)
-                .update(
-                    mapOf(
-                        "isCompleted" to true,
-                        "completedDate" to System.currentTimeMillis()
+            if (book != null) {
+                val completedDate = System.currentTimeMillis()
+                val completedBook = book.copy(isCompleted = true, completedDate = completedDate)
+
+                val readBookRef = getReadBooksCollection(userId).document(isbn)
+
+                firestore.runTransaction { transaction ->
+                    transaction.update(
+                        myBookRef, mapOf(
+                            "isCompleted" to true,
+                            "completedDate" to completedDate
+                        )
                     )
-                )
-                .await()
-            Log.d("FirestoreRepository", "Book marked as completed")
-            true
+                    transaction.set(readBookRef, completedBook)
+                }.await()
+                true
+            } else {
+                false
+            }
         } catch (e: Exception) {
             Log.e("FirestoreRepository", "Error marking book as completed: ${e.message}", e)
+            false
+        }
+    }
+
+    suspend fun markBookAsRead(isbn: String): Boolean {
+        val userId = auth.currentUser?.uid ?: return false
+        return try {
+            val bookSnapshot = getMyBooksCollection(userId).document(isbn).get().await()
+            val myBook = bookSnapshot.toObject(MyBook::class.java)
+
+            if (myBook != null) {
+                val readBookRef = getReadBooksCollection(userId).document(isbn)
+                val userDocRef = getUsersCollection().document(userId)
+
+                firestore.runTransaction { transaction ->
+                    val snapshot = transaction.get(readBookRef)
+                    if (!snapshot.exists()) {
+                        transaction.set(readBookRef, myBook)
+                        transaction.update(userDocRef, "readBookCount", FieldValue.increment(1))
+                    }
+                }.await()
+                true
+            } else {
+                Log.e("FirestoreRepository", "Failed to get book details from myLibrary for ISBN: $isbn")
+                false
+            }
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error in markBookAsRead", e)
+            false
+        }
+    }
+
+    suspend fun getReadBooks(userId: String): List<MyBook> {
+        return try {
+            getReadBooksCollection(userId).get().await().toObjects(MyBook::class.java)
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error fetching read books", e)
+            emptyList()
+        }
+    }
+
+    private fun getFeedsCollection() = firestore.collection("feeds")
+
+    suspend fun addFeedItem(feedItem: FeedItem): Boolean {
+        return try {
+            val userId = auth.currentUser?.uid ?: return false
+            val user = getUsersCollection().document(userId).get().await()
+                .toObject(com.route.readers.data.model.User::class.java)
+            val userName = user?.nickname ?: ""
+
+            val itemWithUser = when (feedItem) {
+                is FeedItem.BookReview -> feedItem.copy(authorId = userId, userName = userName)
+                is FeedItem.FollowNotification -> feedItem.copy(
+                    authorId = userId,
+                    userName = userName
+                )
+            }
+            getFeedsCollection().add(itemWithUser).await()
+            true
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error adding feed item: ${e.message}", e)
+            false
+        }
+    }
+
+    suspend fun incrementReadBookCount(): Boolean {
+        return try {
+            val userId = auth.currentUser?.uid ?: return false
+            getUsersCollection().document(userId).update("readBookCount", FieldValue.increment(1)).await()
+            true
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error incrementing read book count", e)
             false
         }
     }
@@ -149,13 +207,10 @@ class FirestoreRepository {
                 "userId" to userId,
                 "timestamp" to System.currentTimeMillis()
             )
-
             firestore.collection("test_connections")
                 .document("test_${userId}_${System.currentTimeMillis()}")
                 .set(testData)
                 .await()
-
-            Log.d("FirestoreRepository", "Test connection successful")
             true
         } catch (e: Exception) {
             Log.e("FirestoreRepository", "Test connection failed: ${e.message}", e)

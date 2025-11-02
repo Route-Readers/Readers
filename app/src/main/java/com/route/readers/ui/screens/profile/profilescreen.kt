@@ -58,6 +58,7 @@ import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
@@ -86,6 +87,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.route.readers.R
@@ -105,8 +107,10 @@ fun ProfileScreen(
     userId: String,
     onNavigateToFollowList: (listType: String, nickname: String) -> Unit,
     onNavigateToSearch: () -> Unit,
+    onNavigateToMyBookList: () -> Unit,
+    onNavigateToLevel: () -> Unit,
     onNavigateToCustomization: () -> Unit = {},
-    viewModel: ProfileViewModel
+    viewModel: ProfileViewModel = viewModel()
 ) {
     var showCustomization by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -169,7 +173,7 @@ fun ProfileScreen(
                             onNavigateToFollowList(listType, state.user.nickname)
                         },
                         onUpdateProfileImage = { imageUri ->
-                            if (imageUri == android.net.Uri.EMPTY) {
+                            if (imageUri == Uri.EMPTY) {
                                 showCustomization = true
                             } else {
                                 viewModel.updateProfileImage(imageUri)
@@ -179,6 +183,8 @@ fun ProfileScreen(
                         onNavigateToCustomization = {
                             showCustomization = true
                         },
+                        onNavigateToMyBookList = onNavigateToMyBookList,
+                        onNavigateToLevel = onNavigateToLevel,
                         onBlockUser = { viewModel.blockUser(state.user.uid) },
                         onUnblockUser = { viewModel.unblockUser(state.user.uid) },
                         onBookmarkClick = { feedId, isBookmarked ->
@@ -208,6 +214,8 @@ fun ProfileContent(
     onUpdateProfileImage: (Uri) -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToCustomization: () -> Unit,
+    onNavigateToMyBookList: () -> Unit,
+    onNavigateToLevel: () -> Unit,
     onBlockUser: () -> Unit,
     onUnblockUser: () -> Unit,
     onBookmarkClick: (String, Boolean) -> Unit
@@ -240,7 +248,8 @@ fun ProfileContent(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(bottom = 16.dp)
     ) {
         item {
             Column(
@@ -257,6 +266,8 @@ fun ProfileContent(
                     onFollowListClick = onFollowListClick,
                     onUpdateProfileImage = onUpdateProfileImage,
                     onNavigateToCustomization = onNavigateToCustomization,
+                    onNavigateToMyBookList = onNavigateToMyBookList,
+                    onNavigateToLevel = onNavigateToLevel,
                     onBlockUser = onBlockUser,
                     onUnblockUser = onUnblockUser
                 )
@@ -366,7 +377,8 @@ fun ProfileContent(
                                     )
 
                                     "achievements" -> AchievementsSection(
-                                        achievements = state.achievements,
+                                        ongoingAchievements = state.ongoingAchievements,
+                                        completedAchievements = state.completedAchievements,
                                         onAchievementClick = { }
                                     )
 
@@ -405,31 +417,61 @@ fun ProfileContent(
 
 @Composable
 fun AchievementsSection(
-    achievements: List<Achievement>,
+    ongoingAchievements: List<Achievement>,
+    completedAchievements: List<Achievement>,
     onAchievementClick: (Achievement) -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        if (achievements.isEmpty()) {
-            Text(
-                "아직 달성한 업적이 없어요.",
-                color = Color.Gray,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 24.dp),
-                textAlign = TextAlign.Center
-            )
-        } else {
-            achievements.forEach { achievement ->
-                AchievementItem(achievement = achievement, onClick = { onAchievementClick(achievement) })
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
+    val tabs = listOf("진행 중", "완료")
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        TabRow(
+            selectedTabIndex = selectedTabIndex,
+            containerColor = Color.White,
+            contentColor = DarkRed,
+            indicator = { tabPositions ->
+                TabRowDefaults.Indicator(
+                    Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                    color = DarkRed
+                )
+            }
+        ) {
+            tabs.forEachIndexed { index, title ->
+                Tab(
+                    selected = selectedTabIndex == index,
+                    onClick = { selectedTabIndex = index },
+                    text = { Text(text = title) }
+                )
+            }
+        }
+
+        val achievementsToShow = if (selectedTabIndex == 0) ongoingAchievements else completedAchievements
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(top = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (achievementsToShow.isEmpty()) {
+                Text(
+                    text = if (selectedTabIndex == 0) "진행 중인 업적이 없어요." else "완료한 업적이 없어요.",
+                    color = Color.Gray,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
+                    textAlign = TextAlign.Center
+                )
+            } else {
+                achievementsToShow.forEach { achievement ->
+                    AchievementItem(achievement = achievement, onClick = { onAchievementClick(achievement) })
+                }
             }
         }
     }
 }
+
 
 @Composable
 fun AchievementItem(achievement: Achievement, onClick: () -> Unit) {
@@ -502,7 +544,6 @@ fun AchievementItem(achievement: Achievement, onClick: () -> Unit) {
     }
 }
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PostsSection(
@@ -518,7 +559,7 @@ fun PostsSection(
     myLibrary: List<String>,
     onToggleWishlist: (Book, Boolean) -> Unit,
     onToggleMyLibrary: (Book, Boolean) -> Unit,
-    userInfoMap: Map<String, User> = emptyMap()
+    userInfoMap: Map<String, User>
 ) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = if (isMyProfile) listOf("내가 쓴 글", "저장한 글") else listOf("작성한 글")
@@ -570,6 +611,7 @@ fun PostsSection(
                 postsToShow.forEach { post ->
                     val isLiked = likedFeedIds.contains(post.id)
                     val isBookmarked = bookmarkedFeedIds.contains(post.id)
+
                     FeedCard(
                         item = post,
                         isLiked = isLiked,
@@ -599,14 +641,16 @@ fun ProfileInfoSection(
     onFollowClick: () -> Unit,
     onUnfollowClick: () -> Unit,
     onFollowListClick: (String) -> Unit,
-    onUpdateProfileImage: (android.net.Uri) -> Unit,
+    onUpdateProfileImage: (Uri) -> Unit,
     onNavigateToCustomization: () -> Unit,
+    onNavigateToMyBookList: () -> Unit,
+    onNavigateToLevel: () -> Unit,
     onBlockUser: () -> Unit,
     onUnblockUser: () -> Unit
 ) {
-    rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-        onResult = { uri ->
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+        onResult = { uri: Uri? ->
             uri?.let { onUpdateProfileImage(it) }
         }
     )
@@ -631,7 +675,7 @@ fun ProfileInfoSection(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(text = user.nickname, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            Chip(label = "레벨 ${user.level}")
+            Chip(label = "레벨 ${user.level}", onClick = onNavigateToLevel)
             Spacer(modifier = Modifier.height(16.dp))
 
             Row(
@@ -641,7 +685,11 @@ fun ProfileInfoSection(
             ) {
                 ProfileInfoItem(count = user.followerCount.toString(), label = "팔로워", onClick = { onFollowListClick("followers") })
                 ProfileInfoItem(count = user.followingCount.toString(), label = "팔로잉", onClick = { onFollowListClick("following") })
-                ProfileInfoItem(count = user.readBookCount.toString(), label = "읽은 책")
+                ProfileInfoItem(
+                    count = user.readBookCount.toString(),
+                    label = "읽은 책",
+                    onClick = if (isMyProfile) onNavigateToMyBookList else null
+                )
             }
 
             if (!isMyProfile) {
@@ -862,11 +910,11 @@ fun ProfileImage(
     isMyProfile: Boolean,
     onImageClick: () -> Unit
 ) {
-    val modifier = Modifier.clickable(onClick = {
-        if (isMyProfile) {
-            onImageClick()
-        }
-    })
+    val modifier = if (isMyProfile) {
+        Modifier.clickable(onClick = onImageClick)
+    } else {
+        Modifier
+    }
 
     val backgroundColor = try {
         user.profileBackgroundColor?.let { Color(android.graphics.Color.parseColor(it)) } ?: DarkRed
@@ -952,9 +1000,16 @@ fun ProfileInfoItem(count: String, label: String, onClick: (() -> Unit)? = null)
 }
 
 @Composable
-fun Chip(label: String) {
+fun Chip(label: String, onClick: (() -> Unit)? = null) {
+    val modifier = if (onClick != null) {
+        Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+    } else {
+        Modifier
+    }
     Box(
-        modifier = Modifier
+        modifier = modifier
             .background(color = Color(0xFFF5E1DF), shape = RoundedCornerShape(12.dp))
             .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
@@ -1050,9 +1105,10 @@ fun ChallengeCategory(
                 textAlign = TextAlign.Center
             )
         } else {
-            challenges.forEach { challenge ->
-                ChallengeItem(challenge = challenge, onClick = { onChallengeClick(challenge) })
-                Spacer(modifier = Modifier.height(12.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                challenges.forEach { challenge ->
+                    ChallengeItem(challenge = challenge, onClick = { onChallengeClick(challenge) })
+                }
             }
         }
     }

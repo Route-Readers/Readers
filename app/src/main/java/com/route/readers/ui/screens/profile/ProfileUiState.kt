@@ -1,7 +1,8 @@
 package com.route.readers.ui.screens.profile
 
 import com.route.readers.data.model.Book
-// import com.route.readers.data.model.Challenge // 더 이상 직접 사용하지 않으므로 삭제 가능
+
+import com.route.readers.data.model.MyBook
 import com.route.readers.data.model.User
 import com.route.readers.ui.screens.feed.FeedItem
 
@@ -16,6 +17,10 @@ sealed class ProfileUiState {
         val recommendedBooks: List<Book>,
         val favoriteBooks: List<Book>,
         val achievements: List<Achievement>,
+        val ongoingChallenges: List<Challenge>,
+        val completedChallenges: List<Challenge>,
+        val ongoingAchievements: List<Achievement>,
+        val completedAchievements: List<Achievement>,
         val myPosts: List<FeedItem>,
         val savedPosts: List<FeedItem>,
         val isSelectionMode: Boolean = false,
@@ -24,6 +29,8 @@ sealed class ProfileUiState {
         val bookmarkedFeedIds: Set<String> = emptySet(),
         val wishlist: List<String> = emptyList(),
         val myLibrary: List<String> = emptyList(),
+        val myLibraryBooks: List<MyBook> = emptyList(),
+        val readBooks: List<MyBook> = emptyList(),
         val userInfoMap: Map<String, User> = emptyMap()
     ) : ProfileUiState()
 

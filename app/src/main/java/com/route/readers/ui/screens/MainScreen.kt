@@ -197,12 +197,21 @@ fun MainScreen(
                             val encodedNickname = URLEncoder.encode(nickname, "UTF-8")
                             navController.navigate("follow_list_route/$userId/$listType/$encodedNickname")
                         },
+                        onNavigateToMyBookList = {
+                            navController.navigate("my_book_list_route")
+                        },
                         onNavigateToSearch = {
                             bottomNavController.navigate(BottomNavItem.Search.route) {
                                 popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
                                 launchSingleTop = true
                                 restoreState = true
                             }
+                        },
+                        onNavigateToLevel = {
+                            navController.navigate("level_route")
+                        },
+                        onNavigateToCustomization = {
+                            navController.navigate("profile_customization_route")
                         }
                     )
                 }

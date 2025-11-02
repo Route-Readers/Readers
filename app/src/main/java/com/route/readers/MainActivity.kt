@@ -6,10 +6,8 @@ import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
-import androidx.core.content.ContextCompat
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -18,10 +16,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -42,8 +44,12 @@ import com.route.readers.ui.screens.login.OnboardingScreen
 import com.route.readers.ui.screens.login.SignUpScreen
 import com.route.readers.ui.screens.profile.AccountScreen
 import com.route.readers.ui.screens.profile.FollowListScreen
+import com.route.readers.ui.screens.profile.LevelScreen
+import com.route.readers.ui.screens.profile.MyBookListScreen
+import com.route.readers.ui.screens.profile.ProfileCustomizationScreen
 import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.profile.ProfileSetupScreen
+import com.route.readers.ui.screens.profile.ProfileUiState
 import com.route.readers.ui.screens.profile.ProfileViewModel
 import com.route.readers.ui.theme.ReadersTheme
 import com.route.readers.widget.WidgetUpdateHelper
@@ -124,17 +130,22 @@ fun RootAppNavigation() {
                 } else {
                     firestore.collection("users").document(currentUser.uid).get()
                         .addOnSuccessListener { document ->
-                            val destination = if (document.exists() && document.getString("nickname") != null) {
-                                "main_app_content_route"
-                            } else {
-                                "profile_setup_route"
-                            }
+                            val destination =
+                                if (document.exists() && document.getString("nickname") != null) {
+                                    "main_app_content_route"
+                                } else {
+                                    "profile_setup_route"
+                                }
                             appNavController.navigate(destination) {
                                 popUpTo("decision_route") { inclusive = true }
                             }
                         }
                         .addOnFailureListener {
-                            Toast.makeText(context, "사용자 정보 확인에 실패했습니다. 다시 로그인해주세요.", Toast.LENGTH_SHORT)
+                            Toast.makeText(
+                                context,
+                                "사용자 정보 확인에 실패했습니다. 다시 로그인해주세요.",
+                                Toast.LENGTH_SHORT
+                            )
                                 .show()
                             auth.signOut()
                             appNavController.navigate("onboarding_route") {
@@ -248,8 +259,7 @@ fun RootAppNavigation() {
         composable("account_route") {
             AccountScreen(
                 onNavigateBack = { appNavController.popBackStack() },
-                onNavigateToPrivacy = {
-                }
+                onNavigateToPrivacy = {}
             )
         }
 
@@ -275,7 +285,15 @@ fun RootAppNavigation() {
                         appNavController.navigate("follow_list_route/$userId/$listType/$encodedNickname")
                     },
                     onNavigateToSearch = {
-                        appNavController.navigate("search_route")
+                    },
+                    onNavigateToMyBookList = {
+                        appNavController.navigate("my_book_list_route")
+                    },
+                    onNavigateToLevel = {
+                        appNavController.navigate("level_route")
+                    },
+                    onNavigateToCustomization = {
+                        appNavController.navigate("profile_customization_route")
                     }
                 )
             }
@@ -314,6 +332,44 @@ fun RootAppNavigation() {
             AddFeedScreen(
                 onNavigateBack = { appNavController.popBackStack() }
             )
+        }
+
+        composable("my_book_list_route") {
+            MyBookListScreen(
+                onBack = { appNavController.popBackStack() }
+            )
+        }
+
+        composable("level_route") {
+            LevelScreen(
+                onBack = { appNavController.popBackStack() }
+            )
+        }
+
+        composable("profile_customization_route") {
+            val profileViewModel: ProfileViewModel = viewModel()
+            val uiState = profileViewModel.uiState.collectAsState()
+
+            LaunchedEffect(Unit) {
+                val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+                if (currentUserId != null) {
+                    profileViewModel.fetchUserProfile(currentUserId)
+                }
+            }
+
+            val currentState = uiState.value
+            if (currentState is ProfileUiState.Success && currentState.isMyProfile) {
+                ProfileCustomizationScreen(
+                    currentCharacter = currentState.user.profileCharacter,
+                    currentBackgroundColor = currentState.user.profileBackgroundColor,
+                    nickname = currentState.user.nickname,
+                    onSave = { character, backgroundColor ->
+                        profileViewModel.updateProfileCharacter(character, backgroundColor)
+                        appNavController.popBackStack()
+                    },
+                    onBack = { appNavController.popBackStack() }
+                )
+            }
         }
     }
 }
