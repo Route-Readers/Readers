@@ -105,6 +105,7 @@ fun ProfileScreen(
     onNavigateToFollowList: (listType: String, nickname: String) -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToMyBookList: () -> Unit,
+    onNavigateToLevel: () -> Unit,
     onNavigateToCustomization: () -> Unit = {},
     viewModel: ProfileViewModel = viewModel()
 ) {
@@ -180,6 +181,7 @@ fun ProfileScreen(
                             showCustomization = true
                         },
                         onNavigateToMyBookList = onNavigateToMyBookList,
+                        onNavigateToLevel = onNavigateToLevel,
                         onBlockUser = { viewModel.blockUser(state.user.uid) },
                         onUnblockUser = { viewModel.unblockUser(state.user.uid) },
                         onBookmarkClick = { feedId, isBookmarked ->
@@ -210,6 +212,7 @@ fun ProfileContent(
     onNavigateToSearch: () -> Unit,
     onNavigateToCustomization: () -> Unit,
     onNavigateToMyBookList: () -> Unit,
+    onNavigateToLevel: () -> Unit,
     onBlockUser: () -> Unit,
     onUnblockUser: () -> Unit,
     onBookmarkClick: (String, Boolean) -> Unit
@@ -261,6 +264,7 @@ fun ProfileContent(
                     onUpdateProfileImage = onUpdateProfileImage,
                     onNavigateToCustomization = onNavigateToCustomization,
                     onNavigateToMyBookList = onNavigateToMyBookList,
+                    onNavigateToLevel = onNavigateToLevel,
                     onBlockUser = onBlockUser,
                     onUnblockUser = onUnblockUser
                 )
@@ -551,7 +555,7 @@ fun PostsSection(
     myLibrary: List<String>,
     onToggleWishlist: (Book, Boolean) -> Unit,
     onToggleMyLibrary: (Book, Boolean) -> Unit,
-    userInfoMap: Map<String, User> = emptyMap()
+    userInfoMap: Map<String, User>
 ) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = if (isMyProfile) listOf("내가 쓴 글", "저장한 글") else listOf("작성한 글")
@@ -603,6 +607,7 @@ fun PostsSection(
                 postsToShow.forEach { post ->
                     val isLiked = likedFeedIds.contains(post.id)
                     val isBookmarked = bookmarkedFeedIds.contains(post.id)
+
                     FeedCard(
                         item = post,
                         isLiked = isLiked,
@@ -635,6 +640,7 @@ fun ProfileInfoSection(
     onUpdateProfileImage: (Uri) -> Unit,
     onNavigateToCustomization: () -> Unit,
     onNavigateToMyBookList: () -> Unit,
+    onNavigateToLevel: () -> Unit,
     onBlockUser: () -> Unit,
     onUnblockUser: () -> Unit
 ) {
@@ -665,7 +671,7 @@ fun ProfileInfoSection(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(text = user.nickname, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            Chip(label = "레벨 ${user.level}")
+            Chip(label = "레벨 ${user.level}", onClick = onNavigateToLevel)
             Spacer(modifier = Modifier.height(16.dp))
 
             Row(
@@ -990,9 +996,16 @@ fun ProfileInfoItem(count: String, label: String, onClick: (() -> Unit)? = null)
 }
 
 @Composable
-fun Chip(label: String) {
+fun Chip(label: String, onClick: (() -> Unit)? = null) {
+    val modifier = if (onClick != null) {
+        Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+    } else {
+        Modifier
+    }
     Box(
-        modifier = Modifier
+        modifier = modifier
             .background(color = Color(0xFFF5E1DF), shape = RoundedCornerShape(12.dp))
             .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {

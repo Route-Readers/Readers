@@ -205,6 +205,9 @@ fun MainScreen(
                                 restoreState = true
                             }
                         },
+                        onNavigateToLevel = {
+                            navController.navigate("level_route")
+                        },
                         onNavigateToCustomization = {
                             navController.navigate("profile_customization_route")
                         }
