@@ -459,13 +459,13 @@ fun BookClubItem(
         Box(
             modifier = Modifier
                 .size(48.dp)
-                .background(Color(0xFFFFE4B5), RoundedCornerShape(8.dp)),
+                .background(DarkRed.copy(alpha = 0.1f), RoundedCornerShape(8.dp)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 Icons.Default.Book,
                 contentDescription = null,
-                tint = Color(0xFFFF8C00)
+                tint = DarkRed
             )
         }
 
