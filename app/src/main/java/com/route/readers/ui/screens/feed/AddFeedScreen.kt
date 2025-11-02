@@ -3,7 +3,6 @@ package com.route.readers.ui.screens.add_feed
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.clickableimport
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,8 +15,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-
-androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,7 +40,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.route.readers.data.model.Book
-import com.route.readers.ui.theme.DarkRed
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,7 +67,7 @@ fun AddFeedScreen(
                 actions = {
                     TextButton(
                         onClick = { viewModel.submitFeed() },
-                        enabled = uiState !is AddFeedUiState.Loading
+                        enabled = uiState !is AddFeedUiState.Loading && viewModel.selectedBook != null
                     ) {
                         Text("게시", color = MaterialTheme.colorScheme.primary)
                     }

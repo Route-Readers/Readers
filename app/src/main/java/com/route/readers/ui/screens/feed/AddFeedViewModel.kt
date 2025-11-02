@@ -128,4 +128,8 @@ class AddFeedViewModel : ViewModel() {
             }
         }
     }
+
+    fun resetState() {
+        uiState = AddFeedUiState.Idle
+    }
 }
