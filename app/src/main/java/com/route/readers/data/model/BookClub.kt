@@ -9,9 +9,7 @@ data class BookClub(
     val nextMeetingDate: String = "",
     val memberCount: Int = 0,
     val createdBy: String = "",
-    val createdAt: Long = System.currentTimeMillis(),
-    val isJoined: Boolean = false,
-    val bookTitle: String = currentBook
+    val createdAt: Long = System.currentTimeMillis()
 )
 
 data class ChatMessage(
