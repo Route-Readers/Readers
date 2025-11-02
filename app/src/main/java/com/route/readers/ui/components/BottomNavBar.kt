@@ -23,7 +23,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.google.firebase.auth.FirebaseAuth
 
@@ -57,16 +56,18 @@ fun BottomNavBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.surface)
             .navigationBarsPadding()
             .padding(vertical = 8.dp)
     ) {
+        val centerButtonColor =
+            if (selectedBook != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
                 .size(64.dp)
                 .clip(CircleShape)
-                .background(if (selectedBook != null) Color(0xFF4285F4) else Color.Gray)
+                .background(centerButtonColor)
                 .clickable {
                     if (selectedBook != null) {
                         onStartReading()
@@ -84,7 +85,7 @@ fun BottomNavBar(
             Icon(
                 imageVector = Icons.Filled.PlayArrow,
                 contentDescription = if (selectedBook != null) "독서 시작" else "내 서재",
-                tint = Color.White,
+                tint = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.size(32.dp)
             )
         }
@@ -157,6 +158,9 @@ private fun NavItem(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    val selectedColor = MaterialTheme.colorScheme.primary
+    val unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.clickable { onClick() }
@@ -164,14 +168,14 @@ private fun NavItem(
         Icon(
             imageVector = item.icon,
             contentDescription = item.title,
-            tint = if (isSelected) Color(0xFF4285F4) else Color.Gray,
+            tint = if (isSelected) selectedColor else unselectedColor,
             modifier = Modifier.size(24.dp)
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = item.title,
             fontSize = 12.sp,
-            color = if (isSelected) Color(0xFF4285F4) else Color.Gray,
+            color = if (isSelected) selectedColor else unselectedColor,
             fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal
         )
     }
