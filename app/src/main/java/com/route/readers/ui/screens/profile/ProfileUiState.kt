@@ -1,7 +1,7 @@
 package com.route.readers.ui.screens.profile
 
 import com.route.readers.data.model.Book
-
+import com.route.readers.data.model.Challenge
 import com.route.readers.data.model.MyBook
 import com.route.readers.data.model.User
 import com.route.readers.ui.screens.feed.FeedItem
