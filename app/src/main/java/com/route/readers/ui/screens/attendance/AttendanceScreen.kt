@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import com.route.readers.ui.theme.DarkRed
 import io.github.boguszpawlowski.composecalendar.StaticCalendar
 import io.github.boguszpawlowski.composecalendar.day.Day
 import io.github.boguszpawlowski.composecalendar.rememberCalendarState
@@ -213,7 +214,7 @@ private fun DayContent(day: Day, attendanceData: AttendanceData?) {
                 modifier = Modifier
                     .fillMaxSize(0.7f)
                     .clip(CircleShape)
-                    .background(Color(0xFFFFF7E6)),
+                    .background(DarkRed.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
                 when (attendanceData?.event) {

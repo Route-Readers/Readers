@@ -36,11 +36,16 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.EmojiEvents
 import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.WorkspacePremium
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -320,13 +325,13 @@ fun ProfileContent(
                             ExpandableProfileSection(
                                 title = title,
                                 icon = when (key) {
-                                    "taste" -> Icons.Rounded.Palette
-                                    "recommended" -> Icons.Rounded.Star
-                                    "favorite" -> Icons.Rounded.Favorite
-                                    "challenges" -> Icons.Default.CheckCircle
-                                    "achievements" -> Icons.Rounded.EmojiEvents
-                                    "posts" -> Icons.Rounded.Bookmark
-                                    else -> Icons.Rounded.Bookmark
+                                    "taste" -> Icons.Rounded.AutoStories
+                                    "recommended" -> Icons.Rounded.LocalFireDepartment
+                                    "favorite" -> Icons.Rounded.FavoriteBorder
+                                    "challenges" -> Icons.Rounded.EmojiEvents
+                                    "achievements" -> Icons.Rounded.WorkspacePremium
+                                    "posts" -> Icons.Rounded.GridView
+                                    else -> Icons.Rounded.GridView
                                 },
                                 isExpanded = expandedState == key,
                                 onToggle = {
@@ -1183,28 +1188,35 @@ fun ExpandableProfileSection(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = title,
-                    tint = when (icon) {
-                        Icons.Rounded.Palette -> Color(0xFF9CCC65)
-                        Icons.Rounded.Star -> Color(0xFFEC407A)
-                        Icons.Rounded.Favorite -> Color(0xFF42A5F5)
-                        Icons.Default.CheckCircle -> Color(0xFFFFCA28)
-                        Icons.Rounded.EmojiEvents -> Color(0xFFFFA726)
-                        else -> Color.Gray
-                    }
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(DarkRed.copy(alpha = 0.08f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = title,
+                        tint = DarkRed,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Text(
+                    text = title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF1A1A1A)
                 )
-                Text(text = title, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             }
             Icon(
                 imageVector = Icons.Default.KeyboardArrowRight,
                 contentDescription = if (isExpanded) "접기" else "펼치기",
                 modifier = Modifier.rotate(rotationAngle),
-                tint = Color.Gray
+                tint = Color(0xFF9E9E9E)
             )
-        }
 
+        }
         AnimatedVisibility(visible = isExpanded) {
             Column(modifier = Modifier.padding(bottom = 16.dp)) {
                 content()

@@ -243,9 +243,7 @@ fun MyLibraryScreen(
                             }
                             refreshBooks()
                             attendanceViewModel.markReadingActivity()
-                            if (isCompleted) {
-                                showPostToFeedDialog = Pair(book, currentPage)
-                            }
+                            showPostToFeedDialog = Pair(book, currentPage)
                         } else {
                             Toast.makeText(context, "업데이트 실패. 다시 시도해주세요", Toast.LENGTH_SHORT).show()
                         }

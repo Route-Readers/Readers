@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -186,10 +187,10 @@ fun ReviewInputSection(
                 (1..5).forEach { index ->
                     IconButton(onClick = { onRatingChange(index) }) {
                         Icon(
-                            imageVector = Icons.Filled.Favorite,
+                            imageVector = Icons.Filled.Star,
                             contentDescription = "$index 점",
                             modifier = Modifier.size(36.dp),
-                            tint = if (index <= rating) DarkRed else Color.LightGray
+                            tint = if (index <= rating) Color(0xFFFFD700) else Color.LightGray
                         )
                     }
                 }

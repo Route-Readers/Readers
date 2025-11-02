@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -511,7 +512,7 @@ fun FeedCard(
                         Spacer(modifier = Modifier.height(4.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             repeat(5) { index ->
-                                Icon(imageVector = Icons.Filled.Favorite, contentDescription = null, tint = if (index < item.rating) DarkRed else Color.LightGray)
+                                Icon(imageVector = Icons.Filled.Star, contentDescription = null, tint = if (index < item.rating) Color(0xFFFFD700) else Color.LightGray)
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("${item.rating}/5", fontSize = 12.sp, color = TextGray)
@@ -558,10 +559,10 @@ fun FeedCard(
                         Spacer(modifier = Modifier.height(12.dp))
                         Button(
                             onClick = { onFollowBack(item.followerId) },
-                            colors = ButtonDefaults.buttonColors(containerColor = if (item.isFollowedBack) DarkRed else Color.Gray),
+                            colors = ButtonDefaults.buttonColors(containerColor = if (item.isFollowedBack) Color.Gray else DarkRed),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(text = if (item.isFollowedBack) "맞팔 완료" else "맞팔하기", color = White)
+                            Text(text = if (item.isFollowedBack) "팔로잉" else "맞팔하기", color = White)
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(
@@ -751,9 +752,13 @@ fun DocumentSnapshot.toFeedItem(): FeedItem? {
 
             bookReview?.copy(bookTitle = book?.title ?: bookReview.bookTitle)
         }
-        "FOLLOW_NOTIFICATION" -> this.toObject(FeedItem.FollowNotification::class.java)?.copy(
-            id = this.id
-        )
+        "FOLLOW_NOTIFICATION" -> {
+            val notification = this.toObject(FeedItem.FollowNotification::class.java)
+            notification?.copy(
+                id = this.id,
+                timestamp = getTimestamp("timestamp") ?: Timestamp.now()
+            )
+        }
         else -> null
     }
 }

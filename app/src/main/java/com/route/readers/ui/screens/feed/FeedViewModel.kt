@@ -199,7 +199,8 @@ class FeedViewModel : ViewModel() {
                 val updatedFeeds = feeds.map { feed ->
                     if (feed is FeedItem.FollowNotification) {
                         val followerName = followerInfoMap[feed.followerId]?.nickname ?: feed.userName
-                        feed.copy(userName = followerName)
+                        val isFollowedBack = followingList.contains(feed.followerId)
+                        feed.copy(userName = followerName, isFollowedBack = isFollowedBack)
                     } else {
                         feed
                     }
