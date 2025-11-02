@@ -31,6 +31,7 @@ import com.route.readers.ui.screens.login.SignUpScreen
 import com.route.readers.ui.screens.profile.AccountScreen
 import com.route.readers.ui.screens.profile.FollowListScreen
 import com.route.readers.ui.screens.profile.FollowListViewModel
+import com.route.readers.ui.screens.profile.LevelScreen
 import com.route.readers.ui.screens.profile.MyBookListScreen
 import com.route.readers.ui.screens.profile.ProfileCustomizationScreen
 import com.route.readers.ui.screens.profile.ProfileScreen
@@ -188,8 +189,7 @@ fun AppNavigation(navController: NavHostController) {
         composable("account_route") {
             AccountScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToPrivacy = {
-                }
+                onNavigateToPrivacy = {}
             )
         }
 
@@ -213,18 +213,11 @@ fun AppNavigation(navController: NavHostController) {
                     onNavigateToMyBookList = {
                         navController.navigate("my_book_list_route")
                     },
+                    onNavigateToLevel = {
+                        navController.navigate("level_route")
+                    },
                     onNavigateToCustomization = {
-                        Log.d("AppNavigation", "onNavigateToCustomization called - about to navigate")
-                        Log.d("AppNavigation", "NavController: $navController")
-                        Log.d("AppNavigation", "Current destination: ${navController.currentDestination?.route}")
-                        try {
-                            navController.navigate("profile_customization_route") {
-                                launchSingleTop = true
-                            }
-                            Log.d("AppNavigation", "Navigation to profile_customization_route completed")
-                        } catch (e: Exception) {
-                            Log.e("AppNavigation", "Navigation failed", e)
-                        }
+                        navController.navigate("profile_customization_route")
                     }
                 )
             }
@@ -289,6 +282,12 @@ fun AppNavigation(navController: NavHostController) {
 
         composable("my_book_list_route") {
             MyBookListScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("level_route") {
+            LevelScreen(
                 onBack = { navController.popBackStack() }
             )
         }
