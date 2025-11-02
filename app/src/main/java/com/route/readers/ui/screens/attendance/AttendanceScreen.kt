@@ -55,7 +55,7 @@ fun AttendanceScreen(
 ) {
     val attendanceDataMap by viewModel.attendanceData.collectAsState()
     val totalAttendanceDays by viewModel.totalAttendanceDays.collectAsState()
-    val specialRewardDays by viewModel.specialRewardDays.collectAsState()
+    val totalReadingDays by viewModel.totalReadingDays.collectAsState()
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -101,7 +101,7 @@ fun AttendanceScreen(
                             tint = Color(0xFF8B0000)
                         )
                         Text(
-                            text = "$specialRewardDays 일",
+                            text = "$totalReadingDays 일",
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.padding(start = 4.dp)
                         )

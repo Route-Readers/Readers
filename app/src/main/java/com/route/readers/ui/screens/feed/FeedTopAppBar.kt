@@ -38,7 +38,7 @@ import androidx.compose.material.icons.filled.EmojiEvents
 @Composable
 
 fun FeedTopAppBar(
-    consecutiveDays: Int,
+    consecutiveReadingDays: Int, // 파라미터 이름 변경
     onBlockListClick: () -> Unit,
     onLogoutClick: () -> Unit,
     onMyAccountClick: () -> Unit,
@@ -68,7 +68,7 @@ fun FeedTopAppBar(
         },
         actions = {
             AttendanceBadge(
-                days = consecutiveDays,
+                readingDays = consecutiveReadingDays, // 변경된 파라미터 전달
                 onClick = onAttendanceClick // 클릭 콜백 전달
             )
 
@@ -124,8 +124,8 @@ fun FeedTopAppBar(
 }
 
 @Composable
-fun AttendanceBadge(days: Int, onClick: () -> Unit) {
-    if (days > 0) {
+fun AttendanceBadge(readingDays: Int, onClick: () -> Unit) { // 파라미터 이름 변경
+    if (readingDays > 0) {
         Row(
             modifier = Modifier
                 .height(32.dp)
@@ -143,7 +143,7 @@ fun AttendanceBadge(days: Int, onClick: () -> Unit) {
                 tint = DarkRed
             )
             Text(
-                text = days.toString(),
+                text = readingDays.toString(), // 연속 독서일 표시
                 color = DarkRed,
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp
