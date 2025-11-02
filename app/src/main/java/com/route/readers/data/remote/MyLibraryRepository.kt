@@ -67,20 +67,31 @@ class MyLibraryRepository {
             
             val userChallenge = challenges.find { it.participants.contains(userId) } ?: return
             
-            when (userChallenge.type) {
-                com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING_WITH_FRIEND -> {
-                    val todayRead = checkIfReadToday()
-                    if (todayRead) {
-                        val currentProgress = userChallenge.progress[userId] ?: 0
-                        val newProgress = (currentProgress + 1).coerceAtMost(userChallenge.goal)
-                        challengeRepository.updateProgress(userChallenge.id, userId, newProgress)
+            when (userChallenge.id) {
+                "challenge_7days_reading" -> {
+                    // 7일 연속 독서: 오늘 읽었으면 +1일
+                    val currentProgress = userChallenge.progress[userId] ?: 0
+                    if (checkIfReadToday() && currentProgress < 7) {
+                        challengeRepository.updateProgress(userChallenge.id, userId, currentProgress + 1)
                     }
                 }
-                com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING -> {
+                "challenge_30pages_daily" -> {
+                    // 하루 30페이지 7일: 30페이지 읽으면 1일 달성
                     val pagesReadToday = calculatePagesReadToday()
-                    challengeRepository.updateProgress(userChallenge.id, userId, pagesReadToday)
+                    val daysCompleted = if (pagesReadToday >= 30) {
+                        val currentProgress = userChallenge.progress[userId] ?: 0
+                        (currentProgress + 1).coerceAtMost(7)
+                    } else {
+                        userChallenge.progress[userId] ?: 0
+                    }
+                    challengeRepository.updateProgress(userChallenge.id, userId, daysCompleted)
                 }
-                else -> {}
+                "challenge_1book_weekly" -> {
+                    // 1주일에 한 권: 책 완독하면 1권 달성
+                    val completedBooks = _myBooks.value.count { it.isCompleted }
+                    val booksThisWeek = if (completedBooks > 0) 1 else 0
+                    challengeRepository.updateProgress(userChallenge.id, userId, booksThisWeek)
+                }
             }
         } catch (e: Exception) {
             Log.e("MyLibraryRepository", "Error updating challenge progress: ${e.message}", e)
@@ -101,17 +112,10 @@ class MyLibraryRepository {
     }
     
     private fun calculatePagesReadToday(): Int {
-        val today = java.util.Calendar.getInstance().apply {
-            set(java.util.Calendar.HOUR_OF_DAY, 0)
-            set(java.util.Calendar.MINUTE, 0)
-            set(java.util.Calendar.SECOND, 0)
-            set(java.util.Calendar.MILLISECOND, 0)
-        }.timeInMillis
-        
+        // 오늘 읽은 페이지 수 = 현재 진행 중인 책들의 currentPage 합계
         return _myBooks.value
-            .filter { it.lastReadDate?.let { date -> date >= today } ?: false }
+            .filter { !it.isCompleted }
             .sumOf { it.currentPage }
-            .coerceAtMost(30)
     }
 
     suspend fun removeBookFromLibrary(isbn: String): Boolean {

@@ -42,7 +42,7 @@ fun SwipeableChallengeCard(
         if (userChallenge != null) ChallengeCardState.ACTIVE else ChallengeCardState.INITIAL
     ) }
     var offsetX by remember { mutableStateOf(0f) }
-    val swipeThreshold = 150f
+    val swipeThreshold = 50f // 150f에서 50f로 낮춤
 
     Box(
         modifier = Modifier
