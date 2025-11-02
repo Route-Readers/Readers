@@ -17,7 +17,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -65,8 +64,6 @@ fun SignUpScreen(
     val coroutineScope = rememberCoroutineScope()
 
     var isVerificationEmailSent by remember { mutableStateOf(false) }
-
-    val primaryRed = Color(0xFFC0392B)
 
     LaunchedEffect(isVerificationEmailSent) {
         if (isVerificationEmailSent) {
@@ -147,7 +144,7 @@ fun SignUpScreen(
                 title = {
                     Text(
                         text = "Readers",
-                        color = primaryRed,
+                        color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
                     )
                 },
@@ -160,13 +157,13 @@ fun SignUpScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
-                    titleContentColor = primaryRed,
-                    navigationIconContentColor = Color.Black
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.primary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         },
-        containerColor = Color.White
+        containerColor = MaterialTheme.colorScheme.surface
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -179,22 +176,23 @@ fun SignUpScreen(
                 Spacer(modifier = Modifier.weight(1f))
                 Text(
                     text = "이메일 인증",
-                    color = primaryRed,
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                CircularProgressIndicator(color = primaryRed)
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = "${email}으로 발송된\n인증 메일을 확인해주세요.",
                     textAlign = TextAlign.Center,
-                    lineHeight = 24.sp
+                    lineHeight = 24.sp,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = "인증 완료 시 자동으로 넘어갑니다.",
                     textAlign = TextAlign.Center,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp)
                 )
                 Spacer(modifier = Modifier.weight(1f))
@@ -203,7 +201,7 @@ fun SignUpScreen(
 
                 Text(
                     text = "회원가입",
-                    color = primaryRed,
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 36.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -211,7 +209,7 @@ fun SignUpScreen(
 
                 Text(
                     text = "Readers에 오신 것을 환영합니다!",
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center
                 )
@@ -226,10 +224,11 @@ fun SignUpScreen(
                     shape = RoundedCornerShape(16.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     isError = errorMessage?.contains("이메일") == true,
-                    colors = TextFieldDefaults.colors(
-                        focusedIndicatorColor = primaryRed,
-                        unfocusedIndicatorColor = Color.LightGray,
-                        cursorColor = primaryRed
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        cursorColor = MaterialTheme.colorScheme.primary
                     )
                 )
                 Spacer(modifier = Modifier.height(16.dp))
@@ -243,10 +242,11 @@ fun SignUpScreen(
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     isError = errorMessage?.contains("비밀번호") == true,
-                    colors = TextFieldDefaults.colors(
-                        focusedIndicatorColor = primaryRed,
-                        unfocusedIndicatorColor = Color.LightGray,
-                        cursorColor = primaryRed
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        cursorColor = MaterialTheme.colorScheme.primary
                     )
                 )
                 Spacer(modifier = Modifier.height(16.dp))
@@ -260,10 +260,11 @@ fun SignUpScreen(
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     isError = errorMessage?.contains("일치하지 않습니다") == true,
-                    colors = TextFieldDefaults.colors(
-                        focusedIndicatorColor = primaryRed,
-                        unfocusedIndicatorColor = Color.LightGray,
-                        cursorColor = primaryRed
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        cursorColor = MaterialTheme.colorScheme.primary
                     )
                 )
 
@@ -324,25 +325,25 @@ fun SignUpScreen(
                         .fillMaxWidth()
                         .height(50.dp),
                     shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = primaryRed),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     enabled = !isLoading && !isGoogleLoading
                 ) {
                     if (isLoading) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(24.dp),
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onPrimary,
                             strokeWidth = 2.dp
                         )
                     } else {
-                        Text("가입하기", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("가입하기", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    Divider(modifier = Modifier.weight(1f))
-                    Text(" 또는 ", modifier = Modifier.padding(horizontal = 8.dp), color = Color.Gray)
-                    Divider(modifier = Modifier.weight(1f))
+                    Divider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outline)
+                    Text(" 또는 ", modifier = Modifier.padding(horizontal = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Divider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outline)
                 }
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -362,14 +363,14 @@ fun SignUpScreen(
                     contentPadding = PaddingValues(0.dp),
                     border = null,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Transparent,
-                        disabledContainerColor = Color.Transparent
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        disabledContainerColor = MaterialTheme.colorScheme.surface
                     )
                 ) {
                     if (isGoogleLoading) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(32.dp),
-                            color = primaryRed,
+                            color = MaterialTheme.colorScheme.primary,
                             strokeWidth = 3.dp
                         )
                     } else {
@@ -390,7 +391,7 @@ fun SignUpScreen(
                     },
                     enabled = !isLoading && !isGoogleLoading
                 ) {
-                    Text("이미 계정이 있으신가요? 로그인", color = Color.Gray)
+                    Text("이미 계정이 있으신가요? 로그인", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
                 Spacer(modifier = Modifier.weight(1f))
@@ -401,10 +402,23 @@ fun SignUpScreen(
     }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, name = "Light Mode")
 @Composable
 fun DefaultSignUpScreenPreview() {
     ReadersTheme(darkTheme = false) {
+        SignUpScreen(
+            onSignUpSuccess = {},
+            onNavigateToLogin = {},
+            onNavigateBack = {},
+            onNavigateToHome = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Dark Mode")
+@Composable
+fun DarkSignUpScreenPreview() {
+    ReadersTheme(darkTheme = true) {
         SignUpScreen(
             onSignUpSuccess = {},
             onNavigateToLogin = {},
