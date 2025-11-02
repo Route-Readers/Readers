@@ -77,6 +77,7 @@ dependencies {
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-storage")
+    implementation("com.google.firebase:firebase-messaging")
     implementation("com.google.accompanist:accompanist-permissions:0.34.0")
 
     implementation("com.squareup.retrofit2:retrofit:2.9.0")

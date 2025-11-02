@@ -147,23 +147,20 @@ class NotificationRepository(private val context: Context? = null) {
                     ?: userDoc.getString("displayName") 
                     ?: "독서친구"
                 
-                android.util.Log.d("NotificationRepository", "User name retrieved: $userName from user: $userId")
+                // 맞팔 관계 확인 (following과 followers 교집합)
+                val following = userDoc.get("following") as? List<String> ?: emptyList()
+                val followers = userDoc.get("followers") as? List<String> ?: emptyList()
+                val mutualFollowers = following.intersect(followers.toSet()).toList()
                 
-                // 맞팔 친구들 가져오기 (following과 followers 모두에 있는 사용자)
-                val followingDoc = firestore.collection("following").document(userId).get().await()
-                val followersDoc = firestore.collection("followers").document(userId).get().await()
-                
-                val followingList = followingDoc.get("following") as? List<String> ?: emptyList()
-                val followersList = followersDoc.get("followers") as? List<String> ?: emptyList()
-                
-                // 맞팔 친구들 (서로 팔로우하는 사용자들)
-                val mutualFriends = followingList.intersect(followersList.toSet())
+                android.util.Log.d("NotificationRepository", "User: $userName, Following: ${following.size}, Followers: ${followers.size}, Mutual: ${mutualFollowers.size}")
                 
                 val title = "함께 독서해요! 📚"
                 val message = "${userName}님이 지금 책을 읽고 있어요. 함께 독서하시겠어요?"
                 
                 // 각 맞팔 친구에게 알림 보내기
-                mutualFriends.forEach { friendId ->
+                mutualFollowers.forEach { friendId ->
+                    android.util.Log.d("NotificationRepository", "Sending notification to mutual follower: $friendId")
+                    
                     // Firestore에 알림 저장
                     createNotification(
                         userId = friendId,
@@ -172,14 +169,40 @@ class NotificationRepository(private val context: Context? = null) {
                         message = message,
                         data = mapOf("fromUserId" to userId, "fromUserName" to userName)
                     )
+                    
+                    // FCM 푸시 알림 전송
+                    sendFCMNotification(friendId, title, message)
                 }
                 
-                // 로컬 알림도 표시 (테스트용)
-                notificationManager?.showReadingInvitation(title, message)
+                android.util.Log.d("NotificationRepository", "Successfully sent ${mutualFollowers.size} notifications")
                 
             } catch (e: Exception) {
                 android.util.Log.e("NotificationRepository", "Error sending reading notifications", e)
             }
+        }
+    }
+
+    private suspend fun sendFCMNotification(userId: String, title: String, message: String) {
+        try {
+            // Firestore에 알림 저장 (받는 사람의 앱에서 실시간으로 감지)
+            val notification = hashMapOf(
+                "userId" to userId,
+                "title" to title,
+                "message" to message,
+                "timestamp" to com.google.firebase.Timestamp.now(),
+                "read" to false
+            )
+            
+            firestore.collection("users")
+                .document(userId)
+                .collection("notifications")
+                .add(notification)
+                .await()
+                
+            android.util.Log.d("NotificationRepository", "Notification saved for user: $userId")
+            
+        } catch (e: Exception) {
+            android.util.Log.e("NotificationRepository", "Failed to save notification", e)
         }
     }
 
