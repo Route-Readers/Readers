@@ -249,9 +249,6 @@ fun RootAppNavigation() {
                 },
                 onNavigateToAttendance = {
                     appNavController.navigate("attendance_route")
-                },
-                onNavigateToChallenge = {
-                    appNavController.navigate("challenge_route")
                 }
             )
         }

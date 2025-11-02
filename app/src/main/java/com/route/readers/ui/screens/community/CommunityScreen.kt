@@ -34,7 +34,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import com.route.readers.data.model.BookClub
-import com.route.readers.data.model.Challenge
 import com.route.readers.data.model.ChatMessage
 import com.route.readers.ui.community.used_trade.UsedBookTradeScreen
 import com.route.readers.ui.theme.DarkRed
@@ -129,10 +128,7 @@ fun CommunityScreen(
                         onRemoveFriend = { friend -> viewModel.showDeleteConfirmation(friend) },
                         onShowCreateBookClubDialog = { showCreateBookClubDialog = true },
                         onJoinBookClub = { bookClub -> showChatScreen = bookClub },
-                        onSendNotification = { viewModel.sendReadingNotification() },
-                        onJoinChallenge = { challengeId -> viewModel.joinChallenge(challengeId) },
-                        onResetChallenge = { viewModel.resetChallenge() },
-                        currentUserId = viewModel.currentUserId
+                        onSendNotification = { viewModel.sendReadingNotification() }
                     )
                 }
             }
@@ -211,27 +207,104 @@ fun CommunityContent(
     onRemoveFriend: (Friend) -> Unit,
     onShowCreateBookClubDialog: () -> Unit,
     onJoinBookClub: (BookClub) -> Unit,
-    onSendNotification: () -> Unit,
-    onJoinChallenge: (String) -> Unit = {},
-    onResetChallenge: () -> Unit = {},
-    currentUserId: String = ""
+    onSendNotification: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp)
     ) {
         item {
-            SwipeableChallengeCard(
-                userChallenge = uiState.userActiveChallenge,
-                availableChallenges = uiState.challenges,
-                onChallengeSelected = { challenge -> onJoinChallenge(challenge.id) },
-                onChallengeReset = onResetChallenge,
-                currentUserId = currentUserId
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-        }
+            // 주간 독서 챌린지
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = DarkRed)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Send,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "주간 독서 챌린지",
+                                color = Color.White,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        Text(
+                            "2명 남음",
+                            color = Color.LightGray, // 눈에 띄게 색상 변경
+                            fontSize = 14.sp
+                        )
+                    }
 
-        item {
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        "이번 주에 책 3권 읽기",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        "내 진행률",
+                        color = Color.LightGray,
+                        fontSize = 14.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    LinearProgressIndicator(
+                        progress = { 0.67f }, // progress를 람다로 전달
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp)), // 부드러운 모서리
+                        color = Color.White,
+                        trackColor = Color.Gray
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "156명 참여 중",
+                            color = Color.LightGray,
+                            fontSize = 14.sp
+                        )
+                        Button(
+                            onClick = { /* 챌린지 참여 */ },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.White,
+                                contentColor = Color.Black
+                            ),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("챌린지 참여")
+                        }
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
 
             // 친구 섹션
@@ -1045,123 +1118,3 @@ fun AchievementCard(
     }
 }
 
-
-
-@Composable
-fun ChallengeCardInCommunity(
-    challenge: com.route.readers.data.model.Challenge,
-    onJoinClick: () -> Unit
-) {
-    val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
-    val isJoined = challenge.participants.contains(currentUserId)
-    
-    val daysRemaining = challenge.endDate?.let {
-        val diff = it.time - System.currentTimeMillis()
-        java.util.concurrent.TimeUnit.MILLISECONDS.toDays(diff).toInt()
-    } ?: 0
-    
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkRed)
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Send,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "주간 독서 챌린지",
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-                Text(
-                    "${daysRemaining}일 남음",
-                    color = Color.LightGray,
-                    fontSize = 14.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                challenge.title,
-                color = Color.White,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            if (isJoined) {
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    "내 진행률",
-                    color = Color.LightGray,
-                    fontSize = 14.sp
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                val userProgress = challenge.progress[currentUserId] ?: 0
-                val progress = if (challenge.goal > 0) userProgress.toFloat() / challenge.goal.toFloat() else 0f
-
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(8.dp)
-                        .clip(RoundedCornerShape(4.dp)),
-                    color = Color.White,
-                    trackColor = Color.Gray
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Text(
-                    "${userProgress} / ${challenge.goal} (${(progress * 100).toInt()}%)",
-                    color = Color.LightGray,
-                    fontSize = 14.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "${challenge.participants.size}명 참여 중",
-                    color = Color.LightGray,
-                    fontSize = 14.sp
-                )
-                if (!isJoined) {
-                    Button(
-                        onClick = onJoinClick,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.White,
-                            contentColor = Color.Black
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("챌린지 참여")
-                    }
-                }
-            }
-        }
-    }
-}

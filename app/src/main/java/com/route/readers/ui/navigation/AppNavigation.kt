@@ -38,7 +38,6 @@ import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.profile.ProfileSetupScreen
 import com.route.readers.ui.screens.profile.ProfileUiState
 import com.route.readers.ui.screens.profile.ProfileViewModel
-import com.route.readers.ui.screens.challenge.ChallengeScreen
 import java.net.URLDecoder
 import java.net.URLEncoder
 
@@ -183,9 +182,6 @@ fun AppNavigation(navController: NavHostController) {
                 },
                 onNavigateToAttendance = {
                     navController.navigate("attendance_route")
-                },
-                onNavigateToChallenge = {
-                    navController.navigate("challenge_route")
                 }
             )
         }
@@ -311,10 +307,6 @@ fun AppNavigation(navController: NavHostController) {
                 },
                 viewModel = attendanceViewModel
             )
-        }
-
-        composable("challenge_route") {
-            ChallengeScreen()
         }
     }
 }
