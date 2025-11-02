@@ -130,7 +130,9 @@ fun CommunityScreen(
                         onShowCreateBookClubDialog = { showCreateBookClubDialog = true },
                         onJoinBookClub = { bookClub -> showChatScreen = bookClub },
                         onSendNotification = { viewModel.sendReadingNotification() },
-                        onJoinChallenge = { challengeId -> viewModel.joinChallenge(challengeId) }
+                        onJoinChallenge = { challengeId -> viewModel.joinChallenge(challengeId) },
+                        onResetChallenge = { viewModel.resetChallenge() },
+                        currentUserId = viewModel.currentUserId
                     )
                 }
             }
@@ -210,18 +212,23 @@ fun CommunityContent(
     onShowCreateBookClubDialog: () -> Unit,
     onJoinBookClub: (BookClub) -> Unit,
     onSendNotification: () -> Unit,
-    onJoinChallenge: (String) -> Unit = {}
+    onJoinChallenge: (String) -> Unit = {},
+    onResetChallenge: () -> Unit = {},
+    currentUserId: String = ""
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp)
     ) {
-        items(uiState.challenges) { challenge ->
-            ChallengeCardInCommunity(
-                challenge = challenge,
-                onJoinClick = { onJoinChallenge(challenge.id) }
+        item {
+            SwipeableChallengeCard(
+                userChallenge = uiState.userActiveChallenge,
+                availableChallenges = uiState.challenges,
+                onChallengeSelected = { challenge -> onJoinChallenge(challenge.id) },
+                onChallengeReset = onResetChallenge,
+                currentUserId = currentUserId
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
         }
 
         item {

@@ -47,6 +47,9 @@ class MyLibraryRepository {
             if (success) {
                 syncWithFirestore()
                 WidgetUpdateHelper.updateAllWidgets()
+                
+                // 챌린지 진행률 업데이트
+                updateChallengeProgress()
             }
 
             success
@@ -54,6 +57,61 @@ class MyLibraryRepository {
             Log.e("MyLibraryRepository", "Error updating progress: ${e.message}", e)
             false
         }
+    }
+    
+    private suspend fun updateChallengeProgress() {
+        try {
+            val userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: return
+            val challengeRepository = ChallengeRepository()
+            val challenges = challengeRepository.getChallenges()
+            
+            val userChallenge = challenges.find { it.participants.contains(userId) } ?: return
+            
+            when (userChallenge.type) {
+                com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING_WITH_FRIEND -> {
+                    val todayRead = checkIfReadToday()
+                    if (todayRead) {
+                        val currentProgress = userChallenge.progress[userId] ?: 0
+                        val newProgress = (currentProgress + 1).coerceAtMost(userChallenge.goal)
+                        challengeRepository.updateProgress(userChallenge.id, userId, newProgress)
+                    }
+                }
+                com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING -> {
+                    val pagesReadToday = calculatePagesReadToday()
+                    challengeRepository.updateProgress(userChallenge.id, userId, pagesReadToday)
+                }
+                else -> {}
+            }
+        } catch (e: Exception) {
+            Log.e("MyLibraryRepository", "Error updating challenge progress: ${e.message}", e)
+        }
+    }
+    
+    private fun checkIfReadToday(): Boolean {
+        val today = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        
+        return _myBooks.value.any { book ->
+            book.lastReadDate?.let { it >= today } ?: false
+        }
+    }
+    
+    private fun calculatePagesReadToday(): Int {
+        val today = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        
+        return _myBooks.value
+            .filter { it.lastReadDate?.let { date -> date >= today } ?: false }
+            .sumOf { it.currentPage }
+            .coerceAtMost(30)
     }
 
     suspend fun removeBookFromLibrary(isbn: String): Boolean {

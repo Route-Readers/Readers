@@ -62,4 +62,18 @@ class ChallengeRepository {
             e.printStackTrace()
         }
     }
+    
+    suspend fun leaveChallenge(challengeId: String, userId: String) {
+        try {
+            val docRef = challengesCollection.document(challengeId)
+            docRef.update(
+                mapOf(
+                    "participants" to FieldValue.arrayRemove(userId),
+                    "progress.$userId" to FieldValue.delete()
+                )
+            ).await()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 }
