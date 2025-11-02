@@ -21,6 +21,7 @@ data class User(
     val blockedUsers: List<String> = emptyList(),
     val level: Int = 1,
     val totalPoints: Int = 0,
+    val claimedAchievements: List<String> = emptyList(),
 
     val followers: List<String> = emptyList(),
     val following: List<String> = emptyList(),

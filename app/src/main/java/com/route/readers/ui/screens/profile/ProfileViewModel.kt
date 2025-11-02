@@ -38,7 +38,6 @@ data class Achievement(
         get() = currentProgress >= targetProgress
 }
 
-
 open class ProfileViewModel : ViewModel() {
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
@@ -130,6 +129,7 @@ open class ProfileViewModel : ViewModel() {
             "blockedUsers" to emptyList<String>(),
             "level" to 1,
             "totalPoints" to 0,
+            "claimedAchievements" to emptyList<String>(),
             "followerCount" to 0,
             "followingCount" to 0,
             "readBookCount" to 0,
@@ -302,6 +302,36 @@ open class ProfileViewModel : ViewModel() {
             } catch (e: Exception) {
                 _uiState.value = ProfileUiState.Error("프로필을 불러오는 중 오류가 발생했습니다: ${e.message}")
                 Log.e("ProfileViewModel", "fetchUserProfile failed", e)
+            }
+        }
+    }
+
+    fun claimAchievementPoints(achievementId: String, points: Int) {
+        val currentUserId = this.currentUserId ?: return
+        val currentState = _uiState.value
+        if (currentState !is ProfileUiState.Success) return
+
+        viewModelScope.launch {
+            try {
+                val userRef = db.collection("users").document(currentUserId)
+
+                db.runTransaction { transaction ->
+                    val snapshot = transaction.get(userRef)
+                    val currentPoints = snapshot.getLong("totalPoints")?.toInt() ?: 0
+                    val newTotalPoints = currentPoints + points
+
+                    transaction.update(userRef, "totalPoints", newTotalPoints)
+                    transaction.update(userRef, "claimedAchievements", FieldValue.arrayUnion(achievementId))
+                }.await()
+
+                val updatedUser = currentState.user.copy(
+                    totalPoints = currentState.user.totalPoints + points,
+                    claimedAchievements = currentState.user.claimedAchievements + achievementId
+                )
+                _uiState.value = currentState.copy(user = updatedUser)
+
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Failed to claim achievement points", e)
             }
         }
     }

@@ -18,6 +18,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -51,15 +53,13 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.firebase.auth.FirebaseAuth
 
-// 레벨 정보를 담는 데이터 클래스
 data class LevelInfo(
     val currentLevel: Int,
     val currentPoints: Int,
     val pointsForNextLevel: Int,
-    val totalPointsForCurrentLevel: Int // 현재 레벨이 되기 위해 필요한 총 경험치
+    val totalPointsForCurrentLevel: Int
 )
 
-// 총 경험치를 기반으로 레벨 정보를 계산하는 함수
 fun calculateLevelInfo(totalPoints: Int): LevelInfo {
     val xpPerLevel = 100
     var currentLevel = 1
@@ -70,7 +70,7 @@ fun calculateLevelInfo(totalPoints: Int): LevelInfo {
         accumulatedPoints += pointsNeededForNext
         currentLevel++
         pointsNeededForNext += xpPerLevel
-        if (currentLevel >= 10) break // 최대 레벨 10 제한
+        if (currentLevel >= 10) break
     }
 
     if (currentLevel >= 10) {
@@ -132,14 +132,19 @@ fun LevelScreen(
         ) {
             when (val state = uiState) {
                 is ProfileUiState.Success -> {
-                    // 사용자 데이터로부터 레벨 정보 계산
                     val levelInfo = calculateLevelInfo(state.user.totalPoints)
                     LevelInfoCard(
                         currentLevel = levelInfo.currentLevel,
                         currentPoints = levelInfo.currentPoints,
                         pointsForNextLevel = levelInfo.pointsForNextLevel
                     )
-                    AchievementsSection(readBookCount = state.readBooks.size)
+                    AchievementsSection(
+                        readBookCount = state.readBooks.size,
+                        claimedAchievements = state.user.claimedAchievements,
+                        onClaimPoints = { achievementId, points ->
+                            viewModel.claimAchievementPoints(achievementId, points)
+                        }
+                    )
                 }
                 is ProfileUiState.Loading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -259,17 +264,32 @@ fun LevelInfoCard(
 }
 
 @Composable
-fun AchievementsSection(readBookCount: Int) {
+fun AchievementsSection(
+    readBookCount: Int,
+    claimedAchievements: List<String>,
+    onClaimPoints: (String, Int) -> Unit
+) {
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabs = listOf("진행 중", "완료")
     val darkRed = Color(0xFFC62828)
 
-    val allAchievements = listOf(
-        Achievement("read_1", "책 1권 읽기", "1권의 책을 완독하세요", readBookCount, 1),
-        Achievement("read_10", "책 10권 읽기", "10권의 책을 완독하세요", readBookCount, 10),
-        Achievement("read_50", "책 50권 읽기", "50권의 책을 완독하세요", readBookCount, 50),
-        Achievement("read_100", "책 100권 읽기", "100권의 책을 완독하세요", readBookCount, 100)
+    val achievementPoints = mapOf(
+        "read_1" to 50,
+        "read_10" to 100,
+        "read_50" to 200,
+        "read_100" to 500
     )
+
+    val allAchievements = achievementPoints.keys.map { id ->
+        val target = id.split("_").last().toInt()
+        Achievement(
+            id = id,
+            title = "책 ${target}권 읽기",
+            description = "${target}권의 책을 완독하세요",
+            currentProgress = readBookCount,
+            targetProgress = target
+        )
+    }
 
     val inProgress = allAchievements.filter { !it.isCompleted }
     val completed = allAchievements.filter { it.isCompleted }
@@ -318,7 +338,13 @@ fun AchievementsSection(readBookCount: Int) {
                 )
             } else {
                 achievementsToShow.forEach { achievement ->
-                    AchievementItem(achievement = achievement)
+                    val points = achievementPoints[achievement.id] ?: 0
+                    AchievementItem(
+                        achievement = achievement,
+                        points = points,
+                        isClaimed = claimedAchievements.contains(achievement.id),
+                        onClaimPoints = { onClaimPoints(achievement.id, points) }
+                    )
                 }
             }
         }
@@ -326,7 +352,12 @@ fun AchievementsSection(readBookCount: Int) {
 }
 
 @Composable
-fun AchievementItem(achievement: Achievement) {
+fun AchievementItem(
+    achievement: Achievement,
+    points: Int,
+    isClaimed: Boolean,
+    onClaimPoints: () -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -373,6 +404,21 @@ fun AchievementItem(achievement: Achievement) {
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.Gray
             )
+
+            if (achievement.isCompleted) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = onClaimPoints,
+                    enabled = !isClaimed,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isClaimed) Color.LightGray else Color(0xFFC62828),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text(if (isClaimed) "획득 완료" else "$points 포인트 받기")
+                }
+            }
         }
     }
 }
@@ -407,19 +453,20 @@ fun LevelIndicator(level: Int, isFilled: Boolean) {
 @Preview(showBackground = true, backgroundColor = 0xFFF0F0F0)
 @Composable
 fun LevelScreenPreview() {
-    // Preview에서는 ViewModel이 없으므로 직접 상태를 전달합니다.
     Column(
         modifier = Modifier.padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        // 예시: 550 경험치를 가진 사용자의 레벨 정보
         val levelInfo = calculateLevelInfo(550)
         LevelInfoCard(
             currentLevel = levelInfo.currentLevel,
             currentPoints = levelInfo.currentPoints,
             pointsForNextLevel = levelInfo.pointsForNextLevel
         )
-        // 예시: 25권의 책을 읽은 사용자의 업적
-        AchievementsSection(readBookCount = 25)
+        AchievementsSection(
+            readBookCount = 25,
+            claimedAchievements = listOf("read_1", "read_10"),
+            onClaimPoints = { _, _ -> }
+        )
     }
 }
