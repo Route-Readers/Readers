@@ -9,7 +9,6 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.route.readers.data.model.Book
-// import com.route.readers.data.model.Challenge // 더 이상 사용하지 않으므로 삭제
 import com.route.readers.data.model.MyBook
 import com.route.readers.data.model.User
 import com.route.readers.data.remote.BookRepository
@@ -130,6 +129,7 @@ open class ProfileViewModel : ViewModel() {
             "savedFeeds" to emptyList<String>(),
             "blockedUsers" to emptyList<String>(),
             "level" to 1,
+            "totalPoints" to 0,
             "followerCount" to 0,
             "followingCount" to 0,
             "readBookCount" to 0,
@@ -296,8 +296,6 @@ open class ProfileViewModel : ViewModel() {
                         myLibraryBooks = myLibraryBooks,
                         userInfoMap = userInfoMap
                     )
-                    // ▲▲▲ 여기까지 수정 ▲▲▲
-
                 } else {
                     _uiState.value = ProfileUiState.Error("프로필 정보를 변환하는 데 실패했습니다.")
                 }

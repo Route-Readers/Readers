@@ -51,6 +51,47 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.firebase.auth.FirebaseAuth
 
+// 레벨 정보를 담는 데이터 클래스
+data class LevelInfo(
+    val currentLevel: Int,
+    val currentPoints: Int,
+    val pointsForNextLevel: Int,
+    val totalPointsForCurrentLevel: Int // 현재 레벨이 되기 위해 필요한 총 경험치
+)
+
+// 총 경험치를 기반으로 레벨 정보를 계산하는 함수
+fun calculateLevelInfo(totalPoints: Int): LevelInfo {
+    val xpPerLevel = 100
+    var currentLevel = 1
+    var pointsNeededForNext = xpPerLevel
+    var accumulatedPoints = 0
+
+    while (totalPoints >= accumulatedPoints + pointsNeededForNext) {
+        accumulatedPoints += pointsNeededForNext
+        currentLevel++
+        pointsNeededForNext += xpPerLevel
+        if (currentLevel >= 10) break // 최대 레벨 10 제한
+    }
+
+    if (currentLevel >= 10) {
+        val maxLevelPoints = accumulatedPoints + pointsNeededForNext
+        return LevelInfo(
+            currentLevel = 10,
+            currentPoints = totalPoints.coerceAtMost(maxLevelPoints),
+            pointsForNextLevel = maxLevelPoints,
+            totalPointsForCurrentLevel = accumulatedPoints
+        )
+    }
+
+    return LevelInfo(
+        currentLevel = currentLevel,
+        currentPoints = totalPoints - accumulatedPoints,
+        pointsForNextLevel = pointsNeededForNext,
+        totalPointsForCurrentLevel = accumulatedPoints
+    )
+}
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LevelScreen(
@@ -60,7 +101,6 @@ fun LevelScreen(
     val uiState by viewModel.uiState.collectAsState()
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
 
-    // ViewModel에서 사용자 프로필 데이터를 가져옵니다.
     LaunchedEffect(key1 = currentUserId) {
         if (currentUserId != null) {
             viewModel.fetchUserProfile(currentUserId)
@@ -90,27 +130,24 @@ fun LevelScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            LevelInfoCard(
-                currentLevel = 2,
-                currentPoints = 5200,
-                pointsForNextLevel = 6000
-            )
-
-            // UI 상태에 따라 업적 섹션 또는 로딩/에러 메시지를 표시합니다.
             when (val state = uiState) {
                 is ProfileUiState.Success -> {
+                    // 사용자 데이터로부터 레벨 정보 계산
+                    val levelInfo = calculateLevelInfo(state.user.totalPoints)
+                    LevelInfoCard(
+                        currentLevel = levelInfo.currentLevel,
+                        currentPoints = levelInfo.currentPoints,
+                        pointsForNextLevel = levelInfo.pointsForNextLevel
+                    )
                     AchievementsSection(readBookCount = state.readBooks.size)
                 }
                 is ProfileUiState.Loading -> {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().padding(top = 40.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
                     }
                 }
                 is ProfileUiState.Error -> {
-                    Text(text = "업적 정보를 불러오는 데 실패했습니다: ${state.message}")
+                    Text(text = "사용자 정보를 불러오는 데 실패했습니다: ${state.message}")
                 }
             }
         }
@@ -123,8 +160,8 @@ fun LevelInfoCard(
     currentPoints: Int,
     pointsForNextLevel: Int
 ) {
-    val pointsToNext = pointsForNextLevel - currentPoints
-    val progress = currentPoints.toFloat() / pointsForNextLevel.toFloat()
+    val pointsToNext = (pointsForNextLevel - currentPoints).coerceAtLeast(0)
+    val progress = if (pointsForNextLevel > 0) currentPoints.toFloat() / pointsForNextLevel.toFloat() else 0f
     val darkRed = Color(0xFFC62828)
 
     Card(
@@ -157,14 +194,16 @@ fun LevelInfoCard(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = "Level $currentLevel",
+                        text = if (currentLevel >= 10) "Level $currentLevel (MAX)" else "Level $currentLevel",
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                     )
-                    Text(
-                        text = "$pointsToNext points to next level",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray
-                    )
+                    if (currentLevel < 10) {
+                        Text(
+                            text = "$pointsToNext points to next level",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.Gray
+                        )
+                    }
                 }
             }
 
@@ -187,7 +226,9 @@ fun LevelInfoCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     LevelIndicator(level = currentLevel, isFilled = true)
-                    LevelIndicator(level = currentLevel + 1, isFilled = false)
+                    if (currentLevel < 10) {
+                        LevelIndicator(level = currentLevel + 1, isFilled = false)
+                    }
                 }
 
                 Row(
@@ -223,7 +264,6 @@ fun AchievementsSection(readBookCount: Int) {
     val tabs = listOf("진행 중", "완료")
     val darkRed = Color(0xFFC62828)
 
-    // 읽은 책 수(readBookCount)를 기반으로 업적 리스트를 동적으로 생성합니다.
     val allAchievements = listOf(
         Achievement("read_1", "책 1권 읽기", "1권의 책을 완독하세요", readBookCount, 1),
         Achievement("read_10", "책 10권 읽기", "10권의 책을 완독하세요", readBookCount, 10),
@@ -310,7 +350,6 @@ fun AchievementItem(achievement: Achievement) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 진행률 계산 시, 현재 진행도가 목표치를 넘지 않도록 조정
             val currentProgressClamped = achievement.currentProgress.coerceAtMost(achievement.targetProgress)
             val progress = currentProgressClamped.toFloat() / achievement.targetProgress.toFloat()
             val progressPercentage = (progress * 100).toInt()
@@ -368,5 +407,19 @@ fun LevelIndicator(level: Int, isFilled: Boolean) {
 @Preview(showBackground = true, backgroundColor = 0xFFF0F0F0)
 @Composable
 fun LevelScreenPreview() {
-    LevelScreen(onBack = {})
+    // Preview에서는 ViewModel이 없으므로 직접 상태를 전달합니다.
+    Column(
+        modifier = Modifier.padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        // 예시: 550 경험치를 가진 사용자의 레벨 정보
+        val levelInfo = calculateLevelInfo(550)
+        LevelInfoCard(
+            currentLevel = levelInfo.currentLevel,
+            currentPoints = levelInfo.currentPoints,
+            pointsForNextLevel = levelInfo.pointsForNextLevel
+        )
+        // 예시: 25권의 책을 읽은 사용자의 업적
+        AchievementsSection(readBookCount = 25)
+    }
 }
