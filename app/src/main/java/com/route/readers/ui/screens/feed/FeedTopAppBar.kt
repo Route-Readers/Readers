@@ -31,15 +31,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.route.readers.R
 import com.route.readers.ui.theme.DarkRed
+import androidx.compose.material.icons.filled.EmojiEvents
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+
 fun FeedTopAppBar(
     consecutiveDays: Int,
     onBlockListClick: () -> Unit,
     onLogoutClick: () -> Unit,
     onMyAccountClick: () -> Unit,
-    onAttendanceClick: () -> Unit // 기록 페이지 이동 콜백 추가
+    onAttendanceClick: () -> Unit, // 기록 페이지 이동 콜백 추가
+    onNavigateToChallenge: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
@@ -53,7 +57,6 @@ fun FeedTopAppBar(
                     contentDescription = "Readers Logo",
                     modifier = Modifier.size(32.dp) // 크기를 약간 키워서 보기 좋게 조절
                 )
-                // ▲▲▲ 핵심 수정 부분 ▲▲▲
 
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -69,6 +72,14 @@ fun FeedTopAppBar(
                 days = consecutiveDays,
                 onClick = onAttendanceClick // 클릭 콜백 전달
             )
+
+            IconButton(onClick = onNavigateToChallenge) {
+                Icon(
+                    imageVector = Icons.Default.EmojiEvents,
+                    contentDescription = "챌린지",
+                    tint = Color.Gray
+                )
+            }
 
             Box {
                 IconButton(onClick = { menuExpanded = true }) {
