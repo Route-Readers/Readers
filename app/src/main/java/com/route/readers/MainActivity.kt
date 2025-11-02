@@ -1,6 +1,7 @@
 package com.route.readers
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -84,6 +85,7 @@ class MainActivity : ComponentActivity() {
         } else {
             DailyNotificationScheduler.scheduleDailyNotification(this)
         }
+        setupNotificationListener()
         setContent {
             val appNavController = rememberNavController()
             ReadersTheme {
@@ -98,7 +100,59 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+
+    private fun setupNotificationListener() {
+        val currentUserId =
+            com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: return
+
+        com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            .collection("users")
+            .document(currentUserId)
+            .collection("notifications")
+            .whereEqualTo("read", false)
+            .addSnapshotListener { snapshots, error ->
+                if (error != null) return@addSnapshotListener
+
+                snapshots?.documentChanges?.forEach { change ->
+                    if (change.type == com.google.firebase.firestore.DocumentChange.Type.ADDED) {
+                        val data = change.document.data
+                        val title = data["title"] as? String ?: "알림"
+                        val message = data["message"] as? String ?: ""
+
+                        showLocalNotification(title, message)
+                        change.document.reference.update("read", true)
+                    }
+                }
+            }
+    }
+
+    private fun showLocalNotification(title: String, message: String) {
+        val notificationManager =
+            getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = android.app.NotificationChannel(
+                "reading_notifications",
+                "독서 알림",
+                android.app.NotificationManager.IMPORTANCE_HIGH
+            )
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        val notification =
+            androidx.core.app.NotificationCompat.Builder(this, "reading_notifications")
+                .setSmallIcon(R.drawable.ic_notification)
+                .setContentTitle(title)
+                .setContentText(message)
+                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+                .setAutoCancel(true)
+                .build()
+
+        notificationManager.notify(System.currentTimeMillis().toInt(), notification)
+    }
 }
+
 
 @Composable
 fun RootAppNavigation() {
