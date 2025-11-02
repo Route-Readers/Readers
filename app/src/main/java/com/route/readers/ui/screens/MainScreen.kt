@@ -53,7 +53,8 @@ fun MainScreen(
     onNavigateToOtherUserProfile: (String) -> Unit,
     onNavigateToAddFeed: () -> Unit,
     onNavigateToMyAccount: () -> Unit,
-    onNavigateToAttendance: () -> Unit
+    onNavigateToAttendance: () -> Unit,
+    onNavigateToChallenge: () -> Unit
 ) {
     val bottomNavController = rememberNavController()
     val mainViewModel: MainViewModel = viewModel()
@@ -99,7 +100,8 @@ fun MainScreen(
                     onBlockListClick = { bottomNavController.navigate("blockList") },
                     onLogoutClick = { showLogoutDialog = true },
                     onMyAccountClick = onNavigateToMyAccount,
-                    onAttendanceClick = onNavigateToAttendance
+                    onAttendanceClick = onNavigateToAttendance,
+                    onNavigateToChallenge = onNavigateToChallenge
                 )
             }
         },

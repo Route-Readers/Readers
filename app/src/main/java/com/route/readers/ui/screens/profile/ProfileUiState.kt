@@ -16,6 +16,7 @@ sealed class ProfileUiState {
         val isBlocked: Boolean,
         val recommendedBooks: List<Book>,
         val favoriteBooks: List<Book>,
+        val achievements: List<Achievement>,
         val ongoingChallenges: List<Challenge>,
         val completedChallenges: List<Challenge>,
         val ongoingAchievements: List<Achievement>,
