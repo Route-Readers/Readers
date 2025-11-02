@@ -50,8 +50,7 @@ fun FeedTopAppBar(
     TopAppBar(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // ▼▼▼ 핵심 수정 부분 ▼▼▼
-                // 적응형 아이콘(XML) 대신 실제 이미지인 foreground 리소스를 사용합니다.
+
                 Image(
                     painter = painterResource(id = R.mipmap.app_icon_foreground),
                     contentDescription = "Readers Logo",
@@ -125,13 +124,13 @@ fun FeedTopAppBar(
 }
 
 @Composable
-fun AttendanceBadge(days: Int, onClick: () -> Unit) { // onClick 파라미터 추가
+fun AttendanceBadge(days: Int, onClick: () -> Unit) {
     if (days > 0) {
         Row(
             modifier = Modifier
                 .height(32.dp)
                 .clip(CircleShape)
-                .background(Color(0xFFFFF7E6))
+                .background(DarkRed.copy(alpha = 0.1f))
                 .clickable(onClick = onClick) // 클릭 가능하도록 설정
                 .padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
