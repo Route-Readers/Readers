@@ -96,15 +96,17 @@ class MainActivity : ComponentActivity() {
             DailyNotificationScheduler.scheduleDailyNotification(this)
         }
         setContent {
-            val appNavController = rememberNavController()
-            val isDarkMode by accountViewModel.isDarkMode.collectAsState(initial = isSystemInDarkTheme())
+            val isSystemInDark = isSystemInDarkTheme()
+            val isDarkMode by accountViewModel.isDarkMode.collectAsState()
 
-            ReadersTheme(darkTheme = isDarkMode) {
-                CompositionLocalProvider(LocalAppNavController provides appNavController) {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.background
-                    ) {
+            LaunchedEffect(isSystemInDark) {
+                accountViewModel.syncWithSystemTheme(isSystemInDark)
+            }
+
+            ReadersTheme(darkTheme = isDarkMode ?: isSystemInDark) {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    val appNavController = rememberNavController()
+                    CompositionLocalProvider(LocalAppNavController provides appNavController) {
                         RootAppNavigation(accountViewModel = accountViewModel)
                     }
                 }

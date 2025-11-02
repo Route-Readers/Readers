@@ -39,6 +39,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -62,8 +63,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.route.readers.ui.theme.DarkRed
-import com.route.readers.ui.theme.TextGray
-import com.route.readers.ui.theme.White
 
 enum class MenuItemType {
     PRIVACY,
@@ -138,9 +137,9 @@ fun AccountScreen(
             subtitle = "서비스 이용 약관 확인",
             icon = Icons.Default.Description,
             onClick = {
-                // val url = "https://your.terms.url"
-                // val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                // context.startActivity(intent)
+                val url = "https://route-page.vercel.app/6"
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                context.startActivity(intent)
             }
         ),
         AccountMenuItem(
@@ -157,7 +156,7 @@ fun AccountScreen(
                 try {
                     context.startActivity(emailIntent)
                 } catch (e: Exception) {
-                    // 이메일 앱이 없는 경우 처리
+                    // No email app found
                 }
             }
         )
@@ -176,12 +175,13 @@ fun AccountScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = White,
-                    titleContentColor = Color.Black
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         },
-        containerColor = Color(0xFFF5F5F5)
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         when (val state = uiState) {
             is ProfileUiState.Loading -> {
@@ -199,6 +199,7 @@ fun AccountScreen(
             is ProfileUiState.Success -> {
                 LazyColumn(
                     modifier = Modifier
+                        .fillMaxSize()
                         .padding(paddingValues)
                         .padding(horizontal = 16.dp),
                     contentPadding = PaddingValues(vertical = 16.dp),
@@ -219,7 +220,7 @@ fun AccountScreen(
                                     )
                                 ) {
                                     PrivacyToggle(
-                                        isPrivate = state.user.isPrivate,
+                                        isPrivate = state.user.isPrivate ?: false,
                                         onToggle = { newState ->
                                             viewModel.updateUserPrivacySetting(newState)
                                         },
@@ -267,7 +268,7 @@ fun AccountScreen(
                                     )
                                 ) {
                                     DarkModeToggle(
-                                        isDarkMode = isDarkMode,
+                                        isDarkMode = isDarkMode ?: false,
                                         onToggle = onDarkModeChange
                                     )
                                 }
@@ -286,7 +287,7 @@ fun AccountMenuItemCard(item: AccountMenuItem) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(White)
+            .background(MaterialTheme.colorScheme.surface)
             .clickable(onClick = item.onClick)
             .padding(horizontal = 20.dp, vertical = 24.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -309,20 +310,20 @@ fun AccountMenuItemCard(item: AccountMenuItem) {
                 text = item.title,
                 fontWeight = FontWeight.Bold,
                 fontSize = 17.sp,
-                color = Color.Black
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = item.subtitle,
                 fontSize = 14.sp,
-                color = TextGray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
         Icon(
             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
-            tint = TextGray.copy(alpha = 0.7f),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             modifier = Modifier.size(28.dp)
         )
     }
@@ -339,7 +340,7 @@ fun PrivacyToggle(
             .padding(top = 2.dp)
             .fillMaxWidth()
             .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
-            .background(White)
+            .background(MaterialTheme.colorScheme.surface)
             .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
         Row(
@@ -351,7 +352,7 @@ fun PrivacyToggle(
                 text = "비공개 계정",
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 16.sp,
-                color = if (enabled) Color.Black else Color.Gray
+                color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
             )
 
             Switch(
@@ -364,21 +365,21 @@ fun PrivacyToggle(
                         contentDescription = null,
                         modifier = Modifier.size(SwitchDefaults.IconSize),
                         tint = if (enabled) {
-                            if (isPrivate) DarkRed else Color.Gray
+                            if (isPrivate) DarkRed else MaterialTheme.colorScheme.onSurfaceVariant
                         } else {
-                            Color.LightGray
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                         }
                     )
                 },
                 colors = SwitchDefaults.colors(
                     checkedTrackColor = DarkRed.copy(alpha = 0.5f),
-                    uncheckedTrackColor = Color.LightGray,
-                    checkedThumbColor = White,
-                    uncheckedThumbColor = White,
+                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                    uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     checkedBorderColor = Color.Transparent,
                     uncheckedBorderColor = Color.Transparent,
                     disabledCheckedTrackColor = DarkRed.copy(alpha = 0.2f),
-                    disabledUncheckedTrackColor = Color.LightGray.copy(alpha = 0.5f)
+                    disabledUncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                 )
             )
         }
@@ -395,7 +396,7 @@ fun DarkModeToggle(
             .padding(top = 2.dp)
             .fillMaxWidth()
             .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
-            .background(White)
+            .background(MaterialTheme.colorScheme.surface)
             .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
         Row(
@@ -407,7 +408,7 @@ fun DarkModeToggle(
                 text = "다크 모드",
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 16.sp,
-                color = Color.Black
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             Switch(
@@ -415,9 +416,9 @@ fun DarkModeToggle(
                 onCheckedChange = onToggle,
                 colors = SwitchDefaults.colors(
                     checkedTrackColor = DarkRed.copy(alpha = 0.5f),
-                    uncheckedTrackColor = Color.LightGray,
-                    checkedThumbColor = White,
-                    uncheckedThumbColor = White,
+                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                    uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     checkedBorderColor = Color.Transparent,
                     uncheckedBorderColor = Color.Transparent
                 )
