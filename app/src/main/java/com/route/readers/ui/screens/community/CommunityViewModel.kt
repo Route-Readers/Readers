@@ -3,13 +3,17 @@ package com.route.readers.ui.screens.community
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.FirebaseAuth
+import com.route.readers.data.model.Challenge
 import com.route.readers.data.remote.AddFriendResult
+import com.route.readers.data.remote.ChallengeRepository
 import com.route.readers.data.remote.FriendsRepository
 import com.route.readers.data.remote.NotificationRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.concurrent.TimeUnit
 
 data class Friend(
     val id: String = "",
@@ -21,8 +25,7 @@ data class Friend(
 
 data class CommunityUiState(
     val friends: List<Friend> = emptyList(),
-    val challengeProgress: Float = 0.67f,
-    val challengeParticipants: Int = 156,
+    val challenges: List<Challenge> = emptyList(),
     val addFriendMessage: String? = null,
     val friendToDelete: Friend? = null,
     val isNotificationSending: Boolean = false
@@ -34,6 +37,8 @@ data class CommunityUiState(
 class CommunityViewModel(context: Context? = null) : ViewModel() {
     private val friendsRepository = FriendsRepository()
     private val notificationRepository = NotificationRepository(context)
+    private val challengeRepository = ChallengeRepository()
+    private val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
     
     private val _uiState = MutableStateFlow(CommunityUiState())
     val uiState: StateFlow<CommunityUiState> = _uiState.asStateFlow()
@@ -45,11 +50,46 @@ class CommunityViewModel(context: Context? = null) : ViewModel() {
             }
         }
         loadFriends()
+        loadChallenges()
     }
     
     private fun loadFriends() {
         viewModelScope.launch {
             friendsRepository.loadFriends()
+        }
+    }
+    
+    private fun loadChallenges() {
+        viewModelScope.launch {
+            val challenges = challengeRepository.getChallenges()
+            // 테스트용 더미 데이터 추가 (Firestore에 데이터가 없을 경우)
+            val finalChallenges = if (challenges.isEmpty()) {
+                listOf(
+                    Challenge(
+                        id = "test_challenge_1",
+                        title = "7일 연속 독서 챌린지",
+                        description = "친구와 함께 7일 연속으로 책을 읽어보세요!",
+                        type = com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING_WITH_FRIEND,
+                        participants = listOf(),
+                        goal = 7,
+                        progress = emptyMap(),
+                        startDate = java.util.Date(),
+                        endDate = java.util.Date(System.currentTimeMillis() + TimeUnit.DAYS.toMillis(7)),
+                        isCompleted = false,
+                        reward = "경험치 100XP"
+                    )
+                )
+            } else {
+                challenges
+            }
+            _uiState.value = _uiState.value.copy(challenges = finalChallenges)
+        }
+    }
+    
+    fun joinChallenge(challengeId: String) {
+        viewModelScope.launch {
+            challengeRepository.joinChallenge(challengeId, currentUserId)
+            loadChallenges()
         }
     }
     
