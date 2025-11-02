@@ -64,21 +64,22 @@ class CommunityViewModel(context: Context? = null) : ViewModel() {
             val challenges = challengeRepository.getChallenges()
             // 테스트용 더미 데이터 추가 (Firestore에 데이터가 없을 경우)
             val finalChallenges = if (challenges.isEmpty()) {
-                listOf(
-                    Challenge(
-                        id = "test_challenge_1",
-                        title = "7일 연속 독서 챌린지",
-                        description = "친구와 함께 7일 연속으로 책을 읽어보세요!",
-                        type = com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING_WITH_FRIEND,
-                        participants = listOf(),
-                        goal = 7,
-                        progress = emptyMap(),
-                        startDate = java.util.Date(),
-                        endDate = java.util.Date(System.currentTimeMillis() + TimeUnit.DAYS.toMillis(7)),
-                        isCompleted = false,
-                        reward = "경험치 100XP"
-                    )
+                val testChallenge = Challenge(
+                    id = "test_challenge_1",
+                    title = "7일 연속 독서 챌린지",
+                    description = "친구와 함께 7일 연속으로 책을 읽어보세요!",
+                    type = com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING_WITH_FRIEND,
+                    participants = listOf(),
+                    goal = 7,
+                    progress = emptyMap(),
+                    startDate = java.util.Date(),
+                    endDate = java.util.Date(System.currentTimeMillis() + TimeUnit.DAYS.toMillis(7)),
+                    isCompleted = false,
+                    reward = "경험치 100XP"
                 )
+                // Firestore에 저장
+                challengeRepository.createChallenge(testChallenge)
+                listOf(testChallenge)
             } else {
                 challenges
             }
