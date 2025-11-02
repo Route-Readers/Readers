@@ -1,5 +1,9 @@
 package com.route.readers.ui.screens.profile
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +28,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,7 +40,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.firebase.auth.FirebaseAuth
+import com.route.readers.data.model.Book
 import com.route.readers.ui.theme.DarkRed
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,6 +54,8 @@ fun MyBookListScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+
+    var expandedBookIsbn by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(key1 = currentUserId) {
         if (currentUserId != null) {
@@ -73,17 +86,10 @@ fun MyBookListScreen(
         Column(modifier = Modifier.padding(paddingValues)) {
             when (val state = uiState) {
                 is ProfileUiState.Success -> {
-                    // 사용자의 선호 장르를 가져옵니다.
-                    val userGenres = state.user.readingGenres.ifEmpty {
-                        // 선호 장르가 없다면, 읽은 책들에서 장르를 추출하여 기본값으로 사용합니다.
-                        state.readBooks.mapNotNull { it.categoryName?.split(">")?.lastOrNull() }.distinct()
-                    }
-
-                    // 읽은 책 목록을 장르별로 그룹화합니다.
-                    val booksByGenre = state.readBooks.groupBy { book ->
-                        // 책의 카테고리 이름에서 장르를 추출합니다.
-                        // 예: "소설>영미소설" -> "영미소설"
-                        book.categoryName?.split(">")?.lastOrNull() ?: "기타"
+                    // MyBook의 categoryName으로 그룹화하는 로직 복원
+                    val booksByGenre = state.readBooks.groupBy { myBook ->
+                        // Aladin API의 카테고리 이름 형식 "국내도서>소설/시/희곡"에서 마지막 부분만 추출
+                        myBook.categoryName?.split(">")?.lastOrNull()?.trim() ?: "기타"
                     }
 
                     if (state.readBooks.isEmpty()) {
@@ -100,14 +106,15 @@ fun MyBookListScreen(
                             )
                         }
                     } else {
-                        // 장르별로 책 목록을 보여주는 UI
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(vertical = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(24.dp)
                         ) {
-                            // 사용자의 선호 장르 순서대로, 그리고 나머지 장르들을 보여줍니다.
-                            val sortedGenres = (userGenres + booksByGenre.keys).distinct()
+                            // 사용자의 선호 장르를 먼저 정렬하고, 그 외 장르를 가나다순으로 정렬
+                            val preferredGenres = state.user.readingGenres
+                            val remainingGenres = (booksByGenre.keys - preferredGenres.toSet()).sorted()
+                            val sortedGenres = preferredGenres + remainingGenres
 
                             sortedGenres.forEach { genre ->
                                 val booksInGenre = booksByGenre[genre]
@@ -127,13 +134,45 @@ fun MyBookListScreen(
                                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                                 contentPadding = PaddingValues(horizontal = 16.dp)
                                             ) {
-                                                items(booksInGenre, key = { it.isbn }) { book ->
-                                                    BookCardItem(
-                                                        book = book,
-                                                        onClick = {
-                                                            // TODO: 책 상세 페이지로 이동하는 로직 추가
+                                                items(booksInGenre, key = { it.isbn }) { myBook ->
+                                                    val formattedDate = myBook.completedDate?.let {
+                                                        val sdf = SimpleDateFormat("yyyy년 MM월 dd일", Locale.KOREA)
+                                                        sdf.format(Date(it))
+                                                    } ?: "날짜 정보 없음"
+
+                                                    Column {
+                                                        BookCardItem(
+                                                            book = Book(
+                                                                title = myBook.title,
+                                                                author = myBook.author,
+                                                                cover = myBook.cover,
+                                                                isbn = myBook.isbn,
+                                                                itemPage = myBook.totalPages,
+                                                                categoryName = myBook.categoryName
+                                                            ),
+                                                            onClick = {
+                                                                expandedBookIsbn = if (expandedBookIsbn == myBook.isbn) {
+                                                                    null
+                                                                } else {
+                                                                    myBook.isbn
+                                                                }
+                                                            }
+                                                        )
+
+                                                        AnimatedVisibility(
+                                                            visible = expandedBookIsbn == myBook.isbn,
+                                                            enter = expandVertically(animationSpec = tween(300)),
+                                                            exit = shrinkVertically(animationSpec = tween(300))
+                                                        ) {
+                                                            Text(
+                                                                text = "완독: $formattedDate",
+                                                                modifier = Modifier
+                                                                    .padding(top = 8.dp, start = 4.dp),
+                                                                fontSize = 12.sp,
+                                                                color = Color.Gray
+                                                            )
                                                         }
-                                                    )
+                                                    }
                                                 }
                                             }
                                         }
