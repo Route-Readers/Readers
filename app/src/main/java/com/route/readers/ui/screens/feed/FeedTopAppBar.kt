@@ -1,4 +1,4 @@
-package com.route.readers.ui.screens.feedimport
+package com.route.readers.ui.screens.feed
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -29,7 +29,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.route.readers.R
-import com.route.readers.ui.theme.DarkRed
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -120,30 +119,35 @@ fun FeedTopAppBar(
 
 @Composable
 fun AttendanceBadge(readingDays: Int, onClick: () -> Unit) {
-    if (readingDays > 0) {
-        Row(
-            modifier = Modifier
-                .height(32.dp)
-                .clip(CircleShape)
-                .background(DarkRed.copy(alpha = 0.1f))
-                .clickable(onClick = onClick)
-                .padding(horizontal = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.book_5_24),
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = DarkRed
-            )
-            Text(
-                text = readingDays.toString(),
-                color = DarkRed,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
-            )
-        }
-        Spacer(modifier = Modifier.width(8.dp))
+    // 0일 이상일 때 활성화된 색상, 0일일 때 비활성화된 색상을 지정합니다.
+    val activeColor = MaterialTheme.colorScheme.primary
+    val inactiveColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val contentColor = if (readingDays > 0) activeColor else inactiveColor
+    val backgroundColor = if (readingDays > 0) activeColor.copy(alpha = 0.1f) else inactiveColor.copy(alpha = 0.1f)
+
+    // if 조건을 제거하여 항상 보이도록 합니다.
+    Row(
+        modifier = Modifier
+            .height(32.dp)
+            .clip(CircleShape)
+            .background(backgroundColor)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Icon(
+            painter = painterResource(id = R.drawable.book_5_24),
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = contentColor // 조건에 따라 색상 변경
+        )
+        Text(
+            text = readingDays.toString(),
+            color = contentColor, // 조건에 따라 색상 변경
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp
+        )
     }
+    Spacer(modifier = Modifier.width(8.dp))
 }

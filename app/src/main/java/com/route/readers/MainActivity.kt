@@ -45,6 +45,7 @@ import com.route.readers.ui.screens.MainScreen
 import com.route.readers.ui.screens.add_feed.AddFeedScreen
 import com.route.readers.ui.screens.attendance.AttendanceScreen
 import com.route.readers.ui.screens.attendance.AttendanceViewModel
+import com.route.readers.ui.screens.challenge.ChallengeScreen
 import com.route.readers.ui.screens.login.LoginScreen
 import com.route.readers.ui.screens.login.LoginViewModel
 import com.route.readers.ui.screens.login.OnboardingScreen
@@ -59,6 +60,7 @@ import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.profile.ProfileSetupScreen
 import com.route.readers.ui.screens.profile.ProfileUiState
 import com.route.readers.ui.screens.profile.ProfileViewModel
+import com.route.readers.ui.screens.profile.StatisticsScreen
 import com.route.readers.ui.theme.ReadersTheme
 import com.route.readers.widget.WidgetUpdateHelper
 import java.net.URLDecoder
@@ -116,7 +118,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-
     private fun setupNotificationListener() {
         val currentUserId =
             com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: return
@@ -168,7 +169,8 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-class AccountViewModelFactory(private val repository: UserPreferencesRepository) : ViewModelProvider.Factory {
+class AccountViewModelFactory(private val repository: UserPreferencesRepository) :
+    ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(AccountViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
@@ -337,7 +339,14 @@ fun RootAppNavigation(accountViewModel: AccountViewModel) {
         composable("account_route") {
             AccountScreen(
                 onNavigateBack = { appNavController.popBackStack() },
+                onNavigateToStatistics = { appNavController.navigate("statistics_route") },
                 viewModel = accountViewModel
+            )
+        }
+
+        composable("statistics_route") {
+            StatisticsScreen(
+                onNavigateBack = { appNavController.popBackStack() }
             )
         }
 
@@ -427,6 +436,10 @@ fun RootAppNavigation(accountViewModel: AccountViewModel) {
             LevelScreen(
                 onBack = { appNavController.popBackStack() }
             )
+        }
+
+        composable("challenge_route") {
+            ChallengeScreen()
         }
 
         composable("profile_customization_route") {

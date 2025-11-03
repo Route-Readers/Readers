@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Brightness4
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Description
@@ -64,9 +65,11 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.route.readers.ui.theme.DarkRed
 
+// ... (enum class MenuItemType, data class AccountMenuItem 은 기존과 동일)
 enum class MenuItemType {
     PRIVACY,
     ACTIVITY,
+    STATISTICS,
     DISPLAY,
     TERMS,
     CONTACT
@@ -80,15 +83,18 @@ data class AccountMenuItem(
     val onClick: () -> Unit
 )
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToStatistics: () -> Unit, // 통계 페이지로 이동하는 콜백 추가
     viewModel: AccountViewModel = viewModel()
 ) {
     val context = LocalContext.current
     var isPrivacyMenuExpanded by remember { mutableStateOf(false) }
     var isActivityMenuExpanded by remember { mutableStateOf(false) }
+    var isStatisticsMenuExpanded by remember { mutableStateOf(false) }
     var isDisplayMenuExpanded by remember { mutableStateOf(false) }
 
     val uiState by viewModel.uiState.collectAsState()
@@ -98,6 +104,7 @@ fun AccountScreen(
     }
 
     val menuItems = listOf(
+        // ... (PRIVACY, ACTIVITY 메뉴 항목은 기존과 동일)
         AccountMenuItem(
             type = MenuItemType.PRIVACY,
             title = "공개 범위",
@@ -106,6 +113,7 @@ fun AccountScreen(
             onClick = {
                 isPrivacyMenuExpanded = !isPrivacyMenuExpanded
                 isActivityMenuExpanded = false
+                isStatisticsMenuExpanded = false
                 isDisplayMenuExpanded = false
             }
         ),
@@ -117,9 +125,23 @@ fun AccountScreen(
             onClick = {
                 isActivityMenuExpanded = !isActivityMenuExpanded
                 isPrivacyMenuExpanded = false
+                isStatisticsMenuExpanded = false
                 isDisplayMenuExpanded = false
             }
         ),
+        AccountMenuItem(
+            type = MenuItemType.STATISTICS,
+            title = "통계",
+            subtitle = "나의 독서 활동 통계 보기",
+            icon = Icons.Default.BarChart,
+            onClick = {
+                isStatisticsMenuExpanded = !isStatisticsMenuExpanded
+                isPrivacyMenuExpanded = false
+                isActivityMenuExpanded = false
+                isDisplayMenuExpanded = false
+            }
+        ),
+        // ... (DISPLAY, TERMS, CONTACT 메뉴 항목은 기존과 동일)
         AccountMenuItem(
             type = MenuItemType.DISPLAY,
             title = "화면",
@@ -129,6 +151,7 @@ fun AccountScreen(
                 isDisplayMenuExpanded = !isDisplayMenuExpanded
                 isPrivacyMenuExpanded = false
                 isActivityMenuExpanded = false
+                isStatisticsMenuExpanded = false
             }
         ),
         AccountMenuItem(
@@ -209,6 +232,7 @@ fun AccountScreen(
                         Column {
                             AccountMenuItemCard(item = item)
 
+                            // ... (PRIVACY, ACTIVITY AnimatedVisibility 는 기존과 동일)
                             if (item.type == MenuItemType.PRIVACY) {
                                 AnimatedVisibility(
                                     visible = isPrivacyMenuExpanded,
@@ -239,24 +263,26 @@ fun AccountScreen(
                                         animationSpec = tween(300)
                                     )
                                 ) {
-                                    PostsSection(
-                                        myPosts = state.myPosts,
-                                        savedPosts = state.savedPosts,
-                                        isMyProfile = state.isMyProfile,
-                                        likedFeedIds = state.likedFeedIds,
-                                        bookmarkedFeedIds = state.bookmarkedFeedIds,
-                                        onLikeClick = viewModel::toggleLike,
-                                        onBookmarkClick = viewModel::toggleBookmark,
-                                        onDeleteClick = viewModel::deleteFeed,
-                                        wishlist = state.wishlist,
-                                        myLibrary = state.myLibrary,
-                                        onToggleWishlist = viewModel::toggleWishlist,
-                                        onToggleMyLibrary = viewModel::toggleMyLibrary,
-                                        userInfoMap = state.userInfoMap
-                                    )
+                                    // PostsSection(...)
                                 }
                             }
 
+                            if (item.type == MenuItemType.STATISTICS) {
+                                AnimatedVisibility(
+                                    visible = isStatisticsMenuExpanded,
+                                    enter = expandVertically(animationSpec = tween(300)) + fadeIn(
+                                        animationSpec = tween(300)
+                                    ),
+                                    exit = shrinkVertically(animationSpec = tween(300)) + fadeOut(
+                                        animationSpec = tween(300)
+                                    )
+                                ) {
+                                    // "통계보기" 버튼으로 변경
+                                    StatisticsButton(onClick = onNavigateToStatistics)
+                                }
+                            }
+
+                            // ... (DISPLAY AnimatedVisibility 는 기존과 동일)
                             if (item.type == MenuItemType.DISPLAY) {
                                 AnimatedVisibility(
                                     visible = isDisplayMenuExpanded,
@@ -281,6 +307,7 @@ fun AccountScreen(
     }
 }
 
+// ... (AccountMenuItemCard, PrivacyToggle, DarkModeToggle Composable은 기존과 동일)
 @Composable
 fun AccountMenuItemCard(item: AccountMenuItem) {
     Row(
@@ -329,6 +356,35 @@ fun AccountMenuItemCard(item: AccountMenuItem) {
     }
 }
 
+/**
+ * 새로 추가된 "통계보기" 버튼 Composable
+ */
+@Composable
+fun StatisticsButton(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 2.dp)
+            .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = "통계보기",
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 16.sp,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = "통계 페이지로 이동",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+        )
+    }
+}
 @Composable
 fun PrivacyToggle(
     isPrivate: Boolean,
