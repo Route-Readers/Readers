@@ -46,6 +46,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -331,8 +332,8 @@ fun ActualFeedContent(
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 80.dp),
+        verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
         items(feedItems, key = { it.id }) { item ->
             val isLiked = likedFeedIds.contains(item.id)
@@ -361,6 +362,10 @@ fun ActualFeedContent(
                 myLibrary = myLibrary,
                 onToggleWishlist = onToggleWishlist,
                 onToggleMyLibrary = onToggleMyLibrary
+            )
+            HorizontalDivider(
+                thickness = 1.dp,
+                color = Color(0xFFE0E0E0)
             )
         }
     }
