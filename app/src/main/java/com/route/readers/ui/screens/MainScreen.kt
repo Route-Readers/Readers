@@ -37,7 +37,7 @@ import com.route.readers.ui.screens.community.CommunityScreen
 import com.route.readers.ui.screens.community.CommunityViewModel
 import com.route.readers.ui.screens.community.NotificationScreen
 import com.route.readers.ui.screens.feed.FeedScreen
-import com.route.readers.ui.screens.feedimport.FeedTopAppBar
+import com.route.readers.ui.screens.feed.FeedTopAppBar
 import com.route.readers.ui.screens.mylibrary.MyLibraryScreen
 import com.route.readers.ui.screens.profile.BlockedUserScreen
 import com.route.readers.ui.screens.profile.ProfileScreen
