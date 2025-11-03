@@ -64,14 +64,15 @@ fun ChallengeCard(
 
             if (isJoined) {
                 val userProgress = challenge.progress[currentUserId] ?: 0
-                val progress = if (challenge.goal > 0) userProgress.toFloat() / challenge.goal.toFloat() else 0f
+                val totalDays = 7 // 주간 챌린지는 7일
+                val progress = if (totalDays > 0) userProgress.toFloat() / totalDays.toFloat() else 0f
 
                 LinearProgressIndicator(
                     progress = progress,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "${userProgress} / ${challenge.goal} (${(progress * 100).toInt()}%)")
+                Text(text = "${userProgress} / ${totalDays}일 완료 (${(progress * 100).toInt()}%)")
             } else {
                 Button(
                     onClick = onJoinClick,

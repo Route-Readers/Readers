@@ -51,7 +51,10 @@ class CommunityViewModel(context: Context? = null) : ViewModel() {
             }
         }
         loadFriends()
-        loadChallenges()
+        viewModelScope.launch {
+            createWeeklyChallengesIfNeeded()
+            loadChallenges()
+        }
     }
     
     private fun loadFriends() {
@@ -60,64 +63,95 @@ class CommunityViewModel(context: Context? = null) : ViewModel() {
         }
     }
     
-    private fun loadChallenges() {
-        viewModelScope.launch {
-            val challenges = challengeRepository.getChallenges()
-            // 3가지 기본 챌린지 생성
+    private fun getCurrentWeekNumber(): Int {
+        val calendar = java.util.Calendar.getInstance()
+        val year = calendar.get(java.util.Calendar.YEAR)
+        val week = calendar.get(java.util.Calendar.WEEK_OF_YEAR)
+        return year * 100 + week
+    }
+    
+    private fun getThisMonday(): java.util.Date {
+        val calendar = java.util.Calendar.getInstance()
+        calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        calendar.set(java.util.Calendar.MINUTE, 0)
+        calendar.set(java.util.Calendar.SECOND, 0)
+        calendar.set(java.util.Calendar.MILLISECOND, 0)
+        
+        val today = calendar.get(java.util.Calendar.DAY_OF_WEEK)
+        val daysFromMonday = if (today == java.util.Calendar.SUNDAY) 6 else today - java.util.Calendar.MONDAY
+        calendar.add(java.util.Calendar.DAY_OF_YEAR, -daysFromMonday)
+        
+        return calendar.time
+    }
+    
+    private fun getNextSunday(): java.util.Date {
+        val calendar = java.util.Calendar.getInstance()
+        calendar.time = getThisMonday()
+        calendar.add(java.util.Calendar.DAY_OF_YEAR, 6)
+        calendar.set(java.util.Calendar.HOUR_OF_DAY, 23)
+        calendar.set(java.util.Calendar.MINUTE, 59)
+        calendar.set(java.util.Calendar.SECOND, 59)
+        
+        return calendar.time
+    }
+    
+    private suspend fun createWeeklyChallengesIfNeeded() {
+        val existingChallenges = challengeRepository.getAvailableChallenges()
+        if (existingChallenges.isEmpty()) {
+            val startDate = getThisMonday()
+            val endDate = getNextSunday()
+            val weekNumber = getCurrentWeekNumber()
+            
             val defaultChallenges = listOf(
                 Challenge(
-                    id = "challenge_7days_reading",
-                    title = "7일 연속 독서하기",
-                    description = "일주일 동안 매일 책을 읽어보세요!",
-                    type = com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING_WITH_FRIEND,
-                    participants = listOf(),
-                    goal = 7,
-                    progress = emptyMap(),
-                    startDate = java.util.Date(),
-                    endDate = java.util.Date(System.currentTimeMillis() + TimeUnit.DAYS.toMillis(7)),
-                    isCompleted = false,
-                    reward = "경험치 100XP"
-                ),
-                Challenge(
-                    id = "challenge_30pages_daily",
-                    title = "하루 30페이지 읽기",
-                    description = "매일 30페이지씩 읽어보세요!",
+                    id = "challenge_${weekNumber}_1",
+                    title = "매일 30페이지 읽기",
+                    description = "하루에 30페이지씩 7일 동안 읽기",
                     type = com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING,
-                    participants = listOf(),
-                    goal = 7, // 7일 동안 매일 30페이지
-                    progress = emptyMap(),
-                    startDate = java.util.Date(),
-                    endDate = java.util.Date(System.currentTimeMillis() + TimeUnit.DAYS.toMillis(7)),
-                    isCompleted = false,
-                    reward = "경험치 150XP"
+                    goal = 30,
+                    startDate = startDate,
+                    endDate = endDate,
+                    weekNumber = weekNumber,
+                    reward = "50 토큰"
                 ),
                 Challenge(
-                    id = "challenge_1book_weekly",
-                    title = "1주일에 한 권 읽기",
-                    description = "일주일 안에 책 한 권을 완독해보세요!",
+                    id = "challenge_${weekNumber}_2",
+                    title = "7일 연속 독서",
+                    description = "7일 동안 매일 책 읽기",
                     type = com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING_WITH_FRIEND,
-                    participants = listOf(),
                     goal = 1,
-                    progress = emptyMap(),
-                    startDate = java.util.Date(),
-                    endDate = java.util.Date(System.currentTimeMillis() + TimeUnit.DAYS.toMillis(7)),
-                    isCompleted = false,
-                    reward = "경험치 200XP"
+                    startDate = startDate,
+                    endDate = endDate,
+                    weekNumber = weekNumber,
+                    reward = "30 토큰"
+                ),
+                Challenge(
+                    id = "challenge_${weekNumber}_3",
+                    title = "매일 50페이지 읽기",
+                    description = "하루에 50페이지씩 7일 동안 읽기",
+                    type = com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING,
+                    goal = 50,
+                    startDate = startDate,
+                    endDate = endDate,
+                    weekNumber = weekNumber,
+                    reward = "100 토큰"
                 )
             )
             
-            val finalChallenges = if (challenges.isEmpty() || challenges.size < 3) {
-                defaultChallenges.forEach { challengeRepository.createChallenge(it) }
-                defaultChallenges
-            } else {
-                challenges
-            }
+            defaultChallenges.forEach { challengeRepository.createChallenge(it) }
+        }
+    }
+    
+    private fun loadChallenges() {
+        viewModelScope.launch {
+            // 이번 주 챌린지 가져오기
+            val availableChallenges = challengeRepository.getAvailableChallenges()
             
             // 사용자가 참여 중인 챌린지 찾기
-            val userChallenge = finalChallenges.find { it.participants.contains(currentUserId) }
+            val userChallenge = challengeRepository.getUserActiveChallenge(currentUserId)
             
             _uiState.value = _uiState.value.copy(
-                challenges = finalChallenges,
+                challenges = availableChallenges,
                 userActiveChallenge = userChallenge
             )
         }

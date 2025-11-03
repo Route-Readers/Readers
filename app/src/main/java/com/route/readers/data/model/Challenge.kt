@@ -16,10 +16,12 @@ data class Challenge(
     val description: String = "",
     val type: ChallengeType = ChallengeType.UNKNOWN,
     val participants: List<String> = emptyList(), // 참여자 UID 목록
-    val goal: Int = 0, // 챌린지 목표 (예: 7일, 10페이지)
+    val goal: Int = 0, // 챌린지 목표 (예: 7일, 30페이지)
     val progress: Map<String, Int> = emptyMap(), // 사용자별 진행 상태 (UID to progress)
+    val dailyProgress: Map<String, Map<String, Int>> = emptyMap(), // 사용자별 일별 진행 (UID to date to progress)
     @ServerTimestamp val startDate: Date? = null,
     val endDate: Date? = null,
     val isCompleted: Boolean = false,
-    val reward: String = "" // 보상 (예: "경험치 100XP")
+    val reward: String = "", // 보상 (예: "경험치 100XP")
+    val weekNumber: Int = 0 // 주차 번호 (년도 + 주차로 구분)
 )

@@ -63,6 +63,63 @@ class ChallengeRepository {
         }
     }
     
+    suspend fun updateDailyProgress(challengeId: String, userId: String, date: String, dailyAmount: Int) {
+        try {
+            val docRef = challengesCollection.document(challengeId)
+            val snapshot = docRef.get().await()
+            val challenge = snapshot.toObject(Challenge::class.java) ?: return
+            
+            // 일별 진행도 업데이트
+            docRef.update("dailyProgress.$userId.$date", dailyAmount).await()
+            
+            // 전체 진행도 계산 (일수 기반)
+            val dailyProgressMap = challenge.dailyProgress[userId] ?: emptyMap()
+            val completedDays = dailyProgressMap.count { it.value >= challenge.goal }
+            
+            // 전체 진행도 업데이트 (완료한 일수)
+            docRef.update("progress.$userId", completedDays).await()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+    
+    suspend fun getUserActiveChallenge(userId: String): Challenge? {
+        return try {
+            val currentWeek = getCurrentWeekNumber()
+            challengesCollection
+                .whereArrayContains("participants", userId)
+                .whereEqualTo("weekNumber", currentWeek)
+                .get()
+                .await()
+                .documents
+                .firstOrNull()
+                ?.toObject(Challenge::class.java)
+        } catch (e: Exception) {
+            null
+        }
+    }
+    
+    suspend fun getAvailableChallenges(): List<Challenge> {
+        return try {
+            val currentWeek = getCurrentWeekNumber()
+            challengesCollection
+                .whereEqualTo("weekNumber", currentWeek)
+                .get()
+                .await()
+                .documents
+                .mapNotNull { it.toObject(Challenge::class.java) }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+    
+    private fun getCurrentWeekNumber(): Int {
+        val calendar = java.util.Calendar.getInstance()
+        val year = calendar.get(java.util.Calendar.YEAR)
+        val week = calendar.get(java.util.Calendar.WEEK_OF_YEAR)
+        return year * 100 + week
+    }
+    
     suspend fun leaveChallenge(challengeId: String, userId: String) {
         try {
             val docRef = challengesCollection.document(challengeId)
