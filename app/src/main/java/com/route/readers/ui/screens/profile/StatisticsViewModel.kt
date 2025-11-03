@@ -4,7 +4,9 @@ import android.app.Application
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import co.yml.charts.common.model.Point
 import com.route.readers.ReadersApplication
+import com.route.readers.data.remote.MyLibraryRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,7 +29,7 @@ data class StatisticsUiState(
     val monthlyStats: MonthlyStats = MonthlyStats(),
     val yearlyStats: YearlyStats = YearlyStats(),
     val totalStats: TotalStats = TotalStats(),
-    val chartData: List<co.yml.charts.common.model.Point> = emptyList(),
+    val chartData: List<Point> = emptyList(),
     val genreStats: List<GenreStats> = emptyList()
 )
 
@@ -72,6 +74,7 @@ class StatisticsViewModel(application: Application) : AndroidViewModel(applicati
     val uiState: StateFlow<StatisticsUiState> = _uiState.asStateFlow()
 
     private val sessionTimer = getApplication<ReadersApplication>().sessionTimer
+    private val myLibraryRepository = MyLibraryRepository()
 
     init {
         viewModelScope.launch {
@@ -107,6 +110,10 @@ class StatisticsViewModel(application: Application) : AndroidViewModel(applicati
             val totalMillis = sessionTimer.getTotalSessionTimeFlow().first()
             val formattedTime = sessionTimer.formatDuration(totalMillis)
 
+            val allBooks = myLibraryRepository.getMyBooks()
+            val readingBookCount = allBooks.count { !it.isCompleted }
+            val finishedBookCount = allBooks.count { it.isCompleted }
+
             val tempGenreStats = listOf(
                 GenreStats("소설", 8, Color(0xFF00C853)),
                 GenreStats("에세이", 5, Color(0xFF009688)),
@@ -119,9 +126,14 @@ class StatisticsViewModel(application: Application) : AndroidViewModel(applicati
                 "일" -> {
                     _uiState.update {
                         it.copy(
-                            dailyStats = DailyStats(formattedTime, "45m", 2, 0),
+                            dailyStats = DailyStats(
+                                accessTime = formattedTime,
+                                totalReadingTime = "45m",
+                                readingBookCount = readingBookCount,
+                                finishedBookCount = finishedBookCount
+                            ),
                             chartData = (0..23).map { hour ->
-                                co.yml.charts.common.model.Point(hour.toFloat(), (0..60).random().toFloat())
+                                Point(hour.toFloat(), (0..60).random().toFloat())
                             },
                             genreStats = tempGenreStats
                         )
@@ -130,9 +142,14 @@ class StatisticsViewModel(application: Application) : AndroidViewModel(applicati
                 "주" -> {
                     _uiState.update {
                         it.copy(
-                            weeklyStats = WeeklyStats(formattedTime, "5h", "수요일", 1),
+                            weeklyStats = WeeklyStats(
+                                accessTime = formattedTime,
+                                totalReadingTime = "5h",
+                                mostReadDay = "수요일",
+                                finishedBookCount = finishedBookCount
+                            ),
                             chartData = (0..6).map { day ->
-                                co.yml.charts.common.model.Point(day.toFloat(), (30..180).random().toFloat())
+                                Point(day.toFloat(), (30..180).random().toFloat())
                             },
                             genreStats = tempGenreStats
                         )
@@ -141,9 +158,14 @@ class StatisticsViewModel(application: Application) : AndroidViewModel(applicati
                 "월" -> {
                     _uiState.update {
                         it.copy(
-                            monthlyStats = MonthlyStats(formattedTime, "22h", "2주차", 4),
+                            monthlyStats = MonthlyStats(
+                                accessTime = formattedTime,
+                                totalReadingTime = "22h",
+                                mostReadWeek = "2주차",
+                                finishedBookCount = finishedBookCount
+                            ),
                             chartData = (0..3).map { week ->
-                                co.yml.charts.common.model.Point(week.toFloat(), (3..10).random().toFloat())
+                                Point(week.toFloat(), (3..10).random().toFloat())
                             },
                             genreStats = tempGenreStats
                         )
@@ -152,9 +174,14 @@ class StatisticsViewModel(application: Application) : AndroidViewModel(applicati
                 "년" -> {
                     _uiState.update {
                         it.copy(
-                            yearlyStats = YearlyStats(formattedTime, "280h", "8월", 30),
+                            yearlyStats = YearlyStats(
+                                accessTime = formattedTime,
+                                totalReadingTime = "280h",
+                                mostReadMonth = "8월",
+                                finishedBookCount = finishedBookCount
+                            ),
                             chartData = (0..11).map { month ->
-                                co.yml.charts.common.model.Point(month.toFloat(), (10..40).random().toFloat())
+                                Point(month.toFloat(), (10..40).random().toFloat())
                             },
                             genreStats = tempGenreStats
                         )
@@ -163,9 +190,14 @@ class StatisticsViewModel(application: Application) : AndroidViewModel(applicati
                 "전체" -> {
                     _uiState.update {
                         it.copy(
-                            totalStats = TotalStats("2023-01-15", 300, formattedTime, 80),
+                            totalStats = TotalStats(
+                                firstAccessDate = "2023-01-15",
+                                totalAccessDays = 300,
+                                totalReadingTime = formattedTime,
+                                totalFinishedBookCount = finishedBookCount
+                            ),
                             chartData = (0..11).map { month ->
-                                co.yml.charts.common.model.Point(month.toFloat(), (50..200).random().toFloat())
+                                Point(month.toFloat(), (50..200).random().toFloat())
                             },
                             genreStats = tempGenreStats
                         )
