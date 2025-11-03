@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Brightness4
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Description
@@ -67,6 +68,7 @@ import com.route.readers.ui.theme.DarkRed
 enum class MenuItemType {
     PRIVACY,
     ACTIVITY,
+    STATISTICS,
     DISPLAY,
     TERMS,
     CONTACT
@@ -89,6 +91,7 @@ fun AccountScreen(
     val context = LocalContext.current
     var isPrivacyMenuExpanded by remember { mutableStateOf(false) }
     var isActivityMenuExpanded by remember { mutableStateOf(false) }
+    var isStatisticsMenuExpanded by remember { mutableStateOf(false) }
     var isDisplayMenuExpanded by remember { mutableStateOf(false) }
 
     val uiState by viewModel.uiState.collectAsState()
@@ -106,6 +109,7 @@ fun AccountScreen(
             onClick = {
                 isPrivacyMenuExpanded = !isPrivacyMenuExpanded
                 isActivityMenuExpanded = false
+                isStatisticsMenuExpanded = false
                 isDisplayMenuExpanded = false
             }
         ),
@@ -117,6 +121,19 @@ fun AccountScreen(
             onClick = {
                 isActivityMenuExpanded = !isActivityMenuExpanded
                 isPrivacyMenuExpanded = false
+                isStatisticsMenuExpanded = false
+                isDisplayMenuExpanded = false
+            }
+        ),
+        AccountMenuItem(
+            type = MenuItemType.STATISTICS,
+            title = "통계",
+            subtitle = "나의 독서 활동 통계 보기",
+            icon = Icons.Default.BarChart,
+            onClick = {
+                isStatisticsMenuExpanded = !isStatisticsMenuExpanded
+                isPrivacyMenuExpanded = false
+                isActivityMenuExpanded = false
                 isDisplayMenuExpanded = false
             }
         ),
@@ -129,6 +146,7 @@ fun AccountScreen(
                 isDisplayMenuExpanded = !isDisplayMenuExpanded
                 isPrivacyMenuExpanded = false
                 isActivityMenuExpanded = false
+                isStatisticsMenuExpanded = false
             }
         ),
         AccountMenuItem(
@@ -254,6 +272,30 @@ fun AccountScreen(
                                         onToggleMyLibrary = viewModel::toggleMyLibrary,
                                         userInfoMap = state.userInfoMap
                                     )
+                                }
+                            }
+
+                            if (item.type == MenuItemType.STATISTICS) {
+                                AnimatedVisibility(
+                                    visible = isStatisticsMenuExpanded,
+                                    enter = expandVertically(animationSpec = tween(300)) + fadeIn(
+                                        animationSpec = tween(300)
+                                    ),
+                                    exit = shrinkVertically(animationSpec = tween(300)) + fadeOut(
+                                        animationSpec = tween(300)
+                                    )
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 2.dp)
+                                            .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
+                                            .background(MaterialTheme.colorScheme.surface)
+                                            .padding(horizontal = 20.dp, vertical = 16.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("통계 섹션 준비 중", style = MaterialTheme.typography.bodyLarge)
+                                    }
                                 }
                             }
 
