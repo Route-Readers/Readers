@@ -42,7 +42,12 @@ fun SwipeableChallengeCard(
         if (userChallenge != null) ChallengeCardState.ACTIVE else ChallengeCardState.INITIAL
     ) }
     var offsetX by remember { mutableStateOf(0f) }
-    val swipeThreshold = 50f // 150f에서 50f로 낮춤
+    val swipeThreshold = 50f
+    
+    // userChallenge가 변경되면 cardState 업데이트
+    LaunchedEffect(userChallenge) {
+        cardState = if (userChallenge != null) ChallengeCardState.ACTIVE else ChallengeCardState.INITIAL
+    }
 
     Box(
         modifier = Modifier
@@ -67,7 +72,6 @@ fun SwipeableChallengeCard(
                     challenges = availableChallenges,
                     onSelect = { challenge ->
                         onChallengeSelected(challenge)
-                        cardState = ChallengeCardState.ACTIVE
                     }
                 )
             }
@@ -177,16 +181,26 @@ fun ChallengeSelectionCard(
             )
             Spacer(modifier = Modifier.height(16.dp))
             
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                challenges.take(3).forEach { challenge ->
-                    ChallengeOption(
-                        challenge = challenge,
-                        onSelect = { onSelect(challenge) },
-                        modifier = Modifier.weight(1f)
-                    )
+            if (challenges.isEmpty()) {
+                Text(
+                    "챌린지를 불러오는 중...",
+                    fontSize = 14.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    challenges.take(3).forEach { challenge ->
+                        ChallengeOption(
+                            challenge = challenge,
+                            onSelect = { onSelect(challenge) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
         }
@@ -246,7 +260,8 @@ fun ActiveChallengeCard(
     onReset: () -> Unit
 ) {
     val userProgress = challenge.progress[currentUserId] ?: 0
-    val progress = if (challenge.goal > 0) userProgress.toFloat() / challenge.goal.toFloat() else 0f
+    val totalDays = 7 // 주간 챌린지는 7일
+    val progress = if (totalDays > 0) userProgress.toFloat() / totalDays.toFloat() else 0f
     val daysRemaining = challenge.endDate?.let {
         val diff = it.time - System.currentTimeMillis()
         java.util.concurrent.TimeUnit.MILLISECONDS.toDays(diff).toInt()
@@ -334,7 +349,7 @@ fun ActiveChallengeCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    "${userProgress} / ${challenge.goal}",
+                    "${userProgress} / ${totalDays}일",
                     color = Color.White,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold

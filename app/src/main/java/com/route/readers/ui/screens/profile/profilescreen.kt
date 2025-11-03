@@ -1145,7 +1145,7 @@ fun ChallengeItem(challenge: Challenge, onClick: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(text = challenge.title, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
-                if (challenge.isCompleted) {
+                if (challenge.completed) {
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
                         contentDescription = "완료됨",

@@ -177,6 +177,7 @@ fun MainScreen(
                 selectedBook = null
                 val communityViewModel: CommunityViewModel = viewModel()
                 CommunityScreen(
+                    viewModel = communityViewModel,
                     onNavigateToFriendsList = { bottomNavController.navigate("friends_list") },
                     onNavigateToNotifications = { bottomNavController.navigate("notifications") }
                 )
