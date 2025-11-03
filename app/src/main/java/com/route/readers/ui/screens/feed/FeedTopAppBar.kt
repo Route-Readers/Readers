@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -34,6 +35,7 @@ import com.route.readers.R
 @Composable
 fun FeedTopAppBar(
     consecutiveReadingDays: Int,
+    tokens: Int,
     onBlockListClick: () -> Unit,
     onLogoutClick: () -> Unit,
     onMyAccountClick: () -> Unit,
@@ -60,6 +62,8 @@ fun FeedTopAppBar(
             }
         },
         actions = {
+            TokenBadge(tokens = tokens)
+
             AttendanceBadge(
                 readingDays = consecutiveReadingDays,
                 onClick = onAttendanceClick
@@ -87,7 +91,7 @@ fun FeedTopAppBar(
                     onDismissRequest = { menuExpanded = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("내 계정") },
+                        text = { Text("설정") }, // 내 계정에서 설정으로 이름 변경
                         onClick = {
                             menuExpanded = false
                             onMyAccountClick()
@@ -115,6 +119,36 @@ fun FeedTopAppBar(
             titleContentColor = MaterialTheme.colorScheme.onSurface
         )
     )
+}
+
+@Composable
+fun TokenBadge(tokens: Int) {
+    val tokenColor = MaterialTheme.colorScheme.tertiary
+    val backgroundColor = tokenColor.copy(alpha = 0.1f)
+
+    Row(
+        modifier = Modifier
+            .height(32.dp)
+            .clip(CircleShape)
+            .background(backgroundColor)
+            .padding(horizontal = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Default.MonetizationOn,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = tokenColor
+        )
+        Text(
+            text = tokens.toString(),
+            color = tokenColor,
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp
+        )
+    }
+    Spacer(modifier = Modifier.width(8.dp))
 }
 
 @Composable

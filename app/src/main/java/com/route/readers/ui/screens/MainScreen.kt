@@ -95,8 +95,11 @@ fun MainScreen(
             )
             if (shouldShowTopBar) {
                 val consecutiveReadingDays by attendanceViewModel.consecutiveReadingDays.collectAsState()
+                val tokens by mainViewModel.tokens.collectAsState()
+                
                 FeedTopAppBar(
                     consecutiveReadingDays = consecutiveReadingDays,
+                    tokens = tokens,
                     onBlockListClick = { bottomNavController.navigate("blockList") },
                     onLogoutClick = { showLogoutDialog = true },
                     onMyAccountClick = onNavigateToMyAccount,

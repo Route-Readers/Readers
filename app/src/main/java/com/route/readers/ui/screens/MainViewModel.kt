@@ -23,8 +23,12 @@ class MainViewModel : ViewModel() {
     private val _consecutiveDays = MutableStateFlow(0)
     val consecutiveDays = _consecutiveDays.asStateFlow()
 
+    private val _tokens = MutableStateFlow(0)
+    val tokens = _tokens.asStateFlow()
+
     init {
         checkAndUpdateAttendance()
+        loadUserTokens()
     }
 
     private fun checkAndUpdateAttendance() {
@@ -88,6 +92,24 @@ class MainViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Failed to check or update attendance", e)
                 _consecutiveDays.value = 0
+            }
+        }
+    }
+
+    private fun loadUserTokens() {
+        if (currentUserId == null) {
+            _tokens.value = 0
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val userDoc = db.collection("users").document(currentUserId).get().await()
+                val user = userDoc.toObject(User::class.java)
+                _tokens.value = user?.tokens ?: 0
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Failed to load user tokens", e)
+                _tokens.value = 0
             }
         }
     }
