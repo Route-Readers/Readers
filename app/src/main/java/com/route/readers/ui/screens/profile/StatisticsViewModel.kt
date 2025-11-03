@@ -13,7 +13,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.time.temporal.WeekFields
+import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 data class GenreStats(
     val genre: String,
@@ -34,37 +40,37 @@ data class StatisticsUiState(
 )
 
 data class DailyStats(
-    val accessTime: String = "",
-    val totalReadingTime: String = "",
+    val accessTime: String = "0m",
+    val totalReadingTime: String = "0m",
     val readingBookCount: Int = 0,
     val finishedBookCount: Int = 0
 )
 
 data class WeeklyStats(
-    val accessTime: String = "",
-    val totalReadingTime: String = "",
-    val mostReadDay: String = "",
+    val accessTime: String = "0m",
+    val totalReadingTime: String = "0m",
+    val mostReadDay: String = "-",
     val finishedBookCount: Int = 0
 )
 
 data class MonthlyStats(
-    val accessTime: String = "",
-    val totalReadingTime: String = "",
-    val mostReadWeek: String = "",
+    val accessTime: String = "0m",
+    val totalReadingTime: String = "0m",
+    val mostReadWeek: String = "-",
     val finishedBookCount: Int = 0
 )
 
 data class YearlyStats(
-    val accessTime: String = "",
-    val totalReadingTime: String = "",
-    val mostReadMonth: String = "",
+    val accessTime: String = "0m",
+    val totalReadingTime: String = "0m",
+    val mostReadMonth: String = "-",
     val finishedBookCount: Int = 0
 )
 
 data class TotalStats(
-    val firstAccessDate: String = "",
+    val firstAccessDate: String = "-",
     val totalAccessDays: Int = 0,
-    val totalReadingTime: String = "",
+    val totalReadingTime: String = "0m",
     val totalFinishedBookCount: Int = 0
 )
 
@@ -77,20 +83,6 @@ class StatisticsViewModel(application: Application) : AndroidViewModel(applicati
     private val myLibraryRepository = MyLibraryRepository()
 
     init {
-        viewModelScope.launch {
-            sessionTimer.getTotalSessionTimeFlow().collect { totalMillis ->
-                val formattedTime = sessionTimer.formatDuration(totalMillis)
-                _uiState.update {
-                    it.copy(
-                        dailyStats = it.dailyStats.copy(accessTime = formattedTime),
-                        weeklyStats = it.weeklyStats.copy(accessTime = formattedTime),
-                        monthlyStats = it.monthlyStats.copy(accessTime = formattedTime),
-                        yearlyStats = it.yearlyStats.copy(accessTime = formattedTime),
-                        totalStats = it.totalStats.copy(totalReadingTime = formattedTime)
-                    )
-                }
-            }
-        }
         fetchStatistics()
     }
 
@@ -107,13 +99,9 @@ class StatisticsViewModel(application: Application) : AndroidViewModel(applicati
     private fun fetchStatistics() {
         viewModelScope.launch {
             val currentState = _uiState.value
-            val totalMillis = sessionTimer.getTotalSessionTimeFlow().first()
-            val formattedTime = sessionTimer.formatDuration(totalMillis)
-
             val allBooks = myLibraryRepository.getMyBooks()
             val readingBookCount = allBooks.count { !it.isCompleted }
             val finishedBookCount = allBooks.count { it.isCompleted }
-
             val tempGenreStats = listOf(
                 GenreStats("소설", 8, Color(0xFF00C853)),
                 GenreStats("에세이", 5, Color(0xFF009688)),
@@ -124,81 +112,143 @@ class StatisticsViewModel(application: Application) : AndroidViewModel(applicati
 
             when (currentState.selectedTab) {
                 "일" -> {
+                    val selectedDateKey =
+                        currentState.selectedDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                    val dailyDataMap = sessionTimer.getRecentSessionTimes(365).first()
+                    val accessMillis = dailyDataMap[selectedDateKey] ?: 0L
+                    val formattedTime = sessionTimer.formatDuration(accessMillis)
+
+                    val hourlyData =
+                        sessionTimer.getHourlySessionTimes(currentState.selectedDate).first()
+                    val chartPoints = (0..23).map { hour ->
+                        val minutes =
+                            TimeUnit.MILLISECONDS.toMinutes(hourlyData[hour] ?: 0L).toFloat()
+                        Point(hour.toFloat(), minutes)
+                    }
+
                     _uiState.update {
                         it.copy(
                             dailyStats = DailyStats(
                                 accessTime = formattedTime,
-                                totalReadingTime = "45m",
+                                totalReadingTime = "0m",
                                 readingBookCount = readingBookCount,
                                 finishedBookCount = finishedBookCount
                             ),
-                            chartData = (0..23).map { hour ->
-                                Point(hour.toFloat(), (0..60).random().toFloat())
-                            },
+                            chartData = chartPoints,
                             genreStats = tempGenreStats
                         )
                     }
                 }
+
                 "주" -> {
+                    val weekFields = WeekFields.of(Locale.KOREA)
+                    val firstDayOfWeek =
+                        currentState.selectedDate.with(weekFields.firstDayOfWeek)
+                    val dateKeys = (0..6).map {
+                        firstDayOfWeek.plusDays(it.toLong())
+                            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                    }
+
+                    val weeklyData = sessionTimer.getRecentSessionTimes(365).first()
+                        .filterKeys { it in dateKeys }
+                    val totalMillis = weeklyData.values.sum()
+                    val formattedTime = sessionTimer.formatDuration(totalMillis)
+
+                    val mostReadDayData = weeklyData.maxByOrNull { it.value }
+                    val mostReadDay = if (mostReadDayData != null && mostReadDayData.value > 0) {
+                        LocalDate.parse(mostReadDayData.key).dayOfWeek.getDisplayName(
+                            TextStyle.FULL,
+                            Locale.KOREAN
+                        )
+                    } else {
+                        "-"
+                    }
+
+                    val chartPoints = dateKeys.mapIndexed { index, dateKey ->
+                        val minutes =
+                            TimeUnit.MILLISECONDS.toMinutes(weeklyData[dateKey] ?: 0L).toFloat()
+                        Point(index.toFloat(), minutes)
+                    }
+
                     _uiState.update {
                         it.copy(
                             weeklyStats = WeeklyStats(
                                 accessTime = formattedTime,
-                                totalReadingTime = "5h",
-                                mostReadDay = "수요일",
+                                totalReadingTime = "0m",
+                                mostReadDay = mostReadDay,
                                 finishedBookCount = finishedBookCount
                             ),
-                            chartData = (0..6).map { day ->
-                                Point(day.toFloat(), (30..180).random().toFloat())
-                            },
+                            chartData = chartPoints,
                             genreStats = tempGenreStats
                         )
                     }
                 }
+
                 "월" -> {
+                    val yearMonth = currentState.selectedDate
+                    val firstDayOfMonth = yearMonth.withDayOfMonth(1)
+                    val lastDayOfMonth = yearMonth.withDayOfMonth(yearMonth.lengthOfMonth())
+
+                    val dateKeys = (0 until lastDayOfMonth.dayOfMonth).map {
+                        firstDayOfMonth.plusDays(it.toLong())
+                            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                    }
+
+                    val monthlyData = sessionTimer.getRecentSessionTimes(365).first()
+                        .filterKeys { it in dateKeys }
+                    val totalMillis = monthlyData.values.sum()
+                    val formattedTime = sessionTimer.formatDuration(totalMillis)
+
+                    val weeklyMinutes = Array(5) { 0L }
+                    val weekFields = WeekFields.of(Locale.KOREA)
+
+                    monthlyData.forEach { (dateStr, millis) ->
+                        val date = LocalDate.parse(dateStr)
+                        val weekOfMonth = date.get(weekFields.weekOfMonth()) - 1
+                        if (weekOfMonth in 0..4) {
+                            weeklyMinutes[weekOfMonth] += TimeUnit.MILLISECONDS.toMinutes(millis)
+                        }
+                    }
+
+                    val mostReadWeekIndex =
+                        weeklyMinutes.indices.maxByOrNull { weeklyMinutes[it] } ?: -1
+                    val mostReadWeek =
+                        if (mostReadWeekIndex != -1 && weeklyMinutes[mostReadWeekIndex] > 0) "${mostReadWeekIndex + 1}주차" else "-"
+
                     _uiState.update {
                         it.copy(
                             monthlyStats = MonthlyStats(
                                 accessTime = formattedTime,
-                                totalReadingTime = "22h",
-                                mostReadWeek = "2주차",
+                                totalReadingTime = "0m",
+                                mostReadWeek = mostReadWeek,
                                 finishedBookCount = finishedBookCount
                             ),
-                            chartData = (0..3).map { week ->
-                                Point(week.toFloat(), (3..10).random().toFloat())
+                            chartData = weeklyMinutes.mapIndexed { index, minutes ->
+                                Point(
+                                    index.toFloat(),
+                                    minutes.toFloat()
+                                )
                             },
                             genreStats = tempGenreStats
                         )
                     }
                 }
-                "년" -> {
+
+                "년", "전체" -> {
+                    val totalMillis = sessionTimer.getTotalSessionTimeFlow().first()
+                    val formattedTime = sessionTimer.formatDuration(totalMillis)
+
                     _uiState.update {
                         it.copy(
-                            yearlyStats = YearlyStats(
+                            yearlyStats = it.yearlyStats.copy(
                                 accessTime = formattedTime,
-                                totalReadingTime = "280h",
-                                mostReadMonth = "8월",
                                 finishedBookCount = finishedBookCount
                             ),
-                            chartData = (0..11).map { month ->
-                                Point(month.toFloat(), (10..40).random().toFloat())
-                            },
-                            genreStats = tempGenreStats
-                        )
-                    }
-                }
-                "전체" -> {
-                    _uiState.update {
-                        it.copy(
-                            totalStats = TotalStats(
-                                firstAccessDate = "2023-01-15",
-                                totalAccessDays = 300,
+                            totalStats = it.totalStats.copy(
                                 totalReadingTime = formattedTime,
                                 totalFinishedBookCount = finishedBookCount
                             ),
-                            chartData = (0..11).map { month ->
-                                Point(month.toFloat(), (50..200).random().toFloat())
-                            },
+                            chartData = emptyList(),
                             genreStats = tempGenreStats
                         )
                     }

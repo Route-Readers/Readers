@@ -48,7 +48,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import co.yml.charts.axis.AxisData
 import co.yml.charts.common.model.Point
-import co.yml.charts.common.model.PlotType // *** 이 import 문을 추가해야 합니다 ***
+import co.yml.charts.common.model.PlotType
 import co.yml.charts.ui.barchart.BarChart
 import co.yml.charts.ui.barchart.models.BarChartData
 import co.yml.charts.ui.barchart.models.BarData
@@ -135,10 +135,12 @@ fun StatisticsSection(
                 containerColor = MaterialTheme.colorScheme.surface,
                 contentColor = MaterialTheme.colorScheme.onSurface,
                 indicator = { tabPositions ->
-                    TabRowDefaults.Indicator(
-                        Modifier.tabIndicatorOffset(tabPositions[tabs.indexOf(uiState.selectedTab)]),
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    if (tabs.indexOf(uiState.selectedTab) in tabPositions.indices) {
+                        TabRowDefaults.Indicator(
+                            Modifier.tabIndicatorOffset(tabPositions[tabs.indexOf(uiState.selectedTab)]),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             ) {
                 tabs.forEach { tab ->
@@ -159,7 +161,7 @@ fun StatisticsSection(
                 "주" -> WeeklyStatsContent(date = uiState.selectedDate, stats = uiState.weeklyStats, chartData = uiState.chartData, onDateChange = onDateChange)
                 "월" -> MonthlyStatsContent(date = uiState.selectedDate, stats = uiState.monthlyStats, chartData = uiState.chartData, onDateChange = onDateChange)
                 "년" -> YearlyStatsContent(date = uiState.selectedDate, stats = uiState.yearlyStats, chartData = uiState.chartData, onDateChange = onDateChange)
-                "전체" -> TotalStatsContent(stats = uiState.totalStats, chartData = uiState.chartData)
+                "전체" -> TotalStatsContent(stats = uiState.totalStats)
             }
         }
 
@@ -190,7 +192,8 @@ fun DailyStatsContent(date: LocalDate, stats: DailyStats, chartData: List<Point>
         title = formattedDate,
         subTitle = subTitle,
         onPrevious = { onDateChange(date.minusDays(1)) },
-        onNext = { onDateChange(date.plusDays(1)) }
+        onNext = { onDateChange(date.plusDays(1)) },
+        isNextEnabled = !date.isEqual(LocalDate.now())
     )
     Spacer(modifier = Modifier.height(24.dp))
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -207,10 +210,11 @@ fun DailyStatsContent(date: LocalDate, stats: DailyStats, chartData: List<Point>
 fun WeeklyStatsContent(date: LocalDate, stats: WeeklyStats, chartData: List<Point>, onDateChange: (LocalDate) -> Unit) {
     val currentYear = LocalDate.now().year
     val isDifferentYear = date.year != currentYear
-    val weekFields = WeekFields.of(Locale.getDefault())
-    val weekOfMonth = date.get(weekFields.weekOfMonth())
-    val month = date.monthValue
-    val title = "${month}월 ${weekOfMonth}주차"
+    val weekFields = WeekFields.of(Locale.KOREA)
+    val firstDayOfWeek = date.with(weekFields.firstDayOfWeek)
+    val lastDayOfWeek = firstDayOfWeek.plusDays(6)
+
+    val title = "${firstDayOfWeek.monthValue}월 ${firstDayOfWeek.get(weekFields.weekOfMonth())}주차"
     val subTitle = if (isDifferentYear) "${date.year}년" else null
     val xAxisLabels = listOf("월", "화", "수", "목", "금", "토", "일")
 
@@ -218,7 +222,8 @@ fun WeeklyStatsContent(date: LocalDate, stats: WeeklyStats, chartData: List<Poin
         title = title,
         subTitle = subTitle,
         onPrevious = { onDateChange(date.minusWeeks(1)) },
-        onNext = { onDateChange(date.plusWeeks(1)) }
+        onNext = { onDateChange(date.plusWeeks(1)) },
+        isNextEnabled = lastDayOfWeek.isBefore(LocalDate.now())
     )
     Spacer(modifier = Modifier.height(24.dp))
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -238,13 +243,14 @@ fun MonthlyStatsContent(date: LocalDate, stats: MonthlyStats, chartData: List<Po
     val yearMonth = YearMonth.from(date)
     val title = "${yearMonth.monthValue}월"
     val subTitle = if (isDifferentYear) "${date.year}년" else null
-    val xAxisLabels = listOf("1주", "2주", "3주", "4주")
+    val xAxisLabels = listOf("1주", "2주", "3주", "4주", "5주")
 
     StatsHeader(
         title = title,
         subTitle = subTitle,
         onPrevious = { onDateChange(date.minusMonths(1)) },
-        onNext = { onDateChange(date.plusMonths(1)) }
+        onNext = { onDateChange(date.plusMonths(1)) },
+        isNextEnabled = yearMonth.isBefore(YearMonth.now())
     )
     Spacer(modifier = Modifier.height(24.dp))
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -265,7 +271,8 @@ fun YearlyStatsContent(date: LocalDate, stats: YearlyStats, chartData: List<Poin
     StatsHeader(
         title = title,
         onPrevious = { onDateChange(date.minusYears(1)) },
-        onNext = { onDateChange(date.plusYears(1)) }
+        onNext = { onDateChange(date.plusYears(1)) },
+        isNextEnabled = date.year < LocalDate.now().year
     )
     Spacer(modifier = Modifier.height(24.dp))
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -279,9 +286,7 @@ fun YearlyStatsContent(date: LocalDate, stats: YearlyStats, chartData: List<Poin
 }
 
 @Composable
-fun TotalStatsContent(stats: TotalStats, chartData: List<Point>) {
-    val xAxisLabels = (1..12).map { "${it}월" }
-
+fun TotalStatsContent(stats: TotalStats) {
     Box(modifier = Modifier.padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
         Text("전체 통계", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
     }
@@ -292,8 +297,6 @@ fun TotalStatsContent(stats: TotalStats, chartData: List<Point>) {
         StatisticsDetailRow("총 독서시간", stats.totalReadingTime)
         StatisticsDetailRow("총 완독 권수", "${stats.totalFinishedBookCount}권")
     }
-    Spacer(modifier = Modifier.height(24.dp))
-    StatsLineChart(pointsData = chartData, xAxisLabels = xAxisLabels)
 }
 
 @Composable
@@ -306,7 +309,7 @@ fun GenreCharts(genreStats: List<GenreStats>) {
 
 @Composable
 fun GenreBarChart(genreStats: List<GenreStats>) {
-    val maxRange = (genreStats.maxOfOrNull { it.count } ?: 0) + 2
+    val maxRange = (genreStats.maxOfOrNull { it.count } ?: 0).let { if (it == 0) 5 else it + (it/4) }
     val barData = genreStats.map {
         BarData(
             point = Point(x = genreStats.indexOf(it).toFloat(), y = it.count.toFloat()),
@@ -323,7 +326,7 @@ fun GenreBarChart(genreStats: List<GenreStats>) {
         .axisLabelAngle(20f)
         .axisLabelColor(MaterialTheme.colorScheme.onSurfaceVariant)
         .axisLineColor(Color.Transparent)
-        .labelData { index -> barData[index].label }
+        .labelData { index -> barData.getOrNull(index)?.label ?: "" }
         .build()
 
     val yAxisData = AxisData.Builder()
@@ -341,12 +344,13 @@ fun GenreBarChart(genreStats: List<GenreStats>) {
         barStyle = BarStyle(barWidth = 25.dp),
         backgroundColor = Color.Transparent
     )
-    BarChart(modifier = Modifier.height(250.dp), barChartData = chartData)
+    if (barData.isNotEmpty()){
+        BarChart(modifier = Modifier.height(250.dp), barChartData = chartData)
+    }
 }
 
 @Composable
 fun GenreDonutChart(genreStats: List<GenreStats>) {
-    // *** 이 부분이 핵심 수정 사항입니다. ***
     val donutChartData = PieChartData(
         slices = genreStats.map {
             PieChartData.Slice(
@@ -355,7 +359,7 @@ fun GenreDonutChart(genreStats: List<GenreStats>) {
                 color = it.color
             )
         },
-        plotType = PlotType.Donut // PieChartData.PlotType이 아니라 PlotType을 직접 사용
+        plotType = PlotType.Donut
     )
 
     val donutChartConfig = PieChartConfig(
@@ -375,11 +379,17 @@ fun GenreDonutChart(genreStats: List<GenreStats>) {
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            DonutPieChart(
-                modifier = Modifier.size(150.dp),
-                pieChartData = donutChartData,
-                pieChartConfig = donutChartConfig
-            )
+            Box(modifier = Modifier.size(150.dp), contentAlignment = Alignment.Center){
+                if(donutChartData.slices.all { it.value == 0f }){
+                    Text("데이터 없음", fontSize = 14.sp)
+                } else {
+                    DonutPieChart(
+                        modifier = Modifier.fillMaxSize(),
+                        pieChartData = donutChartData,
+                        pieChartConfig = donutChartConfig
+                    )
+                }
+            }
             Spacer(modifier = Modifier.width(24.dp))
             Column {
                 genreStats.forEach {
@@ -402,8 +412,8 @@ fun GenreDonutChart(genreStats: List<GenreStats>) {
 
 @Composable
 fun StatsLineChart(pointsData: List<Point>, xAxisLabels: List<String>) {
-    val steps = 5
-    val yMax = pointsData.maxOfOrNull { it.y }?.takeIf { it > 0f } ?: 1f
+    val steps = 4
+    val yMax = pointsData.maxOfOrNull { it.y }?.takeIf { it > 0f } ?: 5f
     val yAxisData = AxisData.Builder()
         .steps(steps)
         .labelAndAxisLinePadding(20.dp)
@@ -412,13 +422,13 @@ fun StatsLineChart(pointsData: List<Point>, xAxisLabels: List<String>) {
         .axisLabelFontSize(12.sp)
         .labelData { i ->
             val yScale = yMax / steps
-            String.format("%.1f", (i * yScale))
+            String.format("%.0f", (i * yScale))
         }
         .build()
 
     val xAxisData = AxisData.Builder()
         .axisStepSize(40.dp)
-        .steps(pointsData.size - 1)
+        .steps(pointsData.size.let { if(it > 0) it - 1 else 0 })
         .axisLineColor(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
         .axisLabelColor(MaterialTheme.colorScheme.onSurfaceVariant)
         .axisLabelFontSize(12.sp)
@@ -458,13 +468,26 @@ fun StatsLineChart(pointsData: List<Point>, xAxisLabels: List<String>) {
         backgroundColor = MaterialTheme.colorScheme.surface
     )
 
-    if (pointsData.isNotEmpty()) {
+    if (pointsData.any{ it.y > 0 }) {
         LineChart(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(250.dp),
             lineChartData = lineChartData
         )
+    } else {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(250.dp)
+                .background(
+                    MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                    shape = MaterialTheme.shapes.small
+                ),
+            contentAlignment = Alignment.Center
+        ){
+            Text("기록된 데이터가 없습니다.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 
@@ -473,19 +496,24 @@ fun StatsHeader(
     title: String,
     subTitle: String? = null,
     onPrevious: (() -> Unit)? = null,
-    onNext: (() -> Unit)? = null
+    onNext: (() -> Unit)? = null,
+    isNextEnabled: Boolean = true
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth()
     ) {
+        val prevButtonColor = MaterialTheme.colorScheme.onSurfaceVariant
+        val nextButtonColor = if (isNextEnabled) MaterialTheme.colorScheme.onSurfaceVariant else Color.Transparent
+
         if (onPrevious != null) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                contentDescription = "이전",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.clickable(onClick = onPrevious)
-            )
+            IconButton(onClick = onPrevious) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                    contentDescription = "이전",
+                    tint = prevButtonColor
+                )
+            }
         }
 
         Column(
@@ -509,12 +537,13 @@ fun StatsHeader(
         }
 
         if (onNext != null) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = "다음",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.clickable(onClick = onNext)
-            )
+            IconButton(onClick = onNext, enabled = isNextEnabled) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = "다음",
+                    tint = nextButtonColor
+                )
+            }
         }
     }
 }
