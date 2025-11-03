@@ -39,6 +39,7 @@ import com.route.readers.ui.screens.profile.ProfileSetupScreen
 import com.route.readers.ui.screens.profile.ProfileUiState
 import com.route.readers.ui.screens.profile.ProfileViewModel
 import com.route.readers.ui.screens.profile.StatisticsScreen
+import com.route.readers.ui.screens.token.TokenShopScreen
 import java.net.URLDecoder
 import java.net.URLEncoder
 
@@ -186,7 +187,16 @@ fun AppNavigation(navController: NavHostController) {
                 },
                 onNavigateToChallenge = {
                     navController.navigate("challenge_route")
+                },
+                onNavigateToTokenShop = {
+                    navController.navigate("token_shop_route")
                 }
+            )
+        }
+
+        composable("token_shop_route") {
+            TokenShopScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 

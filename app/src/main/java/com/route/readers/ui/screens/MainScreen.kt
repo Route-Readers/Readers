@@ -54,7 +54,8 @@ fun MainScreen(
     onNavigateToAddFeed: () -> Unit,
     onNavigateToMyAccount: () -> Unit,
     onNavigateToAttendance: () -> Unit,
-    onNavigateToChallenge: () -> Unit
+    onNavigateToChallenge: () -> Unit,
+    onNavigateToTokenShop: () -> Unit
 ) {
     val bottomNavController = rememberNavController()
     val mainViewModel: MainViewModel = viewModel()
@@ -95,13 +96,17 @@ fun MainScreen(
             )
             if (shouldShowTopBar) {
                 val consecutiveReadingDays by attendanceViewModel.consecutiveReadingDays.collectAsState()
+                val tokens by mainViewModel.tokens.collectAsState()
+                
                 FeedTopAppBar(
                     consecutiveReadingDays = consecutiveReadingDays,
+                    tokens = tokens,
                     onBlockListClick = { bottomNavController.navigate("blockList") },
                     onLogoutClick = { showLogoutDialog = true },
                     onMyAccountClick = onNavigateToMyAccount,
                     onAttendanceClick = onNavigateToAttendance,
-                    onNavigateToChallenge = onNavigateToChallenge
+                    onNavigateToChallenge = onNavigateToChallenge,
+                    onTokenClick = onNavigateToTokenShop
                 )
             }
         },

@@ -22,6 +22,7 @@ fun UsedBookTradeScreen() {
         contentPadding = PaddingValues(
             start = 16.dp,
             end = 16.dp,
+            top = 16.dp,
             bottom = 100.dp
         )
     ) {
@@ -58,17 +59,6 @@ fun UsedBookTradeScreen() {
                             fontSize = 14.sp,
                             color = Color.Gray
                         )
-                    }
-                    
-                    Button(
-                        onClick = { /* 토큰 충전 */ },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFF9800),
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("토큰 충전")
                     }
                 }
             }
@@ -112,68 +102,6 @@ fun UsedBookTradeScreen() {
                 rating = 4.6f + (index * 0.1f)
             )
             Spacer(modifier = Modifier.height(16.dp))
-        }
-        
-        item {
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            // 토큰 획득 방법 섹션
-            TokenEarnMethodsSection()
-            
-            Spacer(modifier = Modifier.height(100.dp)) // 하단 네비게이션 여백
-        }
-    }
-}
-
-@Composable
-private fun TokenEarnMethodsSection() {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            Icons.Default.Send,
-            contentDescription = null,
-            modifier = Modifier.size(20.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            "토큰 획득 방법",
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Medium
-        )
-    }
-    
-    Spacer(modifier = Modifier.height(16.dp))
-    
-    // 토큰 획득 방법 리스트
-    val tokenMethods = listOf(
-        "책 완독하기 (기본 내)" to "+10 토큰",
-        "독서 챌린지 완료" to "+7 토큰",
-        "친구 추천하기" to "+5 토큰",
-        "연속 독서 (7일)" to "+13 토큰",
-        "책 리뷰 작성" to "+2 토큰"
-    )
-    
-    tokenMethods.forEach { (method, reward) ->
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                method,
-                fontSize = 14.sp,
-                color = Color.Black
-            )
-            Text(
-                reward,
-                fontSize = 14.sp,
-                color = Color(0xFFFF9800),
-                fontWeight = FontWeight.Medium
-            )
         }
     }
 }
