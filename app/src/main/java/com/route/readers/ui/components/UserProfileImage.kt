@@ -5,8 +5,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,7 +24,6 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.route.readers.R
 import com.route.readers.data.model.User
-import com.route.readers.ui.theme.DarkRed
 
 @Composable
 fun UserProfileImage(
@@ -30,10 +31,16 @@ fun UserProfileImage(
     size: Dp = 48.dp,
     fontSize: TextUnit = 20.sp
 ) {
-    val backgroundColor = try {
-        user.profileBackgroundColor?.let { Color(android.graphics.Color.parseColor(it)) } ?: DarkRed
-    } catch (e: Exception) {
-        DarkRed
+    // 기본 색상을 컴포저블 컨텍스트에서 먼저 가져옵니다.
+    val primaryColor = MaterialTheme.colorScheme.primary
+
+    // remember 블록 안에서는 컴포저블 컨텍스트에 의존하지 않는 값만 사용합니다.
+    val backgroundColor = remember(user.profileBackgroundColor, primaryColor) {
+        user.profileBackgroundColor?.let { colorString ->
+            runCatching {
+                Color(android.graphics.Color.parseColor(colorString))
+            }.getOrNull()
+        } ?: primaryColor // 여기서 안전하게 기본 색상을 사용합니다.
     }
 
     Box(
@@ -63,7 +70,7 @@ fun UserProfileImage(
                     "squirrel" -> R.drawable.squirrel
                     else -> null
                 }
-                
+
                 drawableRes?.let {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
@@ -78,7 +85,7 @@ fun UserProfileImage(
             else -> {
                 Text(
                     text = user.nickname.firstOrNull()?.toString() ?: "",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onPrimary,
                     fontSize = fontSize,
                     fontWeight = FontWeight.Bold
                 )
