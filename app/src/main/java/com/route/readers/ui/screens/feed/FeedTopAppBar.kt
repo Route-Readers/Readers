@@ -41,7 +41,8 @@ fun FeedTopAppBar(
     onLogoutClick: () -> Unit,
     onMyAccountClick: () -> Unit,
     onAttendanceClick: () -> Unit,
-    onNavigateToChallenge: () -> Unit
+    onNavigateToChallenge: () -> Unit,
+    onTokenClick: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
@@ -63,7 +64,10 @@ fun FeedTopAppBar(
             }
         },
         actions = {
-            TokenBadge(tokens = tokens)
+            TokenBadge(
+                tokens = tokens,
+                onClick = onTokenClick
+            )
 
             AttendanceBadge(
                 readingDays = consecutiveReadingDays,
@@ -123,7 +127,7 @@ fun FeedTopAppBar(
 }
 
 @Composable
-fun TokenBadge(tokens: Int) {
+fun TokenBadge(tokens: Int, onClick: () -> Unit) {
     val tokenColor = Color(0xFFFFA000)
     val backgroundColor = tokenColor.copy(alpha = 0.1f)
 
@@ -132,6 +136,7 @@ fun TokenBadge(tokens: Int) {
             .height(32.dp)
             .clip(CircleShape)
             .background(backgroundColor)
+            .clickable(onClick = onClick)
             .padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)

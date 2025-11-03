@@ -54,7 +54,8 @@ fun MainScreen(
     onNavigateToAddFeed: () -> Unit,
     onNavigateToMyAccount: () -> Unit,
     onNavigateToAttendance: () -> Unit,
-    onNavigateToChallenge: () -> Unit
+    onNavigateToChallenge: () -> Unit,
+    onNavigateToTokenShop: () -> Unit
 ) {
     val bottomNavController = rememberNavController()
     val mainViewModel: MainViewModel = viewModel()
@@ -104,7 +105,8 @@ fun MainScreen(
                     onLogoutClick = { showLogoutDialog = true },
                     onMyAccountClick = onNavigateToMyAccount,
                     onAttendanceClick = onNavigateToAttendance,
-                    onNavigateToChallenge = onNavigateToChallenge
+                    onNavigateToChallenge = onNavigateToChallenge,
+                    onTokenClick = onNavigateToTokenShop
                 )
             }
         },
