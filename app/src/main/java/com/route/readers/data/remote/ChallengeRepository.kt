@@ -27,17 +27,23 @@ class ChallengeRepository {
 
     suspend fun joinChallenge(challengeId: String, userId: String) {
         try {
+            android.util.Log.d("ChallengeRepository", "joinChallenge - challengeId: $challengeId, userId: $userId")
+            
             val docRef = challengesCollection.document(challengeId)
             val snapshot = docRef.get().await()
             
             // 문서가 존재하지 않으면 생성
             if (!snapshot.exists()) {
+                android.util.Log.e("ChallengeRepository", "Challenge document not found: $challengeId")
                 return
             }
             
             // 이미 참여 중인지 확인
             val participants = snapshot.get("participants") as? List<*> ?: emptyList<String>()
+            android.util.Log.d("ChallengeRepository", "Current participants: $participants")
+            
             if (participants.contains(userId)) {
+                android.util.Log.d("ChallengeRepository", "User already participating")
                 return
             }
             
@@ -48,7 +54,10 @@ class ChallengeRepository {
                     "progress.$userId" to 0
                 )
             ).await()
+            
+            android.util.Log.d("ChallengeRepository", "Successfully joined challenge")
         } catch (e: Exception) {
+            android.util.Log.e("ChallengeRepository", "Error joining challenge", e)
             e.printStackTrace()
         }
     }
@@ -86,15 +95,22 @@ class ChallengeRepository {
     suspend fun getUserActiveChallenge(userId: String): Challenge? {
         return try {
             val currentWeek = getCurrentWeekNumber()
-            challengesCollection
+            android.util.Log.d("ChallengeRepository", "getUserActiveChallenge - userId: $userId, weekNumber: $currentWeek")
+            
+            val result = challengesCollection
                 .whereArrayContains("participants", userId)
                 .whereEqualTo("weekNumber", currentWeek)
                 .get()
                 .await()
-                .documents
-                .firstOrNull()
-                ?.toObject(Challenge::class.java)
+            
+            android.util.Log.d("ChallengeRepository", "Query result size: ${result.documents.size}")
+            result.documents.forEach { doc ->
+                android.util.Log.d("ChallengeRepository", "Document: ${doc.id}, participants: ${doc.get("participants")}, weekNumber: ${doc.get("weekNumber")}")
+            }
+            
+            result.documents.firstOrNull()?.toObject(Challenge::class.java)
         } catch (e: Exception) {
+            android.util.Log.e("ChallengeRepository", "Error getting user active challenge", e)
             null
         }
     }

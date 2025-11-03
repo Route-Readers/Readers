@@ -42,11 +42,10 @@ import com.route.readers.ui.theme.DarkRed
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CommunityScreen(
+    viewModel: CommunityViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     onNavigateToFriendsList: () -> Unit = {},
     onNavigateToNotifications: () -> Unit = {}
 ) {
-    val context = LocalContext.current
-    val viewModel: CommunityViewModel = remember { CommunityViewModel(context) }
     val uiState by viewModel.uiState.collectAsState()
     var showAddFriendDialog by remember { mutableStateOf(false) }
     var showCreateBookClubDialog by remember { mutableStateOf(false) }
@@ -220,15 +219,17 @@ fun CommunityContent(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp)
     ) {
-        item {
-            SwipeableChallengeCard(
-                userChallenge = uiState.userActiveChallenge,
-                availableChallenges = uiState.challenges,
-                onChallengeSelected = { challenge -> onJoinChallenge(challenge.id) },
-                onChallengeReset = onResetChallenge,
-                currentUserId = currentUserId
-            )
-            Spacer(modifier = Modifier.height(24.dp))
+        if (!uiState.isChallengesLoading) {
+            item {
+                SwipeableChallengeCard(
+                    userChallenge = uiState.userActiveChallenge,
+                    availableChallenges = uiState.challenges,
+                    onChallengeSelected = { challenge -> onJoinChallenge(challenge.id) },
+                    onChallengeReset = onResetChallenge,
+                    currentUserId = currentUserId
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+            }
         }
 
         item {

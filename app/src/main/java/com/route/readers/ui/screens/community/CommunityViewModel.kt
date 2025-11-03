@@ -29,15 +29,16 @@ data class CommunityUiState(
     val userActiveChallenge: Challenge? = null,
     val addFriendMessage: String? = null,
     val friendToDelete: Friend? = null,
-    val isNotificationSending: Boolean = false
+    val isNotificationSending: Boolean = false,
+    val isChallengesLoading: Boolean = true
 ) {
     val displayedFriends: List<Friend> = friends.take(5)
     val hasMoreFriends: Boolean = friends.size > 5
 }
 
-class CommunityViewModel(context: Context? = null) : ViewModel() {
+class CommunityViewModel : ViewModel() {
     private val friendsRepository = FriendsRepository()
-    private val notificationRepository = NotificationRepository(context)
+    private val notificationRepository = NotificationRepository(null)
     private val challengeRepository = ChallengeRepository()
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
     
@@ -52,8 +53,13 @@ class CommunityViewModel(context: Context? = null) : ViewModel() {
         }
         loadFriends()
         viewModelScope.launch {
-            createWeeklyChallengesIfNeeded()
+            // 먼저 기존 챌린지 로드 시도
             loadChallenges()
+            // 챌린지가 없으면 생성 후 다시 로드
+            if (_uiState.value.challenges.isEmpty()) {
+                createWeeklyChallengesIfNeeded()
+                loadChallenges()
+            }
         }
     }
     
@@ -96,70 +102,84 @@ class CommunityViewModel(context: Context? = null) : ViewModel() {
     }
     
     private suspend fun createWeeklyChallengesIfNeeded() {
-        val existingChallenges = challengeRepository.getAvailableChallenges()
-        if (existingChallenges.isEmpty()) {
-            val startDate = getThisMonday()
-            val endDate = getNextSunday()
-            val weekNumber = getCurrentWeekNumber()
-            
-            val defaultChallenges = listOf(
-                Challenge(
-                    id = "challenge_${weekNumber}_1",
-                    title = "매일 30페이지 읽기",
-                    description = "하루에 30페이지씩 7일 동안 읽기",
-                    type = com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING,
-                    goal = 30,
-                    startDate = startDate,
-                    endDate = endDate,
-                    weekNumber = weekNumber,
-                    reward = "50 토큰"
-                ),
-                Challenge(
-                    id = "challenge_${weekNumber}_2",
-                    title = "7일 연속 독서",
-                    description = "7일 동안 매일 책 읽기",
-                    type = com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING_WITH_FRIEND,
-                    goal = 1,
-                    startDate = startDate,
-                    endDate = endDate,
-                    weekNumber = weekNumber,
-                    reward = "30 토큰"
-                ),
-                Challenge(
-                    id = "challenge_${weekNumber}_3",
-                    title = "매일 50페이지 읽기",
-                    description = "하루에 50페이지씩 7일 동안 읽기",
-                    type = com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING,
-                    goal = 50,
-                    startDate = startDate,
-                    endDate = endDate,
-                    weekNumber = weekNumber,
-                    reward = "100 토큰"
-                )
+        val startDate = getThisMonday()
+        val endDate = getNextSunday()
+        val weekNumber = getCurrentWeekNumber()
+        
+        val defaultChallenges = listOf(
+            Challenge(
+                id = "challenge_v2_${weekNumber}_1",
+                title = "매일 30페이지 읽기",
+                description = "하루에 30페이지씩 7일 동안 읽기",
+                type = com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING,
+                goal = 30,
+                startDate = startDate,
+                endDate = endDate,
+                weekNumber = weekNumber,
+                reward = "50 토큰"
+            ),
+            Challenge(
+                id = "challenge_v2_${weekNumber}_2",
+                title = "7일 연속 독서",
+                description = "7일 동안 매일 책 읽기",
+                type = com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING_WITH_FRIEND,
+                goal = 1,
+                startDate = startDate,
+                endDate = endDate,
+                weekNumber = weekNumber,
+                reward = "30 토큰"
+            ),
+            Challenge(
+                id = "challenge_v2_${weekNumber}_3",
+                title = "매일 50페이지 읽기",
+                description = "하루에 50페이지씩 7일 동안 읽기",
+                type = com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING,
+                goal = 50,
+                startDate = startDate,
+                endDate = endDate,
+                weekNumber = weekNumber,
+                reward = "100 토큰"
             )
-            
-            defaultChallenges.forEach { challengeRepository.createChallenge(it) }
-        }
+        )
+        
+        defaultChallenges.forEach { challengeRepository.createChallenge(it) }
     }
     
     private fun loadChallenges() {
         viewModelScope.launch {
+            android.util.Log.d("CommunityViewModel", "loadChallenges started, userId: $currentUserId")
+            
             // 이번 주 챌린지 가져오기
             val availableChallenges = challengeRepository.getAvailableChallenges()
+            android.util.Log.d("CommunityViewModel", "Available challenges: ${availableChallenges.size}")
             
             // 사용자가 참여 중인 챌린지 찾기
             val userChallenge = challengeRepository.getUserActiveChallenge(currentUserId)
+            android.util.Log.d("CommunityViewModel", "User active challenge: ${userChallenge?.id}, title: ${userChallenge?.title}")
             
             _uiState.value = _uiState.value.copy(
                 challenges = availableChallenges,
-                userActiveChallenge = userChallenge
+                userActiveChallenge = userChallenge,
+                isChallengesLoading = false
             )
         }
     }
     
     fun joinChallenge(challengeId: String) {
         viewModelScope.launch {
+            // 선택한 챌린지 찾기
+            val selectedChallenge = _uiState.value.challenges.find { it.id == challengeId }
+            
+            // 즉시 UI 업데이트 (낙관적 업데이트)
+            selectedChallenge?.let {
+                _uiState.value = _uiState.value.copy(userActiveChallenge = it)
+            }
+            
+            // Firestore 업데이트
             challengeRepository.joinChallenge(challengeId, currentUserId)
+            
+            // 최종 확인을 위해 다시 로드
+            kotlinx.coroutines.delay(500)
             loadChallenges()
         }
     }

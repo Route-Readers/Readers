@@ -21,7 +21,7 @@ data class Challenge(
     val dailyProgress: Map<String, Map<String, Int>> = emptyMap(), // 사용자별 일별 진행 (UID to date to progress)
     @ServerTimestamp val startDate: Date? = null,
     val endDate: Date? = null,
-    val isCompleted: Boolean = false,
+    val completed: Boolean = false,
     val reward: String = "", // 보상 (예: "경험치 100XP")
     val weekNumber: Int = 0 // 주차 번호 (년도 + 주차로 구분)
 )
