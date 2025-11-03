@@ -1,8 +1,8 @@
 package com.route.readers.ui.screens.profile
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -26,6 +26,7 @@ import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,7 +43,7 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.WeekFields
 import java.util.Locale
 
-// --- 데이터 클래스 정의 ---
+// --- 데이터 클래스 정의 (기존과 동일) ---
 data class DailyStats(
     val accessTime: String,
     val totalReadingTime: String,
@@ -85,12 +86,21 @@ fun StatisticsScreen(
     onNavigateBack: () -> Unit
     // viewModel: StatisticsViewModel = viewModel()
 ) {
-    // --- 임시 데이터 (나중에 ViewModel에서 관리) ---
+    // --- 임시 데이터 (기존과 동일, 나중에 ViewModel에서 관리) ---
     val dailyStats = DailyStats("58분", "32분", 3, 1)
     val weeklyStats = WeeklyStats("5시간 12분", "3시간 40분", "월요일", 2)
     val monthlyStats = MonthlyStats("22시간", "15시간", "3주차", 5)
     val yearlyStats = YearlyStats("210시간", "140시간", "7월", 25)
     val totalStats = TotalStats("2023년 1월 15일", 258, "500시간", 60)
+
+    // --- 각 탭별로 현재 선택된 날짜/기간을 상태로 관리 ---
+    var selectedDate by remember { mutableStateOf(LocalDate.now()) }
+
+    // --- 데이터를 가져오는 로직 (현재는 임시) ---
+    LaunchedEffect(selectedDate) {
+        // 이 블록은 selectedDate가 바뀔 때마다 실행됩니다.
+        // 여기에 데이터 로딩 로직을 추가할 수 있습니다.
+    }
 
     Scaffold(
         topBar = {
@@ -115,6 +125,8 @@ fun StatisticsScreen(
                 .padding(16.dp)
         ) {
             StatisticsSection(
+                selectedDate = selectedDate,
+                onDateChange = { newDate -> selectedDate = newDate },
                 dailyStats = dailyStats,
                 weeklyStats = weeklyStats,
                 monthlyStats = monthlyStats,
@@ -127,6 +139,8 @@ fun StatisticsScreen(
 
 @Composable
 fun StatisticsSection(
+    selectedDate: LocalDate,
+    onDateChange: (LocalDate) -> Unit,
     dailyStats: DailyStats,
     weeklyStats: WeeklyStats,
     monthlyStats: MonthlyStats,
@@ -167,10 +181,26 @@ fun StatisticsSection(
         Spacer(modifier = Modifier.height(24.dp))
 
         when (selectedTab) {
-            "일" -> DailyStatsContent(stats = dailyStats)
-            "주" -> WeeklyStatsContent(stats = weeklyStats)
-            "월" -> MonthlyStatsContent(stats = monthlyStats)
-            "년" -> YearlyStatsContent(stats = yearlyStats)
+            "일" -> DailyStatsContent(
+                date = selectedDate,
+                stats = dailyStats,
+                onDateChange = { onDateChange(it) }
+            )
+            "주" -> WeeklyStatsContent(
+                date = selectedDate,
+                stats = weeklyStats,
+                onDateChange = { onDateChange(it) }
+            )
+            "월" -> MonthlyStatsContent(
+                date = selectedDate,
+                stats = monthlyStats,
+                onDateChange = { onDateChange(it) }
+            )
+            "년" -> YearlyStatsContent(
+                date = selectedDate,
+                stats = yearlyStats,
+                onDateChange = { onDateChange(it) }
+            )
             "전체" -> TotalStatsContent(stats = totalStats)
         }
     }
@@ -179,12 +209,24 @@ fun StatisticsSection(
 // --- 각 탭에 대한 컨텐츠 Composable ---
 
 @Composable
-fun DailyStatsContent(stats: DailyStats) {
-    val today = LocalDate.now()
-    val formatter = DateTimeFormatter.ofPattern("MM월 dd일")
-    val formattedDate = today.format(formatter)
+fun DailyStatsContent(date: LocalDate, stats: DailyStats, onDateChange: (LocalDate) -> Unit) {
+    val currentYear = LocalDate.now().year
+    val isDifferentYear = date.year != currentYear
 
-    StatsHeader(title = formattedDate)
+    val formatter = if (isDifferentYear) {
+        DateTimeFormatter.ofPattern("MM월 dd일")
+    } else {
+        DateTimeFormatter.ofPattern("MM월 dd일")
+    }
+    val formattedDate = date.format(formatter)
+    val subTitle = if (isDifferentYear) "${date.year}년" else null
+
+    StatsHeader(
+        title = formattedDate,
+        subTitle = subTitle,
+        onPrevious = { onDateChange(date.minusDays(1)) },
+        onNext = { onDateChange(date.plusDays(1)) }
+    )
     Spacer(modifier = Modifier.height(24.dp))
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -196,14 +238,22 @@ fun DailyStatsContent(stats: DailyStats) {
 }
 
 @Composable
-fun WeeklyStatsContent(stats: WeeklyStats) {
-    val today = LocalDate.now()
-    val weekFields = WeekFields.of(Locale.getDefault())
-    val weekOfMonth = today.get(weekFields.weekOfMonth())
-    val month = today.monthValue
-    val title = "${month}월 ${weekOfMonth}주차"
+fun WeeklyStatsContent(date: LocalDate, stats: WeeklyStats, onDateChange: (LocalDate) -> Unit) {
+    val currentYear = LocalDate.now().year
+    val isDifferentYear = date.year != currentYear
 
-    StatsHeader(title = title)
+    val weekFields = WeekFields.of(Locale.getDefault())
+    val weekOfMonth = date.get(weekFields.weekOfMonth())
+    val month = date.monthValue
+    val title = "${month}월 ${weekOfMonth}주차"
+    val subTitle = if (isDifferentYear) "${date.year}년" else null
+
+    StatsHeader(
+        title = title,
+        subTitle = subTitle,
+        onPrevious = { onDateChange(date.minusWeeks(1)) },
+        onNext = { onDateChange(date.plusWeeks(1)) }
+    )
     Spacer(modifier = Modifier.height(24.dp))
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -215,11 +265,19 @@ fun WeeklyStatsContent(stats: WeeklyStats) {
 }
 
 @Composable
-fun MonthlyStatsContent(stats: MonthlyStats) {
-    val today = YearMonth.now()
-    val title = "${today.monthValue}월"
+fun MonthlyStatsContent(date: LocalDate, stats: MonthlyStats, onDateChange: (LocalDate) -> Unit) {
+    val currentYear = LocalDate.now().year
+    val isDifferentYear = date.year != currentYear
+    val yearMonth = YearMonth.from(date)
+    val title = "${yearMonth.monthValue}월"
+    val subTitle = if (isDifferentYear) "${date.year}년" else null
 
-    StatsHeader(title = title)
+    StatsHeader(
+        title = title,
+        subTitle = subTitle,
+        onPrevious = { onDateChange(date.minusMonths(1)) },
+        onNext = { onDateChange(date.plusMonths(1)) }
+    )
     Spacer(modifier = Modifier.height(24.dp))
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -231,11 +289,15 @@ fun MonthlyStatsContent(stats: MonthlyStats) {
 }
 
 @Composable
-fun YearlyStatsContent(stats: YearlyStats) {
-    val today = LocalDate.now()
-    val title = "${today.year}년"
+fun YearlyStatsContent(date: LocalDate, stats: YearlyStats, onDateChange: (LocalDate) -> Unit) {
+    val title = "${date.year}년"
 
-    StatsHeader(title = title)
+    // '년' 탭에서는 항상 연도가 표시되므로 subTitle이 필요 없습니다.
+    StatsHeader(
+        title = title,
+        onPrevious = { onDateChange(date.minusYears(1)) },
+        onNext = { onDateChange(date.plusYears(1)) }
+    )
     Spacer(modifier = Modifier.height(24.dp))
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -260,28 +322,53 @@ fun TotalStatsContent(stats: TotalStats) {
 // --- 재사용 가능한 Composable ---
 
 @Composable
-fun StatsHeader(title: String) {
+fun StatsHeader(
+    title: String,
+    subTitle: String? = null, // subTitle 파라미터 추가 (선택적)
+    onPrevious: (() -> Unit)? = null, // 이전/다음이 없는 경우를 위해 nullable로 변경
+    onNext: (() -> Unit)? = null
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-            contentDescription = "이전",
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
+        if (onPrevious != null) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                contentDescription = "이전",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.clickable(onClick = onPrevious)
+            )
+        }
+
+        Column(
             modifier = Modifier.weight(1f),
-            textAlign = TextAlign.Center
-        )
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = "다음",
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (subTitle != null) {
+                Text(
+                    text = subTitle,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+        }
+
+        if (onNext != null) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = "다음",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.clickable(onClick = onNext)
+            )
+        }
     }
 }
 
