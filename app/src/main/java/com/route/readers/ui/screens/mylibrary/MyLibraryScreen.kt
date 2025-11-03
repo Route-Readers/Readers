@@ -60,7 +60,7 @@ fun MyLibraryScreen(
     var showPostToFeedDialog by remember { mutableStateOf<Pair<MyBook, Int>?>(null) }
     var selectedBook by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
-    var selectedFilter by remember { mutableStateOf(FilterState.ALL) }
+    var selectedFilter by remember { mutableStateOf(FilterState.READING) }
 
     val filteredBooks by remember {
         derivedStateOf {
