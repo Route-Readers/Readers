@@ -3,7 +3,7 @@ package com.route.readers.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // Light Theme Colors
-val PrimaryRed = Color(0xFFC62828)
+val PrimaryRed = Color(0xFF8B0000)
 val SecondaryRed = Color(0xFFE57373)
 val TertiaryRed = Color(0xFFFFAB91)
 val BackgroundLight = Color(0xFFFFFFFF)
