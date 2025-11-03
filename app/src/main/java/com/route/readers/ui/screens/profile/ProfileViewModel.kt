@@ -9,7 +9,6 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.route.readers.data.model.Book
-// import com.route.readers.data.model.Challenge // 더 이상 사용하지 않으므로 삭제
 import com.route.readers.data.model.MyBook
 import com.route.readers.data.model.User
 import com.route.readers.data.remote.BookRepository
@@ -38,7 +37,6 @@ data class Achievement(
     val isCompleted: Boolean
         get() = currentProgress >= targetProgress
 }
-
 
 open class ProfileViewModel : ViewModel() {
     private val db = FirebaseFirestore.getInstance()
@@ -130,6 +128,8 @@ open class ProfileViewModel : ViewModel() {
             "savedFeeds" to emptyList<String>(),
             "blockedUsers" to emptyList<String>(),
             "level" to 1,
+            "totalPoints" to 0,
+            "claimedAchievements" to emptyList<String>(),
             "followerCount" to 0,
             "followingCount" to 0,
             "readBookCount" to 0,
@@ -296,14 +296,42 @@ open class ProfileViewModel : ViewModel() {
                         myLibraryBooks = myLibraryBooks,
                         userInfoMap = userInfoMap
                     )
-                    // ▲▲▲ 여기까지 수정 ▲▲▲
-
                 } else {
                     _uiState.value = ProfileUiState.Error("프로필 정보를 변환하는 데 실패했습니다.")
                 }
             } catch (e: Exception) {
                 _uiState.value = ProfileUiState.Error("프로필을 불러오는 중 오류가 발생했습니다: ${e.message}")
                 Log.e("ProfileViewModel", "fetchUserProfile failed", e)
+            }
+        }
+    }
+
+    fun claimAchievementPoints(achievementId: String, points: Int) {
+        val currentUserId = this.currentUserId ?: return
+        val currentState = _uiState.value
+        if (currentState !is ProfileUiState.Success) return
+
+        viewModelScope.launch {
+            try {
+                val userRef = db.collection("users").document(currentUserId)
+
+                db.runTransaction { transaction ->
+                    val snapshot = transaction.get(userRef)
+                    val currentPoints = snapshot.getLong("totalPoints")?.toInt() ?: 0
+                    val newTotalPoints = currentPoints + points
+
+                    transaction.update(userRef, "totalPoints", newTotalPoints)
+                    transaction.update(userRef, "claimedAchievements", FieldValue.arrayUnion(achievementId))
+                }.await()
+
+                val updatedUser = currentState.user.copy(
+                    totalPoints = currentState.user.totalPoints + points,
+                    claimedAchievements = currentState.user.claimedAchievements + achievementId
+                )
+                _uiState.value = currentState.copy(user = updatedUser)
+
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Failed to claim achievement points", e)
             }
         }
     }

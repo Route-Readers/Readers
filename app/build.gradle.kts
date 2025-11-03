@@ -88,6 +88,8 @@ dependencies {
     implementation("com.google.android.gms:play-services-location:21.3.0")
 
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+    implementation("androidx.datastore:datastore-preferences:1.1.1") //다크모드
+
 
     val calendarVersion = "1.4.0"
     implementation("io.github.boguszpawlowski.composecalendar:composecalendar:$calendarVersion")

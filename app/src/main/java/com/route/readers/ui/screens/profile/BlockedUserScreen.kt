@@ -16,7 +16,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.route.readers.data.model.User
-import com.route.readers.ui.theme.DarkRed
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,9 +37,15 @@ fun BlockedUserScreen(
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로 가기")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
+                )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Box(
             modifier = Modifier
@@ -49,7 +54,10 @@ fun BlockedUserScreen(
             contentAlignment = Alignment.Center
         ) {
             if (blockedUsers.isEmpty()) {
-                Text("차단된 사용자가 없습니다.")
+                Text(
+                    text = "차단된 사용자가 없습니다.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -74,17 +82,23 @@ fun BlockedUserItem(
     onUnblockClick: () -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = user.nickname,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
+            color = MaterialTheme.colorScheme.onSurface
         )
         Button(
             onClick = onUnblockClick,
-            colors = ButtonDefaults.buttonColors(containerColor = DarkRed)
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+            )
         ) {
             Text("차단 해제")
         }

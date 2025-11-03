@@ -19,7 +19,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -63,8 +62,6 @@ fun LoginScreen(
 
     val uiState by loginViewModel.uiState.collectAsState()
     val isLoading = uiState is LoginUiState.Loading || uiState is LoginUiState.GoogleLoading
-
-    val darkRedColor = Color(0xFFB71C1C)
 
     val googleSignInLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -116,16 +113,20 @@ fun LoginScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Readers", fontWeight = FontWeight.Bold, color = darkRedColor) },
+                title = { Text("Readers", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로가기")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.primary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
+                )
             )
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.surface
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -139,7 +140,7 @@ fun LoginScreen(
                 text = "로그인",
                 fontSize = 40.sp,
                 fontWeight = FontWeight.Bold,
-                color = darkRedColor,
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
             Text(
@@ -183,7 +184,7 @@ fun LoginScreen(
                         .padding(end = 16.dp)
                 ) {
                     Checkbox(checked = rememberId, onCheckedChange = { rememberId = it })
-                    Text(text = "아이디 저장", style = MaterialTheme.typography.bodyMedium)
+                    Text(text = "아이디 저장", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                 }
             }
 
@@ -208,12 +209,12 @@ fun LoginScreen(
                 enabled = !isLoading,
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = darkRedColor,
-                    contentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             ) {
                 if (uiState is LoginUiState.Loading) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
                 } else {
                     Text("로그인", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 }
@@ -222,9 +223,9 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Divider(modifier = Modifier.weight(1f))
-                Text(" 또는 ", modifier = Modifier.padding(horizontal = 8.dp), color = Color.Gray)
-                Divider(modifier = Modifier.weight(1f))
+                Divider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outline)
+                Text(" 또는 ", modifier = Modifier.padding(horizontal = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Divider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outline)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -237,10 +238,10 @@ fun LoginScreen(
                 shape = RoundedCornerShape(12.dp),
                 enabled = !isLoading,
                 contentPadding = PaddingValues(0.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
                 if (uiState is LoginUiState.GoogleLoading) {
-                    CircularProgressIndicator(color = darkRedColor)
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 } else {
                     Image(
                         painter = painterResource(id = R.mipmap.signupgoogle),
@@ -257,7 +258,7 @@ fun LoginScreen(
                 onClick = { if (!isLoading) onNavigateToSignUp() },
                 enabled = !isLoading
             ) {
-                Text("계정이 없으신가요? 회원가입", color = darkRedColor, fontWeight = FontWeight.SemiBold)
+                Text("계정이 없으신가요? 회원가입", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
             }
         }
     }

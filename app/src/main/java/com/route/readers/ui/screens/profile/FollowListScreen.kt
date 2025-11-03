@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.route.readers.data.model.User
+import com.route.readers.ui.theme.DarkRed
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,7 +74,6 @@ fun FollowListScreen(
         else -> 1
     }
     var selectedTabIndex by remember { mutableIntStateOf(initialIndex) }
-    val darkRedColor = Color(0xFFB71C1C)
 
     val searchQuery by viewModel.searchQuery.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
@@ -107,20 +107,24 @@ fun FollowListScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Column(modifier = Modifier.padding(paddingValues)) {
             PrimaryTabRow(
                 selectedTabIndex = selectedTabIndex,
                 containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = darkRedColor,
+                contentColor = MaterialTheme.colorScheme.primary,
                 indicator = {
                     TabRowDefaults.PrimaryIndicator(
                         modifier = Modifier.tabIndicatorOffset(selectedTabIndex),
-                        color = darkRedColor
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             ) {
@@ -131,7 +135,7 @@ fun FollowListScreen(
                         text = {
                             Text(
                                 text = title,
-                                color = if (selectedTabIndex == index) darkRedColor else Color.Gray,
+                                color = if (selectedTabIndex == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal
                             )
                         }
@@ -143,14 +147,16 @@ fun FollowListScreen(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { viewModel.onSearchQueryChanged(it) },
-                placeholder = { Text("닉네임으로 검색") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "검색 아이콘") },
+                placeholder = { Text("닉네임으로 검색", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "검색 아이콘", tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                 shape = RoundedCornerShape(24.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color.Transparent,
                     unfocusedBorderColor = Color.Transparent,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface
                 ),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions.Default.copy(
@@ -176,7 +182,7 @@ fun FollowListScreen(
                 }
                 is FollowListUiState.Error -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(text = (uiState as FollowListUiState.Error).message)
+                        Text(text = (uiState as FollowListUiState.Error).message, color = MaterialTheme.colorScheme.error)
                     }
                 }
                 is FollowListUiState.Success -> {
@@ -184,10 +190,14 @@ fun FollowListScreen(
                         val emptyMessage = if (searchQuery.isNotBlank()) {
                             "검색 결과가 없습니다."
                         } else {
-                            "목록이 비어있습니다."
+                            when (selectedTabIndex) {
+                                0 -> "팔로워가 없습니다."
+                                1 -> "팔로잉하는 사용자가 없습니다."
+                                else -> "사용자가 없습니다."
+                            }
                         }
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(text = emptyMessage)
+                            Text(text = emptyMessage, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     } else {
                         LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -200,7 +210,7 @@ fun FollowListScreen(
                                     onUserClick = { onUserClick(user.uid) },
                                     onFollowClick = { viewModel.toggleFollow(user.uid) }
                                 )
-                                Divider(color = Color.LightGray.copy(alpha = 0.5f))
+                                Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), modifier = Modifier.padding(horizontal = 16.dp))
                             }
                         }
                     }
@@ -230,13 +240,14 @@ fun UserItem(
             Text(
                 text = user.nickname,
                 fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
+                fontSize = 16.sp,
+                color = MaterialTheme.colorScheme.onSurface
             )
             user.bio?.let {
                 if (it.isNotBlank()) {
                     Text(
                         text = it,
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 14.sp,
                         maxLines = 1
                     )
@@ -249,21 +260,21 @@ fun UserItem(
         if (user.uid != currentUserId) {
             val buttonText = when (selectedTabIndex) {
                 0 -> if (isFollowing) "팔로우 취소" else "맞팔로우"
-                1 -> if (isFollowing) "팔로우 취소" else "팔로우"
+                1 -> "팔로우 취소"
                 else -> if (isFollowing) "팔로우 취소" else "팔로우"
             }
 
-            val usePrimaryColor = !isFollowing
+            val usePrimaryColor = !isFollowing && selectedTabIndex != 1
 
             Button(
                 onClick = onFollowClick,
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (usePrimaryColor) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = if (usePrimaryColor) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer
+                    containerColor = if (usePrimaryColor) DarkRed else MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = if (usePrimaryColor) Color.White else MaterialTheme.colorScheme.onSecondaryContainer
                 )
             ) {
-                Text(buttonText)
+                Text(buttonText, fontSize = 13.sp)
             }
         }
     }

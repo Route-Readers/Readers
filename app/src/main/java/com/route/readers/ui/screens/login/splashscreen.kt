@@ -1,4 +1,5 @@
 package com.route.readers.ui.screens.login
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -17,9 +18,10 @@ import com.route.readers.ui.theme.ReadersTheme
 
 @Composable
 fun SplashScreenUI() {
-    Column(        modifier = Modifier
-        .fillMaxSize()
-        .background(Color.Black),
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -28,14 +30,13 @@ fun SplashScreenUI() {
             contentDescription = "App Logo",
             modifier = Modifier.size(120.dp)
         )
-
     }
 }
 
 @Preview(showBackground = true)
 @Composable
 fun SplashScreenPreview() {
-    ReadersTheme {
+    ReadersTheme(darkTheme = true) {
         SplashScreenUI()
     }
 }

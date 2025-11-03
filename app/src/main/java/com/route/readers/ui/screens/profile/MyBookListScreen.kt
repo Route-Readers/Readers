@@ -20,6 +20,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -33,7 +34,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -41,7 +41,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.route.readers.data.model.Book
-import com.route.readers.ui.theme.DarkRed
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -76,19 +75,18 @@ fun MyBookListScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
-                    titleContentColor = DarkRed
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         },
-        containerColor = Color(0xFFF5F5F5)
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Column(modifier = Modifier.padding(paddingValues)) {
             when (val state = uiState) {
                 is ProfileUiState.Success -> {
-                    // MyBook의 categoryName으로 그룹화하는 로직 복원
                     val booksByGenre = state.readBooks.groupBy { myBook ->
-                        // Aladin API의 카테고리 이름 형식 "국내도서>소설/시/희곡"에서 마지막 부분만 추출
                         myBook.categoryName?.split(">")?.lastOrNull()?.trim() ?: "기타"
                     }
 
@@ -101,7 +99,7 @@ fun MyBookListScreen(
                         ) {
                             Text(
                                 text = "아직 완독한 책이 없어요.",
-                                color = Color.Gray,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center
                             )
                         }
@@ -111,7 +109,6 @@ fun MyBookListScreen(
                             contentPadding = PaddingValues(vertical = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(24.dp)
                         ) {
-                            // 사용자의 선호 장르를 먼저 정렬하고, 그 외 장르를 가나다순으로 정렬
                             val preferredGenres = state.user.readingGenres
                             val remainingGenres = (booksByGenre.keys - preferredGenres.toSet()).sorted()
                             val sortedGenres = preferredGenres + remainingGenres
@@ -128,7 +125,8 @@ fun MyBookListScreen(
                                                 text = genre,
                                                 fontSize = 20.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                modifier = Modifier.padding(horizontal = 16.dp)
+                                                modifier = Modifier.padding(horizontal = 16.dp),
+                                                color = MaterialTheme.colorScheme.onSurface
                                             )
                                             LazyRow(
                                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -169,7 +167,7 @@ fun MyBookListScreen(
                                                                 modifier = Modifier
                                                                     .padding(top = 8.dp, start = 4.dp),
                                                                 fontSize = 12.sp,
-                                                                color = Color.Gray
+                                                                color = MaterialTheme.colorScheme.onSurfaceVariant
                                                             )
                                                         }
                                                     }
@@ -201,7 +199,7 @@ fun MyBookListScreen(
                     ) {
                         Text(
                             text = "오류가 발생했습니다: ${state.message}",
-                            color = Color.Gray,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
                     }

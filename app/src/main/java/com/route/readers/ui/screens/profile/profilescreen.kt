@@ -57,6 +57,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SecondaryTabRow
@@ -97,15 +98,13 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.route.readers.R
 import com.route.readers.data.model.Book
-import com.route.readers.data.model.Challenge // Challenge 모델은 여전히 필요할 수 있으므로 유지
+import com.route.readers.data.model.Challenge
 import com.route.readers.data.model.User
 import com.route.readers.ui.screens.feed.FeedCard
 import com.route.readers.ui.screens.feed.FeedItem
 import com.route.readers.ui.theme.DarkRed
 import kotlinx.coroutines.launch
 import kotlin.text.toFloat
-
-// 불필요한 import문이 있다면 제거해도 좋습니다.
 
 @Composable
 fun ProfileScreen(
@@ -151,7 +150,7 @@ fun ProfileScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = Color(0xFFF5F5F5)
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Box(
             modifier = Modifier
@@ -163,8 +162,10 @@ fun ProfileScreen(
                 is ProfileUiState.Loading -> CircularProgressIndicator()
                 is ProfileUiState.Error -> Text(text = state.message)
                 is ProfileUiState.Success -> {
+                    val levelInfo = calculateLevelInfo(state.user.totalPoints)
                     ProfileContent(
                         state = state,
+                        level = levelInfo.currentLevel,
                         viewModel = viewModel,
                         onFollowClick = {
                             viewModel.followUser(state.user.uid)
@@ -212,6 +213,7 @@ fun ProfileScreen(
 @Composable
 fun ProfileContent(
     state: ProfileUiState.Success,
+    level: Int,
     viewModel: ProfileViewModel,
     onFollowClick: () -> Unit,
     onUnfollowClick: () -> Unit,
@@ -245,7 +247,7 @@ fun ProfileContent(
                 ) { Text("예", color = DarkRed) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("아니요", color = Color.Gray) }
+                TextButton(onClick = { showDeleteDialog = false }) { Text("아니요", color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
         )
     }
@@ -263,6 +265,7 @@ fun ProfileContent(
             ) {
                 ProfileInfoSection(
                     user = user,
+                    level = level,
                     isMyProfile = state.isMyProfile,
                     isFollowing = state.isFollowing,
                     isBlocked = state.isBlocked,
@@ -287,7 +290,7 @@ fun ProfileContent(
                         .padding(vertical = 48.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("차단된 사용자입니다.", color = Color.Gray)
+                    Text("차단된 사용자입니다.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         } else if (isPrivateAndNotFollowing) {
@@ -301,8 +304,8 @@ fun ProfileContent(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Column(
                         modifier = Modifier.padding(vertical = 8.dp)
@@ -345,13 +348,13 @@ fun ProfileContent(
                                             verticalArrangement = Arrangement.spacedBy(16.dp)
                                         ) {
                                             if (user.readingGenres.isNotEmpty()) {
-                                                Text("선호 장르", fontWeight = FontWeight.SemiBold, color = Color.Gray)
+                                                Text("선호 장르", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                                     items(user.readingGenres) { genre -> Chip(label = genre) }
                                                 }
                                             }
                                             if (user.readingStyles.isNotEmpty()) {
-                                                Text("독서 스타일", fontWeight = FontWeight.SemiBold, color = Color.Gray)
+                                                Text("독서 스타일", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                                     items(user.readingStyles) { style -> Chip(label = style) }
                                                 }
@@ -376,7 +379,7 @@ fun ProfileContent(
                                     )
 
                                     "challenges" -> ChallengesSection(
-                                        ongoingChallenges = emptyList(), // 하드코딩된 값 제거 후 빈 리스트 전달
+                                        ongoingChallenges = emptyList(),
                                         completedChallenges = emptyList(),
                                         onChallengeClick = { }
                                     )
@@ -409,7 +412,7 @@ fun ProfileContent(
                                 }
                             }
                             if (index < sections.size - 1) {
-                                Divider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFF0F0F0))
+                                Divider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
                             }
                         }
                     }
@@ -432,7 +435,7 @@ fun AchievementsSection(
     Column(modifier = Modifier.fillMaxWidth()) {
         TabRow(
             selectedTabIndex = selectedTabIndex,
-            containerColor = Color.White,
+            containerColor = MaterialTheme.colorScheme.surface,
             contentColor = DarkRed,
             indicator = { tabPositions ->
                 TabRowDefaults.Indicator(
@@ -462,7 +465,7 @@ fun AchievementsSection(
             if (achievementsToShow.isEmpty()) {
                 Text(
                     text = if (selectedTabIndex == 0) "진행 중인 업적이 없어요." else "완료한 업적이 없어요.",
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 24.dp),
@@ -483,9 +486,9 @@ fun AchievementItem(achievement: Achievement, onClick: () -> Unit) {
     val progress = (achievement.currentProgress.toFloat() / achievement.targetProgress.toFloat()).coerceIn(0f, 1f)
     val isCompleted = achievement.isCompleted
 
-    val cardBackgroundColor = if (isCompleted) Color(0xFFE8F5E9) else Color.White
-    val cardBorderColor = if (isCompleted) Color(0xFFC8E6C9) else Color.LightGray.copy(alpha = 0.5f)
-    val progressColor = if (isCompleted) Color(0xFF4CAF50) else Color.Black
+    val cardBackgroundColor = if (isCompleted) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surface
+    val cardBorderColor = if (isCompleted) Color(0xFFC8E6C9) else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+    val progressColor = if (isCompleted) Color(0xFF4CAF50) else DarkRed
 
     Card(
         modifier = Modifier
@@ -503,7 +506,7 @@ fun AchievementItem(achievement: Achievement, onClick: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(text = achievement.title, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                Text(text = achievement.title, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
                 if (isCompleted) {
                     Box(
                         modifier = Modifier
@@ -514,7 +517,7 @@ fun AchievementItem(achievement: Achievement, onClick: () -> Unit) {
                     }
                 }
             }
-            Text(text = achievement.description, fontSize = 14.sp, color = Color.DarkGray)
+            Text(text = achievement.description, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             Spacer(modifier = Modifier.height(4.dp))
 
@@ -526,12 +529,12 @@ fun AchievementItem(achievement: Achievement, onClick: () -> Unit) {
                 Text(
                     text = "${achievement.currentProgress} / ${achievement.targetProgress}",
                     fontSize = 12.sp,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = "${(progress * 100).toInt()}%",
                     fontSize = 12.sp,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -543,7 +546,7 @@ fun AchievementItem(achievement: Achievement, onClick: () -> Unit) {
                     .height(10.dp)
                     .clip(RoundedCornerShape(5.dp)),
                 color = progressColor,
-                trackColor = Color.LightGray.copy(alpha = 0.4f)
+                trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
             )
         }
     }
@@ -569,7 +572,7 @@ fun PostsSection(
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = if (isMyProfile) listOf("내가 쓴 글", "저장한 글") else listOf("작성한 글")
 
-    Column(Modifier.background(Color(0xFFF5F5F5))) {
+    Column(Modifier.background(MaterialTheme.colorScheme.background)) {
         SecondaryTabRow(
             selectedTabIndex = selectedTabIndex,
             containerColor = Color.Transparent,
@@ -605,7 +608,7 @@ fun PostsSection(
             ) {
                 Text(
                     text = if (selectedTabIndex == 0) "작성한 글이 없습니다." else "저장한 글이 없습니다.",
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         } else {
@@ -640,6 +643,7 @@ fun PostsSection(
 @Composable
 fun ProfileInfoSection(
     user: User,
+    level: Int,
     isMyProfile: Boolean,
     isFollowing: Boolean,
     isBlocked: Boolean,
@@ -663,8 +667,8 @@ fun ProfileInfoSection(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
             modifier = Modifier.padding(vertical = 24.dp),
@@ -679,8 +683,8 @@ fun ProfileInfoSection(
                 }
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = user.nickname, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            Chip(label = "레벨 ${user.level}", onClick = onNavigateToLevel)
+            Text(text = user.nickname, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+            LevelChip(level = level, onClick = onNavigateToLevel)
             Spacer(modifier = Modifier.height(16.dp))
 
             Row(
@@ -722,7 +726,8 @@ fun ProfileInfoSection(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isFollowing) Color.Gray else DarkRed
+                                containerColor = if (isFollowing) MaterialTheme.colorScheme.secondary else DarkRed,
+                                contentColor = if (isFollowing) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onPrimary
                             )
                         ) {
                             Text(text = if (isFollowing) "언팔로우" else "팔로우")
@@ -731,9 +736,9 @@ fun ProfileInfoSection(
                             onClick = onBlockUser,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(8.dp),
-                            border = BorderStroke(1.dp, Color.Gray)
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                         ) {
-                            Text(text = "차단하기", color = Color.Gray)
+                            Text(text = "차단하기", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -786,7 +791,7 @@ fun FavoriteBooksSection(
                 horizontalArrangement = Arrangement.End
             ) {
                 IconButton(onClick = { if (selectedBookIds.isNotEmpty()) showDeleteDialog = true }) {
-                    Icon(Icons.Default.Delete, contentDescription = "선택한 도서 삭제")
+                    Icon(Icons.Default.Delete, contentDescription = "선택한 도서 삭제", tint = MaterialTheme.colorScheme.onSurface)
                 }
             }
         }
@@ -870,7 +875,7 @@ fun BookCardItem(
                     modifier = Modifier
                         .width(120.dp)
                         .height(170.dp)
-                        .background(Color.LightGray)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                 )
                 if (isSelected) {
                     Box(
@@ -896,12 +901,13 @@ fun BookCardItem(
             fontSize = 14.sp,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            lineHeight = 18.sp
+            lineHeight = 18.sp,
+            color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = book.author,
-            color = Color.Gray,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 12.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -1000,7 +1006,7 @@ fun ProfileInfoItem(count: String, label: String, onClick: (() -> Unit)? = null)
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier.padding(4.dp)) {
         Text(text = count, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = DarkRed)
         Spacer(modifier = Modifier.height(4.dp))
-        Text(text = label, fontSize = 14.sp, color = Color.Gray)
+        Text(text = label, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -1015,7 +1021,7 @@ fun Chip(label: String, onClick: (() -> Unit)? = null) {
     }
     Box(
         modifier = modifier
-            .background(color = Color(0xFFF5E1DF), shape = RoundedCornerShape(12.dp))
+            .background(color = DarkRed.copy(alpha = 0.1f), shape = RoundedCornerShape(12.dp))
             .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         Text(text = label, color = DarkRed, fontSize = 13.sp, fontWeight = FontWeight.Medium)
@@ -1030,10 +1036,10 @@ fun EmptyFavoriteBooks(onNavigateToSearch: () -> Unit) {
             .height(180.dp)
             .padding(horizontal = 16.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.surface)
             .border(
                 width = 1.dp,
-                color = Color.LightGray.copy(alpha = 0.7f),
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                 shape = RoundedCornerShape(12.dp)
             )
             .clickable { onNavigateToSearch() }
@@ -1049,13 +1055,13 @@ fun EmptyFavoriteBooks(onNavigateToSearch: () -> Unit) {
                 contentDescription = "관심 도서 추가",
                 modifier = Modifier
                     .size(40.dp)
-                    .background(Color(0xFFF5F5F5), CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), CircleShape)
                     .padding(8.dp),
-                tint = Color.Gray
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
                 text = "관심 도서를 등록하러 가기",
-                color = Color.Gray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Medium
             )
         }
@@ -1098,12 +1104,13 @@ fun ChallengeCategory(
             text = title,
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 12.dp)
+            modifier = Modifier.padding(bottom = 12.dp),
+            color = MaterialTheme.colorScheme.onSurface
         )
         if (challenges.isEmpty()) {
             Text(
                 "아직 ${title}가 없어요.",
-                color = Color.Gray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 24.dp),
@@ -1126,7 +1133,7 @@ fun ChallengeItem(challenge: Challenge, onClick: () -> Unit) {
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFAFAFA))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -1137,7 +1144,7 @@ fun ChallengeItem(challenge: Challenge, onClick: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = challenge.title, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                Text(text = challenge.title, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
                 if (challenge.isCompleted) {
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
@@ -1148,19 +1155,17 @@ fun ChallengeItem(challenge: Challenge, onClick: () -> Unit) {
                     Text(text = "${challenge.progress}%", color = DarkRed, fontWeight = FontWeight.Bold)
                 }
             }
-            Text(text = challenge.description, fontSize = 14.sp, color = Color.Gray)
+            Text(text = challenge.description, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
-            // ▼▼▼ 다른 AI가 알려준 최종 수정 부분 ▼▼▼
             LinearProgressIndicator(
-                progress = { challenge.progress.toString().toFloat() / 100f }, // Int를 Float으로 변환하여 실수 나눗셈 수행
+                progress = { challenge.progress.toString().toFloat() / 100f },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(8.dp)
                     .clip(RoundedCornerShape(4.dp)),
                 color = DarkRed,
-                trackColor = Color.LightGray.copy(alpha = 0.5f)
+                trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
             )
-            // ▲▲▲ 여기까지 수정 ▲▲▲
         }
     }
 }
@@ -1206,14 +1211,14 @@ fun ExpandableProfileSection(
                     text = title,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF1A1A1A)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
             Icon(
                 imageVector = Icons.Default.KeyboardArrowRight,
                 contentDescription = if (isExpanded) "접기" else "펼치기",
                 modifier = Modifier.rotate(rotationAngle),
-                tint = Color(0xFF9E9E9E)
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
         }
@@ -1238,9 +1243,36 @@ fun PrivateProfileContent() {
             imageVector = Icons.Default.Lock,
             contentDescription = "비공개 계정",
             modifier = Modifier.size(48.dp),
-            tint = Color.Gray
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Text("비공개 계정입니다.", color = Color.Gray, fontSize = 16.sp)
-        Text("콘텐츠를 보려면 이 계정을 팔로우하세요.", color = Color.Gray, fontSize = 14.sp)
+        Text("비공개 계정입니다.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp)
+        Text("콘텐츠를 보려면 이 계정을 팔로우하세요.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
+    }
+}
+
+@Composable
+fun LevelChip(level: Int, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .clip(CircleShape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.onSurface),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = level.toString(),
+                color = Color(0xFFF0E68C),
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            )
+        }
     }
 }

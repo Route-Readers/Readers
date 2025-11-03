@@ -94,9 +94,9 @@ fun MainScreen(
                 "profile_route/{userId}"
             )
             if (shouldShowTopBar) {
-                val consecutiveDays by mainViewModel.consecutiveDays.collectAsState()
+                val consecutiveReadingDays by attendanceViewModel.consecutiveReadingDays.collectAsState()
                 FeedTopAppBar(
-                    consecutiveDays = consecutiveDays,
+                    consecutiveReadingDays = consecutiveReadingDays,
                     onBlockListClick = { bottomNavController.navigate("blockList") },
                     onLogoutClick = { showLogoutDialog = true },
                     onMyAccountClick = onNavigateToMyAccount,

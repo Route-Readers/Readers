@@ -9,6 +9,8 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -19,12 +21,15 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -34,6 +39,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.route.readers.data.UserPreferencesRepository
 import com.route.readers.notification.DailyNotificationScheduler
 import com.route.readers.ui.screens.MainScreen
 import com.route.readers.ui.screens.add_feed.AddFeedScreen
@@ -44,6 +50,7 @@ import com.route.readers.ui.screens.login.LoginViewModel
 import com.route.readers.ui.screens.login.OnboardingScreen
 import com.route.readers.ui.screens.login.SignUpScreen
 import com.route.readers.ui.screens.profile.AccountScreen
+import com.route.readers.ui.screens.profile.AccountViewModel
 import com.route.readers.ui.screens.profile.FollowListScreen
 import com.route.readers.ui.screens.profile.LevelScreen
 import com.route.readers.ui.screens.profile.MyBookListScreen
@@ -69,6 +76,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val accountViewModel: AccountViewModel by viewModels {
+        AccountViewModelFactory(UserPreferencesRepository(applicationContext))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -87,14 +98,18 @@ class MainActivity : ComponentActivity() {
         }
         setupNotificationListener()
         setContent {
-            val appNavController = rememberNavController()
-            ReadersTheme {
-                CompositionLocalProvider(LocalAppNavController provides appNavController) {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.background
-                    ) {
-                        RootAppNavigation()
+            val isSystemInDark = isSystemInDarkTheme()
+            val isDarkMode by accountViewModel.isDarkMode.collectAsState()
+
+            LaunchedEffect(isSystemInDark) {
+                accountViewModel.syncWithSystemTheme(isSystemInDark)
+            }
+
+            ReadersTheme(darkTheme = isDarkMode ?: isSystemInDark) {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    val appNavController = rememberNavController()
+                    CompositionLocalProvider(LocalAppNavController provides appNavController) {
+                        RootAppNavigation(accountViewModel = accountViewModel)
                     }
                 }
             }
@@ -153,14 +168,22 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+class AccountViewModelFactory(private val repository: UserPreferencesRepository) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(AccountViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return AccountViewModel(repository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+}
 
 @Composable
-fun RootAppNavigation() {
+fun RootAppNavigation(accountViewModel: AccountViewModel) {
     val appNavController = LocalAppNavController.current
         ?: throw IllegalStateException("LocalAppNavController not provided")
 
     val startDestination = "decision_route"
-    val attendanceViewModel: AttendanceViewModel = viewModel()
 
     NavHost(navController = appNavController, startDestination = startDestination) {
 
@@ -289,6 +312,7 @@ fun RootAppNavigation() {
         }
 
         composable("main_app_content_route") {
+            val attendanceViewModel: AttendanceViewModel = viewModel()
             MainScreen(
                 navController = appNavController,
                 attendanceViewModel = attendanceViewModel,
@@ -313,11 +337,15 @@ fun RootAppNavigation() {
         composable("account_route") {
             AccountScreen(
                 onNavigateBack = { appNavController.popBackStack() },
-                onNavigateToPrivacy = {}
+                viewModel = accountViewModel
             )
         }
 
         composable("attendance_route") {
+            val backStackEntry = remember(appNavController.currentBackStackEntry) {
+                appNavController.getBackStackEntry("main_app_content_route")
+            }
+            val attendanceViewModel: AttendanceViewModel = viewModel(backStackEntry)
             AttendanceScreen(
                 onNavigateBack = { appNavController.popBackStack() },
                 viewModel = attendanceViewModel
@@ -330,7 +358,8 @@ fun RootAppNavigation() {
         ) { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId")
             if (userId != null) {
-                val profileViewModel: ProfileViewModel = viewModel()
+                val profileViewModel: ProfileViewModel =
+                    viewModel()
                 ProfileScreen(
                     userId = userId,
                     viewModel = profileViewModel,

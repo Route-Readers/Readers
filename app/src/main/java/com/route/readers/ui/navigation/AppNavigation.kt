@@ -1,6 +1,5 @@
 package com.route.readers.ui.navigation
 
-import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,6 +23,7 @@ import com.route.readers.ui.screens.MainScreen
 import com.route.readers.ui.screens.add_feed.AddFeedScreen
 import com.route.readers.ui.screens.attendance.AttendanceScreen
 import com.route.readers.ui.screens.attendance.AttendanceViewModel
+import com.route.readers.ui.screens.challenge.ChallengeScreen
 import com.route.readers.ui.screens.login.LoginScreen
 import com.route.readers.ui.screens.login.LoginViewModel
 import com.route.readers.ui.screens.login.OnboardingScreen
@@ -38,7 +38,6 @@ import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.profile.ProfileSetupScreen
 import com.route.readers.ui.screens.profile.ProfileUiState
 import com.route.readers.ui.screens.profile.ProfileViewModel
-import com.route.readers.ui.screens.challenge.ChallengeScreen
 import java.net.URLDecoder
 import java.net.URLEncoder
 
@@ -192,8 +191,7 @@ fun AppNavigation(navController: NavHostController) {
 
         composable("account_route") {
             AccountScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToPrivacy = {}
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
