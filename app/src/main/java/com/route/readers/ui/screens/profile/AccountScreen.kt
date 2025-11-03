@@ -65,7 +65,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.route.readers.ui.theme.DarkRed
 
-// ... (enum class MenuItemType, data class AccountMenuItem 은 기존과 동일)
 enum class MenuItemType {
     PRIVACY,
     ACTIVITY,
@@ -88,7 +87,7 @@ data class AccountMenuItem(
 @Composable
 fun AccountScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToStatistics: () -> Unit, // 통계 페이지로 이동하는 콜백 추가
+    onNavigateToStatistics: () -> Unit,
     viewModel: AccountViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -104,7 +103,6 @@ fun AccountScreen(
     }
 
     val menuItems = listOf(
-        // ... (PRIVACY, ACTIVITY 메뉴 항목은 기존과 동일)
         AccountMenuItem(
             type = MenuItemType.PRIVACY,
             title = "공개 범위",
@@ -141,7 +139,6 @@ fun AccountScreen(
                 isDisplayMenuExpanded = false
             }
         ),
-        // ... (DISPLAY, TERMS, CONTACT 메뉴 항목은 기존과 동일)
         AccountMenuItem(
             type = MenuItemType.DISPLAY,
             title = "화면",
@@ -232,7 +229,6 @@ fun AccountScreen(
                         Column {
                             AccountMenuItemCard(item = item)
 
-                            // ... (PRIVACY, ACTIVITY AnimatedVisibility 는 기존과 동일)
                             if (item.type == MenuItemType.PRIVACY) {
                                 AnimatedVisibility(
                                     visible = isPrivacyMenuExpanded,
@@ -263,7 +259,21 @@ fun AccountScreen(
                                         animationSpec = tween(300)
                                     )
                                 ) {
-                                    // PostsSection(...)
+                                    PostsSection(
+                                        myPosts = state.myPosts,
+                                        savedPosts = state.savedPosts,
+                                        isMyProfile = state.isMyProfile,
+                                        likedFeedIds = state.likedFeedIds,
+                                        bookmarkedFeedIds = state.bookmarkedFeedIds,
+                                        onLikeClick = viewModel::toggleLike,
+                                        onBookmarkClick = viewModel::toggleBookmark,
+                                        onDeleteClick = viewModel::deleteFeed,
+                                        wishlist = state.wishlist,
+                                        myLibrary = state.myLibrary,
+                                        onToggleWishlist = viewModel::toggleWishlist,
+                                        onToggleMyLibrary = viewModel::toggleMyLibrary,
+                                        userInfoMap = state.userInfoMap
+                                    )
                                 }
                             }
 
@@ -277,12 +287,10 @@ fun AccountScreen(
                                         animationSpec = tween(300)
                                     )
                                 ) {
-                                    // "통계보기" 버튼으로 변경
                                     StatisticsButton(onClick = onNavigateToStatistics)
                                 }
                             }
 
-                            // ... (DISPLAY AnimatedVisibility 는 기존과 동일)
                             if (item.type == MenuItemType.DISPLAY) {
                                 AnimatedVisibility(
                                     visible = isDisplayMenuExpanded,
@@ -307,7 +315,6 @@ fun AccountScreen(
     }
 }
 
-// ... (AccountMenuItemCard, PrivacyToggle, DarkModeToggle Composable은 기존과 동일)
 @Composable
 fun AccountMenuItemCard(item: AccountMenuItem) {
     Row(
@@ -356,9 +363,6 @@ fun AccountMenuItemCard(item: AccountMenuItem) {
     }
 }
 
-/**
- * 새로 추가된 "통계보기" 버튼 Composable
- */
 @Composable
 fun StatisticsButton(onClick: () -> Unit) {
     Row(
@@ -482,3 +486,8 @@ fun DarkModeToggle(
         }
     }
 }
+
+// 이 아래에 PostsSection Composable을 정의하거나 import해야 합니다.
+// 예시:
+// @Composable
+// fun PostsSection(...) { ... }
