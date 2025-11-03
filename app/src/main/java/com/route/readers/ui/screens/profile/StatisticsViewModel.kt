@@ -1,22 +1,24 @@
 package com.route.readers.ui.screens.profile
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.route.readers.ReadersApplication
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
-// 장르 데이터 클래스 추가
 data class GenreStats(
     val genre: String,
     val count: Int,
-    val color: androidx.compose.ui.graphics.Color
+    val color: Color
 )
 
-// UI 상태에 genreStats 추가
 data class StatisticsUiState(
     val selectedDate: LocalDate = LocalDate.now(),
     val selectedTab: String = "일",
@@ -26,7 +28,7 @@ data class StatisticsUiState(
     val yearlyStats: YearlyStats = YearlyStats(),
     val totalStats: TotalStats = TotalStats(),
     val chartData: List<co.yml.charts.common.model.Point> = emptyList(),
-    val genreStats: List<GenreStats> = emptyList() // 장르 통계 데이터
+    val genreStats: List<GenreStats> = emptyList()
 )
 
 data class DailyStats(
@@ -64,13 +66,28 @@ data class TotalStats(
     val totalFinishedBookCount: Int = 0
 )
 
-
-class StatisticsViewModel : ViewModel() {
+class StatisticsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(StatisticsUiState())
     val uiState: StateFlow<StatisticsUiState> = _uiState.asStateFlow()
 
+    private val sessionTimer = getApplication<ReadersApplication>().sessionTimer
+
     init {
+        viewModelScope.launch {
+            sessionTimer.getTotalSessionTimeFlow().collect { totalMillis ->
+                val formattedTime = sessionTimer.formatDuration(totalMillis)
+                _uiState.update {
+                    it.copy(
+                        dailyStats = it.dailyStats.copy(accessTime = formattedTime),
+                        weeklyStats = it.weeklyStats.copy(accessTime = formattedTime),
+                        monthlyStats = it.monthlyStats.copy(accessTime = formattedTime),
+                        yearlyStats = it.yearlyStats.copy(accessTime = formattedTime),
+                        totalStats = it.totalStats.copy(totalReadingTime = formattedTime)
+                    )
+                }
+            }
+        }
         fetchStatistics()
     }
 
@@ -87,22 +104,22 @@ class StatisticsViewModel : ViewModel() {
     private fun fetchStatistics() {
         viewModelScope.launch {
             val currentState = _uiState.value
+            val totalMillis = sessionTimer.getTotalSessionTimeFlow().first()
+            val formattedTime = sessionTimer.formatDuration(totalMillis)
 
-            // 임시 장르 데이터 생성
             val tempGenreStats = listOf(
-                GenreStats("소설", 8, androidx.compose.ui.graphics.Color(0xFF00C853)),
-                GenreStats("에세이", 5, androidx.compose.ui.graphics.Color(0xFF009688)),
-                GenreStats("자기계발", 12, androidx.compose.ui.graphics.Color(0xFF4CAF50)),
-                GenreStats("IT", 9, androidx.compose.ui.graphics.Color(0xFF8BC34A)),
-                GenreStats("인문", 3, androidx.compose.ui.graphics.Color(0xFFCDDC39))
+                GenreStats("소설", 8, Color(0xFF00C853)),
+                GenreStats("에세이", 5, Color(0xFF009688)),
+                GenreStats("자기계발", 12, Color(0xFF4CAF50)),
+                GenreStats("IT", 9, Color(0xFF8BC34A)),
+                GenreStats("인문", 3, Color(0xFFCDDC39))
             )
 
-            // 선택된 탭에 따라 다른 데이터를 생성/로드
             when (currentState.selectedTab) {
                 "일" -> {
                     _uiState.update {
                         it.copy(
-                            dailyStats = DailyStats("1h 5m", "45m", 2, 0),
+                            dailyStats = DailyStats(formattedTime, "45m", 2, 0),
                             chartData = (0..23).map { hour ->
                                 co.yml.charts.common.model.Point(hour.toFloat(), (0..60).random().toFloat())
                             },
@@ -113,7 +130,7 @@ class StatisticsViewModel : ViewModel() {
                 "주" -> {
                     _uiState.update {
                         it.copy(
-                            weeklyStats = WeeklyStats("7h 30m", "5h", "수요일", 1),
+                            weeklyStats = WeeklyStats(formattedTime, "5h", "수요일", 1),
                             chartData = (0..6).map { day ->
                                 co.yml.charts.common.model.Point(day.toFloat(), (30..180).random().toFloat())
                             },
@@ -124,7 +141,7 @@ class StatisticsViewModel : ViewModel() {
                 "월" -> {
                     _uiState.update {
                         it.copy(
-                            monthlyStats = MonthlyStats("30h", "22h", "2주차", 4),
+                            monthlyStats = MonthlyStats(formattedTime, "22h", "2주차", 4),
                             chartData = (0..3).map { week ->
                                 co.yml.charts.common.model.Point(week.toFloat(), (3..10).random().toFloat())
                             },
@@ -135,7 +152,7 @@ class StatisticsViewModel : ViewModel() {
                 "년" -> {
                     _uiState.update {
                         it.copy(
-                            yearlyStats = YearlyStats("350h", "280h", "8월", 30),
+                            yearlyStats = YearlyStats(formattedTime, "280h", "8월", 30),
                             chartData = (0..11).map { month ->
                                 co.yml.charts.common.model.Point(month.toFloat(), (10..40).random().toFloat())
                             },
@@ -146,7 +163,7 @@ class StatisticsViewModel : ViewModel() {
                 "전체" -> {
                     _uiState.update {
                         it.copy(
-                            totalStats = TotalStats("2023-01-15", 300, "1000h", 80),
+                            totalStats = TotalStats("2023-01-15", 300, formattedTime, 80),
                             chartData = (0..11).map { month ->
                                 co.yml.charts.common.model.Point(month.toFloat(), (50..200).random().toFloat())
                             },
