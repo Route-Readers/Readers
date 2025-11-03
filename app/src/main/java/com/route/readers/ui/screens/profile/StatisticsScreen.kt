@@ -11,10 +11,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -31,6 +38,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -40,6 +48,11 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import co.yml.charts.axis.AxisData
 import co.yml.charts.common.model.Point
+import co.yml.charts.common.model.PlotType // *** 이 import 문을 추가해야 합니다 ***
+import co.yml.charts.ui.barchart.BarChart
+import co.yml.charts.ui.barchart.models.BarChartData
+import co.yml.charts.ui.barchart.models.BarData
+import co.yml.charts.ui.barchart.models.BarStyle
 import co.yml.charts.ui.linechart.LineChart
 import co.yml.charts.ui.linechart.model.GridLines
 import co.yml.charts.ui.linechart.model.IntersectionPoint
@@ -50,6 +63,9 @@ import co.yml.charts.ui.linechart.model.LineStyle
 import co.yml.charts.ui.linechart.model.SelectionHighlightPoint
 import co.yml.charts.ui.linechart.model.SelectionHighlightPopUp
 import co.yml.charts.ui.linechart.model.ShadowUnderLine
+import co.yml.charts.ui.piechart.charts.DonutPieChart
+import co.yml.charts.ui.piechart.models.PieChartConfig
+import co.yml.charts.ui.piechart.models.PieChartData
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -85,6 +101,7 @@ fun StatisticsScreen(
                 .padding(paddingValues)
                 .fillMaxSize()
                 .padding(16.dp)
+                .verticalScroll(rememberScrollState())
         ) {
             StatisticsSection(
                 uiState = uiState,
@@ -104,41 +121,59 @@ fun StatisticsSection(
     val tabs = listOf("일", "주", "월", "년", "전체")
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large)
-            .padding(horizontal = 20.dp, vertical = 16.dp)
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        TabRow(
-            selectedTabIndex = tabs.indexOf(uiState.selectedTab),
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.onSurface,
-            indicator = { tabPositions ->
-                TabRowDefaults.Indicator(
-                    Modifier.tabIndicatorOffset(tabPositions[tabs.indexOf(uiState.selectedTab)]),
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large)
+                .padding(horizontal = 20.dp, vertical = 16.dp)
         ) {
-            tabs.forEach { tab ->
-                Tab(
-                    selected = uiState.selectedTab == tab,
-                    onClick = { onTabChange(tab) },
-                    text = { Text(tab) },
-                    selectedContentColor = MaterialTheme.colorScheme.primary,
-                    unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            TabRow(
+                selectedTabIndex = tabs.indexOf(uiState.selectedTab),
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                indicator = { tabPositions ->
+                    TabRowDefaults.Indicator(
+                        Modifier.tabIndicatorOffset(tabPositions[tabs.indexOf(uiState.selectedTab)]),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            ) {
+                tabs.forEach { tab ->
+                    Tab(
+                        selected = uiState.selectedTab == tab,
+                        onClick = { onTabChange(tab) },
+                        text = { Text(tab) },
+                        selectedContentColor = MaterialTheme.colorScheme.primary,
+                        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            when (uiState.selectedTab) {
+                "일" -> DailyStatsContent(date = uiState.selectedDate, stats = uiState.dailyStats, chartData = uiState.chartData, onDateChange = onDateChange)
+                "주" -> WeeklyStatsContent(date = uiState.selectedDate, stats = uiState.weeklyStats, chartData = uiState.chartData, onDateChange = onDateChange)
+                "월" -> MonthlyStatsContent(date = uiState.selectedDate, stats = uiState.monthlyStats, chartData = uiState.chartData, onDateChange = onDateChange)
+                "년" -> YearlyStatsContent(date = uiState.selectedDate, stats = uiState.yearlyStats, chartData = uiState.chartData, onDateChange = onDateChange)
+                "전체" -> TotalStatsContent(stats = uiState.totalStats, chartData = uiState.chartData)
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        when (uiState.selectedTab) {
-            "일" -> DailyStatsContent(date = uiState.selectedDate, stats = uiState.dailyStats, chartData = uiState.chartData, onDateChange = onDateChange)
-            "주" -> WeeklyStatsContent(date = uiState.selectedDate, stats = uiState.weeklyStats, chartData = uiState.chartData, onDateChange = onDateChange)
-            "월" -> MonthlyStatsContent(date = uiState.selectedDate, stats = uiState.monthlyStats, chartData = uiState.chartData, onDateChange = onDateChange)
-            "년" -> YearlyStatsContent(date = uiState.selectedDate, stats = uiState.yearlyStats, chartData = uiState.chartData, onDateChange = onDateChange)
-            "전체" -> TotalStatsContent(stats = uiState.totalStats, chartData = uiState.chartData)
+        if (uiState.genreStats.isNotEmpty() && uiState.selectedTab != "전체") {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large)
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
+            ) {
+                Text("장르별 독서 현황", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(16.dp))
+                GenreCharts(genreStats = uiState.genreStats)
+            }
         }
     }
 }
@@ -158,8 +193,6 @@ fun DailyStatsContent(date: LocalDate, stats: DailyStats, chartData: List<Point>
         onNext = { onDateChange(date.plusDays(1)) }
     )
     Spacer(modifier = Modifier.height(24.dp))
-
-    // 상세 내용과 그래프 위치 변경
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         StatisticsDetailRow("접속시간", stats.accessTime)
         StatisticsDetailRow("총 독서시간", stats.totalReadingTime)
@@ -188,8 +221,6 @@ fun WeeklyStatsContent(date: LocalDate, stats: WeeklyStats, chartData: List<Poin
         onNext = { onDateChange(date.plusWeeks(1)) }
     )
     Spacer(modifier = Modifier.height(24.dp))
-
-    // 상세 내용과 그래프 위치 변경
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         StatisticsDetailRow("접속시간", stats.accessTime)
         StatisticsDetailRow("총 독서시간", stats.totalReadingTime)
@@ -216,8 +247,6 @@ fun MonthlyStatsContent(date: LocalDate, stats: MonthlyStats, chartData: List<Po
         onNext = { onDateChange(date.plusMonths(1)) }
     )
     Spacer(modifier = Modifier.height(24.dp))
-
-    // 상세 내용과 그래프 위치 변경
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         StatisticsDetailRow("접속시간", stats.accessTime)
         StatisticsDetailRow("총 독서시간", stats.totalReadingTime)
@@ -239,8 +268,6 @@ fun YearlyStatsContent(date: LocalDate, stats: YearlyStats, chartData: List<Poin
         onNext = { onDateChange(date.plusYears(1)) }
     )
     Spacer(modifier = Modifier.height(24.dp))
-
-    // 상세 내용과 그래프 위치 변경
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         StatisticsDetailRow("접속시간", stats.accessTime)
         StatisticsDetailRow("총 독서시간", stats.totalReadingTime)
@@ -259,8 +286,6 @@ fun TotalStatsContent(stats: TotalStats, chartData: List<Point>) {
         Text("전체 통계", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
     }
     Spacer(modifier = Modifier.height(24.dp))
-
-    // 상세 내용과 그래프 위치 변경
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         StatisticsDetailRow("최초 접속일", stats.firstAccessDate)
         StatisticsDetailRow("총 접속일", "${stats.totalAccessDays}일")
@@ -269,6 +294,110 @@ fun TotalStatsContent(stats: TotalStats, chartData: List<Point>) {
     }
     Spacer(modifier = Modifier.height(24.dp))
     StatsLineChart(pointsData = chartData, xAxisLabels = xAxisLabels)
+}
+
+@Composable
+fun GenreCharts(genreStats: List<GenreStats>) {
+    Column(verticalArrangement = Arrangement.spacedBy(32.dp)) {
+        GenreBarChart(genreStats = genreStats)
+        GenreDonutChart(genreStats = genreStats)
+    }
+}
+
+@Composable
+fun GenreBarChart(genreStats: List<GenreStats>) {
+    val maxRange = (genreStats.maxOfOrNull { it.count } ?: 0) + 2
+    val barData = genreStats.map {
+        BarData(
+            point = Point(x = genreStats.indexOf(it).toFloat(), y = it.count.toFloat()),
+            color = it.color,
+            label = it.genre,
+        )
+    }
+
+    val xAxisData = AxisData.Builder()
+        .axisStepSize(30.dp)
+        .steps(barData.size - 1)
+        .startDrawPadding(20.dp)
+        .bottomPadding(40.dp)
+        .axisLabelAngle(20f)
+        .axisLabelColor(MaterialTheme.colorScheme.onSurfaceVariant)
+        .axisLineColor(Color.Transparent)
+        .labelData { index -> barData[index].label }
+        .build()
+
+    val yAxisData = AxisData.Builder()
+        .steps(5)
+        .labelAndAxisLinePadding(10.dp)
+        .axisLineColor(Color.Transparent)
+        .axisLabelColor(MaterialTheme.colorScheme.onSurfaceVariant)
+        .labelData { index -> (index * (maxRange / 5)).toString() }
+        .build()
+
+    val chartData = BarChartData(
+        chartData = barData,
+        xAxisData = xAxisData,
+        yAxisData = yAxisData,
+        barStyle = BarStyle(barWidth = 25.dp),
+        backgroundColor = Color.Transparent
+    )
+    BarChart(modifier = Modifier.height(250.dp), barChartData = chartData)
+}
+
+@Composable
+fun GenreDonutChart(genreStats: List<GenreStats>) {
+    // *** 이 부분이 핵심 수정 사항입니다. ***
+    val donutChartData = PieChartData(
+        slices = genreStats.map {
+            PieChartData.Slice(
+                label = it.genre,
+                value = it.count.toFloat(),
+                color = it.color
+            )
+        },
+        plotType = PlotType.Donut // PieChartData.PlotType이 아니라 PlotType을 직접 사용
+    )
+
+    val donutChartConfig = PieChartConfig(
+        strokeWidth = 50f,
+        activeSliceAlpha = .9f,
+        isAnimationEnable = true,
+        chartPadding = 30,
+        showSliceLabels = false
+    )
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            DonutPieChart(
+                modifier = Modifier.size(150.dp),
+                pieChartData = donutChartData,
+                pieChartConfig = donutChartConfig
+            )
+            Spacer(modifier = Modifier.width(24.dp))
+            Column {
+                genreStats.forEach {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(10.dp)
+                                .clip(CircleShape)
+                                .background(it.color)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = "${it.genre} (${it.count}권)", fontSize = 14.sp)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -401,4 +530,3 @@ fun StatisticsDetailRow(title: String, value: String, valueColor: Color = Materi
         Text(text = value, fontWeight = FontWeight.SemiBold, color = valueColor, style = MaterialTheme.typography.bodyLarge)
     }
 }
-

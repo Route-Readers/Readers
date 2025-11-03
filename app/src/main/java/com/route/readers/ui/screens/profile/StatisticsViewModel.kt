@@ -9,7 +9,14 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
-// ViewModel에서 UI로 전달할 상태를 정의하는 데이터 클래스
+// 장르 데이터 클래스 추가
+data class GenreStats(
+    val genre: String,
+    val count: Int,
+    val color: androidx.compose.ui.graphics.Color
+)
+
+// UI 상태에 genreStats 추가
 data class StatisticsUiState(
     val selectedDate: LocalDate = LocalDate.now(),
     val selectedTab: String = "일",
@@ -18,10 +25,10 @@ data class StatisticsUiState(
     val monthlyStats: MonthlyStats = MonthlyStats(),
     val yearlyStats: YearlyStats = YearlyStats(),
     val totalStats: TotalStats = TotalStats(),
-    val chartData: List<co.yml.charts.common.model.Point> = emptyList()
+    val chartData: List<co.yml.charts.common.model.Point> = emptyList(),
+    val genreStats: List<GenreStats> = emptyList() // 장르 통계 데이터
 )
 
-// 비어있는 기본값을 위한 data class 기본 생성자
 data class DailyStats(
     val accessTime: String = "",
     val totalReadingTime: String = "",
@@ -64,36 +71,42 @@ class StatisticsViewModel : ViewModel() {
     val uiState: StateFlow<StatisticsUiState> = _uiState.asStateFlow()
 
     init {
-        // ViewModel이 생성될 때 초기 데이터 로드
         fetchStatistics()
     }
 
     fun onDateChange(newDate: LocalDate) {
         _uiState.update { it.copy(selectedDate = newDate) }
-        fetchStatistics() // 날짜가 바뀌면 데이터 다시 로드
+        fetchStatistics()
     }
 
     fun onTabChange(newTab: String) {
         _uiState.update { it.copy(selectedTab = newTab) }
-        fetchStatistics() // 탭이 바뀌면 데이터 다시 로드
+        fetchStatistics()
     }
 
     private fun fetchStatistics() {
         viewModelScope.launch {
-            // 현재 상태 값을 가져옴
             val currentState = _uiState.value
-            val date = currentState.selectedDate
-            val tab = currentState.selectedTab
 
-            // 선택된 탭에 따라 다른 데이터를 생성/로드 (현재는 임시 데이터 생성)
-            when (tab) {
+            // 임시 장르 데이터 생성
+            val tempGenreStats = listOf(
+                GenreStats("소설", 8, androidx.compose.ui.graphics.Color(0xFF00C853)),
+                GenreStats("에세이", 5, androidx.compose.ui.graphics.Color(0xFF009688)),
+                GenreStats("자기계발", 12, androidx.compose.ui.graphics.Color(0xFF4CAF50)),
+                GenreStats("IT", 9, androidx.compose.ui.graphics.Color(0xFF8BC34A)),
+                GenreStats("인문", 3, androidx.compose.ui.graphics.Color(0xFFCDDC39))
+            )
+
+            // 선택된 탭에 따라 다른 데이터를 생성/로드
+            when (currentState.selectedTab) {
                 "일" -> {
                     _uiState.update {
                         it.copy(
                             dailyStats = DailyStats("1h 5m", "45m", 2, 0),
                             chartData = (0..23).map { hour ->
                                 co.yml.charts.common.model.Point(hour.toFloat(), (0..60).random().toFloat())
-                            }
+                            },
+                            genreStats = tempGenreStats
                         )
                     }
                 }
@@ -103,7 +116,8 @@ class StatisticsViewModel : ViewModel() {
                             weeklyStats = WeeklyStats("7h 30m", "5h", "수요일", 1),
                             chartData = (0..6).map { day ->
                                 co.yml.charts.common.model.Point(day.toFloat(), (30..180).random().toFloat())
-                            }
+                            },
+                            genreStats = tempGenreStats
                         )
                     }
                 }
@@ -113,7 +127,8 @@ class StatisticsViewModel : ViewModel() {
                             monthlyStats = MonthlyStats("30h", "22h", "2주차", 4),
                             chartData = (0..3).map { week ->
                                 co.yml.charts.common.model.Point(week.toFloat(), (3..10).random().toFloat())
-                            }
+                            },
+                            genreStats = tempGenreStats
                         )
                     }
                 }
@@ -123,7 +138,8 @@ class StatisticsViewModel : ViewModel() {
                             yearlyStats = YearlyStats("350h", "280h", "8월", 30),
                             chartData = (0..11).map { month ->
                                 co.yml.charts.common.model.Point(month.toFloat(), (10..40).random().toFloat())
-                            }
+                            },
+                            genreStats = tempGenreStats
                         )
                     }
                 }
@@ -133,7 +149,8 @@ class StatisticsViewModel : ViewModel() {
                             totalStats = TotalStats("2023-01-15", 300, "1000h", 80),
                             chartData = (0..11).map { month ->
                                 co.yml.charts.common.model.Point(month.toFloat(), (50..200).random().toFloat())
-                            }
+                            },
+                            genreStats = tempGenreStats
                         )
                     }
                 }
