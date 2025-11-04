@@ -1,8 +1,8 @@
 package com.route.readers.data.model
 
+import android.util.Log
 import com.google.firebase.firestore.Exclude
 import com.google.gson.annotations.SerializedName
-import android.util.Log
 
 data class SubInfo(
     @SerializedName("itemPage") val itemPage: Int? = null
@@ -22,12 +22,14 @@ data class Book(
     val currentPage: Int = 0,
     val totalPages: Int = 0,
     val progress: Int = 0,
-
+    val isCompleted: Boolean = false,
     @get:Exclude
     val isFavorite: Boolean = false
 ) {
+    val genre: String
+        get() = categoryName?.split(">")?.firstOrNull()?.trim() ?: "기타"
+
     fun extractPageCount(): Int {
-        Log.d("Book", "subInfo: $subInfo, itemPage: $itemPage")
         return subInfo?.itemPage ?: itemPage ?: 0
     }
 

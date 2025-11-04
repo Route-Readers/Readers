@@ -1,11 +1,13 @@
 package com.route.readers.ui.screens.profile
 
 import android.app.Application
+import android.util.Log
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import co.yml.charts.common.model.Point
 import com.route.readers.ReadersApplication
+import com.route.readers.data.model.MyBook
 import com.route.readers.data.remote.MyLibraryRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,7 +15,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
@@ -82,6 +83,13 @@ class StatisticsViewModel(application: Application) : AndroidViewModel(applicati
     private val sessionTimer = getApplication<ReadersApplication>().sessionTimer
     private val myLibraryRepository = MyLibraryRepository()
 
+    private val genreColors = listOf(
+        Color(0xFF00C853), Color(0xFF009688), Color(0xFF4CAF50),
+        Color(0xFF8BC34A), Color(0xFFCDDC39), Color(0xFFFFC107),
+        Color(0xFFFF9800), Color(0xFFF44336), Color(0xFFE91E63),
+        Color(0xFF9C27B0), Color(0xFF673AB7), Color(0xFF3F51B5)
+    )
+
     init {
         fetchStatistics()
     }
@@ -96,19 +104,43 @@ class StatisticsViewModel(application: Application) : AndroidViewModel(applicati
         fetchStatistics()
     }
 
+    // ▼▼▼ [수정] 장르명 추출 로직 변경 ▼▼▼
+    private fun MyBook.getGenreName(): String {
+        val categories = this.categoryName?.split(">")?.map { it.trim() }
+        return if (categories != null && categories.size > 1) {
+            categories[1] // "국내도서" 다음 항목을 가져옴
+        } else {
+            categories?.firstOrNull() ?: "기타" // 다음 항목이 없으면 첫 항목 또는 "기타"
+        }
+    }
+
     private fun fetchStatistics() {
         viewModelScope.launch {
             val currentState = _uiState.value
-            val allBooks = myLibraryRepository.getMyBooks()
+            val allBooks: List<MyBook> = myLibraryRepository.getMyBooks()
+
+            allBooks.forEach { book ->
+                Log.d("STATISTICS_DEBUG", "Book Title: ${book.title}, CategoryName: ${book.categoryName}")
+            }
+
             val readingBookCount = allBooks.count { !it.isCompleted }
             val finishedBookCount = allBooks.count { it.isCompleted }
-            val tempGenreStats = listOf(
-                GenreStats("소설", 8, Color(0xFF00C853)),
-                GenreStats("에세이", 5, Color(0xFF009688)),
-                GenreStats("자기계발", 12, Color(0xFF4CAF50)),
-                GenreStats("IT", 9, Color(0xFF8BC34A)),
-                GenreStats("인문", 3, Color(0xFFCDDC39))
-            )
+
+            val booksByGenre = allBooks
+                .filter { !it.categoryName.isNullOrBlank() }
+                .groupBy { it.getGenreName() }
+                .mapValues { it.value.size }
+
+            Log.d("STATISTICS_DEBUG", "Grouped Genres: $booksByGenre")
+
+            val realGenreStats = booksByGenre.map { (genre, count) ->
+                val colorIndex = booksByGenre.keys.indexOf(genre) % genreColors.size
+                GenreStats(
+                    genre = genre,
+                    count = count,
+                    color = genreColors[colorIndex]
+                )
+            }.sortedByDescending { it.count }
 
             when (currentState.selectedTab) {
                 "일" -> {
@@ -135,7 +167,7 @@ class StatisticsViewModel(application: Application) : AndroidViewModel(applicati
                                 finishedBookCount = finishedBookCount
                             ),
                             chartData = chartPoints,
-                            genreStats = tempGenreStats
+                            genreStats = realGenreStats
                         )
                     }
                 }
@@ -179,7 +211,7 @@ class StatisticsViewModel(application: Application) : AndroidViewModel(applicati
                                 finishedBookCount = finishedBookCount
                             ),
                             chartData = chartPoints,
-                            genreStats = tempGenreStats
+                            genreStats = realGenreStats
                         )
                     }
                 }
@@ -229,7 +261,7 @@ class StatisticsViewModel(application: Application) : AndroidViewModel(applicati
                                     minutes.toFloat()
                                 )
                             },
-                            genreStats = tempGenreStats
+                            genreStats = realGenreStats
                         )
                     }
                 }
@@ -249,7 +281,7 @@ class StatisticsViewModel(application: Application) : AndroidViewModel(applicati
                                 totalFinishedBookCount = finishedBookCount
                             ),
                             chartData = emptyList(),
-                            genreStats = tempGenreStats
+                            genreStats = realGenreStats
                         )
                     }
                 }

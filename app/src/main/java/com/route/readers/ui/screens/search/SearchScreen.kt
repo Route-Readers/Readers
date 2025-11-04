@@ -1,8 +1,8 @@
 package com.route.readers.ui.screens.search
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.location.Location
+import android.Manifest
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.runtime.getValue
@@ -204,7 +204,8 @@ fun BookSearchTab(
                             author = it.author,
                             cover = it.cover,
                             isbn = it.isbn,
-                            totalPages = totalPages
+                            totalPages = totalPages,
+                            categoryName = it.categoryName
                         )
                         val success = myLibraryRepository.addBookToLibrary(myBook)
                         if (success) {
@@ -280,6 +281,16 @@ fun BookSearchResultCard(
     onAddToLibrary: (Book) -> Unit,
     onToggleFavorite: (Book) -> Unit
 ) {
+    // ▼▼▼ [수정] UI에 표시할 장르명 가공 ▼▼▼
+    val displayedCategoryName = remember(book.categoryName) {
+        val categories = book.categoryName?.split(">")?.map { it.trim() }
+        if (categories != null && categories.size > 1) {
+            categories[1]
+        } else {
+            categories?.firstOrNull()
+        }
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -316,14 +327,17 @@ fun BookSearchResultCard(
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                if (!book.categoryName.isNullOrEmpty()) {
+
+                // ▼▼▼ [수정] 가공된 장르명 표시 ▼▼▼
+                if (!displayedCategoryName.isNullOrEmpty()) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = book.categoryName,
+                        text = displayedCategoryName,
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
+
                 val pageCount = book.extractPageCount()
                 if (pageCount > 0) {
                     Spacer(modifier = Modifier.height(4.dp))
