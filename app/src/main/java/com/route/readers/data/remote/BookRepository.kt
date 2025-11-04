@@ -56,18 +56,18 @@ class BookRepository {
                     return emptyList()
                 }
 
-                val detailedBooks = coroutineScope {
+                coroutineScope {
                     books.map { book ->
                         async {
                             if (book.isbn.isNotBlank()) {
-                                getBookDetail(book.isbn) ?: book
+                                val detailBook = getBookDetail(book.isbn)
+                                detailBook?.copy(categoryName = book.categoryName) ?: book
                             } else {
                                 book
                             }
                         }
                     }.map { it.await() }
                 }
-                detailedBooks
             } else {
                 emptyList()
             }
@@ -96,18 +96,18 @@ class BookRepository {
                     return emptyList()
                 }
 
-                val detailedBooks = coroutineScope {
+                coroutineScope {
                     basicBookList.map { book ->
                         async {
                             if (book.isbn.isNotBlank()) {
-                                getBookDetail(book.isbn) ?: book
+                                val detailBook = getBookDetail(book.isbn)
+                                detailBook?.copy(categoryName = book.categoryName) ?: book
                             } else {
                                 book
                             }
                         }
                     }.map { it.await() }
                 }
-                detailedBooks
             } else {
                 emptyList()
             }
@@ -142,3 +142,4 @@ class BookRepository {
 
 
 }
+
