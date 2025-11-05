@@ -4,12 +4,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.route.readers.data.model.Book
 import com.route.readers.data.remote.BookRepository
+import com.route.readers.data.remote.WishlistRepository
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
-import com.route.readers.data.remote.WishlistRepository
 
+@OptIn(FlowPreview::class)
 class BookViewModel : ViewModel() {
 
     private val bookRepository = BookRepository()
@@ -36,6 +41,18 @@ class BookViewModel : ViewModel() {
     private var currentPage = 1
     private val pageSize = 10
 
+    init {
+        viewModelScope.launch {
+            _currentQuery
+                .debounce(500)
+                .filter { it.isNotBlank() }
+                .distinctUntilChanged()
+                .collect { query ->
+                    performSearch(query, isNewSearch = true)
+                }
+        }
+    }
+
     private suspend fun applyFavoriteStatusToBooks(books: List<Book>): List<Book> {
         val wishlistIsbns = wishlistRepository.getWishlist().toSet()
         return books.map { book ->
@@ -43,20 +60,24 @@ class BookViewModel : ViewModel() {
         }
     }
 
-    fun searchBooks(query: String, isNewSearch: Boolean = true) {
+    fun searchBooks(query: String) {
+        _currentQuery.value = query
+    }
+
+    private fun performSearch(query: String, isNewSearch: Boolean = true) {
         if (query.isBlank()) {
+            _books.value = emptyList()
             return
         }
 
         if (isNewSearch) {
             currentPage = 1
-            _currentQuery.value = query
-            _books.value = emptyList()
         }
 
         viewModelScope.launch {
             if (isNewSearch) {
                 _isLoading.value = true
+                _books.value = emptyList()
             } else {
                 _isLoadingMore.value = true
             }
@@ -64,11 +85,12 @@ class BookViewModel : ViewModel() {
 
             try {
                 val result = bookRepository.getBookSearch(query.trim(), currentPage, pageSize)
+                val newBooks = applyFavoriteStatusToBooks(result)
 
                 if (isNewSearch) {
-                    _books.value = applyFavoriteStatusToBooks(result)
+                    _books.value = newBooks
                 } else {
-                    _books.value = applyFavoriteStatusToBooks(_books.value + result)
+                    _books.value = _books.value + newBooks
                 }
 
                 _hasMoreResults.value = result.size >= pageSize
@@ -89,7 +111,7 @@ class BookViewModel : ViewModel() {
         if (_isLoadingMore.value || !_hasMoreResults.value) return
 
         currentPage++
-        searchBooks(_currentQuery.value, false)
+        performSearch(_currentQuery.value, false)
     }
 
     fun getNewBooks() {
@@ -134,7 +156,6 @@ class BookViewModel : ViewModel() {
                 } else {
                     wishlistRepository.removeFromWishlist(book.isbn)
                 }
-                // After successful update, re-apply favorite status to all books
                 applyFavoriteStatusToBooks(_books.value)
             } catch (e: Exception) {
                 _books.value = originalBooks
