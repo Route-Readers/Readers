@@ -95,14 +95,18 @@ fun BookSearchTab(
     myLibraryRepository: MyLibraryRepository,
     firestoreRepository: FirestoreRepository
 ) {
-    var searchText by remember { mutableStateOf(viewModel.currentQuery.value) }
+    val currentQuery by viewModel.currentQuery.collectAsState()
+    var searchText by remember { mutableStateOf(currentQuery) }
     val books by viewModel.books.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val isLoadingMore by viewModel.isLoadingMore.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
-    val currentQuery by viewModel.currentQuery.collectAsState()
     val hasMoreResults by viewModel.hasMoreResults.collectAsState()
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(currentQuery) {
+        searchText = currentQuery
+    }
 
     fun performSearch() {
         if (searchText.isNotBlank()) {
@@ -413,7 +417,8 @@ fun LibrarySearchTab(
     bookViewModel: BookViewModel,
     libraryViewModel: LibraryViewModel
 ) {
-    var searchText by remember { mutableStateOf(bookViewModel.currentQuery.value) }
+    val currentQuery by bookViewModel.currentQuery.collectAsState()
+    var searchText by remember { mutableStateOf(currentQuery) }
     var selectedBook by remember { mutableStateOf<Book?>(null) }
     val books by bookViewModel.books.collectAsState()
     val isLoadingBooks by bookViewModel.isLoading.collectAsState()
@@ -428,6 +433,10 @@ fun LibrarySearchTab(
             Manifest.permission.ACCESS_COARSE_LOCATION
         )
     )
+
+    LaunchedEffect(currentQuery) {
+        searchText = currentQuery
+    }
 
     fun requestLocationSearch(book: Book? = null) {
         libraryViewModel.startLoading()
