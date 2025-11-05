@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -47,6 +48,8 @@ fun BottomNavBar(
     onProfileClick: () -> Unit,
     selectedBook: MyBook? = null,
     onStartReading: () -> Unit = {},
+    onPauseReading: () -> Unit = {},
+    isTimerRunning: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -70,7 +73,11 @@ fun BottomNavBar(
                 .background(centerButtonColor)
                 .clickable {
                     if (selectedBook != null) {
-                        onStartReading()
+                        if (isTimerRunning) {
+                            onPauseReading()
+                        } else {
+                            onStartReading()
+                        }
                     } else {
                         navController.navigate(BottomNavItem.MyLibrary.route) {
                             popUpTo(BottomNavItem.Feed.route) {
@@ -83,8 +90,15 @@ fun BottomNavBar(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.Filled.PlayArrow,
-                contentDescription = if (selectedBook != null) "독서 시작" else "내 서재",
+                imageVector = when {
+                    selectedBook != null && isTimerRunning -> Icons.Filled.Pause
+                    else -> Icons.Filled.PlayArrow
+                },
+                contentDescription = when {
+                    selectedBook != null && isTimerRunning -> "독서 일시정지"
+                    selectedBook != null -> "독서 시작"
+                    else -> "내 서재"
+                },
                 tint = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.size(32.dp)
             )

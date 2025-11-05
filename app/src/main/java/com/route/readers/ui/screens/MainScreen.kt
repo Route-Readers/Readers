@@ -18,7 +18,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -42,7 +43,9 @@ import com.route.readers.ui.screens.mylibrary.MyLibraryScreen
 import com.route.readers.ui.screens.profile.BlockedUserScreen
 import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.profile.ProfileViewModel
+import com.route.readers.ui.screens.reading.ReadingTimerScreen
 import com.route.readers.ui.screens.search.SearchScreen
+import androidx.lifecycle.viewmodel.compose.viewModel
 import java.net.URLEncoder
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -130,7 +133,13 @@ fun MainScreen(
                         }
                     },
                     selectedBook = selectedBook,
-                    onStartReading = { }
+                    onStartReading = { 
+                        selectedBook?.let { book ->
+                            bottomNavController.navigate("reading_timer/${book.isbn}")
+                        }
+                    },
+                    onPauseReading = { },
+                    isTimerRunning = false
                 )
             }
         },
@@ -166,6 +175,9 @@ fun MainScreen(
                             launchSingleTop = true
                             restoreState = true
                         }
+                    },
+                    onBookSelected = { book ->
+                        selectedBook = book
                     }
                 )
             }
@@ -227,6 +239,24 @@ fun MainScreen(
             }
             composable("blockList") {
                 BlockedUserScreen(onNavigateBack = { bottomNavController.popBackStack() })
+            }
+            composable(
+                route = "reading_timer/{bookIsbn}",
+                arguments = listOf(navArgument("bookIsbn") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val bookIsbn = backStackEntry.arguments?.getString("bookIsbn")
+                selectedBook?.let { book ->
+                    if (book.isbn == bookIsbn) {
+                        ReadingTimerScreen(
+                            book = book,
+                            onNavigateBack = { bottomNavController.popBackStack() },
+                            onFinishReading = { readingTimeSeconds ->
+                                // 독서 시간 기록 로직 추가 가능
+                                bottomNavController.popBackStack()
+                            }
+                        )
+                    }
+                }
             }
         }
     }

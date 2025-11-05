@@ -20,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -37,6 +38,7 @@ import com.route.readers.ui.screens.attendance.AttendanceViewModel
 import com.route.readers.ui.screens.profile.ProfileViewModel
 import com.route.readers.ui.theme.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlin.Pair
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
@@ -49,7 +51,8 @@ private enum class FilterState {
 fun MyLibraryScreen(
     onNavigateToSearch: () -> Unit,
     attendanceViewModel: AttendanceViewModel,
-    profileViewModel: ProfileViewModel = viewModel()
+    profileViewModel: ProfileViewModel = viewModel(),
+    onBookSelected: (MyBook?) -> Unit = {}
 ) {
     val context = LocalContext.current
     val myLibraryRepository = remember { MyLibraryRepository() }
@@ -211,15 +214,19 @@ fun MyLibraryScreen(
                     MyBookCard(
                         book = book,
                         isSelected = selectedBook == book.isbn,
+                        showTimer = false,
+                        timerSeconds = 0,
                         onProgressClick = {
                             if (selectedBook == book.isbn) {
                                 selectedBook = null
+                                onBookSelected(null)
                             } else {
                                 selectedBook = book.isbn
-                                showProgressDialogBook = book
+                                onBookSelected(book)
                             }
                         },
-                        onDeleteClick = { showDeleteDialog = book }
+                        onDeleteClick = { showDeleteDialog = book },
+                        onUpdateClick = { showProgressDialogBook = book }
                     )
                 }
             }
@@ -342,19 +349,24 @@ fun FilterChip(
 fun MyBookCard(
     book: MyBook,
     isSelected: Boolean = false,
+    showTimer: Boolean = false,
+    timerSeconds: Int = 0,
     onProgressClick: () -> Unit,
-    onDeleteClick: () -> Unit
+    onDeleteClick: () -> Unit,
+    onUpdateClick: () -> Unit = {}
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onProgressClick() }
             .then(
-                if (isSelected) Modifier.border(
-                    3.dp,
-                    MaterialTheme.colorScheme.primary,
-                    RoundedCornerShape(12.dp)
-                ) else Modifier
+                if (isSelected) Modifier.shadow(
+                    elevation = 8.dp,
+                    shape = RoundedCornerShape(12.dp)
+                ) else Modifier.shadow(
+                    elevation = 2.dp,
+                    shape = RoundedCornerShape(12.dp)
+                )
             ),
         colors = CardDefaults.cardColors(
             containerColor = when {
@@ -432,6 +444,29 @@ fun MyBookCard(
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                
+                if (showTimer) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "⏱️ ${String.format("%02d:%02d", timerSeconds / 60, timerSeconds % 60)}",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Button(
+                            onClick = onUpdateClick,
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            modifier = Modifier.height(32.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp)
+                        ) {
+                            Text("업데이트", fontSize = 12.sp)
+                        }
+                    }
+                }
             }
 
             IconButton(
