@@ -64,7 +64,7 @@ class BookViewModel : ViewModel() {
         _currentQuery.value = query
     }
 
-    private fun performSearch(query: String, isNewSearch: Boolean = true) {
+    fun performSearch(query: String, isNewSearch: Boolean = true) {
         if (query.isBlank()) {
             _books.value = emptyList()
             return
