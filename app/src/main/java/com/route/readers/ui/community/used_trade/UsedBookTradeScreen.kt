@@ -39,17 +39,8 @@ fun UsedBookTradeScreen(
     var showDeleteDialog by remember { mutableStateOf<com.route.readers.data.model.UsedBook?>(null) }
     var showEditDialog by remember { mutableStateOf<com.route.readers.data.model.UsedBook?>(null) }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            floatingActionButton = {
-                FloatingActionButton(
-                    onClick = { showAddDialog = true },
-                    containerColor = MaterialTheme.colorScheme.primary
-                ) {
-                    Icon(Icons.Default.Add, "책 등록")
-                }
-            }
-        ) { padding ->
+    Scaffold { padding ->
+        Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -114,22 +105,32 @@ fun UsedBookTradeScreen(
                             isMyBook = book.sellerId == currentUserId,
                             onDeleteClick = { showDeleteDialog = book },
                             onEditClick = { showEditDialog = book },
-                            onBuyClick = {},
+                            onBuyClick = { },
                             onClick = { onNavigateToDetail(book.id) }
                         )
                     }
                 }
             }
-        }
 
-        FloatingActionButton(
-            onClick = onNavigateToChatList,
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(16.dp),
-            containerColor = MaterialTheme.colorScheme.secondary
-        ) {
-            Icon(Icons.Default.Chat, "채팅 목록")
+            FloatingActionButton(
+                onClick = onNavigateToChatList,
+                containerColor = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 16.dp, bottom = 16.dp)
+            ) {
+                Icon(Icons.Default.Chat, "채팅 목록")
+            }
+
+            FloatingActionButton(
+                onClick = { showAddDialog = true },
+                containerColor = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp, bottom = 16.dp)
+            ) {
+                Icon(Icons.Default.Add, "책 등록")
+            }
         }
     }
 

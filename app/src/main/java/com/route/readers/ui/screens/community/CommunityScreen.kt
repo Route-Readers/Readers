@@ -139,7 +139,7 @@ fun CommunityScreen(
             }
             1 -> UsedBookTradeScreen(
                 onNavigateToDetail = onNavigateToUsedBookDetail,
-                onNavigateToChatList = { /* TODO: Implement navigation to ChatListScreen */ }
+                onNavigateToChatList = onNavigateToChatList
             )
         }
     }
