@@ -15,6 +15,7 @@ interface BookService {
         @Query("MaxResults") maxResults: Int = 20,
         @Query("Start") start: Int = 1,
         @Query("SearchTarget") searchTarget: String = "Book",
+        @Query("Sort") sort: String = "Accuracy",
         @Query("output") output: String = "js",
         @Query("Version") version: String = "20131101",
         @Query("Cover") cover: String = "Big",
