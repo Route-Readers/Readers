@@ -295,6 +295,9 @@ fun AchievementsSection(
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabs = listOf("진행 중", "완료")
 
+    var selectedCategoryIndex by remember { mutableStateOf(0) }
+    val categories = listOf("독서", "출석")
+
     val inProgress = achievements.filter { !it.isCompleted }
     val completed = achievements.filter { it.isCompleted }
 
@@ -331,10 +334,37 @@ fun AchievementsSection(
             }
         }
 
+        TabRow(
+            selectedTabIndex = selectedCategoryIndex,
+            containerColor = Color.Transparent,
+            contentColor = DarkRed,
+            indicator = { tabPositions ->
+                TabRowDefaults.SecondaryIndicator(
+                    modifier = Modifier.tabIndicatorOffset(tabPositions[selectedCategoryIndex]),
+                    color = DarkRed
+                )
+            }
+        ) {
+            categories.forEachIndexed { index, title ->
+                Tab(
+                    selected = selectedCategoryIndex == index,
+                    onClick = { selectedCategoryIndex = index },
+                    text = {
+                        Text(
+                            text = title,
+                            fontWeight = FontWeight.Bold,
+                            color = if (selectedCategoryIndex == index) DarkRed else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                )
+            }
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            val achievementsToShow = if (selectedTabIndex == 0) inProgress else completed
+            val achievementsToShow = (if (selectedTabIndex == 0) inProgress else completed)
+                .filter { it.category == categories[selectedCategoryIndex] }
             if (achievementsToShow.isEmpty()) {
                 Text(
                     text = if (selectedTabIndex == 0) "진행 중인 업적이 없습니다." else "완료된 업적이 없습니다.",
