@@ -472,8 +472,17 @@ fun AchievementsSection(
                     textAlign = TextAlign.Center
                 )
             } else {
-                achievementsToShow.forEach { achievement ->
-                    AchievementItem(achievement = achievement, onClick = { onAchievementClick(achievement) })
+                achievementsToShow.groupBy { it.category }.forEach { (category, achievements) ->
+                    Text(
+                        text = category,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    achievements.forEach { achievement ->
+                        AchievementItem(achievement = achievement, onClick = { onAchievementClick(achievement) })
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }

@@ -17,6 +17,7 @@ import com.route.readers.data.remote.MyLibraryRepository
 import com.route.readers.data.remote.WishlistRepository
 import com.route.readers.ui.screens.feed.FeedItem
 import com.route.readers.ui.screens.feed.toFeedItem
+import com.route.readers.ui.screens.attendance.AttendanceViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -31,6 +32,7 @@ data class Achievement(
     val id: String,
     val title: String,
     val description: String,
+    val category: String,
     val currentProgress: Int,
     val targetProgress: Int,
 ) {
@@ -46,6 +48,7 @@ open class ProfileViewModel : ViewModel() {
     private val wishlistRepository = WishlistRepository()
     private val myLibraryRepository = MyLibraryRepository()
     private val firestoreRepository = FirestoreRepository()
+    private val attendanceViewModel = AttendanceViewModel()
     private val currentUserId = auth.currentUser?.uid
 
     protected val _uiState = MutableStateFlow<ProfileUiState>(ProfileUiState.Loading)
@@ -163,13 +166,17 @@ open class ProfileViewModel : ViewModel() {
                     val readBooks = readBooksDeferred.await()
                     val actualReadBookCount = readBooks.size.toLong()
 
+                    attendanceViewModel.refreshAttendanceData()
+                    val consecutiveAttendanceDays = attendanceViewModel.attendanceData.value.values.maxOfOrNull { it.consecutiveAttendanceDays } ?: 0
+                    val consecutiveReadingDays = attendanceViewModel.consecutiveReadingDays.value
+
                     if (user.readBookCount != actualReadBookCount) {
                         db.collection("users").document(targetUserId)
                             .update("readBookCount", actualReadBookCount).await()
                         user = user.copy(readBookCount = actualReadBookCount)
                     }
 
-                    val allAchievements = getAchievementsForUser(user.readBookCount.toInt())
+                    val allAchievements = getAchievementsForUser(user.readBookCount.toInt(), consecutiveAttendanceDays, consecutiveReadingDays)
                     val (ongoingAchievements, completedAchievements) = allAchievements.partition { !it.isCompleted }
 
                     if (user.isPrivate && !isMyProfile) {
@@ -336,12 +343,17 @@ open class ProfileViewModel : ViewModel() {
         }
     }
 
-    private fun getAchievementsForUser(readBookCount: Int): List<Achievement> {
+    private fun getAchievementsForUser(
+        readBookCount: Int,
+        consecutiveAttendanceDays: Int,
+        consecutiveReadingDays: Int
+    ): List<Achievement> {
         return listOf(
             Achievement(
                 id = "read_1",
                 title = "책 1권 읽기",
                 description = "첫 번째 책을 완독하세요",
+                category = "독서",
                 currentProgress = readBookCount,
                 targetProgress = 1
             ),
@@ -349,6 +361,7 @@ open class ProfileViewModel : ViewModel() {
                 id = "read_10",
                 title = "책 10권 읽기",
                 description = "10권의 책을 완독하세요",
+                category = "독서",
                 currentProgress = readBookCount,
                 targetProgress = 10
             ),
@@ -356,6 +369,7 @@ open class ProfileViewModel : ViewModel() {
                 id = "read_50",
                 title = "책 50권 읽기",
                 description = "50권의 책을 완독하세요",
+                category = "독서",
                 currentProgress = readBookCount,
                 targetProgress = 50
             ),
@@ -363,7 +377,56 @@ open class ProfileViewModel : ViewModel() {
                 id = "read_100",
                 title = "책 100권 읽기",
                 description = "100권의 책을 완독하세요",
+                category = "독서",
                 currentProgress = readBookCount,
+                targetProgress = 100
+            ),
+            Achievement(
+                id = "attendance_7",
+                title = "연속 7일 출석",
+                description = "7일 연속으로 출석하세요",
+                category = "출석",
+                currentProgress = consecutiveAttendanceDays,
+                targetProgress = 7
+            ),
+            Achievement(
+                id = "attendance_30",
+                title = "연속 30일 출석",
+                description = "30일 연속으로 출석하세요",
+                category = "출석",
+                currentProgress = consecutiveAttendanceDays,
+                targetProgress = 30
+            ),
+            Achievement(
+                id = "attendance_100",
+                title = "연속 100일 출석",
+                description = "100일 연속으로 출석하세요",
+                category = "출석",
+                currentProgress = consecutiveAttendanceDays,
+                targetProgress = 100
+            ),
+            Achievement(
+                id = "reading_7",
+                title = "연속 7일 독서",
+                description = "7일 연속으로 독서하세요",
+                category = "독서",
+                currentProgress = consecutiveReadingDays,
+                targetProgress = 7
+            ),
+            Achievement(
+                id = "reading_30",
+                title = "연속 30일 독서",
+                description = "30일 연속으로 독서하세요",
+                category = "독서",
+                currentProgress = consecutiveReadingDays,
+                targetProgress = 30
+            ),
+            Achievement(
+                id = "reading_100",
+                title = "연속 100일 독서",
+                description = "100일 연속으로 독서하세요",
+                category = "독서",
+                currentProgress = consecutiveReadingDays,
                 targetProgress = 100
             )
         )
