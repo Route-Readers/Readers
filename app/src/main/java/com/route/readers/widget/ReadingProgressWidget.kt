@@ -12,6 +12,7 @@ import com.route.readers.data.remote.MyLibraryRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ReadingProgressWidget : AppWidgetProvider() {
 
@@ -52,42 +53,38 @@ class ReadingProgressWidget : AppWidgetProvider() {
     ) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val repository = MyLibraryRepository() // 위젯에서는 Context 없이 사용
+                val repository = MyLibraryRepository()
                 repository.syncWithFirestore()
                 val books = repository.myBooks.value
-                
+
                 val currentBook = books
                     .filter { it.progressPercentage < 100 }
                     .maxByOrNull { it.progressPercentage }
-                
-                CoroutineScope(Dispatchers.Main).launch {
+
+                val bitmap = currentBook?.let {
+                    if (it.cover.isNotEmpty()) {
+                        WidgetImageLoader.loadBitmap(context, it.getHighQualityImageUrl())
+                    } else null
+                }
+
+                withContext(Dispatchers.Main) {
                     if (currentBook != null) {
                         views.setTextViewText(R.id.widget_book_title, currentBook.title)
                         views.setTextViewText(R.id.widget_book_author, currentBook.author)
                         views.setTextViewText(R.id.widget_progress, "${currentBook.progressPercentage}%")
                         views.setProgressBar(R.id.widget_progress_bar, 100, currentBook.progressPercentage, false)
-                        
-                        // 페이지 정보 표시
+
                         val pageInfo = if (currentBook.totalPages > 0) {
                             "${currentBook.currentPage} / ${currentBook.totalPages} 페이지"
                         } else {
                             "페이지 정보 없음"
                         }
                         views.setTextViewText(R.id.widget_page_info, pageInfo)
-                        
-                        // 책 표지 이미지 로드
-                        if (currentBook.cover.isNotEmpty()) {
-                            CoroutineScope(Dispatchers.IO).launch {
-                                val bitmap = WidgetImageLoader.loadBitmap(context, currentBook.getHighQualityImageUrl())
-                                CoroutineScope(Dispatchers.Main).launch {
-                                    if (bitmap != null) {
-                                        views.setImageViewBitmap(R.id.widget_book_cover, bitmap)
-                                    }
-                                    appWidgetManager.updateAppWidget(appWidgetId, views)
-                                }
-                            }
+
+                        if (bitmap != null) {
+                            views.setImageViewBitmap(R.id.widget_book_cover, bitmap)
                         } else {
-                            appWidgetManager.updateAppWidget(appWidgetId, views)
+                            views.setImageViewResource(R.id.widget_book_cover, R.drawable.book_cover_placeholder)
                         }
                     } else {
                         views.setTextViewText(R.id.widget_book_title, "📖 읽고 있는 책이 없습니다")
@@ -95,13 +92,12 @@ class ReadingProgressWidget : AppWidgetProvider() {
                         views.setTextViewText(R.id.widget_progress, "0%")
                         views.setTextViewText(R.id.widget_page_info, "")
                         views.setProgressBar(R.id.widget_progress_bar, 100, 0, false)
-                        appWidgetManager.updateAppWidget(appWidgetId, views)
+                        views.setImageViewResource(R.id.widget_book_cover, R.drawable.book_cover_placeholder)
                     }
-                    
                     appWidgetManager.updateAppWidget(appWidgetId, views)
                 }
             } catch (e: Exception) {
-                CoroutineScope(Dispatchers.Main).launch {
+                withContext(Dispatchers.Main) {
                     views.setTextViewText(R.id.widget_book_title, "데이터 로드 실패")
                     views.setTextViewText(R.id.widget_book_author, "")
                     views.setTextViewText(R.id.widget_progress, "0%")
