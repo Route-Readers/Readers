@@ -432,6 +432,9 @@ fun AchievementsSection(
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("진행 중", "완료")
 
+    var selectedCategoryIndex by remember { mutableIntStateOf(0) }
+    val categories = listOf("독서", "출석")
+
     Column(modifier = Modifier.fillMaxWidth()) {
         TabRow(
             selectedTabIndex = selectedTabIndex,
@@ -453,7 +456,28 @@ fun AchievementsSection(
             }
         }
 
-        val achievementsToShow = if (selectedTabIndex == 0) ongoingAchievements else completedAchievements
+        TabRow(
+            selectedTabIndex = selectedCategoryIndex,
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = DarkRed,
+            indicator = { tabPositions ->
+                TabRowDefaults.Indicator(
+                    Modifier.tabIndicatorOffset(tabPositions[selectedCategoryIndex]),
+                    color = DarkRed
+                )
+            }
+        ) {
+            categories.forEachIndexed { index, title ->
+                Tab(
+                    selected = selectedCategoryIndex == index,
+                    onClick = { selectedCategoryIndex = index },
+                    text = { Text(text = title) }
+                )
+            }
+        }
+
+        val achievementsToShow = (if (selectedTabIndex == 0) ongoingAchievements else completedAchievements)
+            .filter { it.category == categories[selectedCategoryIndex] }
 
         Column(
             modifier = Modifier
@@ -472,8 +496,17 @@ fun AchievementsSection(
                     textAlign = TextAlign.Center
                 )
             } else {
-                achievementsToShow.forEach { achievement ->
-                    AchievementItem(achievement = achievement, onClick = { onAchievementClick(achievement) })
+                achievementsToShow.groupBy { it.category }.forEach { (category, achievements) ->
+                    Text(
+                        text = category,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    achievements.forEach { achievement ->
+                        AchievementItem(achievement = achievement, onClick = { onAchievementClick(achievement) })
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }
