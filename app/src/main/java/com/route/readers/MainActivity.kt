@@ -41,6 +41,9 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.data.UserPreferencesRepository
 import com.route.readers.notification.DailyNotificationScheduler
+import com.route.readers.ui.community.used_trade.ChatListScreen
+import com.route.readers.ui.community.used_trade.ChatScreen
+import com.route.readers.ui.community.used_trade.UsedBookDetailScreen
 import com.route.readers.ui.screens.MainScreen
 import com.route.readers.ui.screens.add_feed.AddFeedScreen
 import com.route.readers.ui.screens.attendance.AttendanceScreen
@@ -336,6 +339,21 @@ fun RootAppNavigation(accountViewModel: AccountViewModel) {
                 },
                 onNavigateToTokenShop = {
                     appNavController.navigate("token_shop_route")
+                },
+                onNavigateToUsedBookDetail = { bookId ->
+                    appNavController.navigate("used_book_detail_route/$bookId")
+                },
+                onNavigateToChatList = {
+                    appNavController.navigate("chat_list_route")
+                }
+            )
+        }
+
+        composable("chat_list_route") {
+            ChatListScreen(
+                onNavigateBack = { appNavController.popBackStack() },
+                onNavigateToChat = { otherUserId, bookId ->
+                    appNavController.navigate("chat_route/$bookId/$otherUserId")
                 }
             )
         }
@@ -474,6 +492,41 @@ fun RootAppNavigation(accountViewModel: AccountViewModel) {
                         appNavController.popBackStack()
                     },
                     onBack = { appNavController.popBackStack() }
+                )
+            }
+        }
+
+        composable(
+            route = "used_book_detail_route/{bookId}",
+            arguments = listOf(navArgument("bookId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val bookId = backStackEntry.arguments?.getString("bookId")
+            if (bookId != null) {
+                UsedBookDetailScreen(
+                    bookId = bookId,
+                    onNavigateBack = { appNavController.popBackStack() },
+                    onNavigateToChat = { sellerId, bookId ->
+                        appNavController.navigate("chat_route/$bookId/$sellerId")
+                    }
+                )
+
+            }
+        }
+
+        composable(
+            route = "chat_route/{bookId}/{otherUserId}",
+            arguments = listOf(
+                navArgument("bookId") { type = NavType.StringType },
+                navArgument("otherUserId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val bookId = backStackEntry.arguments?.getString("bookId")
+            val otherUserId = backStackEntry.arguments?.getString("otherUserId")
+            if (bookId != null && otherUserId != null) {
+                ChatScreen(
+                    bookId = bookId,
+                    sellerId = otherUserId,
+                    onNavigateBack = { appNavController.popBackStack() }
                 )
             }
         }

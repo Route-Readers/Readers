@@ -58,7 +58,9 @@ fun MainScreen(
     onNavigateToMyAccount: () -> Unit,
     onNavigateToAttendance: () -> Unit,
     onNavigateToChallenge: () -> Unit,
-    onNavigateToTokenShop: () -> Unit
+    onNavigateToTokenShop: () -> Unit,
+    onNavigateToUsedBookDetail: (String) -> Unit,
+    onNavigateToChatList: () -> Unit
 ) {
     val bottomNavController = rememberNavController()
     val mainViewModel: MainViewModel = viewModel()
@@ -191,7 +193,9 @@ fun MainScreen(
                 CommunityScreen(
                     viewModel = communityViewModel,
                     onNavigateToFriendsList = { bottomNavController.navigate("friends_list") },
-                    onNavigateToNotifications = { bottomNavController.navigate("notifications") }
+                    onNavigateToNotifications = { bottomNavController.navigate("notifications") },
+                    onNavigateToUsedBookDetail = onNavigateToUsedBookDetail,
+                    onNavigateToChatList = onNavigateToChatList
                 )
             }
             composable("friends_list") {

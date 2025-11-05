@@ -40,6 +40,8 @@ import com.route.readers.ui.screens.profile.ProfileUiState
 import com.route.readers.ui.screens.profile.ProfileViewModel
 import com.route.readers.ui.screens.profile.StatisticsScreen
 import com.route.readers.ui.screens.token.TokenShopScreen
+import com.route.readers.ui.community.used_trade.UsedBookDetailScreen
+import com.route.readers.ui.community.used_trade.ChatScreen
 import java.net.URLDecoder
 import java.net.URLEncoder
 
@@ -190,6 +192,12 @@ fun AppNavigation(navController: NavHostController) {
                 },
                 onNavigateToTokenShop = {
                     navController.navigate("token_shop_route")
+                },
+                onNavigateToUsedBookDetail = { bookId ->
+                    navController.navigate("used_book_detail_route/$bookId")
+                },
+                onNavigateToChatList = {
+                    navController.navigate("chat_list_route")
                 }
             )
         }
@@ -333,6 +341,40 @@ fun AppNavigation(navController: NavHostController) {
 
         composable("challenge_route") {
             ChallengeScreen()
+        }
+
+        composable(
+            route = "used_book_detail_route/{bookId}",
+            arguments = listOf(navArgument("bookId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val bookId = backStackEntry.arguments?.getString("bookId")
+            if (bookId != null) {
+                UsedBookDetailScreen(
+                    bookId = bookId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToChat = { sellerId, bookIdForChat ->
+                        navController.navigate("chat_route/$sellerId/$bookIdForChat")
+                    }
+                )
+            }
+        }
+
+        composable(
+            route = "chat_route/{sellerId}/{bookId}",
+            arguments = listOf(
+                navArgument("sellerId") { type = NavType.StringType },
+                navArgument("bookId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val sellerId = backStackEntry.arguments?.getString("sellerId")
+            val bookId = backStackEntry.arguments?.getString("bookId")
+            if (sellerId != null && bookId != null) {
+                ChatScreen(
+                    sellerId = sellerId,
+                    bookId = bookId,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
         }
     }
 }
