@@ -1,6 +1,7 @@
 package com.route.readers.ui.screens.reading
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -175,10 +176,15 @@ fun ReadingTimerScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            FloatingActionButton(
-                onClick = { isRunning = !isRunning },
-                modifier = Modifier.size(80.dp),
-                containerColor = MaterialTheme.colorScheme.primary
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .background(
+                        MaterialTheme.colorScheme.primary,
+                        androidx.compose.foundation.shape.CircleShape
+                    )
+                    .clickable { isRunning = !isRunning },
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = if (isRunning) Icons.Default.Pause else Icons.Default.PlayArrow,

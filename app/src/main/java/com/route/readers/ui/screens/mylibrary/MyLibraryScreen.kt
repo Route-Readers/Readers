@@ -359,14 +359,9 @@ fun MyBookCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onProgressClick() }
-            .then(
-                if (isSelected) Modifier.shadow(
-                    elevation = 8.dp,
-                    shape = RoundedCornerShape(12.dp)
-                ) else Modifier.shadow(
-                    elevation = 2.dp,
-                    shape = RoundedCornerShape(12.dp)
-                )
+            .shadow(
+                elevation = if (isSelected) 8.dp else 2.dp,
+                shape = RoundedCornerShape(12.dp)
             ),
         colors = CardDefaults.cardColors(
             containerColor = when {
