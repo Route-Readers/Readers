@@ -45,7 +45,8 @@ fun CommunityScreen(
     viewModel: CommunityViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     onNavigateToFriendsList: () -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
-    onNavigateToUsedBookDetail: (String) -> Unit = {}
+    onNavigateToUsedBookDetail: (String) -> Unit = {},
+    onNavigateToChatList: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showAddFriendDialog by remember { mutableStateOf(false) }
@@ -137,7 +138,8 @@ fun CommunityScreen(
                 }
             }
             1 -> UsedBookTradeScreen(
-                onNavigateToDetail = onNavigateToUsedBookDetail
+                onNavigateToDetail = onNavigateToUsedBookDetail,
+                onNavigateToChatList = { /* TODO: Implement navigation to ChatListScreen */ }
             )
         }
     }

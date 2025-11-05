@@ -195,6 +195,9 @@ fun AppNavigation(navController: NavHostController) {
                 },
                 onNavigateToUsedBookDetail = { bookId ->
                     navController.navigate("used_book_detail_route/$bookId")
+                },
+                onNavigateToChatList = {
+                    navController.navigate("chat_list_route")
                 }
             )
         }

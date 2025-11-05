@@ -63,9 +63,25 @@ class UsedBookRepository {
         }
     }
 
+    suspend fun getUsedBook(bookId: String): UsedBook? {
+        return try {
+            usedBooksCollection.document(bookId).get().await().toObject(UsedBook::class.java)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     suspend fun deleteUsedBook(bookId: String) {
         try {
             usedBooksCollection.document(bookId).delete().await()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun updateUsedBook(usedBook: UsedBook) {
+        try {
+            usedBooksCollection.document(usedBook.id).set(usedBook).await()
         } catch (e: Exception) {
             e.printStackTrace()
         }

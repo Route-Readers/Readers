@@ -10,13 +10,29 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
+import com.route.readers.data.model.User
+import com.route.readers.data.remote.UserRepository
+
 class ChatViewModel : ViewModel() {
     private val db = FirebaseFirestore.getInstance()
+    private val userRepository = UserRepository()
     
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
+
+    private val _chatters = MutableStateFlow<Map<String, User>>(emptyMap())
+    val chatters: StateFlow<Map<String, User>> = _chatters.asStateFlow()
     
     fun loadMessages(userId: String, sellerId: String, bookId: String) {
+        viewModelScope.launch {
+            val user = userRepository.getUser(userId)
+            val seller = userRepository.getUser(sellerId)
+            val chattersMap = mutableMapOf<String, User>()
+            user?.let { chattersMap[userId] = it }
+            seller?.let { chattersMap[sellerId] = it }
+            _chatters.value = chattersMap
+        }
+
         val chatId = getChatId(userId, sellerId, bookId)
         
         db.collection("chats")

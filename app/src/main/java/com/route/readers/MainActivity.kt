@@ -41,6 +41,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.data.UserPreferencesRepository
 import com.route.readers.notification.DailyNotificationScheduler
+import com.route.readers.ui.community.used_trade.ChatListScreen
 import com.route.readers.ui.community.used_trade.ChatScreen
 import com.route.readers.ui.community.used_trade.UsedBookDetailScreen
 import com.route.readers.ui.screens.MainScreen
@@ -341,6 +342,18 @@ fun RootAppNavigation(accountViewModel: AccountViewModel) {
                 },
                 onNavigateToUsedBookDetail = { bookId ->
                     appNavController.navigate("used_book_detail_route/$bookId")
+                },
+                onNavigateToChatList = {
+                    appNavController.navigate("chat_list_route")
+                }
+            )
+        }
+
+        composable("chat_list_route") {
+            ChatListScreen(
+                onNavigateBack = { appNavController.popBackStack() },
+                onNavigateToChat = { otherUserId, bookId ->
+                    appNavController.navigate("chat_route/$bookId/$otherUserId")
                 }
             )
         }

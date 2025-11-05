@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -13,12 +14,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
+import com.route.readers.data.model.User
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -40,6 +44,7 @@ fun ChatScreen(
     viewModel: ChatViewModel = viewModel()
 ) {
     val messages by viewModel.messages.collectAsState()
+    val chatters by viewModel.chatters.collectAsState()
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
     var messageText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
@@ -80,8 +85,10 @@ fun ChatScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(messages) { message ->
+                    val sender = chatters[message.senderId]
                     ChatMessageItem(
                         message = message,
+                        sender = sender,
                         isMyMessage = message.senderId == currentUserId
                     )
                 }
@@ -123,6 +130,7 @@ fun ChatScreen(
 @Composable
 fun ChatMessageItem(
     message: ChatMessage,
+    sender: User?,
     isMyMessage: Boolean
 ) {
     val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
@@ -130,11 +138,32 @@ fun ChatMessageItem(
 
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isMyMessage) Arrangement.End else Arrangement.Start
+        horizontalArrangement = if (isMyMessage) Arrangement.End else Arrangement.Start,
+        verticalAlignment = Alignment.Bottom
     ) {
+        if (!isMyMessage) {
+            AsyncImage(
+                model = sender?.profileImageUrl,
+                contentDescription = sender?.nickname,
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(Color.Gray)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+
         Column(
             horizontalAlignment = if (isMyMessage) Alignment.End else Alignment.Start
         ) {
+            if (!isMyMessage) {
+                Text(
+                    text = sender?.nickname ?: "",
+                    fontSize = 12.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
+                )
+            }
             Surface(
                 shape = RoundedCornerShape(12.dp),
                 color = if (isMyMessage) Color(0xFFFFA000) else Color(0xFFE0E0E0)

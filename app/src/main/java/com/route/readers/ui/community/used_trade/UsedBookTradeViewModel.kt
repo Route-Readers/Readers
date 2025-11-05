@@ -81,6 +81,27 @@ class UsedBookTradeViewModel : ViewModel() {
             repository.deleteUsedBook(bookId)
         }
     }
+
+    fun updateBook(bookId: String, title: String, author: String, condition: String, price: Int, description: String, bookCover: String?) {
+        viewModelScope.launch {
+            try {
+                val book = repository.getUsedBook(bookId)
+                if (book != null) {
+                    val updatedBook = book.copy(
+                        bookTitle = title,
+                        bookAuthor = author,
+                        condition = condition,
+                        price = price,
+                        description = description,
+                        bookCover = bookCover
+                    )
+                    repository.updateUsedBook(updatedBook)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("UsedBookTrade", "Error updating book", e)
+            }
+        }
+    }
     
     fun buyBook(bookId: String, buyerId: String) {
         viewModelScope.launch {
