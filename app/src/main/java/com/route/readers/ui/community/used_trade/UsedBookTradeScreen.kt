@@ -25,7 +25,8 @@ import kotlinx.coroutines.delay
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UsedBookTradeScreen(
-    viewModel: UsedBookTradeViewModel = viewModel()
+    viewModel: UsedBookTradeViewModel = viewModel(),
+    onNavigateToDetail: (String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
@@ -103,8 +104,9 @@ fun UsedBookTradeScreen(
                     UsedBookCard(
                         book = book,
                         isMyBook = book.sellerId == currentUserId,
-                        onDeleteClick = { viewModel.deleteBook(book.id) },
-                        onBuyClick = { viewModel.buyBook(book.id, currentUserId) }
+                        onDeleteClick = {},
+                        onBuyClick = {},
+                        onClick = { onNavigateToDetail(book.id) }
                     )
                 }
             }
@@ -127,12 +129,14 @@ fun UsedBookCard(
     book: com.route.readers.data.model.UsedBook,
     isMyBook: Boolean,
     onDeleteClick: () -> Unit,
-    onBuyClick: () -> Unit
+    onBuyClick: () -> Unit,
+    onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        onClick = onClick
     ) {
         Row(
             modifier = Modifier
@@ -174,33 +178,12 @@ fun UsedBookCard(
                     color = Color.Gray
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "${book.price} 토큰",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFFFA000)
-                    )
-                    
-                    if (isMyBook) {
-                        TextButton(onClick = onDeleteClick) {
-                            Text("삭제", color = Color.Red)
-                        }
-                    } else {
-                        Button(
-                            onClick = onBuyClick,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFFFA000)
-                            )
-                        ) {
-                            Text("구매", color = Color.White)
-                        }
-                    }
-                }
+                Text(
+                    text = "${book.price} 토큰",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFFFA000)
+                )
             }
         }
     }

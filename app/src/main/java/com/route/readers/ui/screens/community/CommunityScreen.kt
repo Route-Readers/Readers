@@ -44,7 +44,8 @@ import com.route.readers.ui.theme.DarkRed
 fun CommunityScreen(
     viewModel: CommunityViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     onNavigateToFriendsList: () -> Unit = {},
-    onNavigateToNotifications: () -> Unit = {}
+    onNavigateToNotifications: () -> Unit = {},
+    onNavigateToUsedBookDetail: (String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showAddFriendDialog by remember { mutableStateOf(false) }
@@ -135,7 +136,9 @@ fun CommunityScreen(
                     )
                 }
             }
-            1 -> UsedBookTradeScreen()
+            1 -> UsedBookTradeScreen(
+                onNavigateToDetail = onNavigateToUsedBookDetail
+            )
         }
     }
     // ▲▲▲ 핵심 수정 부분 ▲▲▲
