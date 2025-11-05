@@ -184,25 +184,22 @@ class NotificationRepository(private val context: Context? = null) {
 
     private suspend fun sendFCMNotification(userId: String, title: String, message: String) {
         try {
-            // Firestore에 알림 저장 (받는 사람의 앱에서 실시간으로 감지)
-            val notification = hashMapOf(
-                "userId" to userId,
+            // fcmRequests 컬렉션에 문서를 추가하여 Cloud Function을 트리거합니다.
+            val fcmRequest = hashMapOf(
+                "targetUserId" to userId,
                 "title" to title,
                 "message" to message,
-                "timestamp" to com.google.firebase.Timestamp.now(),
-                "read" to false
+                "createdAt" to com.google.firebase.Timestamp.now()
             )
-            
-            firestore.collection("users")
-                .document(userId)
-                .collection("notifications")
-                .add(notification)
+
+            firestore.collection("fcmRequests")
+                .add(fcmRequest)
                 .await()
-                
-            android.util.Log.d("NotificationRepository", "Notification saved for user: $userId")
-            
+
+            android.util.Log.d("NotificationRepository", "FCM request sent for user: $userId")
+
         } catch (e: Exception) {
-            android.util.Log.e("NotificationRepository", "Failed to save notification", e)
+            android.util.Log.e("NotificationRepository", "Failed to send FCM request", e)
         }
     }
 
