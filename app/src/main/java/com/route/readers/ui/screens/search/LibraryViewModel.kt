@@ -1,75 +1,130 @@
 package com.route.readers.ui.screens.search
 
 import android.content.Context
+import android.location.Location
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.route.readers.data.model.Book
+import com.route.readers.data.remote.BookRepository
 import com.route.readers.data.remote.LibraryRepository
 import com.route.readers.data.remote.LibrarySearchResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 sealed class LibraryUiState {
     object Idle : LibraryUiState()
-    object Loading : LibraryUiState()
-    data class Success(val libraries: List<LibrarySearchResult>) : LibraryUiState()
+    data class Loading(val query: String? = null, val libraryCode: String? = null) : LibraryUiState()
+    data class Success(
+        val query: String,
+        val libraries: List<LibrarySearchResult>,
+        val books: List<Book> = emptyList(),
+        val selectedLibrary: LibrarySearchResult? = null,
+        val availability: Map<String, Boolean>? = null
+    ) : LibraryUiState()
     data class Error(val message: String) : LibraryUiState()
 }
 
-class LibraryViewModel(private val repository: LibraryRepository = LibraryRepository()) : ViewModel() {
+class LibraryViewModel(
+    private val libraryRepository: LibraryRepository = LibraryRepository(),
+    private val bookRepository: BookRepository = BookRepository()
+) : ViewModel() {
 
     private val _libraryState = MutableStateFlow<LibraryUiState>(LibraryUiState.Idle)
-    val libraryState: StateFlow<LibraryUiState> = _libraryState
+    val libraryState: StateFlow<LibraryUiState> = _libraryState.asStateFlow()
 
-    fun startLoading() {
-        _libraryState.value = LibraryUiState.Loading
-    }
-
-    fun searchNearbyLibrariesWithBook(
-        // context는 더 이상 필요 없으므로 제거합니다.
-        isbn: String,
-        latitude: Double,
-        longitude: Double
-    ) {
+    fun startLibrarySearch(query: String, location: Location, context: Context) {
         viewModelScope.launch {
-            if (_libraryState.value !is LibraryUiState.Loading) {
-                _libraryState.value = LibraryUiState.Loading
+            if (query.isBlank()) {
+                _libraryState.value = LibraryUiState.Idle
+                return@launch
             }
+            _libraryState.value = LibraryUiState.Loading(query)
+
             try {
-                // Geocoder와 regionCode 없이 Repository 함수를 직접 호출합니다.
-                val libraries = repository.getNearbyLibrariesWithBook(isbn, latitude, longitude)
-                _libraryState.value = LibraryUiState.Success(libraries)
+                val allRelatedBooks = bookRepository.getBookSearch(query = query, page = 1, maxResults = 50)
+                Log.d("LibraryViewModel", "1. BookRepository로부터 받은 책 개수: ${allRelatedBooks.size}")
+
+                if (allRelatedBooks.isEmpty()) {
+                    _libraryState.value = LibraryUiState.Success(query, emptyList(), emptyList())
+                    return@launch
+                }
+
+                val targetBooks = allRelatedBooks.filter { it.title.contains(query, ignoreCase = true) }
+
+                Log.d("LibraryViewModel", "2. 제목 필터링 후 남은 책 개수: ${targetBooks.size}")
+
+                if (targetBooks.isEmpty()) {
+                    _libraryState.value = LibraryUiState.Success(query, emptyList(), allRelatedBooks.take(10))
+                    return@launch
+                }
+
+                val targetIsbns = targetBooks.mapNotNull { it.isbn13?.takeIf { it.isNotBlank() } }.distinct()
+                Log.d("LibraryViewModel", "3. 도서관 검색에 사용할 최종 ISBN 개수: ${targetIsbns.size}")
+
+                if (targetIsbns.isEmpty()) {
+                    _libraryState.value = LibraryUiState.Success(query, emptyList(), targetBooks)
+                    return@launch
+                }
+
+                val libraries = libraryRepository.getNearbyLibrariesWithBooks(
+                    context = context,
+                    isbns = targetIsbns,
+                    userLatitude = location.latitude,
+                    userLongitude = location.longitude
+                )
+                Log.d("LibraryViewModel", "4. 최종적으로 찾은 소장 도서관 개수: ${libraries.size}")
+
+                _libraryState.value = LibraryUiState.Success(query, libraries, targetBooks)
+
             } catch (e: Exception) {
-                _libraryState.value = LibraryUiState.Error("책 소장 도서관 검색 중 오류가 발생했습니다: ${e.message}")
+                Log.e("LibraryViewModel", "startLibrarySearch 중 오류 발생", e)
+                _libraryState.value = LibraryUiState.Error("검색 중 오류가 발생했습니다: ${e.message}")
             }
         }
     }
 
-    fun searchNearbyLibraries(latitude: Double, longitude: Double) {
+    fun checkBookAvailabilityInLibrary(library: LibrarySearchResult, books: List<Book>) {
+        val currentState = _libraryState.value
+        if (currentState !is LibraryUiState.Success) return
+
         viewModelScope.launch {
-            if (_libraryState.value !is LibraryUiState.Loading) {
-                _libraryState.value = LibraryUiState.Loading
-            }
+            _libraryState.value = currentState.copy(
+                selectedLibrary = library,
+                availability = null
+            )
+            _libraryState.value = LibraryUiState.Loading(currentState.query, library.libraryInfo.libCode)
+
             try {
-                val libraries = repository.getNearbyLibraries(latitude, longitude)
-                _libraryState.value = LibraryUiState.Success(libraries)
+                val isbns = books.mapNotNull { it.isbn13?.takeIf { it.isNotBlank() } }.distinct()
+                val availabilityMap =
+                    libraryRepository.getBooksAvailability(library.libraryInfo.libCode, isbns)
+
+                val previousState = _libraryState.value
+                if (previousState is LibraryUiState.Loading) {
+                    _libraryState.value = currentState.copy(
+                        selectedLibrary = library,
+                        availability = availabilityMap
+                    )
+                }
             } catch (e: Exception) {
-                _libraryState.value = LibraryUiState.Error("주변 도서관 검색 중 오류가 발생했습니다: ${e.message}")
+                _libraryState.value = LibraryUiState.Error("대출 정보 확인 중 오류가 발생했습니다.")
             }
         }
-    }
-
-    fun resetState() {
-        _libraryState.value = LibraryUiState.Idle
-    }
-
-    fun notifyPermissionError() {
-        _libraryState.value = LibraryUiState.Error("위치 권한이 필요합니다. 설정을 확인하거나 권한을 허용해주세요.")
     }
 
     fun notifyLocationError() {
-        _libraryState.value = LibraryUiState.Error("현재 위치를 가져오는 데 실패했습니다. 잠시 후 다시 시도해주세요.")
+        _libraryState.value = LibraryUiState.Error("위치 정보를 가져올 수 없습니다. 권한을 확인하거나 GPS를 켜주세요.")
     }
 
-    // Geocoder 관련 함수와 맵은 모두 삭제합니다.
+    fun resetState() {
+        val currentState = _libraryState.value
+        if (currentState is LibraryUiState.Success && currentState.selectedLibrary != null) {
+            _libraryState.value = currentState.copy(selectedLibrary = null, availability = null)
+        } else {
+            _libraryState.value = LibraryUiState.Idle
+        }
+    }
 }

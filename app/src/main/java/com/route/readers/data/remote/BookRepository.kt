@@ -1,13 +1,13 @@
 package com.route.readers.data.remote
 
+import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.gson.GsonBuilder
 import com.route.readers.BuildConfig
 import com.route.readers.data.model.Book
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
@@ -34,112 +34,80 @@ class BookRepository {
         retrofit.create(BookService::class.java)
     }
 
-    suspend fun getBookSearch(query: String, page: Int = 1, maxResults: Int = 10): List<Book> {
-        return try {
+    suspend fun getBookSearch(query: String, page: Int = 1, maxResults: Int = 10): List<Book> = withContext(Dispatchers.IO) {
+        try {
             if (TTBKEY.isBlank()) {
-                return emptyList()
+                Log.w("BookRepository", "알라딘 TTBKEY가 비어있습니다.")
+                return@withContext emptyList()
             }
+
+            Log.d("BookRepository", "API 호출 시작: query='$query', page=$page, maxResults=$maxResults")
 
             val response = bookService.getBookSearch(
                 ttbKey = TTBKEY,
                 query = query,
-                queryType = "Keyword",
-                start = page,
                 maxResults = maxResults,
-                output = OUTPUT,
-                version = VERSION
+                start = page
             )
 
-            if (response.isSuccessful) {
-                val books = (response.body()?.books ?: emptyList()).filter { it.isbn.isNotBlank() }
-                if (books.isEmpty()) {
-                    return emptyList()
-                }
+            val foundBooksCount = response.books?.size ?: 0
+            Log.i("BookRepository", "API 응답 성공. 찾은 책 개수: $foundBooksCount")
 
-                coroutineScope {
-                    books.map { book ->
-                        async {
-                            if (book.isbn.isNotBlank()) {
-                                val detailBook = getBookDetail(book.isbn)
-                                detailBook?.copy(categoryName = book.categoryName) ?: book
-                            } else {
-                                book
-                            }
-                        }
-                    }.map { it.await() }
-                }
-            } else {
-                emptyList()
-            }
+            return@withContext (response.books ?: emptyList()).filter { it.isbn.isNotBlank() }
+
         } catch (e: Exception) {
-            emptyList()
+            Log.e("BookRepository", "API 호출 중 심각한 오류 발생", e)
+            return@withContext emptyList()
         }
     }
 
-    suspend fun getBookList(): List<Book> {
-        return try {
+    suspend fun getBookList(): List<Book> = withContext(Dispatchers.IO) {
+        try {
             if (TTBKEY.isBlank()) {
-                return emptyList()
+                Log.w("BookRepository", "알라딘 TTBKEY가 비어있습니다.")
+                return@withContext emptyList()
             }
+
+            Log.d("BookRepository", "신간 도서 목록 API 호출 시작")
 
             val response = bookService.getBookList(
                 ttbKey = TTBKEY,
                 queryType = "ItemNewAll",
                 searchTarget = "Book",
-                output = OUTPUT,
-                version = VERSION
+                output = OUTPUT
             )
 
-            if (response.isSuccessful) {
-                val basicBookList = (response.body()?.books ?: emptyList()).filter { it.isbn.isNotBlank() }
-                if (basicBookList.isEmpty()) {
-                    return emptyList()
-                }
+            val foundBooksCount = response.books?.size ?: 0
+            Log.i("BookRepository", "신간 도서 API 응답 성공. 찾은 책 개수: $foundBooksCount")
 
-                coroutineScope {
-                    basicBookList.map { book ->
-                        async {
-                            if (book.isbn.isNotBlank()) {
-                                val detailBook = getBookDetail(book.isbn)
-                                detailBook?.copy(categoryName = book.categoryName) ?: book
-                            } else {
-                                book
-                            }
-                        }
-                    }.map { it.await() }
-                }
-            } else {
-                emptyList()
-            }
+            return@withContext (response.books ?: emptyList()).filter { it.isbn.isNotBlank() }
         } catch (e: Exception) {
-            emptyList()
+            Log.e("BookRepository", "신간 도서 API 호출 중 오류 발생", e)
+            return@withContext emptyList()
         }
     }
 
-    suspend fun getBookDetail(isbn: String): Book? {
-        return try {
+    suspend fun getBookDetail(isbn: String): Book? = withContext(Dispatchers.IO) {
+        try {
             if (TTBKEY.isBlank()) {
-                return null
+                Log.w("BookRepository", "알라딘 TTBKEY가 비어있습니다.")
+                return@withContext null
             }
+
+            Log.d("BookRepository", "도서 상세 정보 API 호출 시작: isbn='$isbn'")
+
             val response = bookService.getBookDetail(
                 ttbKey = TTBKEY,
                 itemId = isbn,
                 itemIdType = ITEM_ID_TYPE,
-                output = OUTPUT,
-                version = VERSION,
-                optResult = "subInfo"
+                output = OUTPUT
             )
 
-            if (response.isSuccessful) {
-                response.body()?.books?.firstOrNull()
-            } else {
-                null
-            }
+            Log.i("BookRepository", "도서 상세 정보 API 응답 성공. ISBN: $isbn")
+            return@withContext response.books?.firstOrNull()
         } catch (e: Exception) {
-            null
+            Log.e("BookRepository", "도서 상세 정보 API 호출 중 오류 발생. ISBN: $isbn", e)
+            return@withContext null
         }
     }
-
-
 }
-

@@ -1,6 +1,5 @@
 package com.route.readers.data.model
 
-import android.util.Log
 import com.google.firebase.firestore.Exclude
 import com.google.gson.annotations.SerializedName
 
@@ -13,6 +12,7 @@ data class Book(
     @SerializedName("author") val author: String = "",
     @SerializedName("description") val description: String = "",
     @SerializedName("isbn") val isbn: String = "",
+    @SerializedName("isbn13") val isbn13: String? = "",
     @SerializedName("cover") val cover: String = "",
     @SerializedName("categoryName") val categoryName: String? = null,
     @SerializedName("itemPage") val itemPage: Int? = null,
@@ -38,6 +38,9 @@ data class Book(
     }
 
     fun getHighQualityImageUrl(): String {
-        return cover
+        if (cover.isBlank()) {
+            return ""
+        }
+        return cover.replace("/tcover", "/cover500")
     }
 }

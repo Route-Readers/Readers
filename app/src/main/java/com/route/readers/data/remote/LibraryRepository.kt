@@ -1,29 +1,56 @@
 package com.route.readers.data.remote
 
+import android.content.Context
+import android.location.Geocoder
 import android.location.Location
+import android.os.Build
+import android.util.Log
+import com.google.gson.annotations.SerializedName
 import com.route.readers.BuildConfig
 import com.route.readers.ui.screens.search.LibraryApiService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
+import retrofit2.HttpException
+import java.util.Locale
 
-data class LibraryWrapper(val lib: LibraryInfo)
-
-data class LibrarySearchResponse(val response: LibsResponse?)
-data class LibsResponse(val libs: List<LibraryWrapper>?) // LibraryInfo -> LibraryWrapper로 변경
-data class LibraryInfo(
-    val libCode: String,
-    val libName: String,
-    val address: String,
-    val tel: String,
-    val homepage: String,
-    val latitude: String?,
-    val longitude: String?
+data class LibraryWrapper(
+    @SerializedName("lib") val lib: LibraryInfo,
+    @SerializedName("hasBook") val hasBook: String?
 )
-data class BookAvailabilityResponse(val response: AvailabilityResult?)
-data class AvailabilityResult(val result: BookStatus?)
-data class BookStatus(val hasBook: String, val loanAvailable: String)
+
+data class LibrarySearchResponse(
+    @SerializedName("response") val response: LibsResponse
+)
+
+data class LibsResponse(
+    @SerializedName("libs") val libs: List<LibraryWrapper>,
+    @SerializedName("error") val error: String? = null
+)
+
+data class LibraryInfo(
+    @SerializedName("libCode") val libCode: String,
+    @SerializedName("libName") val libName: String,
+    @SerializedName("address") val address: String,
+    @SerializedName("tel") val tel: String,
+    @SerializedName("homepage") val homepage: String,
+    @SerializedName("latitude") val latitude: String?,
+    @SerializedName("longitude") val longitude: String?
+)
+
+data class BookAvailabilityResponse(
+    @SerializedName("response") val response: AvailabilityResult
+)
+
+data class AvailabilityResult(
+    @SerializedName("result") val result: BookStatus?
+)
+
+data class BookStatus(
+    @SerializedName("hasBook") val hasBook: String,
+    @SerializedName("loanAvailable") val loanAvailable: String
+)
 
 data class LibrarySearchResult(
     val libraryInfo: LibraryInfo,
@@ -35,74 +62,165 @@ class LibraryRepository {
     private val libraryApiService: LibraryApiService = RetrofitClient.libraryApiService
     private val authKey = BuildConfig.DATA_GO_KR_API_KEY
 
-    suspend fun getNearbyLibrariesWithBook(
+    suspend fun getNearbyLibrariesWithBooks(
+        context: Context,
+        isbns: List<String>,
+        userLatitude: Double,
+        userLongitude: Double
+    ): List<LibrarySearchResult> = withContext(Dispatchers.IO) {
+        if (isbns.isEmpty()) {
+            Log.w("LibraryRepository", "도서관 검색을 위한 ISBN 목록이 비어있습니다.")
+            return@withContext emptyList()
+        }
+        if (authKey.isBlank()) {
+            Log.e("LibraryRepository", "도서관 정보 나루 API 키가 비어있습니다.")
+            return@withContext emptyList()
+        }
+
+        val regionCode = convertLocationToRegionCode(context, userLatitude, userLongitude)
+        Log.d("LibraryRepository", "도서관 검색 시작. ISBN 개수: ${isbns.size}, 지역 코드: $regionCode")
+
+        try {
+            val librariesWithBookLists = isbns.map { isbn ->
+                async { getNearbyLibrariesWithBook(regionCode, isbn, userLatitude, userLongitude) }
+            }.awaitAll()
+
+            val libraryMap = mutableMapOf<String, LibrarySearchResult>()
+            val totalFound = librariesWithBookLists.sumOf { it.size }
+            Log.d("LibraryRepository", "개별 ISBN으로 찾은 도서관 수 (중복 포함): $totalFound")
+
+            librariesWithBookLists.flatten().forEach { searchResult ->
+                val libCode = searchResult.libraryInfo.libCode
+                val existing = libraryMap[libCode]
+
+                if (existing == null) {
+                    libraryMap[libCode] = searchResult
+                } else {
+                    if (searchResult.isLoanAvailable) {
+                        libraryMap[libCode] = existing.copy(isLoanAvailable = true)
+                    }
+                }
+            }
+            Log.i("LibraryRepository", "도서관 검색 성공. 최종 도서관 수 (중복 제거): ${libraryMap.size}")
+            return@withContext libraryMap.values.sortedBy { it.distance }
+        } catch (e: Exception) {
+            Log.e("LibraryRepository", "getNearbyLibrariesWithBooks (통합) 중 오류 발생", e)
+            return@withContext emptyList()
+        }
+    }
+
+    private suspend fun getNearbyLibrariesWithBook(
+        regionCode: String,
         isbn: String,
         userLatitude: Double,
         userLongitude: Double
     ): List<LibrarySearchResult> = withContext(Dispatchers.IO) {
-
-        val nearbyLibraries = getNearbyLibraries(userLatitude, userLongitude)
-
-        val librariesWithBook = nearbyLibraries.map { libraryResult ->
-            async {
-                try {
-                    val availabilityResponse = libraryApiService.getBookAvailability(
-                        authKey = authKey,
-                        libCode = libraryResult.libraryInfo.libCode,
-                        isbn13 = isbn
-                    )
-                    if (availabilityResponse.isSuccessful && availabilityResponse.body()?.response?.result?.hasBook == "Y") {
-                        val isLoanAvailable = availabilityResponse.body()?.response?.result?.loanAvailable == "Y"
-                        // 책을 보유한 도서관만 isLoanAvailable 값을 업데이트하여 반환
-                        libraryResult.copy(isLoanAvailable = isLoanAvailable)
-                    } else {
-                        // 책이 없으면 null을 반환하여 최종 목록에서 제외
-                        null
-                    }
-                } catch (e: Exception) {
-                    // API 호출 중 에러 발생 시 제외
-                    null
-                }
+        try {
+            val response = libraryApiService.searchLibrariesWithBook(authKey, isbn, regionCode)
+            if (response.response.error != null) {
+                Log.w("LibraryRepository", "API 응답 에러 (ISBN: $isbn): ${response.response.error}")
+                return@withContext emptyList()
             }
-        }.awaitAll().filterNotNull() // null이 아닌 결과만 필터링
 
-        // 최종적으로 책을 보유한 도서관 목록을 거리순으로 정렬하여 반환
-        return@withContext librariesWithBook.sortedBy { it.distance }
-    }
+            val userLocation = Location("user").apply {
+                latitude = userLatitude
+                longitude = userLongitude
+            }
 
-    suspend fun getNearbyLibraries(
-        userLatitude: Double,
-        userLongitude: Double
-    ): List<LibrarySearchResult> = withContext(Dispatchers.IO) {
-        val searchResponse = libraryApiService.searchLibrariesByArea(
-            authKey = authKey,
-            latitude = userLatitude,
-            longitude = userLongitude,
-            radius = 50 // 반경 50km
-        )
-
-        if (!searchResponse.isSuccessful || searchResponse.body()?.response?.libs == null) {
-            return@withContext emptyList()
-        }
-
-        val libraries = searchResponse.body()!!.response!!.libs!!
-            .mapNotNull { libraryWrapper ->
-                val library = libraryWrapper.lib // 실제 도서관 정보 추출
+            return@withContext response.response.libs.mapNotNull { libraryItem ->
+                val library = libraryItem.lib
                 val libLat = library.latitude?.toDoubleOrNull()
                 val libLon = library.longitude?.toDoubleOrNull()
 
                 if (libLat != null && libLon != null) {
-                    val distanceArray = FloatArray(1)
-                    Location.distanceBetween(userLatitude, userLongitude, libLat, libLon, distanceArray)
-                    LibrarySearchResult(
-                        libraryInfo = library,
-                        isLoanAvailable = false, // 기본값은 false, 책 검색 시 업데이트됨
-                        distance = distanceArray[0]
-                    )
+                    val libraryLocation = Location("library").apply {
+                        latitude = libLat
+                        longitude = libLon
+                    }
+                    val distance = userLocation.distanceTo(libraryLocation)
+                    if (distance <= 20000) {
+                        LibrarySearchResult(library, libraryItem.hasBook == "Y", distance)
+                    } else {
+                        null
+                    }
                 } else {
                     null
                 }
             }
-        return@withContext libraries.sortedBy { it.distance }
+        } catch (e: Exception) {
+            Log.e("LibraryRepository", "getNearbyLibrariesWithBook (개별 ISBN: $isbn) 중 오류 발생", e)
+            return@withContext emptyList()
+        }
+    }
+
+    suspend fun getBooksAvailability(
+        libCode: String,
+        isbns: List<String>
+    ): Map<String, Boolean> = withContext(Dispatchers.IO) {
+        if (isbns.isEmpty()) return@withContext emptyMap()
+        if (authKey.isBlank()) return@withContext emptyMap()
+
+        Log.d("LibraryRepository", "대출 가능 여부 확인 시작. 도서관 코드: $libCode, ISBN 개수: ${isbns.size}")
+        val availabilityMap = mutableMapOf<String, Boolean>()
+        try {
+            isbns.map { isbn: String ->
+                async {
+                    try {
+                        val response = libraryApiService.getBookAvailability(authKey, libCode, isbn)
+                        val isAvailable = response.response.result?.loanAvailable == "Y"
+                        isbn to isAvailable
+                    } catch (e: HttpException) {
+                        Log.e("LibraryRepository", "대출 정보 확인 API 오류 (ISBN: $isbn, 도서관: $libCode)", e)
+                        isbn to false
+                    }
+                }
+            }.awaitAll().forEach { (isbn, isAvailable) ->
+                availabilityMap[isbn] = isAvailable
+            }
+            Log.i("LibraryRepository", "대출 가능 여부 확인 완료. 도서관 코드: $libCode")
+            return@withContext availabilityMap
+        } catch (e: Exception) {
+            Log.e("LibraryRepository", "getBooksAvailability 중 오류 발생. 도서관 코드: $libCode", e)
+            return@withContext emptyMap()
+        }
+    }
+
+    private fun convertLocationToRegionCode(
+        context: Context,
+        latitude: Double,
+        longitude: Double
+    ): String {
+        val geocoder = Geocoder(context, Locale.KOREAN)
+        try {
+            @Suppress("DEPRECATION")
+            val addresses = geocoder.getFromLocation(latitude, longitude, 1)
+
+            val adminArea = addresses?.firstOrNull()?.adminArea
+            Log.d("Geocoder", "주소 변환 결과: $adminArea")
+
+            return when {
+                adminArea?.contains("서울") == true -> "11"
+                adminArea?.contains("부산") == true -> "26"
+                adminArea?.contains("대구") == true -> "27"
+                adminArea?.contains("인천") == true -> "28"
+                adminArea?.contains("광주") == true -> "29"
+                adminArea?.contains("대전") == true -> "30"
+                adminArea?.contains("울산") == true -> "31"
+                adminArea?.contains("세종") == true -> "36"
+                adminArea?.contains("경기") == true -> "41"
+                adminArea?.contains("강원") == true -> "42"
+                adminArea?.contains("충북") == true || adminArea?.contains("충청북도") == true -> "43"
+                adminArea?.contains("충남") == true || adminArea?.contains("충청남도") == true -> "44"
+                adminArea?.contains("전북") == true || adminArea?.contains("전라북도") == true -> "45"
+                adminArea?.contains("전남") == true || adminArea?.contains("전라남도") == true -> "46"
+                adminArea?.contains("경북") == true || adminArea?.contains("경상북도") == true -> "47"
+                adminArea?.contains("경남") == true || adminArea?.contains("경상남도") == true -> "48"
+                adminArea?.contains("제주") == true -> "50"
+                else -> "11"
+            }
+        } catch (e: Exception) {
+            Log.e("Geocoder", "주소 변환 중 오류 발생", e)
+            return "11"
+        }
     }
 }
