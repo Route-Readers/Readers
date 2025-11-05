@@ -95,7 +95,7 @@ fun BookSearchTab(
     myLibraryRepository: MyLibraryRepository,
     firestoreRepository: FirestoreRepository
 ) {
-    var searchText by remember { mutableStateOf("") }
+    var searchText by remember { mutableStateOf(viewModel.currentQuery.value) }
     val books by viewModel.books.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val isLoadingMore by viewModel.isLoadingMore.collectAsState()
@@ -118,7 +118,10 @@ fun BookSearchTab(
         item {
             OutlinedTextField(
                 value = searchText,
-                onValueChange = { searchText = it },
+                onValueChange = {
+                    searchText = it
+                    viewModel.searchBooks(it)
+                },
                 placeholder = { Text("책 제목으로 검색", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                 modifier = Modifier.fillMaxWidth(),
@@ -281,7 +284,6 @@ fun BookSearchResultCard(
     onAddToLibrary: (Book) -> Unit,
     onToggleFavorite: (Book) -> Unit
 ) {
-    // ▼▼▼ [수정] UI에 표시할 장르명 가공 ▼▼▼
     val displayedCategoryName = remember(book.categoryName) {
         val categories = book.categoryName?.split(">")?.map { it.trim() }
         if (categories != null && categories.size > 1) {
@@ -328,7 +330,6 @@ fun BookSearchResultCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                // ▼▼▼ [수정] 가공된 장르명 표시 ▼▼▼
                 if (!displayedCategoryName.isNullOrEmpty()) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -473,7 +474,10 @@ fun LibrarySearchTab(
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = searchText,
-                    onValueChange = { searchText = it },
+                    onValueChange = {
+                        searchText = it
+                        bookViewModel.searchBooks(it)
+                    },
                     placeholder = { Text("도서관에서 찾을 책 검색", color = MaterialTheme.colorScheme.onSurfaceVariant) },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                     modifier = Modifier.fillMaxWidth(),
