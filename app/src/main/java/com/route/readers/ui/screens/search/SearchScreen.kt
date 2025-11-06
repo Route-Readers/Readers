@@ -4,22 +4,11 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.location.Location
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,29 +20,9 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -75,8 +44,6 @@ import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import com.route.readers.R
 import com.route.readers.data.model.Book
-import com.route.readers.data.model.MyBook
-import com.route.readers.data.remote.FirestoreRepository
 import com.route.readers.data.remote.MyLibraryRepository
 import kotlinx.coroutines.launch
 
@@ -84,9 +51,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SearchScreen(
     bookViewModel: BookViewModel = viewModel(),
-    libraryViewModel: LibraryViewModel = viewModel(),
-    myLibraryRepository: MyLibraryRepository = MyLibraryRepository(),
-    firestoreRepository: FirestoreRepository = FirestoreRepository()
+    libraryViewModel: LibraryViewModel = viewModel()
 ) {
     var selectedTab by remember { mutableStateOf(0) }
 
@@ -119,7 +84,7 @@ fun SearchScreen(
         }
 
         when (selectedTab) {
-            0 -> BookSearchTab(bookViewModel, myLibraryRepository, firestoreRepository)
+            0 -> BookSearchTab(bookViewModel, libraryViewModel)
             1 -> LibrarySearchTab(libraryViewModel = libraryViewModel)
         }
     }
@@ -128,18 +93,32 @@ fun SearchScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BookSearchTab(
-    viewModel: BookViewModel,
-    myLibraryRepository: MyLibraryRepository,
-    firestoreRepository: FirestoreRepository
+    bookViewModel: BookViewModel,
+    libraryViewModel: LibraryViewModel
 ) {
-    val currentQuery by viewModel.currentQuery.collectAsState()
+    val currentQuery by bookViewModel.currentQuery.collectAsState()
     var searchText by remember { mutableStateOf(currentQuery) }
-    val books by viewModel.books.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val isLoadingMore by viewModel.isLoadingMore.collectAsState()
-    val errorMessage by viewModel.errorMessage.collectAsState()
-    val hasMoreResults by viewModel.hasMoreResults.collectAsState()
-    val scope = rememberCoroutineScope()
+    val books by bookViewModel.books.collectAsState()
+    val isLoading by bookViewModel.isLoading.collectAsState()
+    val isLoadingMore by bookViewModel.isLoadingMore.collectAsState()
+    val errorMessage by bookViewModel.errorMessage.collectAsState()
+    val hasMoreResults by bookViewModel.hasMoreResults.collectAsState()
+
+    val libraryState by libraryViewModel.libraryState.collectAsState()
+    val context = LocalContext.current
+
+    LaunchedEffect(libraryState) {
+        val successState = libraryState as? LibraryUiState.Success
+        successState?.infoMessage?.let {
+            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+            libraryViewModel.clearInfoMessage()
+        }
+
+        val errorState = libraryState as? LibraryUiState.Error
+        errorState?.message?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+        }
+    }
 
     LaunchedEffect(currentQuery) {
         searchText = currentQuery
@@ -147,7 +126,7 @@ fun BookSearchTab(
 
     fun performSearch() {
         if (searchText.isNotBlank()) {
-            viewModel.performSearch(searchText.trim(), isNewSearch = true)
+            bookViewModel.performSearch(searchText.trim(), isNewSearch = true)
         }
     }
 
@@ -219,50 +198,28 @@ fun BookSearchTab(
             }
         }
 
-        if (books.isNotEmpty() && currentQuery.isNotEmpty()) {
-            item {
-                Text(
-                    "\"$currentQuery\" 검색 결과 (${books.size}권)",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+        if (books.isNotEmpty()) {
+            if (currentQuery.isNotEmpty()) {
+                item {
+                    Text(
+                        "\"$currentQuery\" 검색 결과 (${books.size}권)",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            items(books, key = { book -> book.isbn13 ?: book.isbn ?: book.title }) { book ->
+                BookSearchItem(
+                    book = book,
+                    libraryViewModel = libraryViewModel,
+                    bookViewModel = bookViewModel
                 )
             }
         }
 
-        items(books, key = { it.isbn13 ?: it.isbn }) { book ->
-            var isInLibrary by remember(book.isbn13) { mutableStateOf(false) }
-
-            LaunchedEffect(book.isbn13) {
-                book.isbn13?.let { isInLibrary = myLibraryRepository.isBookInLibrary(it) }
-            }
-
-            BookSearchResultCard(
-                book = book,
-                isInLibrary = isInLibrary,
-                onAddToLibrary = {
-                    scope.launch {
-                        val totalPages = it.extractPageCount()
-                        val myBook = MyBook(
-                            id = it.isbn13 ?: it.isbn,
-                            title = it.title,
-                            author = it.author,
-                            cover = it.cover,
-                            isbn = it.isbn13 ?: it.isbn,
-                            totalPages = totalPages,
-                            categoryName = it.categoryName
-                        )
-                        val success = myLibraryRepository.addBookToLibrary(myBook)
-                        if (success) {
-                            isInLibrary = true
-                        }
-                    }
-                },
-                onToggleFavorite = { viewModel.onToggleFavorite(it) }
-            )
-        }
-
-        if (hasMoreResults && currentQuery.isNotEmpty()) {
+        if (hasMoreResults && books.isNotEmpty()) {
             item {
                 Box(
                     modifier = Modifier.fillMaxWidth(),
@@ -272,7 +229,7 @@ fun BookSearchTab(
                         CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.primary)
                     } else {
                         Button(
-                            onClick = { viewModel.loadMoreBooks() },
+                            onClick = { bookViewModel.loadMoreBooks() },
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                             shape = RoundedCornerShape(20.dp)
                         ) {
@@ -283,7 +240,7 @@ fun BookSearchTab(
             }
         }
 
-        if (books.isEmpty() && searchText.isBlank() && !isLoading && errorMessage == null) {
+        if (books.isEmpty() && !isLoading && errorMessage == null) {
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -302,7 +259,7 @@ fun BookSearchTab(
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
                             )
-                            TextButton(onClick = { viewModel.getNewBooks() }) {
+                            TextButton(onClick = { bookViewModel.getNewBooks() }) {
                                 Text("불러오기")
                             }
                         }
@@ -320,21 +277,41 @@ fun BookSearchTab(
 }
 
 @Composable
+private fun BookSearchItem(
+    book: Book,
+    libraryViewModel: LibraryViewModel,
+    bookViewModel: BookViewModel
+) {
+    val myLibraryRepository = remember { MyLibraryRepository() }
+    val coroutineScope = rememberCoroutineScope()
+
+    val isInLibraryState = produceState(initialValue = false, key1 = book.isbn13, key2 = book.isbn) {
+        val isbn = book.isbn13?.takeIf { it.isNotBlank() } ?: book.isbn?.takeIf { it.isNotBlank() }
+        if (isbn != null) {
+            value = myLibraryRepository.isBookInLibrary(isbn)
+        }
+    }
+
+    BookSearchResultCard(
+        book = book,
+        isInLibrary = isInLibraryState.value,
+        onAddToLibrary = {
+            coroutineScope.launch {
+                (isInLibraryState as? MutableState<Boolean>)?.value = true
+                libraryViewModel.addBookToLibrary(it)
+            }
+        },
+        onToggleFavorite = { bookViewModel.onToggleFavorite(it) }
+    )
+}
+
+@Composable
 fun BookSearchResultCard(
     book: Book,
     isInLibrary: Boolean,
     onAddToLibrary: (Book) -> Unit,
     onToggleFavorite: (Book) -> Unit
 ) {
-    val displayedCategoryName = remember(book.categoryName) {
-        val categories = book.categoryName?.split(">")?.map { it.trim() }
-        if (categories != null && categories.size > 1) {
-            categories[1]
-        } else {
-            categories?.firstOrNull()
-        }
-    }
-
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -345,10 +322,10 @@ fun BookSearchResultCard(
             verticalAlignment = Alignment.Top
         ) {
             AsyncImage(
-                model = book.getHighQualityImageUrl().ifEmpty { R.mipmap.readerslogo },
+                model = book.cover.ifEmpty { R.mipmap.readerslogo },
                 contentDescription = "책 표지",
                 modifier = Modifier
-                    .size(80.dp, 100.dp)
+                    .size(80.dp, 120.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .background(MaterialTheme.colorScheme.surfaceContainer),
                 contentScale = ContentScale.Crop,
@@ -371,25 +348,6 @@ fun BookSearchResultCard(
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-
-                if (!displayedCategoryName.isNullOrEmpty()) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = displayedCategoryName,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                val pageCount = book.extractPageCount()
-                if (pageCount > 0) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "${pageCount}페이지",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -421,19 +379,6 @@ fun BookSearchResultCard(
                             Text("서재 추가", fontSize = 12.sp)
                         }
                     }
-
-                    OutlinedButton(
-                        onClick = { },
-                        modifier = Modifier.height(32.dp),
-                        shape = RoundedCornerShape(50),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.primary
-                        ),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
-                        contentPadding = PaddingValues(horizontal = 12.dp)
-                    ) {
-                        Text(if (isInLibrary) "읽기" else "읽기 시작", fontSize = 12.sp)
-                    }
                 }
             }
 
@@ -447,6 +392,7 @@ fun BookSearchResultCard(
         }
     }
 }
+
 
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @SuppressLint("MissingPermission")
@@ -514,9 +460,7 @@ fun LibrarySearchTab(
             }
         }
 
-        val currentLibraryState = libraryState
-
-        when (currentLibraryState) {
+        when (val currentLibraryState = libraryState) {
             is LibraryUiState.Loading -> {
                 item {
                     Box(modifier = Modifier.fillMaxWidth().padding(top = 32.dp), contentAlignment = Alignment.Center) {

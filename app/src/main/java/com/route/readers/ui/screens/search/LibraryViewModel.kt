@@ -6,12 +6,15 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.route.readers.data.model.Book
+import com.route.readers.data.model.MyBook
 import com.route.readers.data.remote.BookRepository
 import com.route.readers.data.remote.LibraryRepository
 import com.route.readers.data.remote.LibrarySearchResult
+import com.route.readers.data.remote.MyLibraryRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 sealed class LibraryUiState {
@@ -22,14 +25,17 @@ sealed class LibraryUiState {
         val libraries: List<LibrarySearchResult>,
         val books: List<Book> = emptyList(),
         val selectedLibrary: LibrarySearchResult? = null,
-        val availability: Map<String, Boolean>? = null
+        val availability: Map<String, Boolean>? = null,
+        val isAddingBook: Boolean = false,
+        val infoMessage: String? = null
     ) : LibraryUiState()
     data class Error(val message: String) : LibraryUiState()
 }
 
 class LibraryViewModel(
     private val libraryRepository: LibraryRepository = LibraryRepository(),
-    private val bookRepository: BookRepository = BookRepository()
+    private val bookRepository: BookRepository = BookRepository(),
+    private val myLibraryRepository: MyLibraryRepository = MyLibraryRepository()
 ) : ViewModel() {
 
     private val _libraryState = MutableStateFlow<LibraryUiState>(LibraryUiState.Idle)
@@ -45,25 +51,18 @@ class LibraryViewModel(
 
             try {
                 val allRelatedBooks = bookRepository.getBookSearch(query = query, page = 1, maxResults = 50)
-                Log.d("LibraryViewModel", "1. BookRepository로부터 받은 책 개수: ${allRelatedBooks.size}")
-
                 if (allRelatedBooks.isEmpty()) {
                     _libraryState.value = LibraryUiState.Success(query, emptyList(), emptyList())
                     return@launch
                 }
 
                 val targetBooks = allRelatedBooks.filter { it.title.contains(query, ignoreCase = true) }
-
-                Log.d("LibraryViewModel", "2. 제목 필터링 후 남은 책 개수: ${targetBooks.size}")
-
                 if (targetBooks.isEmpty()) {
                     _libraryState.value = LibraryUiState.Success(query, emptyList(), allRelatedBooks.take(10))
                     return@launch
                 }
 
                 val targetIsbns = targetBooks.mapNotNull { it.isbn13?.takeIf { it.isNotBlank() } }.distinct()
-                Log.d("LibraryViewModel", "3. 도서관 검색에 사용할 최종 ISBN 개수: ${targetIsbns.size}")
-
                 if (targetIsbns.isEmpty()) {
                     _libraryState.value = LibraryUiState.Success(query, emptyList(), targetBooks)
                     return@launch
@@ -75,8 +74,6 @@ class LibraryViewModel(
                     userLatitude = location.latitude,
                     userLongitude = location.longitude
                 )
-                Log.d("LibraryViewModel", "4. 최종적으로 찾은 소장 도서관 개수: ${libraries.size}")
-
                 _libraryState.value = LibraryUiState.Success(query, libraries, targetBooks)
 
             } catch (e: Exception) {
@@ -86,21 +83,85 @@ class LibraryViewModel(
         }
     }
 
+    fun addBookToLibrary(bookFromSearch: Book) {
+        val isbn = bookFromSearch.isbn13?.takeIf { it.isNotBlank() } ?: bookFromSearch.isbn?.takeIf { it.isNotBlank() }
+        if (isbn == null) {
+            _libraryState.value = LibraryUiState.Error("ISBN 정보가 없어 추가할 수 없는 책입니다.")
+            return
+        }
+
+        viewModelScope.launch {
+            val currentState = _libraryState.value
+            val successState = if (currentState is LibraryUiState.Success) {
+                currentState
+            } else {
+                LibraryUiState.Success(query = bookFromSearch.title, libraries = emptyList(), books = listOf(bookFromSearch))
+            }
+
+            _libraryState.value = successState.copy(isAddingBook = true, infoMessage = null)
+
+            try {
+                val detailedBook = bookRepository.getBookDetail(isbn)
+                if (detailedBook != null) {
+                    val newMyBook = MyBook(
+                        id = detailedBook.isbn13?.takeIf { it.isNotBlank() } ?: detailedBook.isbn ?: "",
+                        title = detailedBook.title,
+                        author = detailedBook.author,
+                        isbn = detailedBook.isbn13?.takeIf { it.isNotBlank() } ?: detailedBook.isbn ?: "",
+                        cover = detailedBook.cover,
+                        totalPages = detailedBook.extractPageCount(),
+                        currentPage = 0,
+                        isCompleted = false,
+                        addedDate = System.currentTimeMillis()
+                    )
+
+                    val success = myLibraryRepository.addBookToLibrary(newMyBook)
+                    val message = if (success) {
+                        "'${newMyBook.title}'을(를) 서재에 추가했습니다."
+                    } else {
+                        "이미 서재에 있는 책입니다."
+                    }
+                    _libraryState.update {
+                        if (it is LibraryUiState.Success) {
+                            it.copy(isAddingBook = false, infoMessage = message)
+                        } else {
+                            it
+                        }
+                    }
+                } else {
+                    _libraryState.update {
+                        if (it is LibraryUiState.Success) {
+                            it.copy(isAddingBook = false, infoMessage = "책의 상세 정보를 가져오는데 실패했습니다.")
+                        } else {
+                            it
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("LibraryViewModel", "addBookToLibrary 중 오류 발생", e)
+                _libraryState.value = LibraryUiState.Error("책 추가 중 오류가 발생했습니다.")
+            }
+        }
+    }
+
+    fun clearInfoMessage() {
+        val currentState = _libraryState.value
+        if (currentState is LibraryUiState.Success) {
+            _libraryState.value = currentState.copy(infoMessage = null)
+        }
+    }
+
     fun checkBookAvailabilityInLibrary(library: LibrarySearchResult, books: List<Book>) {
         val currentState = _libraryState.value
         if (currentState !is LibraryUiState.Success) return
 
         viewModelScope.launch {
-            _libraryState.value = currentState.copy(
-                selectedLibrary = library,
-                availability = null
-            )
+            _libraryState.value = currentState.copy(selectedLibrary = library, availability = null)
             _libraryState.value = LibraryUiState.Loading(currentState.query, library.libraryInfo.libCode)
 
             try {
                 val isbns = books.mapNotNull { it.isbn13?.takeIf { it.isNotBlank() } }.distinct()
-                val availabilityMap =
-                    libraryRepository.getBooksAvailability(library.libraryInfo.libCode, isbns)
+                val availabilityMap = libraryRepository.getBooksAvailability(library.libraryInfo.libCode, isbns)
 
                 val previousState = _libraryState.value
                 if (previousState is LibraryUiState.Loading) {
