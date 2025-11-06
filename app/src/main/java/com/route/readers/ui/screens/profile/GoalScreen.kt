@@ -1,16 +1,19 @@
 package com.route.readers.ui.screens.profile
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
@@ -19,7 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
-import com.route.readers.data.model.Book
+import com.route.readers.data.model.MyBook
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,8 +68,7 @@ fun GoalScreen(
             } else if (uiState.showGoalInputs) {
                 GoalInputView(
                     uiState = uiState,
-                    onSearchQueryChange = { goalViewModel.onSearchQueryChange(it) },
-                    onBookSelected = { goalViewModel.onBookSelected(it) },
+                    onMyBookSelected = { goalViewModel.onMyBookSelected(it) },
                     onDurationChange = { goalViewModel.onDurationChange(it) },
                     onPagesChange = { goalViewModel.onPagesChange(it) },
                     onSaveClick = { goalViewModel.saveGoal() }
@@ -86,43 +88,72 @@ fun GoalScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GoalInputView(
     uiState: GoalUiState,
-    onSearchQueryChange: (String) -> Unit,
-    onBookSelected: (Book) -> Unit,
+    onMyBookSelected: (MyBook) -> Unit,
     onDurationChange: (String) -> Unit,
     onPagesChange: (String) -> Unit,
     onSaveClick: () -> Unit
 ) {
+    var expanded by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 책 검색 필드
-        OutlinedTextField(
-            value = uiState.searchQuery,
-            onValueChange = onSearchQueryChange,
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("책 검색") },
-            placeholder = { Text("목표로 할 책을 검색하세요") },
-            singleLine = true
-        )
+        if (uiState.myBooks.isEmpty()) {
+            Text("목표로 설정할 읽는 중인 책이 없습니다.\n먼저 내 서재에 책을 추가해주세요.")
+        } else {
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = !expanded }
+            ) {
+                OutlinedTextField(
+                    value = uiState.selectedMyBook?.title ?: "",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("책 선택") },
+                    placeholder = { Text("내 서재에서 책 선택하기") },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor()
+                )
 
-        // 검색 중 인디케이터 또는 검색 결과 목록
-        if (uiState.isSearching) {
-            CircularProgressIndicator(modifier = Modifier.padding(vertical = 16.dp))
-        } else if (uiState.searchResults.isNotEmpty()) {
-            LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) {
-                items(uiState.searchResults) { book ->
-                    BookSearchItem(book = book, onBookSelected = onBookSelected)
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    uiState.myBooks.forEach { book ->
+                        DropdownMenuItem(
+                            text = { Text(book.title, maxLines = 2) },
+                            onClick = {
+                                onMyBookSelected(book)
+                                expanded = false
+                            },
+                            leadingIcon = {
+                                AsyncImage(
+                                    model = book.cover,
+                                    contentDescription = book.title,
+                                    modifier = Modifier
+                                        .height(48.dp)
+                                        .width(32.dp)
+                                        .clip(RoundedCornerShape(4.dp)),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                        )
+                    }
                 }
             }
         }
 
-        // 기간 및 페이지 설정 (책이 선택된 후에 활성화)
-        if (uiState.selectedBook != null) {
+        if (uiState.selectedMyBook != null) {
             GoalInputTextField(
                 label = "기간 설정",
                 value = uiState.durationInput,
@@ -136,32 +167,10 @@ fun GoalInputView(
                 placeholder = "총 페이지"
             )
             Spacer(modifier = Modifier.height(16.dp))
-            Button(onClick = onSaveClick) {
+            Button(onClick = onSaveClick, enabled = uiState.durationInput.isNotBlank() && uiState.pagesInput.isNotBlank()) {
                 Text("목표 저장하기")
             }
         }
-    }
-}
-
-@Composable
-fun BookSearchItem(book: Book, onBookSelected: (Book) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onBookSelected(book) }
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        AsyncImage(
-            model = book.cover,
-            contentDescription = book.title,
-            modifier = Modifier
-                .height(60.dp)
-                .width(40.dp),
-            contentScale = ContentScale.Crop
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Text(text = book.title, style = MaterialTheme.typography.bodyLarge)
     }
 }
 

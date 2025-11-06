@@ -2,11 +2,9 @@ package com.route.readers.ui.screens.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.route.readers.data.model.Book
-import com.route.readers.data.remote.BookRepository
+import com.route.readers.data.model.MyBook
 import com.route.readers.data.remote.FirestoreRepository
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import com.route.readers.data.remote.MyLibraryRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -21,72 +19,48 @@ data class Goal(
 )
 
 data class GoalUiState(
-    val bookTitleInput: String = "",
+    val selectedMyBook: MyBook? = null,
     val durationInput: String = "",
     val pagesInput: String = "",
     val showGoalInputs: Boolean = false,
     val goals: List<Goal> = emptyList(),
+    val myBooks: List<MyBook> = emptyList(),
     val isLoading: Boolean = true,
-    val errorMessage: String? = null,
-    val searchQuery: String = "",
-    val searchResults: List<Book> = emptyList(),
-    val isSearching: Boolean = false,
-    val selectedBook: Book? = null
+    val errorMessage: String? = null
 )
 
 class GoalViewModel : ViewModel() {
 
     private val firestoreRepository = FirestoreRepository()
-    private val bookRepository = BookRepository()
+    private val myLibraryRepository = MyLibraryRepository()
 
     private val _uiState = MutableStateFlow(GoalUiState())
     val uiState = _uiState.asStateFlow()
 
-    private var searchJob: Job? = null
-
     init {
-        loadGoals()
+        loadInitialData()
     }
 
-    private fun loadGoals() {
+    private fun loadInitialData() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             val goals = firestoreRepository.getGoals()
-            _uiState.update { it.copy(goals = goals, isLoading = false) }
-        }
-    }
-
-    fun onBookTitleChange(newTitle: String) {
-        _uiState.update { it.copy(bookTitleInput = newTitle, selectedBook = null) }
-    }
-
-    fun onSearchQueryChange(query: String) {
-        _uiState.update { it.copy(searchQuery = query) }
-        searchJob?.cancel()
-        if (query.isNotBlank()) {
-            _uiState.update { it.copy(isSearching = true) }
-            searchJob = viewModelScope.launch {
-                delay(500)
-                try {
-                    val books = bookRepository.getBookSearch(query, 1, 10)
-                    _uiState.update { it.copy(searchResults = books, isSearching = false) }
-                } catch (e: Exception) {
-                    _uiState.update { it.copy(errorMessage = "책 검색에 실패했습니다.", isSearching = false) }
-                }
+            val myBooks = myLibraryRepository.getMyBooks()
+            _uiState.update {
+                it.copy(
+                    goals = goals,
+                    myBooks = myBooks.filter { book -> !book.isCompleted },
+                    isLoading = false
+                )
             }
-        } else {
-            _uiState.update { it.copy(searchResults = emptyList(), isSearching = false) }
         }
     }
 
-    fun onBookSelected(book: Book) {
+    fun onMyBookSelected(book: MyBook) {
         _uiState.update {
             it.copy(
-                selectedBook = book,
-                searchQuery = book.title,
-                bookTitleInput = book.title,
-                pagesInput = book.itemPage.toString(),
-                searchResults = emptyList()
+                selectedMyBook = book,
+                pagesInput = if (book.totalPages > 0) book.totalPages.toString() else ""
             )
         }
     }
@@ -104,10 +78,7 @@ class GoalViewModel : ViewModel() {
             _uiState.update {
                 it.copy(
                     showGoalInputs = false,
-                    searchQuery = "",
-                    searchResults = emptyList(),
-                    selectedBook = null,
-                    bookTitleInput = "",
+                    selectedMyBook = null,
                     durationInput = "",
                     pagesInput = ""
                 )
@@ -119,11 +90,12 @@ class GoalViewModel : ViewModel() {
 
     fun saveGoal() {
         viewModelScope.launch {
-            val book = _uiState.value.selectedBook
+            val book = _uiState.value.selectedMyBook ?: return@launch
+
             val newGoal = Goal(
-                bookTitle = book?.title ?: _uiState.value.bookTitleInput,
-                bookIsbn = book?.isbn13 ?: "",
-                bookCover = book?.cover ?: "",
+                bookTitle = book.title,
+                bookIsbn = book.isbn,
+                bookCover = book.cover,
                 duration = _uiState.value.durationInput,
                 pages = _uiState.value.pagesInput
             )
