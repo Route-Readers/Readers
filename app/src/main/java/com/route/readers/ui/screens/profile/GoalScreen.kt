@@ -166,8 +166,22 @@ fun GoalInputView(
                 onValueChange = onPagesChange,
                 placeholder = "총 페이지"
             )
+
+            // 계산된 일일 목표 페이지 표시
+            if (uiState.dailyPages > 0) {
+                Text(
+                    text = "하루에 약 ${uiState.dailyPages}페이지를 읽어야 해요!",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
-            Button(onClick = onSaveClick, enabled = uiState.durationInput.isNotBlank() && uiState.pagesInput.isNotBlank()) {
+            Button(
+                onClick = onSaveClick,
+                enabled = uiState.durationInput.isNotBlank() && uiState.pagesInput.isNotBlank() && uiState.dailyPages > 0
+            ) {
                 Text("목표 저장하기")
             }
         }
@@ -202,12 +216,14 @@ fun GoalItem(goal: Goal) {
                 contentScale = ContentScale.Crop
             )
             Spacer(modifier = Modifier.width(16.dp))
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 GoalDetailRow(label = "책", detail = goal.bookTitle)
-                Spacer(modifier = Modifier.height(8.dp))
                 GoalDetailRow(label = "기간", detail = goal.duration)
-                Spacer(modifier = Modifier.height(8.dp))
-                GoalDetailRow(label = "분량", detail = goal.pages)
+                GoalDetailRow(label = "분량", detail = "${goal.pages} 페이지")
+                // 저장된 일일 목표 페이지 표시
+                if (goal.dailyPages > 0) {
+                    GoalDetailRow(label = "목표", detail = "하루 ${goal.dailyPages} 페이지")
+                }
             }
         }
     }
