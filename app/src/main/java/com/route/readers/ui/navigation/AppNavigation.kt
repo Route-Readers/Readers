@@ -19,6 +19,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.route.readers.ui.community.used_trade.ChatScreen
+import com.route.readers.ui.community.used_trade.UsedBookDetailScreen
 import com.route.readers.ui.screens.MainScreen
 import com.route.readers.ui.screens.add_feed.AddFeedScreen
 import com.route.readers.ui.screens.attendance.AttendanceScreen
@@ -31,6 +33,7 @@ import com.route.readers.ui.screens.login.SignUpScreen
 import com.route.readers.ui.screens.profile.AccountScreen
 import com.route.readers.ui.screens.profile.FollowListScreen
 import com.route.readers.ui.screens.profile.FollowListViewModel
+import com.route.readers.ui.screens.profile.GoalScreen
 import com.route.readers.ui.screens.profile.LevelScreen
 import com.route.readers.ui.screens.profile.MyBookListScreen
 import com.route.readers.ui.screens.profile.ProfileCustomizationScreen
@@ -40,8 +43,6 @@ import com.route.readers.ui.screens.profile.ProfileUiState
 import com.route.readers.ui.screens.profile.ProfileViewModel
 import com.route.readers.ui.screens.profile.StatisticsScreen
 import com.route.readers.ui.screens.token.TokenShopScreen
-import com.route.readers.ui.community.used_trade.UsedBookDetailScreen
-import com.route.readers.ui.community.used_trade.ChatScreen
 import java.net.URLDecoder
 import java.net.URLEncoder
 
@@ -248,6 +249,9 @@ fun AppNavigation(navController: NavHostController) {
                     },
                     onNavigateToCustomization = {
                         navController.navigate("profile_customization_route")
+                    },
+                    onNavigateToGoal = {
+                        navController.navigate("goal_route")
                     }
                 )
             }
@@ -318,6 +322,12 @@ fun AppNavigation(navController: NavHostController) {
 
         composable("level_route") {
             LevelScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("goal_route") {
+            GoalScreen(
                 onBack = { navController.popBackStack() }
             )
         }

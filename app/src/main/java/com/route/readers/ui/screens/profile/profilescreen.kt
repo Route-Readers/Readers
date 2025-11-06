@@ -103,6 +103,7 @@ import com.route.readers.ui.screens.feed.FeedCard
 import com.route.readers.ui.screens.feed.FeedItem
 import com.route.readers.ui.theme.DarkRed
 import kotlinx.coroutines.launch
+import kotlin.text.isNotEmpty
 import kotlin.text.toFloat
 
 @Composable
@@ -113,6 +114,7 @@ fun ProfileScreen(
     onNavigateToMyBookList: () -> Unit,
     onNavigateToLevel: () -> Unit,
     onNavigateToCustomization: () -> Unit = {},
+    onNavigateToGoal: () -> Unit,
     viewModel: ProfileViewModel = viewModel()
 ) {
     var showCustomization by remember { mutableStateOf(false) }
@@ -190,6 +192,7 @@ fun ProfileScreen(
                         },
                         onNavigateToMyBookList = onNavigateToMyBookList,
                         onNavigateToLevel = onNavigateToLevel,
+                        onNavigateToGoal = onNavigateToGoal,
                         onBlockUser = { viewModel.blockUser(state.user.uid) },
                         onUnblockUser = { viewModel.unblockUser(state.user.uid) },
                         onBookmarkClick = { feedId, isBookmarked ->
@@ -222,6 +225,7 @@ fun ProfileContent(
     onNavigateToCustomization: () -> Unit,
     onNavigateToMyBookList: () -> Unit,
     onNavigateToLevel: () -> Unit,
+    onNavigateToGoal: () -> Unit,
     onBlockUser: () -> Unit,
     onUnblockUser: () -> Unit,
     onBookmarkClick: (String, Boolean) -> Unit
@@ -278,7 +282,7 @@ fun ProfileContent(
 
         if (state.isMyProfile) {
             item {
-                GoalSettingSection(onSetGoalClick = { /* TODO: Handle click */ })
+                GoalSettingSection(onSetGoalClick = onNavigateToGoal)
             }
         }
 
@@ -612,7 +616,7 @@ fun PostsSection(
             contentColor = DarkRed,
             indicator = {
                 TabRowDefaults.Indicator(
-                    Modifier.tabIndicatorOffset(selectedTabIndex), // tabPositions 없이 selectedTabIndex를 직접 사용
+                    Modifier.tabIndicatorOffset(selectedTabIndex),
                     color = DarkRed
                 )
             }
