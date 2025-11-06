@@ -31,20 +31,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.EmojiEvents
-import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.LocalFireDepartment
-import androidx.compose.material.icons.rounded.Palette
-import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.WorkspacePremium
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -690,13 +689,6 @@ fun ProfileInfoSection(
     onBlockUser: () -> Unit,
     onUnblockUser: () -> Unit
 ) {
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent(),
-        onResult = { uri: Uri? ->
-            uri?.let { onUpdateProfileImage(it) }
-        }
-    )
-
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -718,8 +710,15 @@ fun ProfileInfoSection(
             Spacer(modifier = Modifier.height(8.dp))
             Text(text = user.nickname, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             LevelChip(level = level, onClick = onNavigateToLevel)
-            Spacer(modifier = Modifier.height(16.dp))
 
+            Spacer(modifier = Modifier.height(8.dp))
+
+            ReadingStreakSection(
+                attendanceDays = user.consecutiveDays,
+                readingDays = user.consecutiveReadingDays
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
@@ -777,6 +776,69 @@ fun ProfileInfoSection(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun ReadingStreakSection(attendanceDays: Int, readingDays: Int) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+        elevation = CardDefaults.cardElevation(0.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            StreakItem(
+                icon = Icons.Rounded.LocalFireDepartment,
+                label = "연속 출석",
+                days = attendanceDays,
+                iconColor = Color(0xFF81C784)
+            )
+            StreakItem(
+                icon = Icons.Rounded.LocalFireDepartment,
+                label = "연속 독서",
+                days = readingDays,
+                iconColor = Color(0xFFE57373)
+            )
+        }
+    }
+}
+
+@Composable
+fun StreakItem(icon: ImageVector, label: String, days: Int, iconColor: Color) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = iconColor,
+                modifier = Modifier.size(20.dp)
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Text(
+            text = "$days 일",
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 
@@ -1088,7 +1150,10 @@ fun EmptyFavoriteBooks(onNavigateToSearch: () -> Unit) {
                 contentDescription = "관심 도서 추가",
                 modifier = Modifier
                     .size(40.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), CircleShape)
+                    .background(
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        CircleShape
+                    )
                     .padding(8.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )

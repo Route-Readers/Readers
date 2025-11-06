@@ -1,6 +1,7 @@
 package com.route.readers.ui.screens.attendance
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -21,23 +23,37 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.*
+import androidx.compose.material.icons.rounded.LocalFireDepartment
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import io.github.boguszpawlowski.composecalendar.StaticCalendar
 import io.github.boguszpawlowski.composecalendar.day.Day
 import io.github.boguszpawlowski.composecalendar.rememberCalendarState
+import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -52,12 +68,18 @@ fun AttendanceScreen(
     val attendanceDataMap by viewModel.attendanceData.collectAsState()
     val totalAttendanceDays by viewModel.totalAttendanceDays.collectAsState()
     val totalReadingDays by viewModel.totalReadingDays.collectAsState()
+    val consecutiveAttendanceDays by viewModel.consecutiveAttendanceDays.collectAsState()
+    val consecutiveReadingDays by viewModel.consecutiveReadingDays.collectAsState()
 
+    val scope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
+
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.refreshAttendanceData()
+                scope.launch {
+                    viewModel.refreshAttendanceData()
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -73,35 +95,6 @@ fun AttendanceScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로 가기")
-                    }
-                },
-                actions = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(end = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Check,
-                            contentDescription = "총 출석일",
-                            tint = MaterialTheme.colorScheme.secondary
-                        )
-                        Text(
-                            text = "$totalAttendanceDays 일",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-                        Icon(
-                            Icons.Filled.Book,
-                            contentDescription = "총 독서일",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = "$totalReadingDays 일",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -189,47 +182,112 @@ fun AttendanceScreen(
                 }
             )
             Spacer(modifier = Modifier.height(24.dp))
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 20.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    InfoItem(
+                        icon = { Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(20.dp)) },
+                        label = "총 출석일",
+                        value = "$totalAttendanceDays 일"
+                    )
+                    InfoItem(
+                        icon = { Icon(Icons.Default.Book, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp)) },
+                        label = "총 독서일",
+                        value = "$totalReadingDays 일"
+                    )
+                    InfoItem(
+                        icon = { Icon(Icons.Rounded.LocalFireDepartment, null, tint = Color(0xFF81C784), modifier = Modifier.size(20.dp)) },
+                        label = "연속 출석",
+                        value = "$consecutiveAttendanceDays 일"
+                    )
+                    InfoItem(
+                        icon = { Icon(Icons.Rounded.LocalFireDepartment, null, tint = Color(0xFFE57373), modifier = Modifier.size(20.dp)) },
+                        label = "연속 독서",
+                        value = "$consecutiveReadingDays 일"
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
 
 @Composable
-private fun DayContent(day: Day, attendanceData: AttendanceData?) {
-    val isAttended = attendanceData != null
-
-    if (!day.isFromCurrentMonth) {
-        return
+private fun InfoItem(icon: @Composable () -> Unit, label: String, value: String) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            icon()
+            Text(text = label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Text(text = value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
     }
+}
+
+@Composable
+private fun DayContent(day: Day, attendanceData: AttendanceData?) {
+    val isToday = day.date == java.time.LocalDate.now()
+    val baseModifier = Modifier
+        .fillMaxWidth()
+        .aspectRatio(1f)
 
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(1f),
+        modifier = if (isToday) baseModifier.border(1.dp, MaterialTheme.colorScheme.primary, CircleShape) else baseModifier,
         contentAlignment = Alignment.Center
     ) {
-        if (isAttended) {
+        if (!day.isFromCurrentMonth) {
+            // Do nothing for days not in the current month
+        } else if (attendanceData != null) {
+            val hasAttendance = attendanceData.points > 0
+            val hasReading = attendanceData.event != null
+
             Box(
                 modifier = Modifier
-                    .fillMaxSize(0.7f)
+                    .fillMaxSize(0.85f)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                    .background(
+                        when {
+                            hasAttendance && hasReading -> MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                            hasAttendance -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)
+                            hasReading -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f)
+                            else -> Color.Transparent
+                        }
+                    ),
                 contentAlignment = Alignment.Center
             ) {
-                when (attendanceData?.event) {
-                    "leaf_1", "leaf_2" -> Icon(
+                if (hasReading) {
+                    Icon(
                         imageVector = Icons.Filled.Book,
-                        contentDescription = "특별 보상",
+                        contentDescription = "독서 기록",
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp)
                     )
-                    else -> if ((attendanceData?.points ?: 0) > 0) {
-                        Icon(
-                            Icons.Default.Check,
-                            "출석",
-                            tint = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                } else if (hasAttendance) {
+                    Icon(
+                        Icons.Default.Check,
+                        "출석",
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                } else {
+                    Text(text = day.date.dayOfMonth.toString(), color = MaterialTheme.colorScheme.onSurface)
                 }
             }
         } else {

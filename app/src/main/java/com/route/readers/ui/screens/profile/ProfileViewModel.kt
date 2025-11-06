@@ -15,9 +15,9 @@ import com.route.readers.data.remote.BookRepository
 import com.route.readers.data.remote.FirestoreRepository
 import com.route.readers.data.remote.MyLibraryRepository
 import com.route.readers.data.remote.WishlistRepository
+import com.route.readers.ui.screens.attendance.AttendanceViewModel
 import com.route.readers.ui.screens.feed.FeedItem
 import com.route.readers.ui.screens.feed.toFeedItem
-import com.route.readers.ui.screens.attendance.AttendanceViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -139,7 +139,10 @@ open class ProfileViewModel : ViewModel() {
             "followers" to emptyList<String>(),
             "following" to emptyList<String>(),
             "isCurrentlyReading" to false,
-            "isPrivate" to false
+            "isPrivate" to false,
+            "consecutiveDays" to 0,
+            "consecutiveReadingDays" to 0,
+            "totalReadingDays" to 0
         )
         db.collection("users").document(currentUserId).set(userProfileData).await()
         _setupState.value = ProfileSetupState.Success
@@ -154,6 +157,9 @@ open class ProfileViewModel : ViewModel() {
         _uiState.value = ProfileUiState.Loading
         viewModelScope.launch {
             try {
+                // 1. AttendanceViewModel에서 최신 연속 기록일 데이터를 가져옵니다.
+                val (consecutiveAttendanceDays, consecutiveReadingDays) = attendanceViewModel.refreshAttendanceData()
+
                 val userDocument = db.collection("users").document(targetUserId).get().await()
                 var user: User? = userDocument.toObject(User::class.java)
 
@@ -166,20 +172,38 @@ open class ProfileViewModel : ViewModel() {
                     val readBooks = readBooksDeferred.await()
                     val actualReadBookCount = readBooks.size.toLong()
 
-                    attendanceViewModel.refreshAttendanceData()
-                    val consecutiveAttendanceDays = attendanceViewModel.attendanceData.value.values.maxOfOrNull { it.consecutiveAttendanceDays } ?: 0
-                    val consecutiveReadingDays = attendanceViewModel.consecutiveReadingDays.value
+                    val updates = mutableMapOf<String, Any>()
+                    var userNeedsUpdate = false
 
                     if (user.readBookCount != actualReadBookCount) {
-                        db.collection("users").document(targetUserId)
-                            .update("readBookCount", actualReadBookCount).await()
-                        user = user.copy(readBookCount = actualReadBookCount)
+                        updates["readBookCount"] = actualReadBookCount
+                        userNeedsUpdate = true
                     }
+                    // Firestore에 값 업데이트가 필요한 경우 (다른 기기에서 접속 등)
+                    if (user.consecutiveDays != consecutiveAttendanceDays) {
+                        updates["consecutiveDays"] = consecutiveAttendanceDays
+                        userNeedsUpdate = true
+                    }
+                    if (user.consecutiveReadingDays != consecutiveReadingDays) {
+                        updates["consecutiveReadingDays"] = consecutiveReadingDays
+                        userNeedsUpdate = true
+                    }
+
+                    if (userNeedsUpdate) {
+                        db.collection("users").document(targetUserId).update(updates).await()
+                    }
+
+                    // 2. 최신 데이터로 user 객체를 업데이트합니다.
+                    user = user.copy(
+                        readBookCount = actualReadBookCount,
+                        consecutiveDays = consecutiveAttendanceDays,
+                        consecutiveReadingDays = consecutiveReadingDays
+                    )
 
                     val allAchievements = getAchievementsForUser(user.readBookCount.toInt(), consecutiveAttendanceDays, consecutiveReadingDays)
                     val (ongoingAchievements, completedAchievements) = allAchievements.partition { !it.isCompleted }
 
-                    if (user.isPrivate && !isMyProfile) {
+                    if (user.isPrivate && !isMyProfile && !isFollowing) {
                         _uiState.value = ProfileUiState.Success(
                             user = user,
                             isFollowing = isFollowing,
@@ -226,6 +250,7 @@ open class ProfileViewModel : ViewModel() {
                             ).await()
                     }
 
+                    // 3. 최종적으로 업데이트된 user 객체를 UI State에 전달합니다.
                     val updatedUser = user.copy(
                         followers = validFollowers,
                         following = validFollowing,
@@ -313,6 +338,7 @@ open class ProfileViewModel : ViewModel() {
         }
     }
 
+    // ... 이하 나머지 코드는 동일 ...
     fun claimAchievementPoints(achievementId: String, points: Int) {
         val currentUserId = this.currentUserId ?: return
         val currentState = _uiState.value
@@ -640,7 +666,6 @@ open class ProfileViewModel : ViewModel() {
     fun deleteSelectedFavoriteBooks() {
         val currentState = (_uiState.value as? ProfileUiState.Success) ?: return
         val bookIdsToDelete = currentState.selectedBookIds
-        val userId = currentUserId ?: return
         if (bookIdsToDelete.isEmpty()) return
         viewModelScope.launch {
             try {

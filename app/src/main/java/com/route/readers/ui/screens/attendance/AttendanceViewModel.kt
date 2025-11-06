@@ -19,20 +19,23 @@ import java.time.format.DateTimeFormatter
 
 data class AttendanceData(
     val date: LocalDate,
-    val points: Int = 10,
-    val event: String? = null,
-    val consecutiveAttendanceDays: Int = 1
+    val points: Int = 0,
+    val event: String? = null
 )
 
 class AttendanceViewModel : ViewModel() {
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
+    private val userId = auth.currentUser?.uid
 
     private val _attendanceData = MutableStateFlow<Map<LocalDate, AttendanceData>>(emptyMap())
-    val attendanceData = _attendanceData.asStateFlow()
+    val attendanceData: StateFlow<Map<LocalDate, AttendanceData>> = _attendanceData.asStateFlow()
 
     private val _consecutiveReadingDays = MutableStateFlow(0)
     val consecutiveReadingDays: StateFlow<Int> = _consecutiveReadingDays.asStateFlow()
+
+    private val _consecutiveAttendanceDays = MutableStateFlow(0)
+    val consecutiveAttendanceDays: StateFlow<Int> = _consecutiveAttendanceDays.asStateFlow()
 
     val totalAttendanceDays: StateFlow<Int> = attendanceData.map { dataMap ->
         dataMap.values.count { it.points > 0 }
@@ -45,12 +48,14 @@ class AttendanceViewModel : ViewModel() {
     private var isCheckingAttendance = false
 
     init {
-        refreshAttendanceData()
+        viewModelScope.launch {
+            refreshAttendanceData()
+        }
     }
 
     fun markReadingActivity() {
         viewModelScope.launch {
-            val userId = auth.currentUser?.uid ?: return@launch
+            userId ?: return@launch
             val today = LocalDate.now()
             val todayStr = today.format(DateTimeFormatter.ISO_LOCAL_DATE)
 
@@ -58,30 +63,27 @@ class AttendanceViewModel : ViewModel() {
                 val userDocRef = db.collection("users").document(userId)
                 val document = userDocRef.get().await()
 
-                val attendanceList = document["attendance"] as? List<HashMap<String, Any>> ?: emptyList()
+                val attendanceList =
+                    (document["attendance"] as? List<HashMap<String, Any>>)?.toMutableList()
+                        ?: mutableListOf()
                 val todayRecordIndex = attendanceList.indexOfFirst { it["date"] == todayStr }
 
                 if (todayRecordIndex != -1) {
-                    val updatedList = attendanceList.toMutableList()
-                    val todayData = updatedList[todayRecordIndex].toMutableMap()
-                    todayData["event"] = "leaf_1"
-                    updatedList[todayRecordIndex] = todayData as HashMap<String, Any>
-
-                    userDocRef.update("attendance", updatedList).await()
+                    val todayData = attendanceList[todayRecordIndex]
+                    if (todayData["event"] == null) {
+                        todayData["event"] = "leaf_1"
+                        userDocRef.update("attendance", attendanceList).await()
+                    }
                 } else {
-                    val yesterday = today.minusDays(1)
-                    val lastConsecutiveAttendance = _attendanceData.value[yesterday]?.consecutiveAttendanceDays ?: 0
                     val newReadingRecord = hashMapOf(
                         "date" to todayStr,
                         "points" to 0,
-                        "event" to "leaf_1",
-                        "consecutiveAttendanceDays" to lastConsecutiveAttendance
+                        "event" to "leaf_1"
                     )
-                    userDocRef.update("attendance", FieldValue.arrayUnion(newReadingRecord)).await()
+                    userDocRef.update("attendance", FieldValue.arrayUnion(newReadingRecord))
+                        .await()
                 }
-
                 refreshAttendanceData()
-
             } catch (e: Exception) {
                 Log.e("AttendanceViewModel", "Error marking reading activity", e)
             }
@@ -92,7 +94,7 @@ class AttendanceViewModel : ViewModel() {
         if (isCheckingAttendance) return
         viewModelScope.launch {
             isCheckingAttendance = true
-            val userId = auth.currentUser?.uid ?: run {
+            userId ?: run {
                 isCheckingAttendance = false
                 return@launch
             }
@@ -107,20 +109,15 @@ class AttendanceViewModel : ViewModel() {
 
             try {
                 val userDocRef = db.collection("users").document(userId)
-
-                val yesterday = today.minusDays(1)
-                val lastConsecutiveAttendance = _attendanceData.value[yesterday]?.consecutiveAttendanceDays ?: 0
-                val newConsecutiveAttendance = lastConsecutiveAttendance + 1
-
                 val document = userDocRef.get().await()
-                val attendanceList = (document["attendance"] as? List<HashMap<String, Any>>)?.toMutableList() ?: mutableListOf()
-
+                val attendanceList =
+                    (document["attendance"] as? List<HashMap<String, Any>>)?.toMutableList()
+                        ?: mutableListOf()
                 val todayRecordIndex = attendanceList.indexOfFirst { it["date"] == todayStr }
 
                 if (todayRecordIndex != -1) {
                     val recordToUpdate = attendanceList[todayRecordIndex]
                     recordToUpdate["points"] = 10
-                    recordToUpdate["consecutiveAttendanceDays"] = newConsecutiveAttendance
                     attendanceList[todayRecordIndex] = recordToUpdate
                     userDocRef.update("attendance", attendanceList).await()
                 } else {
@@ -128,13 +125,11 @@ class AttendanceViewModel : ViewModel() {
                         "date" to todayStr,
                         "points" to 10,
                         "event" to null,
-                        "consecutiveAttendanceDays" to newConsecutiveAttendance
                     )
-                    userDocRef.update("attendance", FieldValue.arrayUnion(newAttendanceRecord)).await()
+                    userDocRef.update("attendance", FieldValue.arrayUnion(newAttendanceRecord))
+                        .await()
                 }
-
                 refreshAttendanceData()
-
             } catch (e: Exception) {
                 Log.e("AttendanceViewModel", "Error checking attendance", e)
             } finally {
@@ -143,68 +138,79 @@ class AttendanceViewModel : ViewModel() {
         }
     }
 
-    fun refreshAttendanceData() {
-        viewModelScope.launch {
-            val userId = auth.currentUser?.uid ?: return@launch
-            try {
-                val document = db.collection("users").document(userId).get().await()
-                val dataFromFirestore = document["attendance"] as? List<Map<String, Any>> ?: emptyList()
+    suspend fun refreshAttendanceData(): Pair<Int, Int> {
+        userId ?: return 0 to 0
+        return try {
+            val document = db.collection("users").document(userId).get().await()
+            val dataFromFirestore =
+                document["attendance"] as? List<Map<String, Any>> ?: emptyList()
 
-                val parsedData = dataFromFirestore.mapNotNull { data ->
-                    val dateStr = data["date"] as? String
-                    val points = (data["points"] as? Long)?.toInt() ?: 0
-                    val event = data["event"] as? String
-                    val consecutiveAttendanceDays = (data["consecutiveAttendanceDays"] as? Long)?.toInt() ?: 0
+            val parsedData = dataFromFirestore.mapNotNull { data ->
+                val dateStr = data["date"] as? String
+                val points = (data["points"] as? Long)?.toInt() ?: 0
+                val event = data["event"] as? String
+                if (dateStr != null) {
+                    val date = LocalDate.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE)
+                    date to AttendanceData(date, points, event)
+                } else {
+                    null
+                }
+            }.toMap()
 
-                    if (dateStr != null) {
-                        val date = LocalDate.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE)
-                        date to AttendanceData(date, points, event, consecutiveAttendanceDays)
-                    } else {
-                        null
-                    }
-                }.toMap()
+            _attendanceData.value = parsedData
 
-                _attendanceData.value = parsedData
-                calculateConsecutiveReadingDays(parsedData)
+            val consecutiveAttendance = calculateConsecutiveDays(parsedData) { it.points > 0 }
+            val consecutiveReading = calculateConsecutiveDays(parsedData) { it.event != null }
 
-            } catch (e: Exception) {
-                Log.e("AttendanceViewModel", "Error refreshing attendance data", e)
-            }
+            _consecutiveAttendanceDays.value = consecutiveAttendance
+            _consecutiveReadingDays.value = consecutiveReading
+
+            updateUserConsecutiveDays()
+
+            consecutiveAttendance to consecutiveReading
+        } catch (e: Exception) {
+            Log.e("AttendanceViewModel", "Error refreshing attendance data", e)
+            0 to 0
         }
     }
 
-    private fun calculateConsecutiveReadingDays(data: Map<LocalDate, AttendanceData>) {
-        if (data.isEmpty()) {
-            _consecutiveReadingDays.value = 0
-            return
-        }
+    private fun calculateConsecutiveDays(
+        data: Map<LocalDate, AttendanceData>,
+        condition: (AttendanceData) -> Boolean
+    ): Int {
+        if (data.isEmpty()) return 0
 
-        val sortedDates = data.keys.sortedDescending()
-        var currentDate = LocalDate.now()
         var consecutiveCount = 0
+        var currentDate = LocalDate.now()
 
-        val todayRecord = data[currentDate]
-        val isTodayRead = todayRecord != null && todayRecord.event != null
-
-        if (!isTodayRead) {
+        if (data[currentDate]?.let(condition) != true) {
             currentDate = currentDate.minusDays(1)
         }
 
-        for (date in sortedDates) {
-            if (date.isAfter(currentDate)) continue
-
-            if (date == currentDate) {
-                val record = data[date]
-                if (record != null && record.event != null) {
-                    consecutiveCount++
-                    currentDate = currentDate.minusDays(1)
-                } else {
-                    break
-                }
+        while (data.containsKey(currentDate)) {
+            val record = data[currentDate]
+            if (record != null && condition(record)) {
+                consecutiveCount++
+                currentDate = currentDate.minusDays(1)
             } else {
                 break
             }
         }
-        _consecutiveReadingDays.value = consecutiveCount
+        return consecutiveCount
+    }
+
+    private suspend fun updateUserConsecutiveDays() {
+        userId ?: return
+        try {
+            db.collection("users").document(userId).update(
+                mapOf(
+                    "consecutiveDays" to _consecutiveAttendanceDays.value,
+                    "consecutiveReadingDays" to _consecutiveReadingDays.value,
+                    "totalReadingDays" to totalReadingDays.value
+                )
+            ).await()
+        } catch (e: Exception) {
+            Log.e("AttendanceViewModel", "Error updating user consecutive days", e)
+        }
     }
 }
