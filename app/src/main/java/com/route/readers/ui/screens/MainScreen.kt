@@ -18,8 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.runtime.LaunchedEffect
-import kotlinx.coroutines.delay
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -45,7 +44,6 @@ import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.profile.ProfileViewModel
 import com.route.readers.ui.screens.reading.ReadingTimerScreen
 import com.route.readers.ui.screens.search.SearchScreen
-import androidx.lifecycle.viewmodel.compose.viewModel
 import java.net.URLEncoder
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -102,7 +100,7 @@ fun MainScreen(
             if (shouldShowTopBar) {
                 val consecutiveReadingDays by attendanceViewModel.consecutiveReadingDays.collectAsState()
                 val tokens by mainViewModel.tokens.collectAsState()
-                
+
                 FeedTopAppBar(
                     consecutiveReadingDays = consecutiveReadingDays,
                     tokens = tokens,
@@ -135,7 +133,7 @@ fun MainScreen(
                         }
                     },
                     selectedBook = selectedBook,
-                    onStartReading = { 
+                    onStartReading = {
                         selectedBook?.let { book ->
                             bottomNavController.navigate("reading_timer/${book.isbn}")
                         }
@@ -199,7 +197,6 @@ fun MainScreen(
                 )
             }
             composable("friends_list") {
-                val communityViewModel: CommunityViewModel = viewModel()
                 AllUsersScreen(
                     onNavigateBack = { bottomNavController.popBackStack() },
                     onUserClick = { userId -> bottomNavController.navigate("profile_route/$userId") }
@@ -234,6 +231,9 @@ fun MainScreen(
                         },
                         onNavigateToCustomization = {
                             navController.navigate("profile_customization_route")
+                        },
+                        onNavigateToGoal = {
+                            navController.navigate("goal_route")
                         }
                     )
                 }
@@ -254,8 +254,7 @@ fun MainScreen(
                         ReadingTimerScreen(
                             book = book,
                             onNavigateBack = { bottomNavController.popBackStack() },
-                            onFinishReading = { readingTimeSeconds ->
-                                // 독서 시간 기록 로직 추가 가능
+                            onFinishReading = {
                                 bottomNavController.popBackStack()
                             }
                         )

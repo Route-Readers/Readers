@@ -103,6 +103,7 @@ import com.route.readers.ui.screens.feed.FeedCard
 import com.route.readers.ui.screens.feed.FeedItem
 import com.route.readers.ui.theme.DarkRed
 import kotlinx.coroutines.launch
+import kotlin.text.isNotEmpty
 import kotlin.text.toFloat
 
 @Composable
@@ -113,6 +114,7 @@ fun ProfileScreen(
     onNavigateToMyBookList: () -> Unit,
     onNavigateToLevel: () -> Unit,
     onNavigateToCustomization: () -> Unit = {},
+    onNavigateToGoal: () -> Unit,
     viewModel: ProfileViewModel = viewModel()
 ) {
     var showCustomization by remember { mutableStateOf(false) }
@@ -190,6 +192,7 @@ fun ProfileScreen(
                         },
                         onNavigateToMyBookList = onNavigateToMyBookList,
                         onNavigateToLevel = onNavigateToLevel,
+                        onNavigateToGoal = onNavigateToGoal,
                         onBlockUser = { viewModel.blockUser(state.user.uid) },
                         onUnblockUser = { viewModel.unblockUser(state.user.uid) },
                         onBookmarkClick = { feedId, isBookmarked ->
@@ -222,6 +225,7 @@ fun ProfileContent(
     onNavigateToCustomization: () -> Unit,
     onNavigateToMyBookList: () -> Unit,
     onNavigateToLevel: () -> Unit,
+    onNavigateToGoal: () -> Unit,
     onBlockUser: () -> Unit,
     onUnblockUser: () -> Unit,
     onBookmarkClick: (String, Boolean) -> Unit
@@ -258,26 +262,27 @@ fun ProfileContent(
         contentPadding = PaddingValues(bottom = 16.dp)
     ) {
         item {
-            Column(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                ProfileInfoSection(
-                    user = user,
-                    level = level,
-                    isMyProfile = state.isMyProfile,
-                    isFollowing = state.isFollowing,
-                    isBlocked = state.isBlocked,
-                    onFollowClick = onFollowClick,
-                    onUnfollowClick = onUnfollowClick,
-                    onFollowListClick = onFollowListClick,
-                    onUpdateProfileImage = onUpdateProfileImage,
-                    onNavigateToCustomization = onNavigateToCustomization,
-                    onNavigateToMyBookList = onNavigateToMyBookList,
-                    onNavigateToLevel = onNavigateToLevel,
-                    onBlockUser = onBlockUser,
-                    onUnblockUser = onUnblockUser
-                )
+            ProfileInfoSection(
+                user = user,
+                level = level,
+                isMyProfile = state.isMyProfile,
+                isFollowing = state.isFollowing,
+                isBlocked = state.isBlocked,
+                onFollowClick = onFollowClick,
+                onUnfollowClick = onUnfollowClick,
+                onFollowListClick = onFollowListClick,
+                onUpdateProfileImage = onUpdateProfileImage,
+                onNavigateToCustomization = onNavigateToCustomization,
+                onNavigateToMyBookList = onNavigateToMyBookList,
+                onNavigateToLevel = onNavigateToLevel,
+                onBlockUser = onBlockUser,
+                onUnblockUser = onUnblockUser
+            )
+        }
+
+        if (state.isMyProfile) {
+            item {
+                GoalSettingSection(onSetGoalClick = onNavigateToGoal)
             }
         }
 
@@ -611,7 +616,7 @@ fun PostsSection(
             contentColor = DarkRed,
             indicator = {
                 TabRowDefaults.Indicator(
-                    modifier = Modifier.tabIndicatorOffset(selectedTabIndex),
+                    Modifier.tabIndicatorOffset(selectedTabIndex),
                     color = DarkRed
                 )
             }
@@ -690,7 +695,9 @@ fun ProfileInfoSection(
     onUnblockUser: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
@@ -775,6 +782,45 @@ fun ProfileInfoSection(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun GoalSettingSection(onSetGoalClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .clickable { onSetGoalClick() },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, DarkRed.copy(alpha = 0.3f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(
+                    text = "나만의 독서 목표를 설정해보세요!",
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "목표를 설정하고 꾸준한 독서 습관을 만들어보세요.",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowRight,
+                contentDescription = "목표 설정으로 이동",
+                tint = DarkRed
+            )
         }
     }
 }
