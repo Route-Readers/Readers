@@ -714,8 +714,8 @@ fun ProfileInfoSection(
             Spacer(modifier = Modifier.height(8.dp))
 
             ReadingStreakSection(
-                attendanceDays = user.consecutiveReadingDays,
-                readingDays = user.totalReadingDays
+                attendanceDays = user.consecutiveDays,
+                readingDays = user.consecutiveReadingDays
             )
 
             Spacer(modifier = Modifier.height(8.dp))

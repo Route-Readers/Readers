@@ -157,6 +157,7 @@ open class ProfileViewModel : ViewModel() {
         _uiState.value = ProfileUiState.Loading
         viewModelScope.launch {
             try {
+                // 1. AttendanceViewModel에서 최신 연속 기록일 데이터를 가져옵니다.
                 val (consecutiveAttendanceDays, consecutiveReadingDays) = attendanceViewModel.refreshAttendanceData()
 
                 val userDocument = db.collection("users").document(targetUserId).get().await()
@@ -171,13 +172,14 @@ open class ProfileViewModel : ViewModel() {
                     val readBooks = readBooksDeferred.await()
                     val actualReadBookCount = readBooks.size.toLong()
 
-                    var userNeedsUpdate = false
                     val updates = mutableMapOf<String, Any>()
+                    var userNeedsUpdate = false
 
                     if (user.readBookCount != actualReadBookCount) {
                         updates["readBookCount"] = actualReadBookCount
                         userNeedsUpdate = true
                     }
+                    // Firestore에 값 업데이트가 필요한 경우 (다른 기기에서 접속 등)
                     if (user.consecutiveDays != consecutiveAttendanceDays) {
                         updates["consecutiveDays"] = consecutiveAttendanceDays
                         userNeedsUpdate = true
@@ -189,12 +191,14 @@ open class ProfileViewModel : ViewModel() {
 
                     if (userNeedsUpdate) {
                         db.collection("users").document(targetUserId).update(updates).await()
-                        user = user.copy(
-                            readBookCount = actualReadBookCount,
-                            consecutiveDays = consecutiveAttendanceDays,
-                            consecutiveReadingDays = consecutiveReadingDays
-                        )
                     }
+
+                    // 2. 최신 데이터로 user 객체를 업데이트합니다.
+                    user = user.copy(
+                        readBookCount = actualReadBookCount,
+                        consecutiveDays = consecutiveAttendanceDays,
+                        consecutiveReadingDays = consecutiveReadingDays
+                    )
 
                     val allAchievements = getAchievementsForUser(user.readBookCount.toInt(), consecutiveAttendanceDays, consecutiveReadingDays)
                     val (ongoingAchievements, completedAchievements) = allAchievements.partition { !it.isCompleted }
@@ -246,6 +250,7 @@ open class ProfileViewModel : ViewModel() {
                             ).await()
                     }
 
+                    // 3. 최종적으로 업데이트된 user 객체를 UI State에 전달합니다.
                     val updatedUser = user.copy(
                         followers = validFollowers,
                         following = validFollowing,
@@ -333,6 +338,7 @@ open class ProfileViewModel : ViewModel() {
         }
     }
 
+    // ... 이하 나머지 코드는 동일 ...
     fun claimAchievementPoints(achievementId: String, points: Int) {
         val currentUserId = this.currentUserId ?: return
         val currentState = _uiState.value
