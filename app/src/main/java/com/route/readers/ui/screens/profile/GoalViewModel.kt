@@ -11,20 +11,22 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.math.ceil
 
+// Goal 데이터 클래스에 currentPage 추가
 data class Goal(
     val bookTitle: String = "",
     val bookIsbn: String = "",
     val bookCover: String = "",
     val duration: String = "",
     val pages: String = "",
-    val dailyPages: Int = 0 // 일일 목표 페이지 추가
+    val dailyPages: Int = 0,
+    val currentPage: Int = 0 // 현재 읽은 페이지
 )
 
 data class GoalUiState(
     val selectedMyBook: MyBook? = null,
     val durationInput: String = "",
     val pagesInput: String = "",
-    val dailyPages: Int = 0, // 계산된 일일 목표 페이지 추가
+    val dailyPages: Int = 0,
     val showGoalInputs: Boolean = false,
     val goals: List<Goal> = emptyList(),
     val myBooks: List<MyBook> = emptyList(),
@@ -47,11 +49,18 @@ class GoalViewModel : ViewModel() {
     private fun loadInitialData() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val goals = firestoreRepository.getGoals()
+            val goalsFromRepo = firestoreRepository.getGoals()
             val myBooks = myLibraryRepository.getMyBooks()
+
+            // 목표 목록에 현재 읽은 페이지(currentPage) 정보를 업데이트
+            val updatedGoals = goalsFromRepo.map { goal ->
+                val correspondingBook = myBooks.find { it.isbn == goal.bookIsbn }
+                goal.copy(currentPage = correspondingBook?.currentPage ?: 0)
+            }
+
             _uiState.update {
                 it.copy(
-                    goals = goals,
+                    goals = updatedGoals,
                     myBooks = myBooks.filter { book -> !book.isCompleted },
                     isLoading = false
                 )
@@ -66,7 +75,6 @@ class GoalViewModel : ViewModel() {
                 pagesInput = if (book.totalPages > 0) book.totalPages.toString() else ""
             )
         }
-        // 책이 선택될 때도 일일 페이지 수를 다시 계산합니다.
         calculateDailyPages(_uiState.value.durationInput, _uiState.value.pagesInput)
     }
 
@@ -100,7 +108,7 @@ class GoalViewModel : ViewModel() {
                     selectedMyBook = null,
                     durationInput = "",
                     pagesInput = "",
-                    dailyPages = 0 // 입력창을 닫을 때 초기화
+                    dailyPages = 0
                 )
             }
         } else {
@@ -119,7 +127,8 @@ class GoalViewModel : ViewModel() {
                 bookCover = book.cover,
                 duration = currentState.durationInput,
                 pages = currentState.pagesInput,
-                dailyPages = currentState.dailyPages // 계산된 일일 목표 페이지 저장
+                dailyPages = currentState.dailyPages,
+                currentPage = book.currentPage // 저장 시점의 현재 페이지 저장
             )
 
             _uiState.update {
@@ -127,7 +136,13 @@ class GoalViewModel : ViewModel() {
             }
             onShowGoalInputs(false)
 
-            val success = firestoreRepository.saveGoal(newGoal)
+            // Firestore에 Goal 객체를 저장할 때 currentPage는 제외하고 저장하거나,
+            // 혹은 저장하되 앱 실행 시 항상 MyBook 데이터 기준으로 덮어쓰도록 합니다.
+            // 여기서는 Firestore에 저장하는 Goal 객체에서는 currentPage를 제외하는 것을 권장합니다.
+            // 아래는 Firestore 저장용 객체에서 currentPage를 빼는 예시입니다.
+            val goalForFirestore = newGoal.copy(currentPage = 0) // Firestore에는 진행률을 저장하지 않음
+            val success = firestoreRepository.saveGoal(goalForFirestore)
+
             if (!success) {
                 _uiState.update {
                     it.copy(

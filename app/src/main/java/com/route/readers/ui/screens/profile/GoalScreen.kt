@@ -24,6 +24,82 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.route.readers.data.model.MyBook
 
+// (GoalScreen, GoalInputView 등 다른 Composable 함수는 이전과 동일하게 유지)
+// ...
+
+@Composable
+fun GoalItem(goal: Goal) {
+    val totalPages = goal.pages.toIntOrNull() ?: 0
+    // 진행률 계산 (0으로 나누는 것 방지)
+    val progress = if (totalPages > 0) {
+        (goal.currentPage.toFloat() / totalPages.toFloat())
+    } else {
+        0f
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AsyncImage(
+                model = goal.bookCover,
+                contentDescription = goal.bookTitle,
+                modifier = Modifier
+                    .height(90.dp)
+                    .width(60.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                contentScale = ContentScale.Crop
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            // 세부 정보와 진행률 표시를 위해 Column 확장
+            Column(modifier = Modifier.weight(1f)) {
+                GoalDetailRow(label = "책", detail = goal.bookTitle)
+                Spacer(modifier = Modifier.height(8.dp))
+                GoalDetailRow(label = "기간", detail = goal.duration)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if (goal.dailyPages > 0) {
+                    GoalDetailRow(label = "목표", detail = "하루 ${goal.dailyPages} 페이지")
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                // 진행률 표시
+                if (totalPages > 0) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "진행률",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "${goal.currentPage} / $totalPages 페이지",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        LinearProgressIndicator(
+                            progress = { progress }, // 진행률 상태 전달
+                            modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// (GoalDetailRow, GoalInputTextField 등 나머지 Composable은 이전과 동일)
+// ...
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GoalScreen(
@@ -158,7 +234,7 @@ fun GoalInputView(
                 label = "기간 설정",
                 value = uiState.durationInput,
                 onValueChange = onDurationChange,
-                placeholder = "예: 30일"
+                placeholder = "예: 30"
             )
             GoalInputTextField(
                 label = "페이지 설정",
@@ -201,35 +277,6 @@ fun GoalListView(goals: List<Goal>) {
 }
 
 @Composable
-fun GoalItem(goal: Goal) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            AsyncImage(
-                model = goal.bookCover,
-                contentDescription = goal.bookTitle,
-                modifier = Modifier
-                    .height(90.dp)
-                    .width(60.dp),
-                contentScale = ContentScale.Crop
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                GoalDetailRow(label = "책", detail = goal.bookTitle)
-                GoalDetailRow(label = "기간", detail = goal.duration)
-                GoalDetailRow(label = "분량", detail = "${goal.pages} 페이지")
-                // 저장된 일일 목표 페이지 표시
-                if (goal.dailyPages > 0) {
-                    GoalDetailRow(label = "목표", detail = "하루 ${goal.dailyPages} 페이지")
-                }
-            }
-        }
-    }
-}
-
-@Composable
 fun GoalDetailRow(label: String, detail: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
@@ -240,7 +287,8 @@ fun GoalDetailRow(label: String, detail: String) {
         )
         Text(
             text = detail,
-            style = MaterialTheme.typography.bodyLarge
+            style = MaterialTheme.typography.bodyLarge,
+            maxLines = 1
         )
     }
 }
