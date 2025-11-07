@@ -145,12 +145,27 @@ fun LevelScreen(
                         currentPoints = levelInfo.currentPoints,
                         pointsForNextLevel = levelInfo.pointsForNextLevel
                     )
+
+                    val achievementPoints = mapOf(
+                        "read_1" to 50,
+                        "read_10" to 100,
+                        "read_50" to 200,
+                        "read_100" to 500,
+                        "attendance_7" to 50,
+                        "attendance_30" to 100,
+                        "attendance_100" to 200,
+                        "reading_7" to 50,
+                        "reading_30" to 100,
+                        "reading_100" to 200
+                    )
+
                     AchievementsSection(
-                        readBookCount = state.readBooks.size,
+                        achievements = state.achievements,
                         claimedAchievements = state.user.claimedAchievements,
                         onClaimPoints = { achievementId, points ->
                             viewModel.claimAchievementPoints(achievementId, points)
-                        }
+                        },
+                        achievementPoints = achievementPoints
                     )
                 }
                 is ProfileUiState.Loading -> {
@@ -272,33 +287,19 @@ fun LevelInfoCard(
 
 @Composable
 fun AchievementsSection(
-    readBookCount: Int,
+    achievements: List<Achievement>,
     claimedAchievements: List<String>,
-    onClaimPoints: (String, Int) -> Unit
+    onClaimPoints: (String, Int) -> Unit,
+    achievementPoints: Map<String, Int>
 ) {
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabs = listOf("진행 중", "완료")
 
-    val achievementPoints = mapOf(
-        "read_1" to 50,
-        "read_10" to 100,
-        "read_50" to 200,
-        "read_100" to 500
-    )
+    var selectedCategoryIndex by remember { mutableStateOf(0) }
+    val categories = listOf("독서", "출석")
 
-    val allAchievements = achievementPoints.keys.map { id ->
-        val target = id.split("_").last().toInt()
-        Achievement(
-            id = id,
-            title = "책 ${target}권 읽기",
-            description = "${target}권의 책을 완독하세요",
-            currentProgress = readBookCount,
-            targetProgress = target
-        )
-    }
-
-    val inProgress = allAchievements.filter { !it.isCompleted }
-    val completed = allAchievements.filter { it.isCompleted }
+    val inProgress = achievements.filter { !it.isCompleted }
+    val completed = achievements.filter { it.isCompleted }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
@@ -333,10 +334,37 @@ fun AchievementsSection(
             }
         }
 
+        TabRow(
+            selectedTabIndex = selectedCategoryIndex,
+            containerColor = Color.Transparent,
+            contentColor = DarkRed,
+            indicator = { tabPositions ->
+                TabRowDefaults.SecondaryIndicator(
+                    modifier = Modifier.tabIndicatorOffset(tabPositions[selectedCategoryIndex]),
+                    color = DarkRed
+                )
+            }
+        ) {
+            categories.forEachIndexed { index, title ->
+                Tab(
+                    selected = selectedCategoryIndex == index,
+                    onClick = { selectedCategoryIndex = index },
+                    text = {
+                        Text(
+                            text = title,
+                            fontWeight = FontWeight.Bold,
+                            color = if (selectedCategoryIndex == index) DarkRed else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                )
+            }
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            val achievementsToShow = if (selectedTabIndex == 0) inProgress else completed
+            val achievementsToShow = (if (selectedTabIndex == 0) inProgress else completed)
+                .filter { it.category == categories[selectedCategoryIndex] }
             if (achievementsToShow.isEmpty()) {
                 Text(
                     text = if (selectedTabIndex == 0) "진행 중인 업적이 없습니다." else "완료된 업적이 없습니다.",

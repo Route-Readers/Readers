@@ -56,6 +56,7 @@ import com.route.readers.ui.screens.login.SignUpScreen
 import com.route.readers.ui.screens.profile.AccountScreen
 import com.route.readers.ui.screens.profile.AccountViewModel
 import com.route.readers.ui.screens.profile.FollowListScreen
+import com.route.readers.ui.screens.profile.GoalScreen
 import com.route.readers.ui.screens.profile.LevelScreen
 import com.route.readers.ui.screens.profile.MyBookListScreen
 import com.route.readers.ui.screens.profile.ProfileCustomizationScreen
@@ -408,6 +409,9 @@ fun RootAppNavigation(accountViewModel: AccountViewModel) {
                     },
                     onNavigateToCustomization = {
                         appNavController.navigate("profile_customization_route")
+                    },
+                    onNavigateToGoal = {
+                        appNavController.navigate("goal_route")
                     }
                 )
             }
@@ -456,6 +460,12 @@ fun RootAppNavigation(accountViewModel: AccountViewModel) {
 
         composable("level_route") {
             LevelScreen(
+                onBack = { appNavController.popBackStack() }
+            )
+        }
+
+        composable("goal_route") {
+            GoalScreen(
                 onBack = { appNavController.popBackStack() }
             )
         }

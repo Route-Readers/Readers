@@ -6,6 +6,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.data.model.MyBook
 import com.route.readers.ui.screens.feed.FeedItem
+import com.route.readers.ui.screens.profile.Goal
 import kotlinx.coroutines.tasks.await
 
 class FirestoreRepository {
@@ -20,6 +21,30 @@ class FirestoreRepository {
 
     private fun getReadBooksCollection(userId: String) =
         getUsersCollection().document(userId).collection("readBooks")
+
+    private fun getGoalsCollection(userId: String) =
+        getUsersCollection().document(userId).collection("goals")
+
+    suspend fun saveGoal(goal: Goal): Boolean {
+        return try {
+            val userId = auth.currentUser?.uid ?: return false
+            getGoalsCollection(userId).add(goal).await()
+            true
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error saving goal: ${e.message}", e)
+            false
+        }
+    }
+
+    suspend fun getGoals(): List<Goal> {
+        return try {
+            val userId = auth.currentUser?.uid ?: return emptyList()
+            getGoalsCollection(userId).get().await().toObjects(Goal::class.java)
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error fetching goals: ${e.message}", e)
+            emptyList()
+        }
+    }
 
     suspend fun addBookToLibrary(book: MyBook): Boolean {
         return try {
@@ -146,7 +171,10 @@ class FirestoreRepository {
                 }.await()
                 true
             } else {
-                Log.e("FirestoreRepository", "Failed to get book details from myLibrary for ISBN: $isbn")
+                Log.e(
+                    "FirestoreRepository",
+                    "Failed to get book details from myLibrary for ISBN: $isbn"
+                )
                 false
             }
         } catch (e: Exception) {
@@ -191,7 +219,8 @@ class FirestoreRepository {
     suspend fun incrementReadBookCount(): Boolean {
         return try {
             val userId = auth.currentUser?.uid ?: return false
-            getUsersCollection().document(userId).update("readBookCount", FieldValue.increment(1)).await()
+            getUsersCollection().document(userId).update("readBookCount", FieldValue.increment(1))
+                .await()
             true
         } catch (e: Exception) {
             Log.e("FirestoreRepository", "Error incrementing read book count", e)

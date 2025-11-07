@@ -6,6 +6,18 @@ import com.route.readers.data.model.MyBook
 import com.route.readers.data.model.User
 import com.route.readers.ui.screens.feed.FeedItem
 
+data class Achievement(
+    val id: String,
+    val title: String,
+    val description: String,
+    val category: String,
+    val currentProgress: Int,
+    val targetProgress: Int,
+) {
+    val isCompleted: Boolean
+        get() = currentProgress >= targetProgress
+}
+
 sealed class ProfileUiState {
     data object Loading : ProfileUiState()
 

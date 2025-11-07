@@ -1,26 +1,24 @@
 package com.route.readers.data.remote
 
 import com.route.readers.data.model.BookListDTO
-import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Query
 
 interface BookService {
 
-    @GET("ItemSearch.aspx")
-    suspend fun getBookSearch(
+    @GET("ItemSearch.aspx")    suspend fun getBookSearch(
         @Query("TTBKey") ttbKey: String,
         @Query("Query") query: String,
         @Query("QueryType") queryType: String = "Keyword",
-        @Query("MaxResults") maxResults: Int = 20,
-        @Query("Start") start: Int = 1,
+        @Query("MaxResults") maxResults: Int, // 기본값 제거
+        @Query("Start") start: Int,          // 기본값 제거
         @Query("SearchTarget") searchTarget: String = "Book",
         @Query("Sort") sort: String = "Accuracy",
         @Query("output") output: String = "js",
         @Query("Version") version: String = "20131101",
         @Query("Cover") cover: String = "Big",
         @Query("OptResult") optResult: String = "ebookBlazing,usedList,reviewList,subInfo"
-    ): Response<BookListDTO>
+    ): BookListDTO // Response<T> -> T 로 변경
 
     @GET("ItemList.aspx")
     suspend fun getBookList(
@@ -31,7 +29,7 @@ interface BookService {
         @Query("Version") version: String = "20131101",
         @Query("Cover") cover: String = "Big",
         @Query("OptResult") optResult: String = "ebookBlazing,usedList,reviewList,subInfo"
-    ): Response<BookListDTO>
+    ): BookListDTO // Response<T> -> T 로 변경
 
     @GET("ItemLookUp.aspx")
     suspend fun getBookDetail(
@@ -42,5 +40,5 @@ interface BookService {
         @Query("Version") version: String = "20131101",
         @Query("Cover") cover: String = "Big",
         @Query("OptResult") optResult: String = "ebookBlazing,usedList,reviewList,subInfo"
-    ): Response<BookListDTO>
+    ): BookListDTO // Response<T> -> T 로 변경
 }
