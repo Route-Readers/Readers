@@ -1420,4 +1420,3 @@ fun LevelChip(level: Int, onClick: () -> Unit) {
         }
     }
 }
-
