@@ -1408,15 +1408,16 @@ fun LevelChip(level: Int, onClick: () -> Unit) {
             modifier = Modifier
                 .size(24.dp)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.onSurface),
+                .background(MaterialTheme.colorScheme.primary),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = level.toString(),
-                color = Color(0xFFF0E68C),
+                color = MaterialTheme.colorScheme.onPrimary,
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp
             )
         }
     }
 }
+

@@ -368,7 +368,7 @@ fun GoalInputTextField(
         singleLine = true,
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = MaterialTheme.colorScheme.primary,
-            unfocusedBorderColor = Color.LightGray,
+            unfocusedBorderColor = MaterialTheme.colorScheme.onSurfaceVariant,
         ),
         textStyle = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Normal)
     )
