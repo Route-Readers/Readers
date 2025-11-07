@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
@@ -24,82 +25,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.route.readers.data.model.MyBook
 
-// (GoalScreen, GoalInputView 등 다른 Composable 함수는 이전과 동일하게 유지)
-// ...
-
-@Composable
-fun GoalItem(goal: Goal) {
-    val totalPages = goal.pages.toIntOrNull() ?: 0
-    // 진행률 계산 (0으로 나누는 것 방지)
-    val progress = if (totalPages > 0) {
-        (goal.currentPage.toFloat() / totalPages.toFloat())
-    } else {
-        0f
-    }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AsyncImage(
-                model = goal.bookCover,
-                contentDescription = goal.bookTitle,
-                modifier = Modifier
-                    .height(90.dp)
-                    .width(60.dp)
-                    .clip(RoundedCornerShape(4.dp)),
-                contentScale = ContentScale.Crop
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            // 세부 정보와 진행률 표시를 위해 Column 확장
-            Column(modifier = Modifier.weight(1f)) {
-                GoalDetailRow(label = "책", detail = goal.bookTitle)
-                Spacer(modifier = Modifier.height(8.dp))
-                GoalDetailRow(label = "기간", detail = goal.duration)
-                Spacer(modifier = Modifier.height(8.dp))
-
-                if (goal.dailyPages > 0) {
-                    GoalDetailRow(label = "목표", detail = "하루 ${goal.dailyPages} 페이지")
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-
-                // 진행률 표시
-                if (totalPages > 0) {
-                    Column {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "진행률",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "${goal.currentPage} / $totalPages 페이지",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        LinearProgressIndicator(
-                            progress = { progress }, // 진행률 상태 전달
-                            modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-// (GoalDetailRow, GoalInputTextField 등 나머지 Composable은 이전과 동일)
-// ...
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GoalScreen(
@@ -107,6 +32,7 @@ fun GoalScreen(
     goalViewModel: GoalViewModel = viewModel()
 ) {
     val uiState by goalViewModel.uiState.collectAsState()
+    var showDeleteDialog by remember { mutableStateOf<Goal?>(null) }
 
     Scaffold(
         topBar = {
@@ -157,11 +83,157 @@ fun GoalScreen(
                         }
                     }
                 } else {
-                    GoalListView(goals = uiState.goals)
+                    GoalListView(
+                        goals = uiState.goals,
+                        onDeleteClick = { goal ->
+                            showDeleteDialog = goal
+                        }
+                    )
                 }
             }
         }
     }
+
+    showDeleteDialog?.let { goalToDelete ->
+        DeleteGoalConfirmDialog(
+            goal = goalToDelete,
+            onDismiss = { showDeleteDialog = null },
+            onConfirm = {
+                goalViewModel.deleteGoal(goalToDelete)
+                showDeleteDialog = null
+            }
+        )
+    }
+}
+
+@Composable
+fun GoalListView(
+    goals: List<Goal>,
+    onDeleteClick: (Goal) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(goals, key = { it.bookIsbn }) { goal ->
+            GoalItem(
+                goal = goal,
+                onDeleteClick = { onDeleteClick(goal) }
+            )
+        }
+    }
+}
+
+@Composable
+fun GoalItem(
+    goal: Goal,
+    onDeleteClick: () -> Unit
+) {
+    val totalPages = goal.pages.toIntOrNull() ?: 0
+    val progress = if (totalPages > 0) {
+        (goal.currentPage.toFloat() / totalPages.toFloat())
+    } else {
+        0f
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AsyncImage(
+                model = goal.bookCover,
+                contentDescription = goal.bookTitle,
+                modifier = Modifier
+                    .height(90.dp)
+                    .width(60.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                contentScale = ContentScale.Crop
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                GoalDetailRow(label = "책", detail = goal.bookTitle)
+                Spacer(modifier = Modifier.height(8.dp))
+                GoalDetailRow(label = "기간", detail = goal.duration)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if (goal.dailyPages > 0) {
+                    GoalDetailRow(label = "목표", detail = "하루 ${goal.dailyPages} 페이지")
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                if (totalPages > 0) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "진행률",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "${goal.currentPage} / $totalPages 페이지",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(8.dp)
+                                .clip(RoundedCornerShape(4.dp)),
+                        )
+                    }
+                }
+            }
+            IconButton(onClick = onDeleteClick) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "목표 삭제",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun DeleteGoalConfirmDialog(
+    goal: Goal,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("목표를 삭제하시겠습니까?")
+        },
+        text = {
+            Text("『${goal.bookTitle}』에 대한 목표를 삭제합니다.")
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm
+            ) {
+                Text("삭제", color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss
+            ) {
+                Text("취소")
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.surface
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -243,7 +315,6 @@ fun GoalInputView(
                 placeholder = "총 페이지"
             )
 
-            // 계산된 일일 목표 페이지 표시
             if (uiState.dailyPages > 0) {
                 Text(
                     text = "하루에 약 ${uiState.dailyPages}페이지를 읽어야 해요!",
@@ -260,18 +331,6 @@ fun GoalInputView(
             ) {
                 Text("목표 저장하기")
             }
-        }
-    }
-}
-
-@Composable
-fun GoalListView(goals: List<Goal>) {
-    LazyColumn(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        items(goals) { goal ->
-            GoalItem(goal = goal)
         }
     }
 }

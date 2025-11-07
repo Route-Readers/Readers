@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.math.ceil
 
-// Goal 데이터 클래스에 currentPage 추가
+// ... (Data classes Goal, GoalUiState는 이전과 동일)
 data class Goal(
     val bookTitle: String = "",
     val bookIsbn: String = "",
@@ -19,7 +19,7 @@ data class Goal(
     val duration: String = "",
     val pages: String = "",
     val dailyPages: Int = 0,
-    val currentPage: Int = 0 // 현재 읽은 페이지
+    val currentPage: Int = 0
 )
 
 data class GoalUiState(
@@ -34,6 +34,7 @@ data class GoalUiState(
     val errorMessage: String? = null
 )
 
+
 class GoalViewModel : ViewModel() {
 
     private val firestoreRepository = FirestoreRepository()
@@ -46,13 +47,13 @@ class GoalViewModel : ViewModel() {
         loadInitialData()
     }
 
+    // ... (loadInitialData, onMyBookSelected, onDurationChange, onPagesChange, calculateDailyPages, onShowGoalInputs, saveGoal 함수는 이전과 동일)
     private fun loadInitialData() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             val goalsFromRepo = firestoreRepository.getGoals()
             val myBooks = myLibraryRepository.getMyBooks()
 
-            // 목표 목록에 현재 읽은 페이지(currentPage) 정보를 업데이트
             val updatedGoals = goalsFromRepo.map { goal ->
                 val correspondingBook = myBooks.find { it.isbn == goal.bookIsbn }
                 goal.copy(currentPage = correspondingBook?.currentPage ?: 0)
@@ -128,7 +129,7 @@ class GoalViewModel : ViewModel() {
                 duration = currentState.durationInput,
                 pages = currentState.pagesInput,
                 dailyPages = currentState.dailyPages,
-                currentPage = book.currentPage // 저장 시점의 현재 페이지 저장
+                currentPage = book.currentPage
             )
 
             _uiState.update {
@@ -136,11 +137,7 @@ class GoalViewModel : ViewModel() {
             }
             onShowGoalInputs(false)
 
-            // Firestore에 Goal 객체를 저장할 때 currentPage는 제외하고 저장하거나,
-            // 혹은 저장하되 앱 실행 시 항상 MyBook 데이터 기준으로 덮어쓰도록 합니다.
-            // 여기서는 Firestore에 저장하는 Goal 객체에서는 currentPage를 제외하는 것을 권장합니다.
-            // 아래는 Firestore 저장용 객체에서 currentPage를 빼는 예시입니다.
-            val goalForFirestore = newGoal.copy(currentPage = 0) // Firestore에는 진행률을 저장하지 않음
+            val goalForFirestore = newGoal.copy(currentPage = 0)
             val success = firestoreRepository.saveGoal(goalForFirestore)
 
             if (!success) {
@@ -149,6 +146,27 @@ class GoalViewModel : ViewModel() {
                         goals = it.goals.filterNot { goal -> goal == newGoal },
                         errorMessage = "목표 저장에 실패했습니다."
                     )
+                }
+            }
+        }
+    }
+
+
+    /**
+     * 목표 삭제 함수
+     */
+    fun deleteGoal(goalToDelete: Goal) {
+        viewModelScope.launch {
+            val success = firestoreRepository.deleteGoal(goalToDelete.bookIsbn)
+            if (success) {
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        goals = currentState.goals.filterNot { it.bookIsbn == goalToDelete.bookIsbn }
+                    )
+                }
+            } else {
+                _uiState.update {
+                    it.copy(errorMessage = "목표 삭제에 실패했습니다.")
                 }
             }
         }

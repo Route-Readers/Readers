@@ -46,6 +46,26 @@ class FirestoreRepository {
         }
     }
 
+    suspend fun deleteGoal(bookIsbn: String): Boolean {
+        val userId = auth.currentUser?.uid ?: return false
+        return try {
+            val querySnapshot = getGoalsCollection(userId)
+                .whereEqualTo("bookIsbn", bookIsbn)
+                .limit(1)
+                .get()
+                .await()
+
+            if (!querySnapshot.isEmpty) {
+                val documentToDelete = querySnapshot.documents[0]
+                documentToDelete.reference.delete().await()
+            }
+            true
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error deleting goal", e)
+            false
+        }
+    }
+
     suspend fun addBookToLibrary(book: MyBook): Boolean {
         return try {
             val userId = auth.currentUser?.uid ?: return false
