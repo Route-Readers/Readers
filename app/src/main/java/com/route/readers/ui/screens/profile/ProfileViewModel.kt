@@ -39,7 +39,7 @@ open class ProfileViewModel : ViewModel() {
     private val attendanceViewModel = AttendanceViewModel()
     private val currentUserId = auth.currentUser?.uid
 
-    protected val _uiState = MutableStateFlow<ProfileUiState>(ProfileUiState.Loading)
+    internal val _uiState = MutableStateFlow<ProfileUiState>(ProfileUiState.Loading)
     val uiState: StateFlow<ProfileUiState> = _uiState
 
     private val _setupState = MutableStateFlow<ProfileSetupState>(ProfileSetupState.Idle)
@@ -192,23 +192,31 @@ open class ProfileViewModel : ViewModel() {
 
                 try {
 
-                    val (consecutiveAttendanceDays, consecutiveReadingDays) = attendanceViewModel.refreshAttendanceData()
+                                    val (consecutiveAttendanceDays, consecutiveReadingDays) = attendanceViewModel.refreshAttendanceData()
+
+                    
+
+                                    val userDocument = db.collection("users").document(targetUserId).get(com.google.firebase.firestore.Source.SERVER).await()
+
+                                    var user: User? = userDocument.toObject(User::class.java)
+
+                                    Log.d("ProfileViewModel", "Fetched user ${user?.nickname}, isPrivate: ${user?.isPrivate}")
+
+                    
+
+                                    if (user != null) {
 
     
 
-                    val userDocument = db.collection("users").document(targetUserId).get().await()
-
-                    var user: User? = userDocument.toObject(User::class.java)
+                                        val isMyProfile = targetUserId == currentUserId
 
     
 
-                    if (user != null) {
+                                        val isFollowing =
 
-                        val isMyProfile = targetUserId == currentUserId
+    
 
-                        val isFollowing =
-
-                            if (currentUserId != null) user.followers.contains(currentUserId) else false
+                                            if (currentUserId != null) user.followers.contains(currentUserId) else false
 
     
 
@@ -274,67 +282,127 @@ open class ProfileViewModel : ViewModel() {
 
     
 
-                        val allAchievements = getAchievementsForUser(user.readBookCount.toInt(), consecutiveAttendanceDays, consecutiveReadingDays)
-
-                        val (ongoingAchievements, completedAchievements) = allAchievements.partition { !it.isCompleted }
+                                            val allAchievements = getAchievementsForUser(user.readBookCount.toInt(), consecutiveAttendanceDays, consecutiveReadingDays)
 
     
 
-                        if (user.isPrivate && !isMyProfile && !isFollowing) {
-
-                            _uiState.value = ProfileUiState.Success(
-
-                                user = user,
-
-                                isFollowing = isFollowing,
-
-                                isMyProfile = isMyProfile,
-
-                                isBlocked = false,
-
-                                readBooks = emptyList(),
-
-                                recommendedBooks = emptyList(),
-
-                                favoriteBooks = emptyList(),
-
-                                achievements = allAchievements,
-
-                                ongoingChallenges = emptyList(),
-
-                                completedChallenges = emptyList(),
-
-                                ongoingAchievements = ongoingAchievements,
-
-                                completedAchievements = completedAchievements,
-
-                                myPosts = emptyList(),
-
-                                savedPosts = emptyList(),
-
-                                likedFeedIds = emptySet(),
-
-                                bookmarkedFeedIds = emptySet(),
-
-                                wishlist = emptyList(),
-
-                                myLibrary = emptyList(),
-
-                                myLibraryBooks = emptyList(),
-
-                                userInfoMap = emptyMap()
-
-                            )
-
-                            return@launch
-
-                        }
+                                            val (ongoingAchievements, completedAchievements) = allAchievements.partition { !it.isCompleted }
 
     
 
-                        val currentUserDoc =
+                        
 
-                            currentUserId?.let { db.collection("users").document(it).get().await() }
+    
+
+                                            if (user.isPrivate && !isMyProfile && !isFollowing) {
+
+    
+
+                                                _uiState.value = ProfileUiState.Success(
+
+    
+
+                                                    user = user,
+
+    
+
+                                                    isFollowing = isFollowing,
+
+    
+
+                                                    isMyProfile = isMyProfile,
+
+    
+
+                                                    isBlocked = false,
+
+    
+
+                                                    readBooks = emptyList(),
+
+    
+
+                                                    recommendedBooks = emptyList(),
+
+    
+
+                                                    favoriteBooks = emptyList(),
+
+    
+
+                                                    achievements = emptyList(),
+
+    
+
+                                                    ongoingChallenges = emptyList(),
+
+    
+
+                                                    completedChallenges = emptyList(),
+
+    
+
+                                                    ongoingAchievements = emptyList(),
+
+    
+
+                                                    completedAchievements = emptyList(),
+
+    
+
+                                                    myPosts = emptyList(),
+
+    
+
+                                                    savedPosts = emptyList(),
+
+    
+
+                                                    likedFeedIds = emptySet(),
+
+    
+
+                                                    bookmarkedFeedIds = emptySet(),
+
+    
+
+                                                    wishlist = emptyList(),
+
+    
+
+                                                    myLibrary = emptyList(),
+
+    
+
+                                                    myLibraryBooks = emptyList(),
+
+    
+
+                                                    userInfoMap = emptyMap()
+
+    
+
+                                                )
+
+    
+
+                                                return@launch
+
+    
+
+                                            }
+
+    
+
+                        
+
+    
+
+                                            val currentUserDoc =
+
+    
+
+                                                currentUserId?.let { db.collection("users").document(it).get().await() }
 
                         val currentUserBlocked =
 
