@@ -102,75 +102,77 @@ open class ProfileViewModel : ViewModel() {
         return imagesRef.downloadUrl.await().toString()
     }
 
-        private suspend fun saveUserData(
+                        private suspend fun saveUserData(
 
-            nickname: String,
+                            nickname: String,
 
-            profileImageUrl: String?,
+                            profileImageUrl: String?,
 
-            genres: List<String>,
+                            genres: List<String>,
 
-            styles: List<String>
+                            styles: List<String>
 
-        ) {
+                        ) {
 
-            if (currentUserId == null) throw IllegalStateException("Current User ID is null")
+                            if (currentUserId == null) throw IllegalStateException("Current User ID is null")
 
-            val userProfileData = mapOf(
+                
 
-                "uid" to currentUserId,
+                            val userProfileData = mapOf(
 
-                "nickname" to nickname,
+                                "uid" to currentUserId,
 
-                "email" to auth.currentUser?.email,
+                                "nickname" to nickname,
 
-                "profileImageUrl" to profileImageUrl,
+                                "email" to auth.currentUser?.email,
 
-                "readingGenres" to genres,
+                                "profileImageUrl" to profileImageUrl,
 
-                "readingStyles" to styles,
+                                "readingGenres" to genres,
 
-                "savedFeeds" to emptyList<String>(),
+                                "readingStyles" to styles,
 
-                "blockedUsers" to emptyList<String>(),
+                                "savedFeeds" to emptyList<String>(),
 
-                "level" to 1,
+                                "blockedUsers" to emptyList<String>(),
 
-                "title" to "새싹",
+                                "level" to 1,
 
-                "titles" to listOf("새싹"),
+                                "title" to "새싹",
 
-                "totalPoints" to 0,
+                                "titles" to listOf("새싹"),
 
-                "claimedAchievements" to emptyList<String>(),
+                                "totalPoints" to 0,
 
-                "followerCount" to 0,
+                                "claimedAchievements" to emptyList<String>(),
 
-                "followingCount" to 0,
+                                "followerCount" to 0,
 
-                "readBookCount" to 0,
+                                "followingCount" to 0,
 
-                "followers" to emptyList<String>(),
+                                "readBookCount" to 0,
 
-                "following" to emptyList<String>(),
+                                "followers" to emptyList<String>(),
 
-                "isCurrentlyReading" to false,
+                                "following" to emptyList<String>(),
 
-                "isPrivate" to false,
+                                "isCurrentlyReading" to false,
 
-                "consecutiveDays" to 0,
+                                "isPrivate" to false,
 
-                "consecutiveReadingDays" to 0,
+                                "consecutiveDays" to 0,
 
-                "totalReadingDays" to 0
+                                "consecutiveReadingDays" to 0,
 
-            )
+                                "totalReadingDays" to 0
 
-            db.collection("users").document(currentUserId).set(userProfileData).await()
+                            )
 
-            _setupState.value = ProfileSetupState.Success
+                            db.collection("users").document(currentUserId).set(userProfileData).await()
 
-        }
+                            _setupState.value = ProfileSetupState.Success
+
+                        }
 
     
 
