@@ -2,6 +2,7 @@ package com.route.readers.data.model
 
 import com.google.firebase.firestore.DocumentId
 import com.google.firebase.firestore.Exclude
+import com.google.firebase.firestore.PropertyName
 
 data class User(@DocumentId @get:Exclude
                 val documentId: String = "",
@@ -32,9 +33,10 @@ data class User(@DocumentId @get:Exclude
 
                 val readBookCount: Long = 0,
                 val isCurrentlyReading: Boolean = false,
-                val consecutiveDays: Int = 0, // 'consecutiveDays' 필드를 추가했습니다.
+                val consecutiveDays: Int = 0,
                 val consecutiveReadingDays: Int = 0,
                 val totalReadingDays: Int = 0,
                 val lastLoginDate: String = "",
+                @PropertyName("private")
                 val isPrivate: Boolean = false
 )
