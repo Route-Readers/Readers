@@ -102,256 +102,609 @@ open class ProfileViewModel : ViewModel() {
         return imagesRef.downloadUrl.await().toString()
     }
 
-    private suspend fun saveUserData(
-        nickname: String,
-        profileImageUrl: String?,
-        genres: List<String>,
-        styles: List<String>
-    ) {
-        if (currentUserId == null) throw IllegalStateException("Current User ID is null")
-        val userProfileData = mapOf(
-            "uid" to currentUserId,
-            "nickname" to nickname,
-            "email" to auth.currentUser?.email,
-            "profileImageUrl" to profileImageUrl,
-            "readingGenres" to genres,
-            "readingStyles" to styles,
-            "savedFeeds" to emptyList<String>(),
-            "blockedUsers" to emptyList<String>(),
-            "level" to 1,
-            "totalPoints" to 0,
-            "claimedAchievements" to emptyList<String>(),
-            "followerCount" to 0,
-            "followingCount" to 0,
-            "readBookCount" to 0,
-            "followers" to emptyList<String>(),
-            "following" to emptyList<String>(),
-            "isCurrentlyReading" to false,
-            "isPrivate" to false,
-            "consecutiveDays" to 0,
-            "consecutiveReadingDays" to 0,
-            "totalReadingDays" to 0
-        )
-        db.collection("users").document(currentUserId).set(userProfileData).await()
-        _setupState.value = ProfileSetupState.Success
-    }
+        private suspend fun saveUserData(
 
-    open fun fetchUserProfile(userId: String?) {
-        val targetUserId = userId ?: currentUserId
-        if (targetUserId == null) {
-            _uiState.value = ProfileUiState.Error("사용자 정보를 찾을 수 없습니다.")
-            return
+            nickname: String,
+
+            profileImageUrl: String?,
+
+            genres: List<String>,
+
+            styles: List<String>
+
+        ) {
+
+            if (currentUserId == null) throw IllegalStateException("Current User ID is null")
+
+            val userProfileData = mapOf(
+
+                "uid" to currentUserId,
+
+                "nickname" to nickname,
+
+                "email" to auth.currentUser?.email,
+
+                "profileImageUrl" to profileImageUrl,
+
+                "readingGenres" to genres,
+
+                "readingStyles" to styles,
+
+                "savedFeeds" to emptyList<String>(),
+
+                "blockedUsers" to emptyList<String>(),
+
+                "level" to 1,
+
+                "title" to "새싹",
+
+                "titles" to listOf("새싹"),
+
+                "totalPoints" to 0,
+
+                "claimedAchievements" to emptyList<String>(),
+
+                "followerCount" to 0,
+
+                "followingCount" to 0,
+
+                "readBookCount" to 0,
+
+                "followers" to emptyList<String>(),
+
+                "following" to emptyList<String>(),
+
+                "isCurrentlyReading" to false,
+
+                "isPrivate" to false,
+
+                "consecutiveDays" to 0,
+
+                "consecutiveReadingDays" to 0,
+
+                "totalReadingDays" to 0
+
+            )
+
+            db.collection("users").document(currentUserId).set(userProfileData).await()
+
+            _setupState.value = ProfileSetupState.Success
+
         }
-        _uiState.value = ProfileUiState.Loading
-        viewModelScope.launch {
-            try {
-                val (consecutiveAttendanceDays, consecutiveReadingDays) = attendanceViewModel.refreshAttendanceData()
 
-                val userDocument = db.collection("users").document(targetUserId).get().await()
-                var user: User? = userDocument.toObject(User::class.java)
+    
 
-                if (user != null) {
-                    val isMyProfile = targetUserId == currentUserId
-                    val isFollowing =
-                        if (currentUserId != null) user.followers.contains(currentUserId) else false
+        open fun fetchUserProfile(userId: String?) {
 
-                    val readBooksDeferred = async { firestoreRepository.getReadBooks(targetUserId) }
-                    val readBooks = readBooksDeferred.await()
-                    val actualReadBookCount = readBooks.size.toLong()
+            val targetUserId = userId ?: currentUserId
 
-                    val updates = mutableMapOf<String, Any>()
-                    var userNeedsUpdate = false
+            if (targetUserId == null) {
 
-                    if (user.readBookCount != actualReadBookCount) {
-                        updates["readBookCount"] = actualReadBookCount
-                        userNeedsUpdate = true
-                    }
+                _uiState.value = ProfileUiState.Error("사용자 정보를 찾을 수 없습니다.")
 
-                    if (user.consecutiveDays != consecutiveAttendanceDays) {
-                        updates["consecutiveDays"] = consecutiveAttendanceDays
-                        userNeedsUpdate = true
-                    }
-                    if (user.consecutiveReadingDays != consecutiveReadingDays) {
-                        updates["consecutiveReadingDays"] = consecutiveReadingDays
-                        userNeedsUpdate = true
-                    }
+                return
 
-                    if (userNeedsUpdate) {
-                        db.collection("users").document(targetUserId).update(updates).await()
-                    }
+            }
 
-                    user = user.copy(
-                        readBookCount = actualReadBookCount,
-                        consecutiveDays = consecutiveAttendanceDays,
-                        consecutiveReadingDays = consecutiveReadingDays
-                    )
+            _uiState.value = ProfileUiState.Loading
 
-                    val allAchievements = getAchievementsForUser(user.readBookCount.toInt(), consecutiveAttendanceDays, consecutiveReadingDays)
-                    val (ongoingAchievements, completedAchievements) = allAchievements.partition { !it.isCompleted }
+            viewModelScope.launch {
 
-                    if (user.isPrivate && !isMyProfile && !isFollowing) {
-                        _uiState.value = ProfileUiState.Success(
-                            user = user,
-                            isFollowing = isFollowing,
-                            isMyProfile = isMyProfile,
-                            isBlocked = false,
-                            readBooks = emptyList(),
-                            recommendedBooks = emptyList(),
-                            favoriteBooks = emptyList(),
-                            achievements = allAchievements,
-                            ongoingChallenges = emptyList(),
-                            completedChallenges = emptyList(),
-                            ongoingAchievements = ongoingAchievements,
-                            completedAchievements = completedAchievements,
-                            myPosts = emptyList(),
-                            savedPosts = emptyList(),
-                            likedFeedIds = emptySet(),
-                            bookmarkedFeedIds = emptySet(),
-                            wishlist = emptyList(),
-                            myLibrary = emptyList(),
-                            myLibraryBooks = emptyList(),
-                            userInfoMap = emptyMap()
-                        )
-                        return@launch
-                    }
+                try {
 
-                    val currentUserDoc =
-                        currentUserId?.let { db.collection("users").document(it).get().await() }
-                    val currentUserBlocked =
-                        currentUserDoc?.toObject(User::class.java)?.blockedUsers ?: emptyList()
-                    val isBlocked = currentUserBlocked.contains(targetUserId)
+                    val (consecutiveAttendanceDays, consecutiveReadingDays) = attendanceViewModel.refreshAttendanceData()
 
-                    val validFollowers = user.followers.filter { it != targetUserId }
-                    val validFollowing = user.following.filter { it != targetUserId }
-                    val actualFollowerCount = validFollowers.size.toLong()
-                    val actualFollowingCount = validFollowing.size.toLong()
+    
 
-                    if (user.followerCount != actualFollowerCount || user.followingCount != actualFollowingCount) {
-                        db.collection("users").document(targetUserId)
-                            .update(
-                                mapOf(
-                                    "followerCount" to actualFollowerCount,
-                                    "followingCount" to actualFollowingCount
-                                )
-                            ).await()
-                    }
+                    val userDocument = db.collection("users").document(targetUserId).get().await()
 
-                    val updatedUser = user.copy(
-                        followers = validFollowers,
-                        following = validFollowing,
-                        followerCount = actualFollowerCount,
-                        followingCount = actualFollowingCount
-                    )
-                    val recommendedBooksDeferred = async { fetchRecommendedBooks(updatedUser.readingGenres) }
-                    val myPostsDeferred = async { fetchMyPosts(targetUserId) }
+                    var user: User? = userDocument.toObject(User::class.java)
 
-                    val wishlistBooksDeferred = async {
-                        val userWishlistIsbns = wishlistRepository.getWishlist()
-                        userWishlistIsbns.mapNotNull { isbn ->
-                            bookRepository.getBookDetail(isbn)
+    
+
+                    if (user != null) {
+
+                        val isMyProfile = targetUserId == currentUserId
+
+                        val isFollowing =
+
+                            if (currentUserId != null) user.followers.contains(currentUserId) else false
+
+    
+
+                        val readBooksDeferred = async { firestoreRepository.getReadBooks(targetUserId) }
+
+                        val readBooks = readBooksDeferred.await()
+
+                        val actualReadBookCount = readBooks.size.toLong()
+
+    
+
+                        val updates = mutableMapOf<String, Any>()
+
+                        var userNeedsUpdate = false
+
+    
+
+                        if (user.readBookCount != actualReadBookCount) {
+
+                            updates["readBookCount"] = actualReadBookCount
+
+                            userNeedsUpdate = true
+
                         }
+
+    
+
+                        if (user.consecutiveDays != consecutiveAttendanceDays) {
+
+                            updates["consecutiveDays"] = consecutiveAttendanceDays
+
+                            userNeedsUpdate = true
+
+                        }
+
+                        if (user.consecutiveReadingDays != consecutiveReadingDays) {
+
+                            updates["consecutiveReadingDays"] = consecutiveReadingDays
+
+                            userNeedsUpdate = true
+
+                        }
+
+    
+
+                        if (userNeedsUpdate) {
+
+                            db.collection("users").document(targetUserId).update(updates).await()
+
+                        }
+
+    
+
+                        user = user.copy(
+
+                            readBookCount = actualReadBookCount,
+
+                            consecutiveDays = consecutiveAttendanceDays,
+
+                            consecutiveReadingDays = consecutiveReadingDays
+
+                        )
+
+    
+
+                        val allAchievements = getAchievementsForUser(user.readBookCount.toInt(), consecutiveAttendanceDays, consecutiveReadingDays)
+
+                        val (ongoingAchievements, completedAchievements) = allAchievements.partition { !it.isCompleted }
+
+    
+
+                        if (user.isPrivate && !isMyProfile && !isFollowing) {
+
+                            _uiState.value = ProfileUiState.Success(
+
+                                user = user,
+
+                                isFollowing = isFollowing,
+
+                                isMyProfile = isMyProfile,
+
+                                isBlocked = false,
+
+                                readBooks = emptyList(),
+
+                                recommendedBooks = emptyList(),
+
+                                favoriteBooks = emptyList(),
+
+                                achievements = allAchievements,
+
+                                ongoingChallenges = emptyList(),
+
+                                completedChallenges = emptyList(),
+
+                                ongoingAchievements = ongoingAchievements,
+
+                                completedAchievements = completedAchievements,
+
+                                myPosts = emptyList(),
+
+                                savedPosts = emptyList(),
+
+                                likedFeedIds = emptySet(),
+
+                                bookmarkedFeedIds = emptySet(),
+
+                                wishlist = emptyList(),
+
+                                myLibrary = emptyList(),
+
+                                myLibraryBooks = emptyList(),
+
+                                userInfoMap = emptyMap()
+
+                            )
+
+                            return@launch
+
+                        }
+
+    
+
+                        val currentUserDoc =
+
+                            currentUserId?.let { db.collection("users").document(it).get().await() }
+
+                        val currentUserBlocked =
+
+                            currentUserDoc?.toObject(User::class.java)?.blockedUsers ?: emptyList()
+
+                        val isBlocked = currentUserBlocked.contains(targetUserId)
+
+    
+
+                        val validFollowers = user.followers.filter { it != targetUserId }
+
+                        val validFollowing = user.following.filter { it != targetUserId }
+
+                        val actualFollowerCount = validFollowers.size.toLong()
+
+                        val actualFollowingCount = validFollowing.size.toLong()
+
+    
+
+                        if (user.followerCount != actualFollowerCount || user.followingCount != actualFollowingCount) {
+
+                            db.collection("users").document(targetUserId)
+
+                                .update(
+
+                                    mapOf(
+
+                                        "followerCount" to actualFollowerCount,
+
+                                        "followingCount" to actualFollowingCount
+
+                                    )
+
+                                ).await()
+
+                        }
+
+    
+
+                        val updatedUser = user.copy(
+
+                            followers = validFollowers,
+
+                            following = validFollowing,
+
+                            followerCount = actualFollowerCount,
+
+                            followingCount = actualFollowingCount
+
+                        )
+
+                        val recommendedBooksDeferred = async { fetchRecommendedBooks(updatedUser.readingGenres) }
+
+                        val myPostsDeferred = async { fetchMyPosts(targetUserId) }
+
+    
+
+                        val wishlistBooksDeferred = async {
+
+                            val userWishlistIsbns = wishlistRepository.getWishlist()
+
+                            userWishlistIsbns.mapNotNull { isbn ->
+
+                                bookRepository.getBookDetail(isbn)
+
+                            }
+
+                        }
+
+    
+
+                        val savedPostsResult = async {
+
+                            if (isMyProfile) fetchSavedPosts(targetUserId) else emptyList()
+
+                        }.await()
+
+    
+
+                        val allPosts = (myPostsDeferred.await() + savedPostsResult).distinctBy { it.id }
+
+    
+
+                        val authorIds = allPosts.mapNotNull {
+
+                            when (it) {
+
+                                is FeedItem.BookReview -> it.authorId
+
+                                is FeedItem.FollowNotification -> it.authorId
+
+                                else -> null
+
+                            }
+
+                        }.distinct()
+
+    
+
+                        val userInfoMap = if (authorIds.isNotEmpty()) {
+
+                            db.collection("users").whereIn("uid", authorIds).get().await()
+
+                                .toObjects(User::class.java)
+
+                                .associateBy { it.uid }
+
+                                .toMutableMap()
+
+                        } else {
+
+                            mutableMapOf()
+
+                        }
+
+                        userInfoMap[updatedUser.uid] = updatedUser
+
+    
+
+                        val likedFeedIds = allPosts
+
+                            .filterIsInstance<FeedItem.BookReview>()
+
+                            .filter { it.likedBy.contains(currentUserId) }
+
+                            .map { it.id }
+
+                            .toSet()
+
+    
+
+                        val bookmarkedFeedIds = allPosts
+
+                            .filter { it.isBookmarked }
+
+                            .map { it.id }
+
+                            .toSet()
+
+    
+
+                        val wishlist = wishlistRepository.getWishlist()
+
+                        val myLibraryBooks = myLibraryRepository.getMyBooks()
+
+                        val myLibraryIsbns = myLibraryBooks.map { it.isbn }
+
+    
+
+                        _uiState.value = ProfileUiState.Success(
+
+                            user = updatedUser,
+
+                            isFollowing = isFollowing,
+
+                            isMyProfile = isMyProfile,
+
+                            isBlocked = isBlocked,
+
+                            readBooks = readBooks,
+
+                            recommendedBooks = recommendedBooksDeferred.await(),
+
+                            favoriteBooks = wishlistBooksDeferred.await(),
+
+                            achievements = allAchievements,
+
+                            ongoingChallenges = emptyList(),
+
+                            completedChallenges = emptyList(),
+
+                            ongoingAchievements = ongoingAchievements,
+
+                            completedAchievements = completedAchievements,
+
+                            myPosts = myPostsDeferred.await(),
+
+                            savedPosts = savedPostsResult,
+
+                            likedFeedIds = likedFeedIds,
+
+                            bookmarkedFeedIds = bookmarkedFeedIds,
+
+                            wishlist = wishlist,
+
+                            myLibrary = myLibraryIsbns,
+
+                            myLibraryBooks = myLibraryBooks,
+
+                            userInfoMap = userInfoMap
+
+                        )
+
+                    } else {
+
+                        _uiState.value = ProfileUiState.Error("프로필 정보를 변환하는 데 실패했습니다.")
+
                     }
 
-                    val savedPostsResult = async {
-                        if (isMyProfile) fetchSavedPosts(targetUserId) else emptyList()
+                } catch (e: Exception) {
+
+                    _uiState.value = ProfileUiState.Error("프로필을 불러오는 중 오류가 발생했습니다: ${e.message}")
+
+                    Log.e("ProfileViewModel", "fetchUserProfile failed", e)
+
+                }
+
+            }
+
+        }
+
+    
+
+        fun claimAchievementPoints(achievementId: String, points: Int) {
+
+            val currentUserId = this.currentUserId ?: return
+
+            val currentState = _uiState.value
+
+            if (currentState !is ProfileUiState.Success) return
+
+    
+
+            viewModelScope.launch {
+
+                try {
+
+                    val userRef = db.collection("users").document(currentUserId)
+
+    
+
+                    db.runTransaction { transaction ->
+
+                        val snapshot = transaction.get(userRef)
+
+                        val currentPoints = snapshot.getLong("totalPoints")?.toInt() ?: 0
+
+                        val newTotalPoints = currentPoints + points
+
+    
+
+                        transaction.update(userRef, "totalPoints", newTotalPoints)
+
+                        transaction.update(userRef, "claimedAchievements", FieldValue.arrayUnion(achievementId))
+
                     }.await()
 
-                    val allPosts = (myPostsDeferred.await() + savedPostsResult).distinctBy { it.id }
+    
 
-                    val authorIds = allPosts.mapNotNull {
-                        when (it) {
-                            is FeedItem.BookReview -> it.authorId
-                            is FeedItem.FollowNotification -> it.authorId
-                            else -> null
-                        }
-                    }.distinct()
+                    val updatedUser = currentState.user.copy(
 
-                    val userInfoMap = if (authorIds.isNotEmpty()) {
-                        db.collection("users").whereIn("uid", authorIds).get().await()
-                            .toObjects(User::class.java)
-                            .associateBy { it.uid }
-                            .toMutableMap()
-                    } else {
-                        mutableMapOf()
-                    }
-                    userInfoMap[updatedUser.uid] = updatedUser
+                        totalPoints = currentState.user.totalPoints + points,
 
-                    val likedFeedIds = allPosts
-                        .filterIsInstance<FeedItem.BookReview>()
-                        .filter { it.likedBy.contains(currentUserId) }
-                        .map { it.id }
-                        .toSet()
+                        claimedAchievements = currentState.user.claimedAchievements + achievementId
 
-                    val bookmarkedFeedIds = allPosts
-                        .filter { it.isBookmarked }
-                        .map { it.id }
-                        .toSet()
-
-                    val wishlist = wishlistRepository.getWishlist()
-                    val myLibraryBooks = myLibraryRepository.getMyBooks()
-                    val myLibraryIsbns = myLibraryBooks.map { it.isbn }
-
-                    _uiState.value = ProfileUiState.Success(
-                        user = updatedUser,
-                        isFollowing = isFollowing,
-                        isMyProfile = isMyProfile,
-                        isBlocked = isBlocked,
-                        readBooks = readBooks,
-                        recommendedBooks = recommendedBooksDeferred.await(),
-                        favoriteBooks = wishlistBooksDeferred.await(),
-                        achievements = allAchievements,
-                        ongoingChallenges = emptyList(),
-                        completedChallenges = emptyList(),
-                        ongoingAchievements = ongoingAchievements,
-                        completedAchievements = completedAchievements,
-                        myPosts = myPostsDeferred.await(),
-                        savedPosts = savedPostsResult,
-                        likedFeedIds = likedFeedIds,
-                        bookmarkedFeedIds = bookmarkedFeedIds,
-                        wishlist = wishlist,
-                        myLibrary = myLibraryIsbns,
-                        myLibraryBooks = myLibraryBooks,
-                        userInfoMap = userInfoMap
                     )
-                } else {
-                    _uiState.value = ProfileUiState.Error("프로필 정보를 변환하는 데 실패했습니다.")
+
+                    _uiState.value = currentState.copy(user = updatedUser)
+
+    
+
+                } catch (e: Exception) {
+
+                    Log.e("ProfileViewModel", "Failed to claim achievement points", e)
+
                 }
-            } catch (e: Exception) {
-                _uiState.value = ProfileUiState.Error("프로필을 불러오는 중 오류가 발생했습니다: ${e.message}")
-                Log.e("ProfileViewModel", "fetchUserProfile failed", e)
+
             }
+
         }
-    }
 
-    fun claimAchievementPoints(achievementId: String, points: Int) {
-        val currentUserId = this.currentUserId ?: return
-        val currentState = _uiState.value
-        if (currentState !is ProfileUiState.Success) return
+    
 
-        viewModelScope.launch {
-            try {
-                val userRef = db.collection("users").document(currentUserId)
+            fun updateUserTitle(title: String) {
 
-                db.runTransaction { transaction ->
-                    val snapshot = transaction.get(userRef)
-                    val currentPoints = snapshot.getLong("totalPoints")?.toInt() ?: 0
-                    val newTotalPoints = currentPoints + points
+    
 
-                    transaction.update(userRef, "totalPoints", newTotalPoints)
-                    transaction.update(userRef, "claimedAchievements", FieldValue.arrayUnion(achievementId))
-                }.await()
+                val currentUserId = this.currentUserId ?: return
 
-                val updatedUser = currentState.user.copy(
-                    totalPoints = currentState.user.totalPoints + points,
-                    claimedAchievements = currentState.user.claimedAchievements + achievementId
-                )
-                _uiState.value = currentState.copy(user = updatedUser)
+    
 
-            } catch (e: Exception) {
-                Log.e("ProfileViewModel", "Failed to claim achievement points", e)
+                val currentState = _uiState.value
+
+    
+
+                if (currentState !is ProfileUiState.Success) return
+
+    
+
+        
+
+    
+
+                viewModelScope.launch {
+
+    
+
+                    try {
+
+    
+
+                        val userRef = db.collection("users").document(currentUserId)
+
+    
+
+                        val newTitle = if (currentState.user.title == title) null else title
+
+    
+
+        
+
+    
+
+                        db.runTransaction { transaction ->
+
+    
+
+                            transaction.update(userRef, "title", newTitle)
+
+    
+
+                            if (newTitle != null) {
+
+    
+
+                                transaction.update(userRef, "titles", FieldValue.arrayUnion(title))
+
+    
+
+                            }
+
+    
+
+                        }.await()
+
+    
+
+        
+
+    
+
+                        val updatedUser = currentState.user.copy(title = newTitle)
+
+    
+
+                        _uiState.value = currentState.copy(user = updatedUser)
+
+    
+
+        
+
+    
+
+                    } catch (e: Exception) {
+
+    
+
+                        Log.e("ProfileViewModel", "Failed to update user title", e)
+
+    
+
+                    }
+
+    
+
+                }
+
+    
+
             }
-        }
-    }
 
     private fun getAchievementsForUser(
         readBookCount: Int,

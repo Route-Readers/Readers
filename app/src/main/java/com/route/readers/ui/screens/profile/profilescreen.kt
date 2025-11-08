@@ -163,7 +163,7 @@ fun ProfileScreen(
                 is ProfileUiState.Loading -> CircularProgressIndicator()
                 is ProfileUiState.Error -> Text(text = state.message)
                 is ProfileUiState.Success -> {
-                    val levelInfo = calculateLevelInfo(state.user.totalPoints)
+                    val levelInfo = calculateLevelInfo(state.user.totalPoints, state.user.level)
                     ProfileContent(
                         state = state,
                         level = levelInfo.currentLevel,
@@ -716,7 +716,18 @@ fun ProfileInfoSection(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(text = user.nickname, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-            LevelChip(level = level, onClick = onNavigateToLevel)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                LevelChip(level = level, onClick = onNavigateToLevel)
+                user.title?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 

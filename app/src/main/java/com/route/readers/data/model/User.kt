@@ -19,6 +19,8 @@ data class User(@DocumentId @get:Exclude
                 val savedFeeds: List<String> = emptyList(),
                 val blockedUsers: List<String> = emptyList(),
                 val level: Int = 1,
+                val title: String? = null,
+                val titles: List<String> = emptyList(),
                 val totalPoints: Int = 0,
                 val tokens: Int = 0,
                 val claimedAchievements: List<String> = emptyList(),
