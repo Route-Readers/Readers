@@ -62,8 +62,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.route.readers.data.UserPreferencesRepository
 import com.route.readers.ui.theme.DarkRed
+import com.route.readers.ui.screens.profile.PostsSection
 
 enum class MenuItemType {
     PRIVACY,
