@@ -945,6 +945,22 @@ open class ProfileViewModel : ViewModel() {
         }
     }
 
+    fun sendReadNotification(friendId: String) {
+        val currentUserId = auth.currentUser?.uid ?: return
+
+        val notificationRequest = hashMapOf(
+            "senderId" to currentUserId,
+            "receiverId" to friendId,
+            "type" to "READ_BOOK_REMINDER",
+            "timestamp" to FieldValue.serverTimestamp()
+        )
+
+        db.collection("notification_requests")
+            .add(notificationRequest)
+            .addOnSuccessListener { Log.d("ProfileViewModel", "Notification request sent!") }
+            .addOnFailureListener { e -> Log.w("ProfileViewModel", "Error sending notification request", e) }
+    }
+
     private fun refreshUiStateForFollow(targetUserId: String, nowFollowing: Boolean) {
         val currentState = _uiState.value
         if (currentState is ProfileUiState.Success) {
