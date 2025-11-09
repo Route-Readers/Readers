@@ -129,10 +129,9 @@ fun StatisticsSection(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large)
-                .padding(vertical = 16.dp) // horizontal padding 제거
+                .padding(horizontal = 20.dp, vertical = 16.dp) // Re-apply consistent padding
         ) {
             TabRow(
-                modifier = Modifier.padding(horizontal = 20.dp), // TabRow에만 padding 적용
                 selectedTabIndex = tabs.indexOf(uiState.selectedTab),
                 containerColor = MaterialTheme.colorScheme.surface,
                 contentColor = MaterialTheme.colorScheme.onSurface,
@@ -172,13 +171,12 @@ fun StatisticsSection(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large)
-                    .padding(vertical = 16.dp) // horizontal padding 제거
+                    .padding(horizontal = 20.dp, vertical = 16.dp) // Re-apply consistent padding
             ) {
                 Text(
                     "장르별 독서 현황",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 20.dp) // Text에만 padding 적용
+                    fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 GenreCharts(genreStats = uiState.genreStats)
@@ -195,7 +193,7 @@ fun DailyStatsContent(date: LocalDate, stats: DailyStats, chartData: List<Point>
     val subTitle = if (isDifferentYear) "${date.year}년" else null
     val xAxisLabels = (0..23).map { if (it % 2 == 0) it.toString() else "" }
 
-    Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+    Column {
         StatsHeader(
             title = formattedDate,
             subTitle = subTitle,
@@ -210,9 +208,9 @@ fun DailyStatsContent(date: LocalDate, stats: DailyStats, chartData: List<Point>
             StatisticsDetailRow("읽는중인 책", "${stats.readingBookCount}권")
             StatisticsDetailRow("완독한 책", "${stats.finishedBookCount}권")
         }
+        Spacer(modifier = Modifier.height(16.dp)) // Reduced spacer
+        StatsLineChart(pointsData = chartData, xAxisLabels = xAxisLabels, yAxisTitle = "독서 시간 (분)", xAxisTitle = "시간대")
     }
-    Spacer(modifier = Modifier.height(24.dp))
-    StatsLineChart(pointsData = chartData, xAxisLabels = xAxisLabels, yAxisTitle = "독서 시간 (분)", xAxisTitle = "시간대")
 }
 
 @Composable
@@ -227,7 +225,7 @@ fun WeeklyStatsContent(date: LocalDate, stats: WeeklyStats, chartData: List<Poin
     val subTitle = if (isDifferentYear) "${date.year}년" else null
     val xAxisLabels = listOf("월", "화", "수", "목", "금", "토", "일")
 
-    Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+    Column {
         StatsHeader(
             title = title,
             subTitle = subTitle,
@@ -242,9 +240,9 @@ fun WeeklyStatsContent(date: LocalDate, stats: WeeklyStats, chartData: List<Poin
             StatisticsDetailRow("가장 많이 읽은 요일", stats.mostReadDay)
             StatisticsDetailRow("완독한 책", "${stats.finishedBookCount}권")
         }
+        Spacer(modifier = Modifier.height(16.dp)) // Reduced spacer
+        StatsLineChart(pointsData = chartData, xAxisLabels = xAxisLabels, yAxisTitle = "독서 시간 (분)", xAxisTitle = "요일")
     }
-    Spacer(modifier = Modifier.height(24.dp))
-    StatsLineChart(pointsData = chartData, xAxisLabels = xAxisLabels, yAxisTitle = "독서 시간 (분)", xAxisTitle = "요일")
 }
 
 @Composable
@@ -257,7 +255,7 @@ fun MonthlyStatsContent(date: LocalDate, stats: MonthlyStats, chartData: List<Po
     val daysInMonth = yearMonth.lengthOfMonth()
     val xAxisLabels = (1..daysInMonth).map { it.toString() }
 
-    Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+    Column {
         StatsHeader(
             title = title,
             subTitle = subTitle,
@@ -272,10 +270,9 @@ fun MonthlyStatsContent(date: LocalDate, stats: MonthlyStats, chartData: List<Po
             StatisticsDetailRow("가장 많이 읽은 주", stats.mostReadWeek)
             StatisticsDetailRow("완독한 책", "${stats.finishedBookCount}권")
         }
+        Spacer(modifier = Modifier.height(16.dp)) // Reduced spacer
+        StatsBarChart(pointsData = chartData, xAxisLabels = xAxisLabels, yAxisTitle = "독서 시간 (분)", xAxisTitle = "일")
     }
-    Spacer(modifier = Modifier.height(24.dp))
-    // Use BarChart for monthly stats
-    StatsBarChart(pointsData = chartData, xAxisLabels = xAxisLabels, yAxisTitle = "독서 시간 (분)", xAxisTitle = "일")
 }
 
 @Composable
@@ -283,7 +280,7 @@ fun YearlyStatsContent(date: LocalDate, stats: YearlyStats, chartData: List<Poin
     val title = "${date.year}년"
     val xAxisLabels = (1..12).map { "${it}월" }
 
-    Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+    Column {
         StatsHeader(
             title = title,
             onPrevious = { onDateChange(date.minusYears(1)) },
@@ -297,14 +294,14 @@ fun YearlyStatsContent(date: LocalDate, stats: YearlyStats, chartData: List<Poin
             StatisticsDetailRow("가장 많이 읽은 달", stats.mostReadMonth)
             StatisticsDetailRow("완독한 책", "${stats.finishedBookCount}권")
         }
+        Spacer(modifier = Modifier.height(16.dp)) // Reduced spacer
+        StatsLineChart(pointsData = chartData, xAxisLabels = xAxisLabels, yAxisTitle = "독서 시간 (분)", xAxisTitle = "월")
     }
-    Spacer(modifier = Modifier.height(24.dp))
-    StatsLineChart(pointsData = chartData, xAxisLabels = xAxisLabels, yAxisTitle = "독서 시간 (분)", xAxisTitle = "월")
 }
 
 @Composable
 fun TotalStatsContent(stats: TotalStats) {
-    Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+    Column {
         Box(modifier = Modifier.padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
             Text("전체 통계", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         }
@@ -348,7 +345,8 @@ fun GenreBarChart(genreStats: List<GenreStats>) {
         .build()
 
     val yAxisData = AxisData.Builder()
-        .labelAndAxisLinePadding(4.dp)
+        .steps(5)
+        .labelAndAxisLinePadding(10.dp) // 4.dp -> 10.dp
         .axisLineColor(Color.Transparent)
         .axisLabelColor(MaterialTheme.colorScheme.onSurfaceVariant)
         .labelData { index ->
@@ -370,8 +368,7 @@ fun GenreBarChart(genreStats: List<GenreStats>) {
             Text(
                 text = "독서 시간",
                 modifier = Modifier
-                    .graphicsLayer(rotationZ = -90f)
-                    .padding(end = 8.dp),
+                    .graphicsLayer(rotationZ = -90f),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -463,7 +460,7 @@ fun StatsBarChart(pointsData: List<Point>, xAxisLabels: List<String>, yAxisTitle
 
     val yAxisData = AxisData.Builder()
         .steps(4)
-        .labelAndAxisLinePadding(4.dp)
+        .labelAndAxisLinePadding(10.dp) // 4.dp -> 10.dp
         .axisLineColor(Color.Transparent)
         .axisLabelColor(MaterialTheme.colorScheme.onSurfaceVariant)
         .labelData { index ->
@@ -485,8 +482,7 @@ fun StatsBarChart(pointsData: List<Point>, xAxisLabels: List<String>, yAxisTitle
                 Text(
                     text = yAxisTitle,
                     modifier = Modifier
-                        .graphicsLayer(rotationZ = -90f)
-                        .padding(end = 8.dp),
+                        .graphicsLayer(rotationZ = -90f),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -521,7 +517,7 @@ fun StatsLineChart(pointsData: List<Point>, xAxisLabels: List<String>, yAxisTitl
     val yMax = pointsData.maxOfOrNull { it.y }?.takeIf { it > 0f } ?: 5f
     val yAxisData = AxisData.Builder()
         .steps(steps)
-        .labelAndAxisLinePadding(4.dp)
+        .labelAndAxisLinePadding(20.dp) // 4.dp -> 20.dp
         .axisLineColor(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
         .axisLabelColor(MaterialTheme.colorScheme.onSurfaceVariant)
         .axisLabelFontSize(12.sp)
@@ -580,8 +576,7 @@ fun StatsLineChart(pointsData: List<Point>, xAxisLabels: List<String>, yAxisTitl
                 Text(
                     text = yAxisTitle,
                     modifier = Modifier
-                        .graphicsLayer(rotationZ = -90f)
-                        .padding(end = 8.dp),
+                        .graphicsLayer(rotationZ = -90f),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
