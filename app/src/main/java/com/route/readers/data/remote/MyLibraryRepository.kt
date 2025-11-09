@@ -2,6 +2,7 @@ package com.route.readers.data.remote
 
 import android.util.Log
 import com.route.readers.data.model.MyBook
+import com.route.readers.data.model.ReadingSession
 import com.route.readers.widget.WidgetUpdateHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -105,6 +106,19 @@ class MyLibraryRepository {
             success
         } catch (e: Exception) {
             Log.e("MyLibraryRepository", "Error adding reading time: ${e.message}", e)
+            false
+        }
+    }
+
+    suspend fun addReadingSession(session: ReadingSession): Boolean {
+        return try {
+            val success = firestoreRepository.addReadingSession(session)
+            if (success) {
+                // 세션 추가 후 특별히 동기화할 필요는 없지만, 필요하다면 추가
+            }
+            success
+        } catch (e: Exception) {
+            Log.e("MyLibraryRepository", "Error adding reading session: ${e.message}", e)
             false
         }
     }

@@ -53,10 +53,12 @@ private enum class FilterState {
 fun MyLibraryScreen(
     onNavigateToSearch: () -> Unit,
     attendanceViewModel: AttendanceViewModel,
+    mainViewModel: com.route.readers.ui.screens.MainViewModel = viewModel(), // 새로 추가된 파라미터
     profileViewModel: ProfileViewModel = viewModel(),
     onBookSelected: (MyBook?) -> Unit = {},
     bookToUpdate: MyBook?,
-    onUpdateFinished: () -> Unit
+    onUpdateFinished: () -> Unit,
+    lastReadingSessionDuration: Int? = null
 ) {
     val context = LocalContext.current
     val myLibraryRepository = remember { MyLibraryRepository() }
@@ -251,17 +253,21 @@ fun MyLibraryScreen(
             onUpdate = { currentPage ->
                 scope.launch {
                     if (currentPage >= book.currentPage) {
-                        val isCompleted = currentPage == book.totalPages && book.totalPages > 0
-                        val success = myLibraryRepository.updateReadingProgress(book.isbn, currentPage, isCompleted)
+                        val result = mainViewModel.saveReadingSession(
+                            book = book,
+                            newCurrentPage = currentPage,
+                            durationInSeconds = lastReadingSessionDuration ?: 0 // durationInSeconds 전달
+                        )
 
-                        if (success) {
-                            if (isCompleted && !book.isCompleted) {
+                        if (result != null) {
+                            val (updatedBook, pagesReadThisSession) = result
+                            if (updatedBook.isCompleted && !book.isCompleted) {
                                 firestoreRepository.markBookAsRead(book.isbn)
                                 Toast.makeText(context, "완독을 축하합니다!", Toast.LENGTH_LONG).show()
                             }
                             refreshBooks()
                             attendanceViewModel.markReadingActivity()
-                            showPostToFeedDialog = Pair(book, currentPage)
+                            showPostToFeedDialog = Pair(updatedBook, pagesReadThisSession)
                         } else {
                             Toast.makeText(context, "업데이트 실패. 다시 시도해주세요", Toast.LENGTH_SHORT).show()
                         }

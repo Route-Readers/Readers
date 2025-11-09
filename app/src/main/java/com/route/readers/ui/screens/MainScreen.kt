@@ -68,6 +68,7 @@ fun MainScreen(
     val currentRoute = navBackStackEntry?.destination?.route
     var showLogoutDialog by remember { mutableStateOf(false) }
     var bookToUpdateAfterReading by remember { mutableStateOf<MyBook?>(null) }
+    var lastReadingSessionDuration by remember { mutableStateOf<Int?>(null) }
 
     if (showLogoutDialog) {
         AlertDialog(
@@ -170,6 +171,7 @@ fun MainScreen(
             composable(BottomNavItem.MyLibrary.route) {
                 MyLibraryScreen(
                     attendanceViewModel = attendanceViewModel,
+                    mainViewModel = mainViewModel, // mainViewModel 전달
                     onNavigateToSearch = {
                         bottomNavController.navigate(BottomNavItem.Search.route) {
                             popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
@@ -181,7 +183,11 @@ fun MainScreen(
                         selectedBook = book
                     },
                     bookToUpdate = bookToUpdateAfterReading,
-                    onUpdateFinished = { bookToUpdateAfterReading = null }
+                    onUpdateFinished = {
+                        bookToUpdateAfterReading = null
+                        lastReadingSessionDuration = null // lastReadingSessionDuration 초기화
+                    },
+                    lastReadingSessionDuration = lastReadingSessionDuration // lastReadingSessionDuration 전달
                 )
             }
             composable(BottomNavItem.Search.route) {
@@ -261,6 +267,7 @@ fun MainScreen(
                                             onFinishReading = { timeInSeconds ->
                                                 mainViewModel.addReadingTime(book.isbn, timeInSeconds)
                                                 bookToUpdateAfterReading = book
+                                                lastReadingSessionDuration = timeInSeconds
                                                 bottomNavController.popBackStack()
                                             }
                                         )                    }

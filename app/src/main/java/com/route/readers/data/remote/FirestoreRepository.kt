@@ -6,6 +6,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.route.readers.data.model.MyBook
+import com.route.readers.data.model.ReadingSession
 import com.route.readers.ui.screens.feed.FeedItem
 import com.route.readers.ui.screens.profile.Goal
 import kotlinx.coroutines.tasks.await
@@ -276,6 +277,40 @@ class FirestoreRepository {
         } catch (e: Exception) {
             Log.e("FirestoreRepository", "Error updating reading time: ${e.message}", e)
             false
+        }
+    }
+
+    suspend fun addReadingSession(session: ReadingSession): Boolean {
+        val userId = auth.currentUser?.uid ?: return false
+        return try {
+            getUsersCollection().document(userId)
+                .collection("reading_sessions")
+                .add(session)
+                .await()
+            true
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error adding reading session: ${e.message}", e)
+            false
+        }
+    }
+
+    suspend fun getReadingSessions(userId: String, startDate: Date?, endDate: Date?): List<ReadingSession> {
+        return try {
+            var query = getUsersCollection().document(userId)
+                .collection("reading_sessions")
+                .orderBy("startTime") // startTime 기준으로 정렬
+
+            if (startDate != null) {
+                query = query.whereGreaterThanOrEqualTo("startTime", startDate)
+            }
+            if (endDate != null) {
+                query = query.whereLessThanOrEqualTo("startTime", endDate)
+            }
+
+            query.get().await().documents.mapNotNull { it.toObject(ReadingSession::class.java) }
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error getting reading sessions: ${e.message}", e)
+            emptyList()
         }
     }
 
