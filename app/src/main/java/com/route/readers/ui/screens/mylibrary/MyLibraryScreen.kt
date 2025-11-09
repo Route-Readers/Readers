@@ -5,6 +5,8 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.*
@@ -355,21 +357,30 @@ fun MyBookCard(
     onDeleteClick: () -> Unit,
     onUpdateClick: () -> Unit = {}
 ) {
+    val borderColor by animateColorAsState(
+        if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+        label = "borderColor"
+    )
+    val containerColor by animateColorAsState(
+        when {
+            book.isCompleted -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+            book.currentPage > 0 -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
+            else -> MaterialTheme.colorScheme.surface
+        }, label = "containerColor"
+    )
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onProgressClick() }
-            .shadow(
-                elevation = if (isSelected) 8.dp else 2.dp,
+            .border(
+                width = 1.5.dp,
+                color = borderColor,
                 shape = RoundedCornerShape(12.dp)
-            ),
+            )
+            .clickable { onProgressClick() },
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(
-            containerColor = when {
-                isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                book.isCompleted -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                book.currentPage > 0 -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
-                else -> MaterialTheme.colorScheme.surface
-            }
+            containerColor = containerColor
         ),
         shape = RoundedCornerShape(12.dp)
     ) {
