@@ -61,7 +61,7 @@ data class TotalStats(
 
 data class GenreStats(
     val genre: String,
-    val count: Int,
+    val totalDurationInSeconds: Int,
     val color: Color
 )
 
@@ -115,7 +115,12 @@ class StatisticsViewModel : ViewModel() {
             val (startDateMillis, endDateMillis) = getDateRangeForSelectedTab()
             val startDate: Date? = if (startDateMillis != null) Date(startDateMillis) else null
             val endDate: Date? = if (endDateMillis != null) Date(endDateMillis) else null
-            val sessions = firestoreRepository.getReadingSessions(currentUserId, startDate, endDate)
+            // '전체' 탭일 경우 모든 세션을 가져오도록 수정
+            val sessions = if (_uiState.value.selectedTab == "전체") {
+                firestoreRepository.getReadingSessions(currentUserId, null, null)
+            } else {
+                firestoreRepository.getReadingSessions(currentUserId, startDate, endDate)
+            }
             val allBooks = firestoreRepository.getMyBooks() // 모든 책 정보 필요 (장르, 완료 여부 등)
 
             val finishedBooksInPeriod = allBooks.filter { book ->
@@ -147,7 +152,8 @@ class StatisticsViewModel : ViewModel() {
                     genreStats = calculateGenreStats(sessions, allBooks)
                 )
                 "전체" -> _uiState.value = _uiState.value.copy(
-                    totalStats = calculateTotalStats(sessions, allBooks)
+                    totalStats = calculateTotalStats(sessions, allBooks),
+                    genreStats = calculateGenreStats(sessions, allBooks) // 전체 탭에서도 장르 통계 계산
                 )
             }
             _uiState.value = _uiState.value.copy(isLoading = false)
@@ -289,22 +295,25 @@ class StatisticsViewModel : ViewModel() {
             .mapValues { entry ->
                 entry.value.sumOf { it.durationInSeconds } / 60 // 분 단위
             }
-        // 월(1) ~ 일(7) 순서로 정렬
-        return (1..7).map { dayOfWeek ->
-            Point(x = dayOfWeek.toFloat(), y = dailyData[dayOfWeek]?.toFloat() ?: 0f)
+        // 월(2) ~ 일(1) 순서로 정렬 (Calendar standard)
+        val calendarOrder = listOf(2, 3, 4, 5, 6, 7, 1)
+        return calendarOrder.mapIndexed { index, dayOfWeek ->
+            Point(x = index.toFloat(), y = dailyData[dayOfWeek]?.toFloat() ?: 0f)
         }
     }
 
     private fun calculateMonthlyChartData(sessions: List<ReadingSession>): List<Point> {
-        val weekFields = WeekFields.of(Locale.KOREA)
-        val weeklyData = sessions.groupBy {
-            it.startTime?.toInstant()?.atZone(ZoneId.systemDefault())?.get(weekFields.weekOfMonth()) ?: 0
+        val yearMonth = YearMonth.from(_uiState.value.selectedDate)
+        val daysInMonth = yearMonth.lengthOfMonth()
+
+        val dailyData = sessions.groupBy {
+            it.startTime?.toInstant()?.atZone(ZoneId.systemDefault())?.dayOfMonth ?: 0
         }.mapValues { entry ->
             entry.value.sumOf { it.durationInSeconds } / 60 // 분 단위
         }
 
-        return (1..5).map { weekOfMonth ->
-            Point(x = weekOfMonth.toFloat(), y = weeklyData[weekOfMonth]?.toFloat() ?: 0f)
+        return (1..daysInMonth).map { day ->
+            Point(x = (day - 1).toFloat(), y = dailyData[day]?.toFloat() ?: 0f)
         }
     }
 
@@ -314,20 +323,23 @@ class StatisticsViewModel : ViewModel() {
                 entry.value.sumOf { it.durationInSeconds } / 60 // 분 단위
             }
         return (1..12).map { month ->
-            Point(x = month.toFloat(), y = monthlyData[month]?.toFloat() ?: 0f)
+            Point(x = (month - 1).toFloat(), y = monthlyData[month]?.toFloat() ?: 0f)
         }
     }
 
     private fun calculateGenreStats(sessions: List<ReadingSession>, allBooks: List<com.route.readers.data.model.MyBook>): List<GenreStats> {
-        val sessionBookIds = sessions.map { it.bookId }.distinct()
-        val booksInPeriod = allBooks.filter { sessionBookIds.contains(it.isbn) }
+        val bookDurations = sessions.groupBy { it.bookId }
+            .mapValues { entry -> entry.value.sumOf { it.durationInSeconds } }
 
-        val genreCounts = booksInPeriod.flatMap { it.genres }
-            .groupBy { it }
-            .mapValues { it.value.size }
+        val genreDurations = mutableMapOf<String, Int>()
+        bookDurations.forEach { (bookId, duration) ->
+            val book = allBooks.find { it.isbn == bookId }
+            book?.genres?.forEach { genre ->
+                genreDurations[genre] = (genreDurations[genre] ?: 0) + duration
+            }
+        }
 
-        val totalCount = genreCounts.values.sum()
-        if (totalCount == 0) return emptyList()
+        if (genreDurations.values.sum() == 0) return emptyList()
 
         val colors = listOf(
             Color(0xFFEF5350), Color(0xFFAB47BC), Color(0xFF66BB6A), Color(0xFFFFCA28),
@@ -335,21 +347,19 @@ class StatisticsViewModel : ViewModel() {
         )
         var colorIndex = 0
 
-        return genreCounts.entries.sortedByDescending { it.value }.map { (genre, count) ->
-            GenreStats(genre, count, colors[colorIndex++ % colors.size])
+        return genreDurations.entries.sortedByDescending { it.value }.map { (genre, duration) ->
+            GenreStats(genre, duration, colors[colorIndex++ % colors.size])
         }
     }
 
     private fun formatDuration(totalSeconds: Int): String {
-        if (totalSeconds == 0) return "0분"
+        if (totalSeconds < 60) return "${totalSeconds}초"
         val hours = totalSeconds / 3600
         val minutes = (totalSeconds % 3600) / 60
-        val seconds = totalSeconds % 60
 
         return when {
             hours > 0 -> "${hours}시간 ${minutes}분"
-            minutes > 0 -> "${minutes}분"
-            else -> "${seconds}초"
+            else -> "${minutes}분"
         }
     }
 }

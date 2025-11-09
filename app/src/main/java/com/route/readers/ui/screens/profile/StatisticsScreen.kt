@@ -41,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -128,9 +129,10 @@ fun StatisticsSection(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large)
-                .padding(horizontal = 20.dp, vertical = 16.dp)
+                .padding(vertical = 16.dp) // horizontal padding 제거
         ) {
             TabRow(
+                modifier = Modifier.padding(horizontal = 20.dp), // TabRow에만 padding 적용
                 selectedTabIndex = tabs.indexOf(uiState.selectedTab),
                 containerColor = MaterialTheme.colorScheme.surface,
                 contentColor = MaterialTheme.colorScheme.onSurface,
@@ -165,14 +167,19 @@ fun StatisticsSection(
             }
         }
 
-        if (uiState.genreStats.isNotEmpty() && uiState.selectedTab != "전체") {
+        if (uiState.genreStats.isNotEmpty()) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.large)
-                    .padding(horizontal = 20.dp, vertical = 16.dp)
+                    .padding(vertical = 16.dp) // horizontal padding 제거
             ) {
-                Text("장르별 독서 현황", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(
+                    "장르별 독서 현황",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 20.dp) // Text에만 padding 적용
+                )
                 Spacer(modifier = Modifier.height(16.dp))
                 GenreCharts(genreStats = uiState.genreStats)
             }
@@ -188,22 +195,24 @@ fun DailyStatsContent(date: LocalDate, stats: DailyStats, chartData: List<Point>
     val subTitle = if (isDifferentYear) "${date.year}년" else null
     val xAxisLabels = (0..23).map { if (it % 2 == 0) it.toString() else "" }
 
-    StatsHeader(
-        title = formattedDate,
-        subTitle = subTitle,
-        onPrevious = { onDateChange(date.minusDays(1)) },
-        onNext = { onDateChange(date.plusDays(1)) },
-        isNextEnabled = !date.isEqual(LocalDate.now())
-    )
-    Spacer(modifier = Modifier.height(24.dp))
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        StatisticsDetailRow("접속시간", stats.accessTime)
-        StatisticsDetailRow("총 독서시간", stats.totalReadingTime)
-        StatisticsDetailRow("읽는중인 책", "${stats.readingBookCount}권")
-        StatisticsDetailRow("완독한 책", "${stats.finishedBookCount}권")
+    Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+        StatsHeader(
+            title = formattedDate,
+            subTitle = subTitle,
+            onPrevious = { onDateChange(date.minusDays(1)) },
+            onNext = { onDateChange(date.plusDays(1)) },
+            isNextEnabled = !date.isEqual(LocalDate.now())
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            StatisticsDetailRow("접속시간", stats.accessTime)
+            StatisticsDetailRow("총 독서시간", stats.totalReadingTime)
+            StatisticsDetailRow("읽는중인 책", "${stats.readingBookCount}권")
+            StatisticsDetailRow("완독한 책", "${stats.finishedBookCount}권")
+        }
     }
     Spacer(modifier = Modifier.height(24.dp))
-    StatsLineChart(pointsData = chartData, xAxisLabels = xAxisLabels)
+    StatsLineChart(pointsData = chartData, xAxisLabels = xAxisLabels, yAxisTitle = "독서 시간 (분)", xAxisTitle = "시간대")
 }
 
 @Composable
@@ -211,29 +220,31 @@ fun WeeklyStatsContent(date: LocalDate, stats: WeeklyStats, chartData: List<Poin
     val currentYear = LocalDate.now().year
     val isDifferentYear = date.year != currentYear
     val weekFields = WeekFields.of(Locale.KOREA)
-    val firstDayOfWeek = date.with(weekFields.firstDayOfWeek)
+    val firstDayOfWeek = date.with(weekFields.dayOfWeek(), 1L)
     val lastDayOfWeek = firstDayOfWeek.plusDays(6)
 
     val title = "${firstDayOfWeek.monthValue}월 ${firstDayOfWeek.get(weekFields.weekOfMonth())}주차"
     val subTitle = if (isDifferentYear) "${date.year}년" else null
     val xAxisLabels = listOf("월", "화", "수", "목", "금", "토", "일")
 
-    StatsHeader(
-        title = title,
-        subTitle = subTitle,
-        onPrevious = { onDateChange(date.minusWeeks(1)) },
-        onNext = { onDateChange(date.plusWeeks(1)) },
-        isNextEnabled = lastDayOfWeek.isBefore(LocalDate.now())
-    )
-    Spacer(modifier = Modifier.height(24.dp))
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        StatisticsDetailRow("접속시간", stats.accessTime)
-        StatisticsDetailRow("총 독서시간", stats.totalReadingTime)
-        StatisticsDetailRow("가장 많이 읽은 요일", stats.mostReadDay)
-        StatisticsDetailRow("완독한 책", "${stats.finishedBookCount}권")
+    Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+        StatsHeader(
+            title = title,
+            subTitle = subTitle,
+            onPrevious = { onDateChange(date.minusWeeks(1)) },
+            onNext = { onDateChange(date.plusWeeks(1)) },
+            isNextEnabled = lastDayOfWeek.isBefore(LocalDate.now())
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            StatisticsDetailRow("접속시간", stats.accessTime)
+            StatisticsDetailRow("총 독서시간", stats.totalReadingTime)
+            StatisticsDetailRow("가장 많이 읽은 요일", stats.mostReadDay)
+            StatisticsDetailRow("완독한 책", "${stats.finishedBookCount}권")
+        }
     }
     Spacer(modifier = Modifier.height(24.dp))
-    StatsLineChart(pointsData = chartData, xAxisLabels = xAxisLabels)
+    StatsLineChart(pointsData = chartData, xAxisLabels = xAxisLabels, yAxisTitle = "독서 시간 (분)", xAxisTitle = "요일")
 }
 
 @Composable
@@ -243,24 +254,28 @@ fun MonthlyStatsContent(date: LocalDate, stats: MonthlyStats, chartData: List<Po
     val yearMonth = YearMonth.from(date)
     val title = "${yearMonth.monthValue}월"
     val subTitle = if (isDifferentYear) "${date.year}년" else null
-    val xAxisLabels = listOf("1주", "2주", "3주", "4주", "5주")
+    val daysInMonth = yearMonth.lengthOfMonth()
+    val xAxisLabels = (1..daysInMonth).map { it.toString() }
 
-    StatsHeader(
-        title = title,
-        subTitle = subTitle,
-        onPrevious = { onDateChange(date.minusMonths(1)) },
-        onNext = { onDateChange(date.plusMonths(1)) },
-        isNextEnabled = yearMonth.isBefore(YearMonth.now())
-    )
-    Spacer(modifier = Modifier.height(24.dp))
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        StatisticsDetailRow("접속시간", stats.accessTime)
-        StatisticsDetailRow("총 독서시간", stats.totalReadingTime)
-        StatisticsDetailRow("가장 많이 읽은 주", stats.mostReadWeek)
-        StatisticsDetailRow("완독한 책", "${stats.finishedBookCount}권")
+    Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+        StatsHeader(
+            title = title,
+            subTitle = subTitle,
+            onPrevious = { onDateChange(date.minusMonths(1)) },
+            onNext = { onDateChange(date.plusMonths(1)) },
+            isNextEnabled = yearMonth.isBefore(YearMonth.now())
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            StatisticsDetailRow("접속시간", stats.accessTime)
+            StatisticsDetailRow("총 독서시간", stats.totalReadingTime)
+            StatisticsDetailRow("가장 많이 읽은 주", stats.mostReadWeek)
+            StatisticsDetailRow("완독한 책", "${stats.finishedBookCount}권")
+        }
     }
     Spacer(modifier = Modifier.height(24.dp))
-    StatsLineChart(pointsData = chartData, xAxisLabels = xAxisLabels)
+    // Use BarChart for monthly stats
+    StatsBarChart(pointsData = chartData, xAxisLabels = xAxisLabels, yAxisTitle = "독서 시간 (분)", xAxisTitle = "일")
 }
 
 @Composable
@@ -268,34 +283,38 @@ fun YearlyStatsContent(date: LocalDate, stats: YearlyStats, chartData: List<Poin
     val title = "${date.year}년"
     val xAxisLabels = (1..12).map { "${it}월" }
 
-    StatsHeader(
-        title = title,
-        onPrevious = { onDateChange(date.minusYears(1)) },
-        onNext = { onDateChange(date.plusYears(1)) },
-        isNextEnabled = date.year < LocalDate.now().year
-    )
-    Spacer(modifier = Modifier.height(24.dp))
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        StatisticsDetailRow("접속시간", stats.accessTime)
-        StatisticsDetailRow("총 독서시간", stats.totalReadingTime)
-        StatisticsDetailRow("가장 많이 읽은 달", stats.mostReadMonth)
-        StatisticsDetailRow("완독한 책", "${stats.finishedBookCount}권")
+    Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+        StatsHeader(
+            title = title,
+            onPrevious = { onDateChange(date.minusYears(1)) },
+            onNext = { onDateChange(date.plusYears(1)) },
+            isNextEnabled = date.year < LocalDate.now().year
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            StatisticsDetailRow("접속시간", stats.accessTime)
+            StatisticsDetailRow("총 독서시간", stats.totalReadingTime)
+            StatisticsDetailRow("가장 많이 읽은 달", stats.mostReadMonth)
+            StatisticsDetailRow("완독한 책", "${stats.finishedBookCount}권")
+        }
     }
     Spacer(modifier = Modifier.height(24.dp))
-    StatsLineChart(pointsData = chartData, xAxisLabels = xAxisLabels)
+    StatsLineChart(pointsData = chartData, xAxisLabels = xAxisLabels, yAxisTitle = "독서 시간 (분)", xAxisTitle = "월")
 }
 
 @Composable
 fun TotalStatsContent(stats: TotalStats) {
-    Box(modifier = Modifier.padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
-        Text("전체 통계", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-    }
-    Spacer(modifier = Modifier.height(24.dp))
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        StatisticsDetailRow("최초 접속일", stats.firstAccessDate)
-        StatisticsDetailRow("총 접속일", "${stats.totalAccessDays}일")
-        StatisticsDetailRow("총 독서시간", stats.totalReadingTime)
-        StatisticsDetailRow("총 완독 권수", "${stats.totalFinishedBookCount}권")
+    Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+        Box(modifier = Modifier.padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
+            Text("전체 통계", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            StatisticsDetailRow("최초 접속일", stats.firstAccessDate)
+            StatisticsDetailRow("총 접속일", "${stats.totalAccessDays}일")
+            StatisticsDetailRow("총 독서시간", stats.totalReadingTime)
+            StatisticsDetailRow("총 완독 권수", "${stats.totalFinishedBookCount}권")
+        }
     }
 }
 
@@ -309,10 +328,10 @@ fun GenreCharts(genreStats: List<GenreStats>) {
 
 @Composable
 fun GenreBarChart(genreStats: List<GenreStats>) {
-    val maxRange = (genreStats.maxOfOrNull { it.count } ?: 0).let { if (it == 0) 5 else it + (it/4) }
+    val maxRange = (genreStats.maxOfOrNull { it.totalDurationInSeconds } ?: 0).let { if (it == 0) 3600 else it + (it/4) } // in seconds
     val barData = genreStats.map {
         BarData(
-            point = Point(x = genreStats.indexOf(it).toFloat(), y = it.count.toFloat()),
+            point = Point(x = genreStats.indexOf(it).toFloat(), y = it.totalDurationInSeconds.toFloat()),
             color = it.color,
             label = it.genre,
         )
@@ -321,20 +340,22 @@ fun GenreBarChart(genreStats: List<GenreStats>) {
     val xAxisData = AxisData.Builder()
         .axisStepSize(30.dp)
         .steps(barData.size - 1)
-        .startDrawPadding(20.dp)
-        .bottomPadding(40.dp)
-        .axisLabelAngle(20f)
+                    .startDrawPadding(0.dp)
+                    .bottomPadding(40.dp)        .axisLabelAngle(20f)
         .axisLabelColor(MaterialTheme.colorScheme.onSurfaceVariant)
         .axisLineColor(Color.Transparent)
         .labelData { index -> barData.getOrNull(index)?.label ?: "" }
         .build()
 
     val yAxisData = AxisData.Builder()
-        .steps(5)
-        .labelAndAxisLinePadding(10.dp)
+        .labelAndAxisLinePadding(4.dp)
         .axisLineColor(Color.Transparent)
         .axisLabelColor(MaterialTheme.colorScheme.onSurfaceVariant)
-        .labelData { index -> (index * (maxRange / 5)).toString() }
+        .labelData { index ->
+            val duration = (index * (maxRange / 5))
+            val hours = duration / 3600
+            if (hours > 0) "${hours}시간" else "${duration/60}분"
+        }
         .build()
 
     val chartData = BarChartData(
@@ -345,7 +366,17 @@ fun GenreBarChart(genreStats: List<GenreStats>) {
         backgroundColor = Color.Transparent
     )
     if (barData.isNotEmpty()){
-        BarChart(modifier = Modifier.height(250.dp), barChartData = chartData)
+        Row(modifier = Modifier.height(250.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "독서 시간",
+                modifier = Modifier
+                    .graphicsLayer(rotationZ = -90f)
+                    .padding(end = 8.dp),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            BarChart(modifier = Modifier.fillMaxSize(), barChartData = chartData)
+        }
     }
 }
 
@@ -355,7 +386,7 @@ fun GenreDonutChart(genreStats: List<GenreStats>) {
         slices = genreStats.map {
             PieChartData.Slice(
                 label = it.genre,
-                value = it.count.toFloat(),
+                value = it.totalDurationInSeconds.toFloat(),
                 color = it.color
             )
         },
@@ -401,7 +432,7 @@ fun GenreDonutChart(genreStats: List<GenreStats>) {
                                 .background(it.color)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "${it.genre} (${it.count}권)", fontSize = 14.sp)
+                        Text(text = "${it.genre} (${formatDuration(it.totalDurationInSeconds)})", fontSize = 14.sp)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                 }
@@ -411,12 +442,86 @@ fun GenreDonutChart(genreStats: List<GenreStats>) {
 }
 
 @Composable
-fun StatsLineChart(pointsData: List<Point>, xAxisLabels: List<String>) {
+fun StatsBarChart(pointsData: List<Point>, xAxisLabels: List<String>, yAxisTitle: String, xAxisTitle: String) {
+    val maxRange = (pointsData.maxOfOrNull { it.y }?.takeIf { it > 0f } ?: 5f).let { it + (it/4) }
+    val barData = pointsData.mapIndexed { index, point ->
+        BarData(
+            point = point,
+            color = MaterialTheme.colorScheme.primary,
+            label = xAxisLabels.getOrElse(index) { "" }
+        )
+    }
+
+    val xAxisData = AxisData.Builder()
+        .axisStepSize(30.dp)
+        .steps(barData.size - 1)
+        .startDrawPadding(0.dp)
+        .axisLabelColor(MaterialTheme.colorScheme.onSurfaceVariant)
+        .axisLineColor(Color.Transparent)
+        .labelData { index -> barData.getOrNull(index)?.label ?: "" }
+        .build()
+
+    val yAxisData = AxisData.Builder()
+        .steps(4)
+        .labelAndAxisLinePadding(4.dp)
+        .axisLineColor(Color.Transparent)
+        .axisLabelColor(MaterialTheme.colorScheme.onSurfaceVariant)
+        .labelData { index ->
+            val value = (index * (maxRange / 4))
+            String.format("%.0f", value)
+        }
+        .build()
+
+    val chartData = BarChartData(
+        chartData = barData,
+        xAxisData = xAxisData,
+        yAxisData = yAxisData,
+        barStyle = BarStyle(barWidth = 20.dp),
+        backgroundColor = Color.Transparent
+    )
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        if (barData.any{ it.point.y > 0 }) {
+            Row(modifier = Modifier.height(250.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = yAxisTitle,
+                    modifier = Modifier
+                        .graphicsLayer(rotationZ = -90f)
+                        .padding(end = 8.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                BarChart(modifier = Modifier.fillMaxSize(), barChartData = chartData)
+            }
+            Text(
+                text = xAxisTitle,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(250.dp)
+                    .background(
+                        MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                        shape = MaterialTheme.shapes.small
+                    ),
+                contentAlignment = Alignment.Center
+            ){
+                Text("기록된 데이터가 없습니다.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+@Composable
+fun StatsLineChart(pointsData: List<Point>, xAxisLabels: List<String>, yAxisTitle: String, xAxisTitle: String) {
     val steps = 4
     val yMax = pointsData.maxOfOrNull { it.y }?.takeIf { it > 0f } ?: 5f
     val yAxisData = AxisData.Builder()
         .steps(steps)
-        .labelAndAxisLinePadding(20.dp)
+        .labelAndAxisLinePadding(4.dp)
         .axisLineColor(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
         .axisLabelColor(MaterialTheme.colorScheme.onSurfaceVariant)
         .axisLabelFontSize(12.sp)
@@ -430,6 +535,7 @@ fun StatsLineChart(pointsData: List<Point>, xAxisLabels: List<String>) {
         .axisStepSize(40.dp)
         .steps(pointsData.size.let { if(it > 0) it - 1 else 0 })
         .axisLineColor(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
+        .startDrawPadding(0.dp)
         .axisLabelColor(MaterialTheme.colorScheme.onSurfaceVariant)
         .axisLabelFontSize(12.sp)
         .labelData { i -> xAxisLabels.getOrElse(i) { "" } }
@@ -468,25 +574,41 @@ fun StatsLineChart(pointsData: List<Point>, xAxisLabels: List<String>) {
         backgroundColor = MaterialTheme.colorScheme.surface
     )
 
-    if (pointsData.any{ it.y > 0 }) {
-        LineChart(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(250.dp),
-            lineChartData = lineChartData
-        )
-    } else {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(250.dp)
-                .background(
-                    MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
-                    shape = MaterialTheme.shapes.small
-                ),
-            contentAlignment = Alignment.Center
-        ){
-            Text("기록된 데이터가 없습니다.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        if (pointsData.any{ it.y > 0 }) {
+            Row(modifier = Modifier.height(250.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = yAxisTitle,
+                    modifier = Modifier
+                        .graphicsLayer(rotationZ = -90f)
+                        .padding(end = 8.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                LineChart(
+                    modifier = Modifier.fillMaxSize(),
+                    lineChartData = lineChartData
+                )
+            }
+            Text(
+                text = xAxisTitle,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(250.dp)
+                    .background(
+                        MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                        shape = MaterialTheme.shapes.small
+                    ),
+                contentAlignment = Alignment.Center
+            ){
+                Text("기록된 데이터가 없습니다.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 }
@@ -557,5 +679,16 @@ fun StatisticsDetailRow(title: String, value: String, valueColor: Color = Materi
     ) {
         Text(text = title, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
         Text(text = value, fontWeight = FontWeight.SemiBold, color = valueColor, style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+private fun formatDuration(totalSeconds: Int): String {
+    if (totalSeconds < 60) return "${totalSeconds}초"
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+
+    return when {
+        hours > 0 -> "${hours}시간 ${minutes}분"
+        else -> "${minutes}분"
     }
 }
