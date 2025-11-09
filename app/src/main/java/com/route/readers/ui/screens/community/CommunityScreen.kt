@@ -46,7 +46,8 @@ fun CommunityScreen(
     onNavigateToFriendsList: () -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
     onNavigateToUsedBookDetail: (String) -> Unit = {},
-    onNavigateToChatList: () -> Unit = {}
+    onNavigateToChatList: () -> Unit = {},
+    isActive: Boolean = false
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showAddFriendDialog by remember { mutableStateOf(false) }
@@ -76,6 +77,12 @@ fun CommunityScreen(
                 )
             )
         )
+    }
+
+    LaunchedEffect(isActive) {
+        if (isActive) {
+            viewModel.refreshChallenges()
+        }
     }
 
     Column(
@@ -220,7 +227,7 @@ fun CommunityContent(
             item {
                 SwipeableChallengeCard(
                     userChallenge = uiState.userActiveChallenge,
-                    availableChallenges = uiState.challenges,
+                    availableChallenges = uiState.availableChallenges,
                     onChallengeSelected = { challenge -> onJoinChallenge(challenge.id) },
                     onChallengeReset = onResetChallenge,
                     currentUserId = currentUserId

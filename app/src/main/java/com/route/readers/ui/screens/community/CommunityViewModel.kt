@@ -25,12 +25,12 @@ data class Friend(
 
 data class CommunityUiState(
     val friends: List<Friend> = emptyList(),
-    val challenges: List<Challenge> = emptyList(),
+    val isChallengesLoading: Boolean = true,
     val userActiveChallenge: Challenge? = null,
+    val availableChallenges: List<Challenge> = emptyList(),
     val addFriendMessage: String? = null,
     val friendToDelete: Friend? = null,
-    val isNotificationSending: Boolean = false,
-    val isChallengesLoading: Boolean = true
+    val isNotificationSending: Boolean = false
 ) {
     val displayedFriends: List<Friend> = friends.take(5)
     val hasMoreFriends: Boolean = friends.size > 5
@@ -52,15 +52,7 @@ class CommunityViewModel : ViewModel() {
             }
         }
         loadFriends()
-        viewModelScope.launch {
-            // 먼저 기존 챌린지 로드 시도
-            loadChallenges()
-            // 챌린지가 없으면 생성 후 다시 로드
-            if (_uiState.value.challenges.isEmpty()) {
-                createWeeklyChallengesIfNeeded()
-                loadChallenges()
-            }
-        }
+        initChallenges()
     }
     
     private fun loadFriends() {
@@ -101,6 +93,17 @@ class CommunityViewModel : ViewModel() {
         return calendar.time
     }
     
+    private fun initChallenges() {
+        viewModelScope.launch {
+            val currentWeekNumber = getCurrentWeekNumber()
+            val existingChallenges = challengeRepository.getChallengesForWeek(currentWeekNumber)
+            if (existingChallenges.isEmpty()) {
+                viewModelScope.launch { createWeeklyChallengesIfNeeded() }
+            }
+            refreshChallenges()
+        }
+    }
+
     private suspend fun createWeeklyChallengesIfNeeded() {
         val startDate = getThisMonday()
         val endDate = getNextSunday()
@@ -122,7 +125,7 @@ class CommunityViewModel : ViewModel() {
                 id = "challenge_v2_${weekNumber}_2",
                 title = "7일 연속 독서",
                 description = "7일 동안 매일 책 읽기",
-                type = com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING_WITH_FRIEND,
+                type = com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING,
                 goal = 1,
                 startDate = startDate,
                 endDate = endDate,
@@ -145,20 +148,20 @@ class CommunityViewModel : ViewModel() {
         defaultChallenges.forEach { challengeRepository.createChallenge(it) }
     }
     
-    private fun loadChallenges() {
+    fun refreshChallenges() {
         viewModelScope.launch {
-            android.util.Log.d("CommunityViewModel", "loadChallenges started, userId: $currentUserId")
-            
-            // 이번 주 챌린지 가져오기
-            val availableChallenges = challengeRepository.getAvailableChallenges()
-            android.util.Log.d("CommunityViewModel", "Available challenges: ${availableChallenges.size}")
-            
-            // 사용자가 참여 중인 챌린지 찾기
-            val userChallenge = challengeRepository.getUserActiveChallenge(currentUserId)
+            _uiState.value = _uiState.value.copy(isChallengesLoading = true)
+            android.util.Log.d("CommunityViewModel", "refreshChallenges started, userId: $currentUserId")
+
+            val currentWeekNumber = getCurrentWeekNumber()
+            val weeklyChallenges = challengeRepository.getChallengesForWeek(currentWeekNumber)
+            android.util.Log.d("CommunityViewModel", "Weekly challenges: ${weeklyChallenges.size}")
+
+            val userChallenge = weeklyChallenges.find { it.participants.contains(currentUserId) }
             android.util.Log.d("CommunityViewModel", "User active challenge: ${userChallenge?.id}, title: ${userChallenge?.title}")
-            
+
             _uiState.value = _uiState.value.copy(
-                challenges = availableChallenges,
+                availableChallenges = if (userChallenge == null) weeklyChallenges.filter { it.type != com.route.readers.data.model.ChallengeType.CUSTOM } else emptyList(),
                 userActiveChallenge = userChallenge,
                 isChallengesLoading = false
             )
@@ -167,20 +170,15 @@ class CommunityViewModel : ViewModel() {
     
     fun joinChallenge(challengeId: String) {
         viewModelScope.launch {
-            // 선택한 챌린지 찾기
-            val selectedChallenge = _uiState.value.challenges.find { it.id == challengeId }
+            val selectedChallenge = _uiState.value.availableChallenges.find { it.id == challengeId }
             
-            // 즉시 UI 업데이트 (낙관적 업데이트)
             selectedChallenge?.let {
                 _uiState.value = _uiState.value.copy(userActiveChallenge = it)
             }
             
-            // Firestore 업데이트
             challengeRepository.joinChallenge(challengeId, currentUserId)
             
-            // 최종 확인을 위해 다시 로드
-            kotlinx.coroutines.delay(500)
-            loadChallenges()
+            refreshChallenges()
         }
     }
     
@@ -189,7 +187,7 @@ class CommunityViewModel : ViewModel() {
             _uiState.value.userActiveChallenge?.let { currentChallenge ->
                 challengeRepository.leaveChallenge(currentChallenge.id, currentUserId)
             }
-            loadChallenges()
+            refreshChallenges()
         }
     }
     

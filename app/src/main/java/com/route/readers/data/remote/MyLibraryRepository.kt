@@ -8,6 +8,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 class MyLibraryRepository {
 
@@ -59,40 +63,26 @@ class MyLibraryRepository {
         }
     }
     
+    private fun getCurrentWeekNumber(): Int {
+        val calendar = Calendar.getInstance()
+        val year = calendar.get(Calendar.YEAR)
+        val week = calendar.get(Calendar.WEEK_OF_YEAR)
+        return year * 100 + week
+    }
+
     private suspend fun updateChallengeProgress() {
         try {
             val userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: return
             val challengeRepository = ChallengeRepository()
-            val challenges = challengeRepository.getChallenges()
-            
-            val userChallenge = challenges.find { it.participants.contains(userId) } ?: return
-            
-            when (userChallenge.id) {
-                "challenge_7days_reading" -> {
-                    // 7일 연속 독서: 오늘 읽었으면 +1일
-                    val currentProgress = userChallenge.progress[userId] ?: 0
-                    if (checkIfReadToday() && currentProgress < 7) {
-                        challengeRepository.updateProgress(userChallenge.id, userId, currentProgress + 1)
-                    }
-                }
-                "challenge_30pages_daily" -> {
-                    // 하루 30페이지 7일: 30페이지 읽으면 1일 달성
-                    val pagesReadToday = calculatePagesReadToday()
-                    val daysCompleted = if (pagesReadToday >= 30) {
-                        val currentProgress = userChallenge.progress[userId] ?: 0
-                        (currentProgress + 1).coerceAtMost(7)
-                    } else {
-                        userChallenge.progress[userId] ?: 0
-                    }
-                    challengeRepository.updateProgress(userChallenge.id, userId, daysCompleted)
-                }
-                "challenge_1book_weekly" -> {
-                    // 1주일에 한 권: 책 완독하면 1권 달성
-                    val completedBooks = _myBooks.value.count { it.isCompleted }
-                    val booksThisWeek = if (completedBooks > 0) 1 else 0
-                    challengeRepository.updateProgress(userChallenge.id, userId, booksThisWeek)
-                }
-            }
+            val currentWeekNumber = getCurrentWeekNumber()
+            val weeklyChallenges = challengeRepository.getChallengesForWeek(currentWeekNumber)
+            val userChallenge = weeklyChallenges.find { it.participants.contains(userId) } ?: return
+
+            val pagesReadToday = calculatePagesReadToday()
+            val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+
+            challengeRepository.updateDailyProgress(userChallenge.id, userId, today, pagesReadToday)
+
         } catch (e: Exception) {
             Log.e("MyLibraryRepository", "Error updating challenge progress: ${e.message}", e)
         }

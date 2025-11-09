@@ -196,7 +196,8 @@ fun MainScreen(
                     onNavigateToFriendsList = { bottomNavController.navigate("friends_list") },
                     onNavigateToNotifications = { bottomNavController.navigate("notifications") },
                     onNavigateToUsedBookDetail = onNavigateToUsedBookDetail,
-                    onNavigateToChatList = onNavigateToChatList
+                    onNavigateToChatList = onNavigateToChatList,
+                    isActive = currentRoute == BottomNavItem.Community.route
                 )
             }
             composable("friends_list") {
