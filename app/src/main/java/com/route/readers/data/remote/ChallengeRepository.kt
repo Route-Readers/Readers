@@ -75,18 +75,41 @@ class ChallengeRepository {
     suspend fun updateDailyProgress(challengeId: String, userId: String, date: String, dailyAmount: Int) {
         try {
             val docRef = challengesCollection.document(challengeId)
-            val snapshot = docRef.get().await()
-            val challenge = snapshot.toObject(Challenge::class.java) ?: return
             
-            // 일별 진행도 업데이트
-            docRef.update("dailyProgress.$userId.$date", dailyAmount).await()
-            
-            // 전체 진행도 계산 (일수 기반)
-            val dailyProgressMap = challenge.dailyProgress[userId] ?: emptyMap()
-            val completedDays = dailyProgressMap.count { it.value >= challenge.goal }
-            
-            // 전체 진행도 업데이트 (완료한 일수)
-            docRef.update("progress.$userId", completedDays).await()
+            // 트랜잭션을 사용하여 데이터 일관성 보장
+            db.runTransaction { transaction ->
+                val snapshot = transaction.get(docRef)
+                val challenge = snapshot.toObject(Challenge::class.java) ?: return@runTransaction
+
+                // 1. 일별 진행도(읽은 페이지 수) 업데이트
+                transaction.update(docRef, "dailyProgress.$userId.$date", dailyAmount)
+
+                // 2. 챌린지 타입에 따라 전체 진행도(달성 일수) 계산
+                // 트랜잭션 내에서 업데이트된 값을 포함하여 다시 계산하기 위해 snapshot에서 데이터를 가져옴
+                val dailyProgressData = snapshot.get("dailyProgress.$userId") as? Map<String, Long> ?: emptyMap()
+                // 현재 업데이트를 반영하기 위해 맵을 새로 만듬
+                val updatedDailyProgress = dailyProgressData.toMutableMap()
+                updatedDailyProgress[date] = dailyAmount.toLong()
+
+                val newProgress = when (challenge.type) {
+                    com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING -> {
+                        // 목표 페이지(goal) 이상 읽은 날의 수를 계산
+                        updatedDailyProgress.count { it.value >= challenge.goal }.coerceAtMost(7)
+                    }
+                    com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING -> {
+                        // 1페이지 이상 읽은 날의 수를 계산
+                        updatedDailyProgress.count { it.value > 0 }.coerceAtMost(7)
+                    }
+                    else -> {
+                        // 다른 타입의 챌린지는 일단 기존 값을 유지
+                        challenge.progress[userId] ?: 0
+                    }
+                }
+
+                // 3. 계산된 전체 진행도로 업데이트
+                transaction.update(docRef, "progress.$userId", newProgress)
+            }.await()
+
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -115,11 +138,10 @@ class ChallengeRepository {
         }
     }
     
-    suspend fun getAvailableChallenges(): List<Challenge> {
+    suspend fun getChallengesForWeek(weekNumber: Int): List<Challenge> {
         return try {
-            val currentWeek = getCurrentWeekNumber()
             challengesCollection
-                .whereEqualTo("weekNumber", currentWeek)
+                .whereEqualTo("weekNumber", weekNumber)
                 .get()
                 .await()
                 .documents

@@ -122,58 +122,6 @@ fun ReadingTimerScreen(
                 color = MaterialTheme.colorScheme.onSurface
             )
 
-            Spacer(modifier = Modifier.height(48.dp))
-
-            Text(
-                text = "친구들의 밑줄",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            
-            Row(
-                modifier = Modifier.padding(top = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "👥 2개",
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("김현우", fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                        Text(" 42p", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Spacer(modifier = Modifier.weight(1f))
-                        Text("2시간 전", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp)
-                            .background(Color(0xFFFFF3CD), RoundedCornerShape(4.dp))
-                            .padding(8.dp)
-                    ) {
-                        Text(
-                            text = "습관이 만들어지는 과정에서 가장 중요한 것은 일관성이다.",
-                            fontSize = 14.sp,
-                            color = Color(0xFF856404)
-                        )
-                    }
-                    
-                    Text("토론하기 (2)", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
-                }
-            }
-
             Spacer(modifier = Modifier.weight(1f))
 
             Box(

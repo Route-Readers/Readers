@@ -4,10 +4,14 @@ import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import com.route.readers.data.model.MyBook
 import com.route.readers.ui.screens.feed.FeedItem
 import com.route.readers.ui.screens.profile.Goal
 import kotlinx.coroutines.tasks.await
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class FirestoreRepository {
     private val firestore = FirebaseFirestore.getInstance()
@@ -33,6 +37,20 @@ class FirestoreRepository {
         } catch (e: Exception) {
             Log.e("FirestoreRepository", "Error saving goal: ${e.message}", e)
             false
+        }
+    }
+
+    suspend fun getPagesReadToday(): Int {
+        val userId = auth.currentUser?.uid ?: return 0
+        return try {
+            val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            val doc = getUsersCollection().document(userId)
+                .collection("daily_reading").document(today)
+                .get().await()
+            doc.getLong("pagesRead")?.toInt() ?: 0
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error getting pages read today", e)
+            0
         }
     }
 
@@ -100,6 +118,19 @@ class FirestoreRepository {
             val book = bookSnapshot.toObject(MyBook::class.java)
 
             if (book != null) {
+                val oldCurrentPage = book.currentPage
+                val pagesReadThisSession = currentPage - oldCurrentPage
+
+                if (pagesReadThisSession > 0) {
+                    val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                    val dailyReadingRef = getUsersCollection().document(userId)
+                        .collection("daily_reading").document(today)
+                    dailyReadingRef.set(
+                        mapOf("pagesRead" to FieldValue.increment(pagesReadThisSession.toLong())),
+                        SetOptions.merge()
+                    ).await()
+                }
+
                 val updateData = mutableMapOf<String, Any>(
                     "currentPage" to currentPage,
                     "lastReadDate" to System.currentTimeMillis()
@@ -232,6 +263,18 @@ class FirestoreRepository {
             true
         } catch (e: Exception) {
             Log.e("FirestoreRepository", "Error adding feed item: ${e.message}", e)
+            false
+        }
+    }
+
+    suspend fun addReadingTime(bookId: String, timeInSeconds: Int): Boolean {
+        val userId = auth.currentUser?.uid ?: return false
+        return try {
+            val docRef = getMyBooksCollection(userId).document(bookId)
+            docRef.update("totalReadingTime", FieldValue.increment(timeInSeconds.toLong())).await()
+            true
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error updating reading time: ${e.message}", e)
             false
         }
     }
