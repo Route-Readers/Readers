@@ -43,6 +43,7 @@ import com.route.readers.ui.screens.profile.BlockedUserScreen
 import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.profile.ProfileViewModel
 import com.route.readers.ui.screens.reading.ReadingTimerScreen
+import com.route.readers.ui.screens.reading.ReadingViewModel
 import com.route.readers.ui.screens.search.SearchScreen
 import java.net.URLEncoder
 
@@ -62,12 +63,14 @@ fun MainScreen(
 ) {
     val bottomNavController = rememberNavController()
     val mainViewModel: MainViewModel = viewModel()
+    val readingViewModel: ReadingViewModel = viewModel()
     val currentUserId = remember { FirebaseAuth.getInstance().currentUser?.uid }
     var selectedBook by remember { mutableStateOf<MyBook?>(null) }
     val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     var showLogoutDialog by remember { mutableStateOf(false) }
     var bookToUpdateAfterReading by remember { mutableStateOf<MyBook?>(null) }
+    var lastReadingSessionDuration by remember { mutableStateOf<Int?>(null) }
 
     if (showLogoutDialog) {
         AlertDialog(
@@ -170,6 +173,7 @@ fun MainScreen(
             composable(BottomNavItem.MyLibrary.route) {
                 MyLibraryScreen(
                     attendanceViewModel = attendanceViewModel,
+                    mainViewModel = mainViewModel,
                     onNavigateToSearch = {
                         bottomNavController.navigate(BottomNavItem.Search.route) {
                             popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
@@ -181,7 +185,11 @@ fun MainScreen(
                         selectedBook = book
                     },
                     bookToUpdate = bookToUpdateAfterReading,
-                    onUpdateFinished = { bookToUpdateAfterReading = null }
+                    onUpdateFinished = {
+                        bookToUpdateAfterReading = null
+                        lastReadingSessionDuration = null
+                    },
+                    lastReadingSessionDuration = lastReadingSessionDuration
                 )
             }
             composable(BottomNavItem.Search.route) {
@@ -255,15 +263,20 @@ fun MainScreen(
                 val bookIsbn = backStackEntry.arguments?.getString("bookIsbn")
                 selectedBook?.let { book ->
                     if (book.isbn == bookIsbn) {
-                                        ReadingTimerScreen(
-                                            book = book,
-                                            onNavigateBack = { bottomNavController.popBackStack() },
-                                            onFinishReading = { timeInSeconds ->
-                                                mainViewModel.addReadingTime(book.isbn, timeInSeconds)
-                                                bookToUpdateAfterReading = book
-                                                bottomNavController.popBackStack()
-                                            }
-                                        )                    }
+                        ReadingTimerScreen(
+                            book = book,
+                            onNavigateBack = { bottomNavController.popBackStack() },
+                            onFinishReading = { timeInSeconds ->
+                                readingViewModel.saveReadingSession(book, timeInSeconds)
+                                bookToUpdateAfterReading = book
+                                lastReadingSessionDuration = timeInSeconds
+                                bottomNavController.popBackStack()
+                            },
+                            onDisposeReading = { timeInSeconds ->
+                                readingViewModel.saveReadingSession(book, timeInSeconds)
+                            }
+                        )
+                    }
                 }
             }
         }

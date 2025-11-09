@@ -25,11 +25,21 @@ import kotlinx.coroutines.delay
 fun ReadingTimerScreen(
     book: MyBook,
     onNavigateBack: () -> Unit,
-    onFinishReading: (Int) -> Unit
+    onFinishReading: (Int) -> Unit,
+    onDisposeReading: (Int) -> Unit // 추가된 콜백
 ) {
     var isRunning by remember { mutableStateOf(false) }
     var seconds by remember { mutableStateOf(0) }
     var showFinishDialog by remember { mutableStateOf(false) }
+
+    // 화면이 사라질 때 독서 시간을 저장하기 위한 Effect
+    DisposableEffect(Unit) {
+        onDispose {
+            if (seconds > 0) {
+                onDisposeReading(seconds)
+            }
+        }
+    }
 
     LaunchedEffect(isRunning) {
         if (isRunning) {
