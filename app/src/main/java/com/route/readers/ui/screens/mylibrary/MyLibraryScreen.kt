@@ -54,7 +54,9 @@ fun MyLibraryScreen(
     onNavigateToSearch: () -> Unit,
     attendanceViewModel: AttendanceViewModel,
     profileViewModel: ProfileViewModel = viewModel(),
-    onBookSelected: (MyBook?) -> Unit = {}
+    onBookSelected: (MyBook?) -> Unit = {},
+    bookToUpdate: MyBook?,
+    onUpdateFinished: () -> Unit
 ) {
     val context = LocalContext.current
     val myLibraryRepository = remember { MyLibraryRepository() }
@@ -97,6 +99,13 @@ fun MyLibraryScreen(
     LaunchedEffect(Unit) {
         refreshBooks()
         attendanceViewModel.checkAttendance()
+    }
+
+    LaunchedEffect(bookToUpdate) {
+        if (bookToUpdate != null) {
+            showProgressDialogBook = bookToUpdate
+            onUpdateFinished()
+        }
     }
 
     Column(

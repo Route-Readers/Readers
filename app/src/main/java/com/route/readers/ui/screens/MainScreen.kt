@@ -67,6 +67,7 @@ fun MainScreen(
     val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var bookToUpdateAfterReading by remember { mutableStateOf<MyBook?>(null) }
 
     if (showLogoutDialog) {
         AlertDialog(
@@ -178,7 +179,9 @@ fun MainScreen(
                     },
                     onBookSelected = { book ->
                         selectedBook = book
-                    }
+                    },
+                    bookToUpdate = bookToUpdateAfterReading,
+                    onUpdateFinished = { bookToUpdateAfterReading = null }
                 )
             }
             composable(BottomNavItem.Search.route) {
@@ -251,14 +254,15 @@ fun MainScreen(
                 val bookIsbn = backStackEntry.arguments?.getString("bookIsbn")
                 selectedBook?.let { book ->
                     if (book.isbn == bookIsbn) {
-                        ReadingTimerScreen(
-                            book = book,
-                            onNavigateBack = { bottomNavController.popBackStack() },
-                            onFinishReading = {
-                                bottomNavController.popBackStack()
-                            }
-                        )
-                    }
+                                        ReadingTimerScreen(
+                                            book = book,
+                                            onNavigateBack = { bottomNavController.popBackStack() },
+                                            onFinishReading = { timeInSeconds ->
+                                                mainViewModel.addReadingTime(book.isbn, timeInSeconds)
+                                                bookToUpdateAfterReading = book
+                                                bottomNavController.popBackStack()
+                                            }
+                                        )                    }
                 }
             }
         }

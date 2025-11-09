@@ -98,24 +98,25 @@ class MyLibraryRepository {
         }
     }
     
-    private fun checkIfReadToday(): Boolean {
-        val today = java.util.Calendar.getInstance().apply {
-            set(java.util.Calendar.HOUR_OF_DAY, 0)
-            set(java.util.Calendar.MINUTE, 0)
-            set(java.util.Calendar.SECOND, 0)
-            set(java.util.Calendar.MILLISECOND, 0)
-        }.timeInMillis
-        
-        return _myBooks.value.any { book ->
-            book.lastReadDate?.let { it >= today } ?: false
-        }
+    private suspend fun checkIfReadToday(): Boolean {
+        return calculatePagesReadToday() > 0
     }
     
-    private fun calculatePagesReadToday(): Int {
-        // 오늘 읽은 페이지 수 = 현재 진행 중인 책들의 currentPage 합계
-        return _myBooks.value
-            .filter { !it.isCompleted }
-            .sumOf { it.currentPage }
+    private suspend fun calculatePagesReadToday(): Int {
+        return firestoreRepository.getPagesReadToday()
+    }
+
+    suspend fun addReadingTime(isbn: String, timeInSeconds: Int): Boolean {
+        return try {
+            val success = firestoreRepository.addReadingTime(isbn, timeInSeconds)
+            if (success) {
+                syncWithFirestore()
+            }
+            success
+        } catch (e: Exception) {
+            Log.e("MyLibraryRepository", "Error adding reading time: ${e.message}", e)
+            false
+        }
     }
 
     suspend fun removeBookFromLibrary(isbn: String): Boolean {

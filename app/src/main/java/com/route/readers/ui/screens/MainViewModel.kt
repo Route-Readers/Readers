@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.data.model.User
+import com.route.readers.data.remote.MyLibraryRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -19,6 +20,7 @@ class MainViewModel : ViewModel() {
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
     private val currentUserId = auth.currentUser?.uid
+    private val myLibraryRepository = MyLibraryRepository()
 
     private val _consecutiveDays = MutableStateFlow(0)
     val consecutiveDays = _consecutiveDays.asStateFlow()
@@ -111,6 +113,12 @@ class MainViewModel : ViewModel() {
                 Log.e("MainViewModel", "Failed to load user tokens", e)
                 _tokens.value = 0
             }
+        }
+    }
+
+    fun addReadingTime(bookId: String, timeInSeconds: Int) {
+        viewModelScope.launch {
+            myLibraryRepository.addReadingTime(bookId, timeInSeconds)
         }
     }
 }
