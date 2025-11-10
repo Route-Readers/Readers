@@ -81,15 +81,17 @@ class ChallengeRepository {
                 val snapshot = transaction.get(docRef)
                 val challenge = snapshot.toObject(Challenge::class.java) ?: return@runTransaction
 
-                // 1. 일별 진행도(읽은 페이지 수) 업데이트
-                transaction.update(docRef, "dailyProgress.$userId.$date", dailyAmount)
-
-                // 2. 챌린지 타입에 따라 전체 진행도(달성 일수) 계산
-                // 트랜잭션 내에서 업데이트된 값을 포함하여 다시 계산하기 위해 snapshot에서 데이터를 가져옴
+                // 1. 기존 일별 진행도 가져오기
                 val dailyProgressData = snapshot.get("dailyProgress.$userId") as? Map<String, Long> ?: emptyMap()
-                // 현재 업데이트를 반영하기 위해 맵을 새로 만듬
+                val currentDailyPages = dailyProgressData[date]?.toInt() ?: 0
+                val newDailyPages = currentDailyPages + dailyAmount
+
+                // 2. 일별 진행도(읽은 페이지 수) 누적 업데이트
+                transaction.update(docRef, "dailyProgress.$userId.$date", newDailyPages)
+
+                // 3. 챌린지 타입에 따라 전체 진행도(달성 일수) 계산
                 val updatedDailyProgress = dailyProgressData.toMutableMap()
-                updatedDailyProgress[date] = dailyAmount.toLong()
+                updatedDailyProgress[date] = newDailyPages.toLong()
 
                 val newProgress = when (challenge.type) {
                     com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING -> {
@@ -106,11 +108,12 @@ class ChallengeRepository {
                     }
                 }
 
-                // 3. 계산된 전체 진행도로 업데이트
+                // 4. 계산된 전체 진행도로 업데이트
                 transaction.update(docRef, "progress.$userId", newProgress)
             }.await()
 
         } catch (e: Exception) {
+            android.util.Log.e("ChallengeRepository", "Error updating daily progress", e)
             e.printStackTrace()
         }
     }
@@ -156,6 +159,22 @@ class ChallengeRepository {
         val year = calendar.get(java.util.Calendar.YEAR)
         val week = calendar.get(java.util.Calendar.WEEK_OF_YEAR)
         return year * 100 + week
+    }
+
+    suspend fun getActiveChallenges(userId: String): List<Challenge> {
+        return try {
+            val currentWeek = getCurrentWeekNumber()
+            challengesCollection
+                .whereArrayContains("participants", userId)
+                .whereEqualTo("weekNumber", currentWeek)
+                .get()
+                .await()
+                .documents
+                .mapNotNull { it.toObject(Challenge::class.java) }
+        } catch (e: Exception) {
+            android.util.Log.e("ChallengeRepository", "Error getting active challenges", e)
+            emptyList()
+        }
     }
 
     suspend fun leaveChallenge(challengeId: String, userId: String) {

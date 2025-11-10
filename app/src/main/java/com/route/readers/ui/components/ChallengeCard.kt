@@ -13,6 +13,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.google.firebase.auth.FirebaseAuth
 import com.route.readers.data.model.Challenge
+import com.route.readers.data.model.ChallengeType
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 @Composable
@@ -72,7 +76,24 @@ fun ChallengeCard(
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "${userProgress} / ${totalDays}일 완료 (${(progress * 100).toInt()}%)")
+                // 챌린지 타입에 따른 진행도 표시
+                when (challenge.type) {
+                    ChallengeType.DAILY_PAGES_READING -> {
+                        val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                        val todayPages = (challenge.dailyProgress[currentUserId]?.get(todayStr) as? Int) ?: 0
+                        
+                        Text(text = "${userProgress} / ${totalDays}일 완료 (${(progress * 100).toInt()}%)")
+                        Text(
+                            text = "오늘 읽은 페이지: ${todayPages}/${challenge.goal}페이지",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (todayPages >= challenge.goal) MaterialTheme.colorScheme.primary 
+                                   else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    else -> {
+                        Text(text = "${userProgress} / ${totalDays}일 완료 (${(progress * 100).toInt()}%)")
+                    }
+                }
             } else {
                 Button(
                     onClick = onJoinClick,

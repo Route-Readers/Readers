@@ -190,4 +190,14 @@ class ChallengeViewModel : ViewModel() {
             refreshChallenges()
         }
     }
+
+    // 페이지 업데이트 시 자동으로 호출되는 함수
+    fun onPagesRead(pagesRead: Int) {
+        viewModelScope.launch {
+            val userChallenge = _uiState.value.userChallenge
+            if (userChallenge != null && userChallenge.type == ChallengeType.DAILY_PAGES_READING) {
+                updateDailyProgress(userChallenge.id, pagesRead)
+            }
+        }
+    }
 }

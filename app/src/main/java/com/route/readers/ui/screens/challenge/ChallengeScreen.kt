@@ -33,6 +33,16 @@ fun ChallengeScreen(
         }
     }
 
+    // 화면이 활성화될 때마다 데이터 새로고침
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(5000) // 5초마다 새로고침
+            if (isActive) {
+                viewModel.refreshChallenges()
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(

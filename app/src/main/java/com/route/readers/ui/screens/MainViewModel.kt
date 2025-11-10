@@ -7,10 +7,13 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.data.model.ReadingSession
 import com.route.readers.data.model.User
+import com.route.readers.data.model.Challenge
 import com.route.readers.data.remote.MyLibraryRepository
+import com.route.readers.data.remote.ChallengeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -22,6 +25,7 @@ class MainViewModel : ViewModel() {
     private val auth = FirebaseAuth.getInstance()
     private val currentUserId = auth.currentUser?.uid
     private val myLibraryRepository = MyLibraryRepository()
+    private val challengeRepository = ChallengeRepository()
 
     private val _consecutiveDays = MutableStateFlow(0)
     val consecutiveDays = _consecutiveDays.asStateFlow()
@@ -182,12 +186,46 @@ class MainViewModel : ViewModel() {
             return null
         }
 
-        // 3. 피드 게시 다이얼로그를 위한 정보 반환
+        // 3. 챌린지 진행도 업데이트
+        if (pagesReadThisSession > 0) {
+            updateChallengeProgress(userId, pagesReadThisSession, startTime)
+        }
+
+        // 4. 피드 게시 다이얼로그를 위한 정보 반환
         val updatedBook = book.copy(
             currentPage = newCurrentPage,
             isCompleted = isCompleted,
             lastReadDate = endTime.time
         )
         return Pair(updatedBook, pagesReadThisSession)
+    }
+
+    private fun updateChallengeProgress(userId: String, pagesRead: Int, readingDate: Date) {
+        GlobalScope.launch {
+            try {
+                Log.d("MainViewModel", "Updating challenge progress: userId=$userId, pagesRead=$pagesRead")
+                val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                val dateStr = sdf.format(readingDate)
+                
+                // 활성화된 일일 페이지 챌린지들을 가져와서 업데이트
+                val activeChallenges = challengeRepository.getActiveChallenges(userId)
+                Log.d("MainViewModel", "Found ${activeChallenges.size} active challenges")
+                
+                activeChallenges.forEach { challenge: Challenge ->
+                    Log.d("MainViewModel", "Challenge: ${challenge.title}, type: ${challenge.type}")
+                    if (challenge.type == com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING) {
+                        Log.d("MainViewModel", "Updating daily progress for challenge: ${challenge.id}")
+                        challengeRepository.updateDailyProgress(
+                            challengeId = challenge.id,
+                            userId = userId,
+                            date = dateStr,
+                            dailyAmount = pagesRead
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Failed to update challenge progress", e)
+            }
+        }
     }
 }
