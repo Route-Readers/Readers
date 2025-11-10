@@ -71,14 +71,14 @@ class ChallengeViewModel : ViewModel() {
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
         calendar.set(Calendar.MILLISECOND, 0)
-        
+
         val today = calendar.get(Calendar.DAY_OF_WEEK)
         val daysFromMonday = if (today == Calendar.SUNDAY) 6 else today - Calendar.MONDAY
         calendar.add(Calendar.DAY_OF_YEAR, -daysFromMonday)
-        
+
         return calendar.time
     }
-    
+
     private fun getNextSunday(): java.util.Date {
         val calendar = Calendar.getInstance()
         calendar.time = getThisMonday()
@@ -86,10 +86,10 @@ class ChallengeViewModel : ViewModel() {
         calendar.set(Calendar.HOUR_OF_DAY, 23)
         calendar.set(Calendar.MINUTE, 59)
         calendar.set(Calendar.SECOND, 59)
-        
+
         return calendar.time
     }
-    
+
     private fun getCurrentWeekNumber(): Int {
         val calendar = Calendar.getInstance()
         val year = calendar.get(Calendar.YEAR)
@@ -112,7 +112,7 @@ class ChallengeViewModel : ViewModel() {
         val startDate = getThisMonday()
         val endDate = getNextSunday()
         val weekNumber = getCurrentWeekNumber()
-        
+
         val defaultChallenges = listOf(
             Challenge(
                 id = "challenge_${weekNumber}_1",
@@ -148,7 +148,7 @@ class ChallengeViewModel : ViewModel() {
                 reward = "100 토큰"
             )
         )
-        
+
         defaultChallenges.forEach { repository.createChallenge(it) }
     }
 
@@ -157,7 +157,7 @@ class ChallengeViewModel : ViewModel() {
             val startDate = getThisMonday()
             val endDate = getNextSunday()
             val weekNumber = getCurrentWeekNumber()
-            
+
             val newChallenge = Challenge(
                 id = "challenge_${weekNumber}_${System.currentTimeMillis()}",
                 title = title,
@@ -182,7 +182,7 @@ class ChallengeViewModel : ViewModel() {
             refreshChallenges()
         }
     }
-    
+
     fun updateDailyProgress(challengeId: String, pagesRead: Int) {
         viewModelScope.launch {
             val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(java.util.Date())

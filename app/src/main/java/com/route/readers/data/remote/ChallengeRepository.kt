@@ -28,25 +28,25 @@ class ChallengeRepository {
     suspend fun joinChallenge(challengeId: String, userId: String) {
         try {
             android.util.Log.d("ChallengeRepository", "joinChallenge - challengeId: $challengeId, userId: $userId")
-            
+
             val docRef = challengesCollection.document(challengeId)
             val snapshot = docRef.get().await()
-            
+
             // 문서가 존재하지 않으면 생성
             if (!snapshot.exists()) {
                 android.util.Log.e("ChallengeRepository", "Challenge document not found: $challengeId")
                 return
             }
-            
+
             // 이미 참여 중인지 확인
             val participants = snapshot.get("participants") as? List<*> ?: emptyList<String>()
             android.util.Log.d("ChallengeRepository", "Current participants: $participants")
-            
+
             if (participants.contains(userId)) {
                 android.util.Log.d("ChallengeRepository", "User already participating")
                 return
             }
-            
+
             // 참여자 추가 및 진행도 초기화
             docRef.update(
                 mapOf(
@@ -54,14 +54,14 @@ class ChallengeRepository {
                     "progress.$userId" to 0
                 )
             ).await()
-            
+
             android.util.Log.d("ChallengeRepository", "Successfully joined challenge")
         } catch (e: Exception) {
             android.util.Log.e("ChallengeRepository", "Error joining challenge", e)
             e.printStackTrace()
         }
     }
-    
+
     suspend fun updateProgress(challengeId: String, userId: String, progress: Int) {
         try {
             challengesCollection.document(challengeId)
@@ -71,11 +71,11 @@ class ChallengeRepository {
             e.printStackTrace()
         }
     }
-    
+
     suspend fun updateDailyProgress(challengeId: String, userId: String, date: String, dailyAmount: Int) {
         try {
             val docRef = challengesCollection.document(challengeId)
-            
+
             // 트랜잭션을 사용하여 데이터 일관성 보장
             db.runTransaction { transaction ->
                 val snapshot = transaction.get(docRef)
@@ -114,30 +114,30 @@ class ChallengeRepository {
             e.printStackTrace()
         }
     }
-    
+
     suspend fun getUserActiveChallenge(userId: String): Challenge? {
         return try {
             val currentWeek = getCurrentWeekNumber()
             android.util.Log.d("ChallengeRepository", "getUserActiveChallenge - userId: $userId, weekNumber: $currentWeek")
-            
+
             val result = challengesCollection
                 .whereArrayContains("participants", userId)
                 .whereEqualTo("weekNumber", currentWeek)
                 .get()
                 .await()
-            
+
             android.util.Log.d("ChallengeRepository", "Query result size: ${result.documents.size}")
             result.documents.forEach { doc ->
                 android.util.Log.d("ChallengeRepository", "Document: ${doc.id}, participants: ${doc.get("participants")}, weekNumber: ${doc.get("weekNumber")}")
             }
-            
+
             result.documents.firstOrNull()?.toObject(Challenge::class.java)
         } catch (e: Exception) {
             android.util.Log.e("ChallengeRepository", "Error getting user active challenge", e)
             null
         }
     }
-    
+
     suspend fun getChallengesForWeek(weekNumber: Int): List<Challenge> {
         return try {
             challengesCollection
@@ -150,14 +150,14 @@ class ChallengeRepository {
             emptyList()
         }
     }
-    
+
     private fun getCurrentWeekNumber(): Int {
         val calendar = java.util.Calendar.getInstance()
         val year = calendar.get(java.util.Calendar.YEAR)
         val week = calendar.get(java.util.Calendar.WEEK_OF_YEAR)
         return year * 100 + week
     }
-    
+
     suspend fun leaveChallenge(challengeId: String, userId: String) {
         try {
             val docRef = challengesCollection.document(challengeId)
