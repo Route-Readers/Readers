@@ -30,12 +30,16 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Brightness4
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -74,6 +78,7 @@ enum class MenuItemType {
     ACTIVITY,
     STATISTICS,
     DISPLAY,
+    NOTIFICATIONS,
     TERMS,
     CONTACT
 }
@@ -99,6 +104,7 @@ fun AccountScreen(
     var isActivityMenuExpanded by remember { mutableStateOf(false) }
     var isStatisticsMenuExpanded by remember { mutableStateOf(false) }
     var isDisplayMenuExpanded by remember { mutableStateOf(false) }
+    var isNotificationsMenuExpanded by remember { mutableStateOf(false) }
 
     val uiState by viewModel.uiState.collectAsState()
     val isDarkMode by viewModel.isDarkMode.collectAsState()
@@ -117,6 +123,7 @@ fun AccountScreen(
                 isActivityMenuExpanded = false
                 isStatisticsMenuExpanded = false
                 isDisplayMenuExpanded = false
+                isNotificationsMenuExpanded = false
             }
         ),
         AccountMenuItem(
@@ -129,6 +136,7 @@ fun AccountScreen(
                 isPrivacyMenuExpanded = false
                 isStatisticsMenuExpanded = false
                 isDisplayMenuExpanded = false
+                isNotificationsMenuExpanded = false
             }
         ),
         AccountMenuItem(
@@ -141,6 +149,7 @@ fun AccountScreen(
                 isPrivacyMenuExpanded = false
                 isActivityMenuExpanded = false
                 isDisplayMenuExpanded = false
+                isNotificationsMenuExpanded = false
             }
         ),
         AccountMenuItem(
@@ -153,6 +162,20 @@ fun AccountScreen(
                 isPrivacyMenuExpanded = false
                 isActivityMenuExpanded = false
                 isStatisticsMenuExpanded = false
+                isNotificationsMenuExpanded = false
+            }
+        ),
+        AccountMenuItem(
+            type = MenuItemType.NOTIFICATIONS,
+            title = "알림 설정",
+            subtitle = "독서 알림 및 친구 요청 알림 설정",
+            icon = Icons.Default.Notifications,
+            onClick = {
+                isNotificationsMenuExpanded = !isNotificationsMenuExpanded
+                isPrivacyMenuExpanded = false
+                isActivityMenuExpanded = false
+                isStatisticsMenuExpanded = false
+                isDisplayMenuExpanded = false
             }
         ),
         AccountMenuItem(
@@ -311,6 +334,20 @@ fun AccountScreen(
                                     )
                                 }
                             }
+
+                            if (item.type == MenuItemType.NOTIFICATIONS) {
+                                AnimatedVisibility(
+                                    visible = isNotificationsMenuExpanded,
+                                    enter = expandVertically(animationSpec = tween(300)) + fadeIn(
+                                        animationSpec = tween(300)
+                                    ),
+                                    exit = shrinkVertically(animationSpec = tween(300)) + fadeOut(
+                                        animationSpec = tween(300)
+                                    )
+                                ) {
+                                    NotificationSettings()
+                                }
+                            }
                         }
                     }
                 }
@@ -393,6 +430,7 @@ fun StatisticsButton(onClick: () -> Unit) {
         )
     }
 }
+
 @Composable
 fun PrivacyToggle(
     isPrivate: Boolean,
@@ -491,7 +529,322 @@ fun DarkModeToggle(
     }
 }
 
-// 이 아래에 PostsSection Composable을 정의하거나 import해야 합니다.
-// 예시:
-// @Composable
-// fun PostsSection(...) { ... }
+@Composable
+fun NotificationSettings() {
+    val context = LocalContext.current
+
+    Column(
+        modifier = Modifier
+            .padding(top = 2.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 20.dp, vertical = 16.dp)
+    ) {
+        var readingAlarm by remember { mutableStateOf(true) }
+        var friendReadingAlarm by remember { mutableStateOf(true) }
+        var messageAlarm by remember { mutableStateOf(true) }
+        var friendRequestAlarm by remember { mutableStateOf(true) }
+        var followAlarm by remember { mutableStateOf(true) }
+        var noNotifications by remember { mutableStateOf(false) }
+        var alarmHour by remember { mutableStateOf(20) }
+        var alarmMinute by remember { mutableStateOf(0) }
+
+        NotificationToggleItem(
+            title = "독서 시간 알람",
+            subtitle = "설정한 시간에 독서 알림 받기",
+            checked = readingAlarm && !noNotifications,
+            onCheckedChange = { readingAlarm = it },
+            enabled = !noNotifications
+        )
+
+        if (readingAlarm && !noNotifications) {
+            Spacer(modifier = Modifier.height(8.dp))
+            TimeSettingRow(
+                selectedHour = alarmHour,
+                selectedMinute = alarmMinute,
+                onTimeChange = { hour, minute ->
+                    alarmHour = hour
+                    alarmMinute = minute
+                }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        NotificationToggleItem(
+            title = "친구 독서 알람",
+            subtitle = "친구가 보내는 독서 알림 받기",
+            checked = friendReadingAlarm && !noNotifications,
+            onCheckedChange = { friendReadingAlarm = it },
+            enabled = !noNotifications
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        NotificationToggleItem(
+            title = "메시지 알람",
+            subtitle = "새로운 메시지 알림 받기",
+            checked = messageAlarm && !noNotifications,
+            onCheckedChange = { messageAlarm = it },
+            enabled = !noNotifications
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        NotificationToggleItem(
+            title = "친구 요청 알람",
+            subtitle = "새로운 친구 요청 알림 받기",
+            checked = friendRequestAlarm && !noNotifications,
+            onCheckedChange = { friendRequestAlarm = it },
+            enabled = !noNotifications
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        NotificationToggleItem(
+            title = "팔로우 알람",
+            subtitle = "새로운 팔로워 알림 받기",
+            checked = followAlarm && !noNotifications,
+            onCheckedChange = {
+                followAlarm = it
+                val sharedPref = context.getSharedPreferences("notification_settings", android.content.Context.MODE_PRIVATE)
+                sharedPref.edit().putBoolean("follow_notifications", it).apply()
+            },
+            enabled = !noNotifications
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        NotificationToggleItem(
+            title = "알림 받지 않기",
+            subtitle = "모든 알림을 끄기",
+            checked = noNotifications,
+            onCheckedChange = {
+                noNotifications = it
+                if (it) {
+                    readingAlarm = false
+                    friendReadingAlarm = false
+                    messageAlarm = false
+                    friendRequestAlarm = false
+                    followAlarm = false
+                }
+            },
+            enabled = true
+        )
+    }
+}
+
+@Composable
+fun NotificationToggleItem(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp,
+                color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            )
+            Text(
+                text = subtitle,
+                fontSize = 14.sp,
+                color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            )
+        }
+
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            enabled = enabled,
+            colors = SwitchDefaults.colors(
+                checkedTrackColor = DarkRed.copy(alpha = 0.5f),
+                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                checkedBorderColor = Color.Transparent,
+                uncheckedBorderColor = Color.Transparent,
+                disabledCheckedTrackColor = DarkRed.copy(alpha = 0.2f),
+                disabledUncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            )
+        )
+    }
+}
+
+@Composable
+fun TimeSettingRow(
+    selectedHour: Int,
+    selectedMinute: Int,
+    onTimeChange: (Int, Int) -> Unit
+) {
+    var showTimePicker by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+            .clickable { showTimePicker = true }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.AccessTime,
+            contentDescription = "시간 설정",
+            tint = DarkRed,
+            modifier = Modifier.size(20.dp)
+        )
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Text(
+            text = "알림 시간: ${String.format("%02d:%02d", selectedHour, selectedMinute)}",
+            fontSize = 14.sp,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.Medium
+        )
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        Text(
+            text = "변경",
+            fontSize = 14.sp,
+            color = DarkRed,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+
+    if (showTimePicker) {
+        SimpleTimePickerDialog(
+            initialHour = selectedHour,
+            initialMinute = selectedMinute,
+            onTimeSelected = { hour, minute ->
+                onTimeChange(hour, minute)
+                showTimePicker = false
+            },
+            onDismiss = { showTimePicker = false }
+        )
+    }
+}
+
+@Composable
+fun SimpleTimePickerDialog(
+    initialHour: Int,
+    initialMinute: Int,
+    onTimeSelected: (Int, Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var selectedHour by remember { mutableStateOf(initialHour) }
+    var selectedMinute by remember { mutableStateOf(initialMinute) }
+
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "알림 시간 설정",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("시", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                        Button(
+                            onClick = { selectedHour = if (selectedHour == 23) 0 else selectedHour + 1 },
+                            colors = ButtonDefaults.buttonColors(containerColor = DarkRed.copy(alpha = 0.1f)),
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Text("+", color = DarkRed, fontSize = 16.sp)
+                        }
+
+                        Text(
+                            text = String.format("%02d", selectedHour),
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+
+                        Button(
+                            onClick = { selectedHour = if (selectedHour == 0) 23 else selectedHour - 1 },
+                            colors = ButtonDefaults.buttonColors(containerColor = DarkRed.copy(alpha = 0.1f)),
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Text("-", color = DarkRed, fontSize = 16.sp)
+                        }
+                    }
+
+                    Text(
+                        text = " : ",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("분", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                        Button(
+                            onClick = { selectedMinute = if (selectedMinute == 59) 0 else selectedMinute + 1 },
+                            colors = ButtonDefaults.buttonColors(containerColor = DarkRed.copy(alpha = 0.1f)),
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Text("+", color = DarkRed, fontSize = 16.sp)
+                        }
+
+                        Text(
+                            text = String.format("%02d", selectedMinute),
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+
+                        Button(
+                            onClick = { selectedMinute = if (selectedMinute == 0) 59 else selectedMinute - 1 },
+                            colors = ButtonDefaults.buttonColors(containerColor = DarkRed.copy(alpha = 0.1f)),
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Text("-", color = DarkRed, fontSize = 16.sp)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(
+                onClick = { onTimeSelected(selectedHour, selectedMinute) }
+            ) {
+                Text("확인", color = DarkRed)
+            }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) {
+                Text("취소")
+            }
+        }
+    )
+}
