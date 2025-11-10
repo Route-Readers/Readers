@@ -31,6 +31,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Brightness4
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.History
@@ -683,4 +684,128 @@ fun NotificationToggleItem(
             )
         )
     }
+}
+
+@Composable
+fun TimeSettingRow(
+    selectedHour: Int,
+    selectedMinute: Int,
+    onTimeChange: (Int, Int) -> Unit
+) {
+    var showTimePicker by remember { mutableStateOf(false) }
+    
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+            .clickable { showTimePicker = true }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.AccessTime,
+            contentDescription = "시간 설정",
+            tint = DarkRed,
+            modifier = Modifier.size(20.dp)
+        )
+        
+        Spacer(modifier = Modifier.width(12.dp))
+        
+        Text(
+            text = "알림 시간: ${String.format("%02d:%02d", selectedHour, selectedMinute)}",
+            fontSize = 14.sp,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.Medium
+        )
+        
+        Spacer(modifier = Modifier.weight(1f))
+        
+        Text(
+            text = "변경",
+            fontSize = 14.sp,
+            color = DarkRed,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+    
+    if (showTimePicker) {
+        SimpleTimePickerDialog(
+            initialHour = selectedHour,
+            initialMinute = selectedMinute,
+            onTimeSelected = { hour, minute ->
+                onTimeChange(hour, minute)
+                showTimePicker = false
+            },
+            onDismiss = { showTimePicker = false }
+        )
+    }
+}
+
+@Composable
+fun SimpleTimePickerDialog(
+    initialHour: Int,
+    initialMinute: Int,
+    onTimeSelected: (Int, Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var selectedHour by remember { mutableStateOf(initialHour) }
+    var selectedMinute by remember { mutableStateOf(initialMinute) }
+    
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "알림 시간 설정",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // 시간 선택
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("시", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        text = String.format("%02d", selectedHour),
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                
+                Text(
+                    text = " : ",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                
+                // 분 선택
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("분", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        text = String.format("%02d", selectedMinute),
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(
+                onClick = { onTimeSelected(selectedHour, selectedMinute) }
+            ) {
+                Text("확인", color = DarkRed)
+            }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) {
+                Text("취소")
+            }
+        }
+    )
 }
