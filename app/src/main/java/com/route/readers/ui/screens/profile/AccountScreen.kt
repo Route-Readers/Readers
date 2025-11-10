@@ -531,6 +531,8 @@ fun DarkModeToggle(
 
 @Composable
 fun NotificationSettings() {
+    val context = LocalContext.current
+
     Column(
         modifier = Modifier
             .padding(top = 2.dp)
@@ -548,7 +550,6 @@ fun NotificationSettings() {
         var alarmHour by remember { mutableStateOf(20) }
         var alarmMinute by remember { mutableStateOf(0) }
 
-        // 독서 알람
         NotificationToggleItem(
             title = "독서 시간 알람",
             subtitle = "설정한 시간에 독서 알림 받기",
@@ -557,7 +558,6 @@ fun NotificationSettings() {
             enabled = !noNotifications
         )
 
-        // 독서 알람이 켜져 있을 때만 시간 설정 표시
         if (readingAlarm && !noNotifications) {
             Spacer(modifier = Modifier.height(8.dp))
             TimeSettingRow(
@@ -572,7 +572,6 @@ fun NotificationSettings() {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 친구가 보내는 독서 알람
         NotificationToggleItem(
             title = "친구 독서 알람",
             subtitle = "친구가 보내는 독서 알림 받기",
@@ -583,7 +582,6 @@ fun NotificationSettings() {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 메시지 알람
         NotificationToggleItem(
             title = "메시지 알람",
             subtitle = "새로운 메시지 알림 받기",
@@ -594,7 +592,6 @@ fun NotificationSettings() {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 친구 요청 알람
         NotificationToggleItem(
             title = "친구 요청 알람",
             subtitle = "새로운 친구 요청 알림 받기",
@@ -605,18 +602,20 @@ fun NotificationSettings() {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 팔로우 알람
         NotificationToggleItem(
             title = "팔로우 알람",
             subtitle = "새로운 팔로워 알림 받기",
             checked = followAlarm && !noNotifications,
-            onCheckedChange = { followAlarm = it },
+            onCheckedChange = {
+                followAlarm = it
+                val sharedPref = context.getSharedPreferences("notification_settings", android.content.Context.MODE_PRIVATE)
+                sharedPref.edit().putBoolean("follow_notifications", it).apply()
+            },
             enabled = !noNotifications
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 구분선
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -626,12 +625,11 @@ fun NotificationSettings() {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 알림 받지 않기
         NotificationToggleItem(
             title = "알림 받지 않기",
             subtitle = "모든 알림을 끄기",
             checked = noNotifications,
-            onCheckedChange = { 
+            onCheckedChange = {
                 noNotifications = it
                 if (it) {
                     readingAlarm = false
@@ -698,7 +696,7 @@ fun TimeSettingRow(
     onTimeChange: (Int, Int) -> Unit
 ) {
     var showTimePicker by remember { mutableStateOf(false) }
-    
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -715,18 +713,18 @@ fun TimeSettingRow(
             tint = DarkRed,
             modifier = Modifier.size(20.dp)
         )
-        
+
         Spacer(modifier = Modifier.width(12.dp))
-        
+
         Text(
             text = "알림 시간: ${String.format("%02d:%02d", selectedHour, selectedMinute)}",
             fontSize = 14.sp,
             color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Medium
         )
-        
+
         Spacer(modifier = Modifier.weight(1f))
-        
+
         Text(
             text = "변경",
             fontSize = 14.sp,
@@ -734,7 +732,7 @@ fun TimeSettingRow(
             fontWeight = FontWeight.SemiBold
         )
     }
-    
+
     if (showTimePicker) {
         SimpleTimePickerDialog(
             initialHour = selectedHour,
@@ -757,7 +755,7 @@ fun SimpleTimePickerDialog(
 ) {
     var selectedHour by remember { mutableStateOf(initialHour) }
     var selectedMinute by remember { mutableStateOf(initialMinute) }
-    
+
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -773,11 +771,9 @@ fun SimpleTimePickerDialog(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // 시간 선택
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("시", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        
-                        // 시간 증가 버튼
+
                         Button(
                             onClick = { selectedHour = if (selectedHour == 23) 0 else selectedHour + 1 },
                             colors = ButtonDefaults.buttonColors(containerColor = DarkRed.copy(alpha = 0.1f)),
@@ -785,15 +781,14 @@ fun SimpleTimePickerDialog(
                         ) {
                             Text("+", color = DarkRed, fontSize = 16.sp)
                         }
-                        
+
                         Text(
                             text = String.format("%02d", selectedHour),
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
-                        
-                        // 시간 감소 버튼
+
                         Button(
                             onClick = { selectedHour = if (selectedHour == 0) 23 else selectedHour - 1 },
                             colors = ButtonDefaults.buttonColors(containerColor = DarkRed.copy(alpha = 0.1f)),
@@ -802,19 +797,17 @@ fun SimpleTimePickerDialog(
                             Text("-", color = DarkRed, fontSize = 16.sp)
                         }
                     }
-                    
+
                     Text(
                         text = " : ",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
-                    
-                    // 분 선택
+
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("분", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        
-                        // 분 증가 버튼
+
                         Button(
                             onClick = { selectedMinute = if (selectedMinute == 59) 0 else selectedMinute + 1 },
                             colors = ButtonDefaults.buttonColors(containerColor = DarkRed.copy(alpha = 0.1f)),
@@ -822,15 +815,14 @@ fun SimpleTimePickerDialog(
                         ) {
                             Text("+", color = DarkRed, fontSize = 16.sp)
                         }
-                        
+
                         Text(
                             text = String.format("%02d", selectedMinute),
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
-                        
-                        // 분 감소 버튼
+
                         Button(
                             onClick = { selectedMinute = if (selectedMinute == 0) 59 else selectedMinute - 1 },
                             colors = ButtonDefaults.buttonColors(containerColor = DarkRed.copy(alpha = 0.1f)),

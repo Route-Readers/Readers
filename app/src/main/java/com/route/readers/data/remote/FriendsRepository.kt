@@ -1,7 +1,9 @@
 package com.route.readers.data.remote
 
+import android.content.Context
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.route.readers.notification.FollowNotificationHelper
 import com.route.readers.ui.screens.community.Friend
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -135,6 +137,34 @@ class FriendsRepository {
                     .await()
                 
                 loadFriends()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+    
+    suspend fun followUser(userId: String, context: Context) {
+        currentUserId?.let { currentId ->
+            try {
+                val currentUserDoc = firestore.collection("users").document(currentId)
+                val currentUserData = currentUserDoc.get().await()
+                val currentFollowing = currentUserData.get("following") as? MutableList<String> ?: mutableListOf()
+                
+                if (!currentFollowing.contains(userId)) {
+                    currentFollowing.add(userId)
+                    currentUserDoc.update("following", currentFollowing).await()
+                    
+                    val targetUserDoc = firestore.collection("users").document(userId)
+                    val targetFollowers = targetUserDoc.get().await().get("followers") as? MutableList<String> ?: mutableListOf()
+                    
+                    if (!targetFollowers.contains(currentId)) {
+                        targetFollowers.add(currentId)
+                        targetUserDoc.update("followers", targetFollowers).await()
+                        
+                        val currentUserNickname = currentUserData.getString("nickname") ?: "알 수 없는 사용자"
+                        FollowNotificationHelper.sendFollowNotification(context, currentUserNickname)
+                    }
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
