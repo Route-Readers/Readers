@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -74,6 +75,7 @@ enum class MenuItemType {
     ACTIVITY,
     STATISTICS,
     DISPLAY,
+    NOTIFICATIONS,
     TERMS,
     CONTACT
 }
@@ -99,6 +101,7 @@ fun AccountScreen(
     var isActivityMenuExpanded by remember { mutableStateOf(false) }
     var isStatisticsMenuExpanded by remember { mutableStateOf(false) }
     var isDisplayMenuExpanded by remember { mutableStateOf(false) }
+    var isNotificationsMenuExpanded by remember { mutableStateOf(false) }
 
     val uiState by viewModel.uiState.collectAsState()
     val isDarkMode by viewModel.isDarkMode.collectAsState()
@@ -117,6 +120,7 @@ fun AccountScreen(
                 isActivityMenuExpanded = false
                 isStatisticsMenuExpanded = false
                 isDisplayMenuExpanded = false
+                isNotificationsMenuExpanded = false
             }
         ),
         AccountMenuItem(
@@ -129,6 +133,7 @@ fun AccountScreen(
                 isPrivacyMenuExpanded = false
                 isStatisticsMenuExpanded = false
                 isDisplayMenuExpanded = false
+                isNotificationsMenuExpanded = false
             }
         ),
         AccountMenuItem(
@@ -141,6 +146,7 @@ fun AccountScreen(
                 isPrivacyMenuExpanded = false
                 isActivityMenuExpanded = false
                 isDisplayMenuExpanded = false
+                isNotificationsMenuExpanded = false
             }
         ),
         AccountMenuItem(
@@ -153,6 +159,20 @@ fun AccountScreen(
                 isPrivacyMenuExpanded = false
                 isActivityMenuExpanded = false
                 isStatisticsMenuExpanded = false
+                isNotificationsMenuExpanded = false
+            }
+        ),
+        AccountMenuItem(
+            type = MenuItemType.NOTIFICATIONS,
+            title = "알림 설정",
+            subtitle = "독서 알림 및 친구 요청 알림 설정",
+            icon = Icons.Default.Notifications,
+            onClick = {
+                isNotificationsMenuExpanded = !isNotificationsMenuExpanded
+                isPrivacyMenuExpanded = false
+                isActivityMenuExpanded = false
+                isStatisticsMenuExpanded = false
+                isDisplayMenuExpanded = false
             }
         ),
         AccountMenuItem(
@@ -311,6 +331,20 @@ fun AccountScreen(
                                     )
                                 }
                             }
+
+                            if (item.type == MenuItemType.NOTIFICATIONS) {
+                                AnimatedVisibility(
+                                    visible = isNotificationsMenuExpanded,
+                                    enter = expandVertically(animationSpec = tween(300)) + fadeIn(
+                                        animationSpec = tween(300)
+                                    ),
+                                    exit = shrinkVertically(animationSpec = tween(300)) + fadeOut(
+                                        animationSpec = tween(300)
+                                    )
+                                ) {
+                                    NotificationSettings()
+                                }
+                            }
                         }
                     }
                 }
@@ -393,6 +427,7 @@ fun StatisticsButton(onClick: () -> Unit) {
         )
     }
 }
+
 @Composable
 fun PrivacyToggle(
     isPrivate: Boolean,
@@ -491,7 +526,87 @@ fun DarkModeToggle(
     }
 }
 
-// 이 아래에 PostsSection Composable을 정의하거나 import해야 합니다.
-// 예시:
-// @Composable
-// fun PostsSection(...) { ... }
+@Composable
+fun NotificationSettings() {
+    Column(
+        modifier = Modifier
+            .padding(top = 2.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 20.dp, vertical = 16.dp)
+    ) {
+        var readingNotifications by remember { mutableStateOf(true) }
+        var friendRequestNotifications by remember { mutableStateOf(true) }
+
+        // 독서 알림 설정
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "독서 알림",
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "독서 시간 알림 받기",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Switch(
+                checked = readingNotifications,
+                onCheckedChange = { readingNotifications = it },
+                colors = SwitchDefaults.colors(
+                    checkedTrackColor = DarkRed.copy(alpha = 0.5f),
+                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                    uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    checkedBorderColor = Color.Transparent,
+                    uncheckedBorderColor = Color.Transparent
+                )
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 친구 요청 알림 설정
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "친구 요청 알림",
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "새로운 친구 요청 알림 받기",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Switch(
+                checked = friendRequestNotifications,
+                onCheckedChange = { friendRequestNotifications = it },
+                colors = SwitchDefaults.colors(
+                    checkedTrackColor = DarkRed.copy(alpha = 0.5f),
+                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                    uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    checkedBorderColor = Color.Transparent,
+                    uncheckedBorderColor = Color.Transparent
+                )
+            )
+        }
+    }
+}
