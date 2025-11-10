@@ -26,12 +26,12 @@ fun ChallengeCard(
 ) {
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
     val isJoined = challenge.participants.contains(currentUserId)
-    
+
     val daysRemaining = challenge.endDate?.let {
         val diff = it.time - System.currentTimeMillis()
         TimeUnit.MILLISECONDS.toDays(diff).toInt()
     } ?: 0
-    
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -81,13 +81,13 @@ fun ChallengeCard(
                     ChallengeType.DAILY_PAGES_READING -> {
                         val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
                         val todayPages = (challenge.dailyProgress[currentUserId]?.get(todayStr) as? Int) ?: 0
-                        
+
                         Text(text = "${userProgress} / ${totalDays}일 완료 (${(progress * 100).toInt()}%)")
                         Text(
                             text = "오늘 읽은 페이지: ${todayPages}/${challenge.goal}페이지",
                             style = MaterialTheme.typography.bodySmall,
-                            color = if (todayPages >= challenge.goal) MaterialTheme.colorScheme.primary 
-                                   else MaterialTheme.colorScheme.onSurfaceVariant
+                            color = if (todayPages >= challenge.goal) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     else -> {
