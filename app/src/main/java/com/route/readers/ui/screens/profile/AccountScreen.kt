@@ -38,6 +38,8 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -543,6 +545,8 @@ fun NotificationSettings() {
         var friendRequestAlarm by remember { mutableStateOf(true) }
         var followAlarm by remember { mutableStateOf(true) }
         var noNotifications by remember { mutableStateOf(false) }
+        var alarmHour by remember { mutableStateOf(20) }
+        var alarmMinute by remember { mutableStateOf(0) }
 
         // 독서 알람
         NotificationToggleItem(
@@ -557,10 +561,11 @@ fun NotificationSettings() {
         if (readingAlarm && !noNotifications) {
             Spacer(modifier = Modifier.height(8.dp))
             TimeSettingRow(
-                selectedHour = 20,
-                selectedMinute = 0,
+                selectedHour = alarmHour,
+                selectedMinute = alarmMinute,
                 onTimeChange = { hour, minute ->
-                    // 시간 변경 처리
+                    alarmHour = hour
+                    alarmMinute = minute
                 }
             )
         }
@@ -762,36 +767,78 @@ fun SimpleTimePickerDialog(
             )
         },
         text = {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // 시간 선택
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("시", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // 시간 선택
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("시", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        
+                        // 시간 증가 버튼
+                        Button(
+                            onClick = { selectedHour = if (selectedHour == 23) 0 else selectedHour + 1 },
+                            colors = ButtonDefaults.buttonColors(containerColor = DarkRed.copy(alpha = 0.1f)),
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Text("+", color = DarkRed, fontSize = 16.sp)
+                        }
+                        
+                        Text(
+                            text = String.format("%02d", selectedHour),
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                        
+                        // 시간 감소 버튼
+                        Button(
+                            onClick = { selectedHour = if (selectedHour == 0) 23 else selectedHour - 1 },
+                            colors = ButtonDefaults.buttonColors(containerColor = DarkRed.copy(alpha = 0.1f)),
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Text("-", color = DarkRed, fontSize = 16.sp)
+                        }
+                    }
+                    
                     Text(
-                        text = String.format("%02d", selectedHour),
+                        text = " : ",
                         fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 16.dp)
                     )
-                }
-                
-                Text(
-                    text = " : ",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-                
-                // 분 선택
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("분", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(
-                        text = String.format("%02d", selectedMinute),
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    
+                    // 분 선택
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("분", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        
+                        // 분 증가 버튼
+                        Button(
+                            onClick = { selectedMinute = if (selectedMinute == 59) 0 else selectedMinute + 1 },
+                            colors = ButtonDefaults.buttonColors(containerColor = DarkRed.copy(alpha = 0.1f)),
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Text("+", color = DarkRed, fontSize = 16.sp)
+                        }
+                        
+                        Text(
+                            text = String.format("%02d", selectedMinute),
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                        
+                        // 분 감소 버튼
+                        Button(
+                            onClick = { selectedMinute = if (selectedMinute == 0) 59 else selectedMinute - 1 },
+                            colors = ButtonDefaults.buttonColors(containerColor = DarkRed.copy(alpha = 0.1f)),
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Text("-", color = DarkRed, fontSize = 16.sp)
+                        }
+                    }
                 }
             }
         },
