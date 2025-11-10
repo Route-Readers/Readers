@@ -30,7 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Brightness4
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.History
@@ -536,77 +536,151 @@ fun NotificationSettings() {
             .background(MaterialTheme.colorScheme.surface)
             .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
-        var readingNotifications by remember { mutableStateOf(true) }
-        var friendRequestNotifications by remember { mutableStateOf(true) }
+        var readingAlarm by remember { mutableStateOf(true) }
+        var friendReadingAlarm by remember { mutableStateOf(true) }
+        var messageAlarm by remember { mutableStateOf(true) }
+        var friendRequestAlarm by remember { mutableStateOf(true) }
+        var followAlarm by remember { mutableStateOf(true) }
+        var noNotifications by remember { mutableStateOf(false) }
 
-        // 독서 알림 설정
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "독서 알림",
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "독서 시간 알림 받기",
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+        // 독서 알람
+        NotificationToggleItem(
+            title = "독서 시간 알람",
+            subtitle = "설정한 시간에 독서 알림 받기",
+            checked = readingAlarm && !noNotifications,
+            onCheckedChange = { readingAlarm = it },
+            enabled = !noNotifications
+        )
 
-            Switch(
-                checked = readingNotifications,
-                onCheckedChange = { readingNotifications = it },
-                colors = SwitchDefaults.colors(
-                    checkedTrackColor = DarkRed.copy(alpha = 0.5f),
-                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
-                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                    uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    checkedBorderColor = Color.Transparent,
-                    uncheckedBorderColor = Color.Transparent
-                )
+        // 독서 알람이 켜져 있을 때만 시간 설정 표시
+        if (readingAlarm && !noNotifications) {
+            Spacer(modifier = Modifier.height(8.dp))
+            TimeSettingRow(
+                selectedHour = 20,
+                selectedMinute = 0,
+                onTimeChange = { hour, minute ->
+                    // 시간 변경 처리
+                }
             )
         }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 친구가 보내는 독서 알람
+        NotificationToggleItem(
+            title = "친구 독서 알람",
+            subtitle = "친구가 보내는 독서 알림 받기",
+            checked = friendReadingAlarm && !noNotifications,
+            onCheckedChange = { friendReadingAlarm = it },
+            enabled = !noNotifications
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 메시지 알람
+        NotificationToggleItem(
+            title = "메시지 알람",
+            subtitle = "새로운 메시지 알림 받기",
+            checked = messageAlarm && !noNotifications,
+            onCheckedChange = { messageAlarm = it },
+            enabled = !noNotifications
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 친구 요청 알람
+        NotificationToggleItem(
+            title = "친구 요청 알람",
+            subtitle = "새로운 친구 요청 알림 받기",
+            checked = friendRequestAlarm && !noNotifications,
+            onCheckedChange = { friendRequestAlarm = it },
+            enabled = !noNotifications
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 팔로우 알람
+        NotificationToggleItem(
+            title = "팔로우 알람",
+            subtitle = "새로운 팔로워 알림 받기",
+            checked = followAlarm && !noNotifications,
+            onCheckedChange = { followAlarm = it },
+            enabled = !noNotifications
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 친구 요청 알림 설정
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "친구 요청 알림",
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "새로운 친구 요청 알림 받기",
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+        // 구분선
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+        )
 
-            Switch(
-                checked = friendRequestNotifications,
-                onCheckedChange = { friendRequestNotifications = it },
-                colors = SwitchDefaults.colors(
-                    checkedTrackColor = DarkRed.copy(alpha = 0.5f),
-                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
-                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                    uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    checkedBorderColor = Color.Transparent,
-                    uncheckedBorderColor = Color.Transparent
-                )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 알림 받지 않기
+        NotificationToggleItem(
+            title = "알림 받지 않기",
+            subtitle = "모든 알림을 끄기",
+            checked = noNotifications,
+            onCheckedChange = { 
+                noNotifications = it
+                if (it) {
+                    readingAlarm = false
+                    friendReadingAlarm = false
+                    messageAlarm = false
+                    friendRequestAlarm = false
+                    followAlarm = false
+                }
+            },
+            enabled = true
+        )
+    }
+}
+
+@Composable
+fun NotificationToggleItem(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp,
+                color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            )
+            Text(
+                text = subtitle,
+                fontSize = 14.sp,
+                color = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
             )
         }
+
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            enabled = enabled,
+            colors = SwitchDefaults.colors(
+                checkedTrackColor = DarkRed.copy(alpha = 0.5f),
+                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                checkedBorderColor = Color.Transparent,
+                uncheckedBorderColor = Color.Transparent,
+                disabledCheckedTrackColor = DarkRed.copy(alpha = 0.2f),
+                disabledUncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            )
+        )
     }
 }
