@@ -403,7 +403,7 @@ fun ProfileContent(
                                         bookmarkedFeedIds = state.bookmarkedFeedIds,
                                         onLikeClick = viewModel::toggleLike,
                                         onBookmarkClick = onBookmarkClick,
-                                        onDeleteClick = { feedId ->
+                                        onDeleteClick = { feedId: String ->
                                             feedToDelete = feedId
                                             showDeleteDialog = true
                                         },

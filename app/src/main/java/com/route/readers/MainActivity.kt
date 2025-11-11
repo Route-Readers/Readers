@@ -338,9 +338,6 @@ fun RootAppNavigation(accountViewModel: AccountViewModel) {
                 onNavigateToChallenge = {
                     appNavController.navigate("challenge_route")
                 },
-                onNavigateToTokenShop = {
-                    appNavController.navigate("token_shop_route")
-                },
                 onNavigateToUsedBookDetail = { bookId ->
                     appNavController.navigate("used_book_detail_route/$bookId")
                 },
