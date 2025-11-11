@@ -314,119 +314,14 @@ fun ProfileContent(
                     Column(
                         modifier = Modifier.padding(vertical = 8.dp)
                     ) {
-                        var expandedState by remember { mutableStateOf<String?>("posts") }
-                        val sections = mutableListOf<Pair<String, String>>()
+                        Text("프로필 섹션 (개발 중)")
 
-                        if (user.readingGenres.isNotEmpty() || user.readingStyles.isNotEmpty()) {
-                            sections.add("taste" to "독서 취향")
-                        }
-                        if (state.recommendedBooks.isNotEmpty()) {
-                            sections.add("recommended" to "추천 도서")
-                        }
-                        sections.add("favorite" to "관심 도서")
-                        sections.add("challenges" to "독서 챌린지")
-                        sections.add("achievements" to "업적")
-                        sections.add("posts" to "내 활동")
-
-                        sections.forEachIndexed { index, (key, title) ->
-                            ExpandableProfileSection(
-                                title = title,
-                                icon = when (key) {
-                                    "taste" -> Icons.Rounded.AutoStories
-                                    "recommended" -> Icons.Rounded.LocalFireDepartment
-                                    "favorite" -> Icons.Rounded.FavoriteBorder
-                                    "challenges" -> Icons.Rounded.EmojiEvents
-                                    "achievements" -> Icons.Rounded.WorkspacePremium
-                                    "posts" -> Icons.Rounded.GridView
-                                    else -> Icons.Rounded.GridView
-                                },
-                                isExpanded = expandedState == key,
-                                onToggle = {
-                                    expandedState = if (expandedState == key) null else key
-                                }
-                            ) {
-                                when (key) {
-                                    "taste" -> {
-                                        Column(
-                                            modifier = Modifier.padding(horizontal = 16.dp),
-                                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                                        ) {
-                                            if (user.readingGenres.isNotEmpty()) {
-                                                Text("선호 장르", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                    items(user.readingGenres) { genre -> Chip(label = genre) }
-                                                }
-                                            }
-                                            if (user.readingStyles.isNotEmpty()) {
-                                                Text("독서 스타일", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                    items(user.readingStyles) { style -> Chip(label = style) }
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    "recommended" -> RecommendedBooksSection(
-                                        books = state.recommendedBooks,
-                                        onBookClick = { }
-                                    )
-
-                                    "favorite" -> FavoriteBooksSection(
-                                        books = state.favoriteBooks,
-                                        isSelectionMode = state.isSelectionMode,
-                                        selectedBookIds = state.selectedBookIds,
-                                        onToggleSelection = viewModel::toggleBookSelection,
-                                        onStartSelectionMode = viewModel::startSelectionMode,
-                                        onDeleteClick = viewModel::deleteSelectedFavoriteBooks,
-                                        onBookClick = { },
-                                        onNavigateToSearch = onNavigateToSearch
-                                    )
-
-                                    "challenges" -> ChallengesSection(
-                                        ongoingChallenges = emptyList(),
-                                        completedChallenges = emptyList(),
-                                        onChallengeClick = { }
-                                    )
-
-                                    "achievements" -> AchievementsSection(
-                                        ongoingAchievements = state.ongoingAchievements,
-                                        completedAchievements = state.completedAchievements,
-                                        onAchievementClick = { }
-                                    )
-
-                                    "posts" -> PostsSection(
-                                        myPosts = state.myPosts.filterIsInstance<FeedItem.BookReview>()
-                                            .sortedByDescending { it.timestamp },
-                                        savedPosts = state.savedPosts,
-                                        isMyProfile = state.isMyProfile,
-                                        likedFeedIds = state.likedFeedIds,
-                                        bookmarkedFeedIds = state.bookmarkedFeedIds,
-                                        onLikeClick = viewModel::toggleLike,
-                                        onBookmarkClick = onBookmarkClick,
-                                        onDeleteClick = { feedId: String ->
-                                            feedToDelete = feedId
-                                            showDeleteDialog = true
-                                        },
-                                        wishlist = state.wishlist,
-                                        myLibrary = state.myLibrary,
-                                        onToggleWishlist = viewModel::toggleWishlist,
-                                        onToggleMyLibrary = viewModel::toggleMyLibrary,
-                                        userInfoMap = state.userInfoMap
-                                    )
-                                }
-                            }
-                            if (index < sections.size - 1) {
-                                Divider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-                            }
-                        }
                     }
                 }
             }
         }
     }
 }
-
-
 @Composable
 fun AchievementsSection(
     ongoingAchievements: List<Achievement>,

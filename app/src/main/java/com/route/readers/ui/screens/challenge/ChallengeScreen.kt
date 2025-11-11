@@ -18,13 +18,17 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.route.readers.data.model.Challenge
 import com.route.readers.ui.components.ChallengeCard
+import com.route.readers.ui.screens.bookclub.BookClubScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 fun ChallengeScreen(
     viewModel: ChallengeViewModel = viewModel(),
-    isActive: Boolean = false
+    isActive: Boolean = false,
+    onNavigateToChat: (String, String) -> Unit = { _, _ -> }
 ) {
+    var selectedTab by remember { mutableIntStateOf(0) }
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(isActive) {
@@ -43,6 +47,40 @@ fun ChallengeScreen(
         }
     }
 
+    Column {
+        // 탭 바
+        TabRow(selectedTabIndex = selectedTab) {
+            Tab(
+                selected = selectedTab == 0,
+                onClick = { selectedTab = 0 },
+                text = { Text("챌린지") }
+            )
+            Tab(
+                selected = selectedTab == 1,
+                onClick = { selectedTab = 1 },
+                text = { Text("북클럽") }
+            )
+        }
+
+        // 탭 내용
+        when (selectedTab) {
+            0 -> ChallengeContent(
+                uiState = uiState,
+                viewModel = viewModel
+            )
+            1 -> BookClubScreen(
+                onNavigateToChat = onNavigateToChat
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ChallengeContent(
+    uiState: ChallengeUiState,
+    viewModel: ChallengeViewModel
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -77,7 +115,7 @@ fun ChallengeScreen(
             }
             uiState.userChallenge != null -> {
                 ChallengeProgress(
-                    challenge = uiState.userChallenge!!,
+                    challenge = uiState.userChallenge,
                     userId = viewModel.currentUserId,
                     modifier = Modifier.padding(paddingValues)
                 )
@@ -178,6 +216,7 @@ fun ChallengeProgress(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateChallengeDialog(
     onDismiss: () -> Unit,

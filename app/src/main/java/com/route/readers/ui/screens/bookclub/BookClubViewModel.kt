@@ -1,83 +1,180 @@
 package com.route.readers.ui.screens.bookclub
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.FirebaseAuth
+import com.route.readers.data.model.BookClub
+import com.route.readers.data.remote.BookClubRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import com.route.readers.data.model.BookClub
+import kotlinx.coroutines.launch
 
-class BookClubViewModel : ViewModel() {
-    
+class BookClubViewModel(
+    private val repository: BookClubRepository = BookClubRepository()
+) : ViewModel() {
+
     private val _uiState = MutableStateFlow(BookClubUiState())
     val uiState: StateFlow<BookClubUiState> = _uiState.asStateFlow()
-    
+
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+
     init {
-        loadBookClubs()
+        loadBookClubsRealtime()
     }
-    
-    private fun loadBookClubs() {
-        // 임시 데이터
-        val sampleClubs = listOf(
-            BookClub(
-                id = "1",
-                name = "소설 읽기 모임",
-                bookTitle = "미드나잇 라이브러리",
-                memberCount = 12,
-                isJoined = false
-            ),
-            BookClub(
-                id = "2", 
-                name = "자기계발서 클럽",
-                bookTitle = "아토믹 해빗",
-                memberCount = 8,
-                isJoined = true
+
+    private fun loadBookClubsRealtime() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            
+            try {
+                repository.getAllBookClubsFlow().collect { bookClubs ->
+                    val updatedClubs = bookClubs.map { club ->
+                        club.copy(isJoined = club.members.contains(currentUserId))
+                    }
+                    _uiState.value = _uiState.value.copy(
+                        bookClubs = updatedClubs,
+                        isLoading = false,
+                        error = null
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = e.message ?: "알 수 없는 오류가 발생했습니다."
+                )
+            }
+        }
+    }
+
+    fun loadBookClubs() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            
+            repository.getAllBookClubs().fold(
+                onSuccess = { bookClubs ->
+                    val updatedClubs = bookClubs.map { club ->
+                        club.copy(isJoined = club.members.contains(currentUserId))
+                    }
+                    _uiState.value = _uiState.value.copy(
+                        bookClubs = updatedClubs,
+                        isLoading = false,
+                        error = null
+                    )
+                },
+                onFailure = { error ->
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        error = error.message ?: "북클럽을 불러오는데 실패했습니다."
+                    )
+                }
             )
-        )
-        
-        _uiState.value = _uiState.value.copy(bookClubs = sampleClubs)
+        }
     }
-    
+
+    fun createBookClub(name: String, description: String, bookTitle: String) {
+        if (name.isBlank() || bookTitle.isBlank()) {
+            _uiState.value = _uiState.value.copy(error = "북클럽 이름과 책 제목을 입력해주세요.")
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isCreating = true)
+            
+            val bookClub = BookClub(
+                name = name.trim(),
+                description = description.trim(),
+                currentBook = bookTitle.trim(),
+                bookTitle = bookTitle.trim(),
+                createdBy = currentUserId,
+                members = listOf(currentUserId),
+                memberCount = 1,
+                createdAt = System.currentTimeMillis()
+            )
+
+            repository.createBookClub(bookClub).fold(
+                onSuccess = {
+                    hideCreateDialog()
+                    _uiState.value = _uiState.value.copy(
+                        isCreating = false,
+                        error = null
+                    )
+                },
+                onFailure = { error ->
+                    _uiState.value = _uiState.value.copy(
+                        isCreating = false,
+                        error = error.message ?: "북클럽 생성에 실패했습니다."
+                    )
+                }
+            )
+        }
+    }
+
+    fun joinBookClub(bookClubId: String) {
+        viewModelScope.launch {
+            repository.joinBookClub(bookClubId, currentUserId).fold(
+                onSuccess = { 
+                    _uiState.value = _uiState.value.copy(error = null)
+                },
+                onFailure = { error ->
+                    _uiState.value = _uiState.value.copy(
+                        error = error.message ?: "북클럽 참여에 실패했습니다."
+                    )
+                }
+            )
+        }
+    }
+
+    fun leaveBookClub(bookClubId: String) {
+        viewModelScope.launch {
+            repository.leaveBookClub(bookClubId, currentUserId).fold(
+                onSuccess = { 
+                    _uiState.value = _uiState.value.copy(error = null)
+                },
+                onFailure = { error ->
+                    _uiState.value = _uiState.value.copy(
+                        error = error.message ?: "북클럽 탈퇴에 실패했습니다."
+                    )
+                }
+            )
+        }
+    }
+
+    fun deleteBookClub(bookClubId: String) {
+        viewModelScope.launch {
+            repository.deleteBookClub(bookClubId, currentUserId).fold(
+                onSuccess = { 
+                    _uiState.value = _uiState.value.copy(error = null)
+                },
+                onFailure = { error ->
+                    _uiState.value = _uiState.value.copy(
+                        error = error.message ?: "북클럽 삭제에 실패했습니다."
+                    )
+                }
+            )
+        }
+    }
+
     fun showCreateDialog() {
         _uiState.value = _uiState.value.copy(showCreateDialog = true)
     }
-    
+
     fun hideCreateDialog() {
-        _uiState.value = _uiState.value.copy(showCreateDialog = false)
+        _uiState.value = _uiState.value.copy(
+            showCreateDialog = false,
+            isCreating = false
+        )
     }
-    
-    fun createBookClub(name: String, book: com.route.readers.data.model.Book?) {
-        book?.let {
-            val newClub = BookClub(
-                id = System.currentTimeMillis().toString(),
-                name = name,
-                bookTitle = it.title,
-                memberCount = 1,
-                isJoined = true
-            )
-            
-            val updatedClubs = _uiState.value.bookClubs + newClub
-            _uiState.value = _uiState.value.copy(
-                bookClubs = updatedClubs,
-                showCreateDialog = false
-            )
-        }
-    }
-    
-    fun joinBookClub(clubId: String) {
-        val updatedClubs = _uiState.value.bookClubs.map { club ->
-            if (club.id == clubId) {
-                club.copy(
-                    isJoined = !club.isJoined,
-                    memberCount = if (club.isJoined) club.memberCount - 1 else club.memberCount + 1
-                )
-            } else club
-        }
-        
-        _uiState.value = _uiState.value.copy(bookClubs = updatedClubs)
+
+    fun clearError() {
+        _uiState.value = _uiState.value.copy(error = null)
     }
 }
 
 data class BookClubUiState(
     val bookClubs: List<BookClub> = emptyList(),
-    val showCreateDialog: Boolean = false
+    val isLoading: Boolean = false,
+    val isCreating: Boolean = false,
+    val showCreateDialog: Boolean = false,
+    val error: String? = null
 )

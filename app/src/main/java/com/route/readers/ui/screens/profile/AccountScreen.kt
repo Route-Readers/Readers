@@ -71,7 +71,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.route.readers.data.UserPreferencesRepository
 import com.route.readers.ui.theme.DarkRed
-import com.route.readers.ui.screens.profile.PostsSection
+
 
 enum class MenuItemType {
     PRIVACY,
@@ -286,21 +286,7 @@ fun AccountScreen(
                                         animationSpec = tween(300)
                                     )
                                 ) {
-                                    PostsSection(
-                                        myPosts = state.myPosts,
-                                        savedPosts = state.savedPosts,
-                                        isMyProfile = state.isMyProfile,
-                                        likedFeedIds = state.likedFeedIds,
-                                        bookmarkedFeedIds = state.bookmarkedFeedIds,
-                                        onLikeClick = viewModel::toggleLike,
-                                        onBookmarkClick = viewModel::toggleBookmark,
-                                        onDeleteClick = viewModel::deleteFeed,
-                                        wishlist = state.wishlist,
-                                        myLibrary = state.myLibrary,
-                                        onToggleWishlist = viewModel::toggleWishlist,
-                                        onToggleMyLibrary = viewModel::toggleMyLibrary,
-                                        userInfoMap = state.userInfoMap
-                                    )
+                                    Text("게시물 섹션 (개발 중)")
                                 }
                             }
 
