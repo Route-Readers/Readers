@@ -158,7 +158,7 @@ fun FeedScreen(
                                     Toast.LENGTH_SHORT
                                 ).show()
                             },
-                            onDeleteFeed = { feedId ->
+                            onDeleteFeed = { feedId: String ->
                                 feedViewModel.deleteFeed(feedId)
                             },
                             onNavigateToOtherUserProfile = onNavigateToOtherUserProfile,
