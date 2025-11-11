@@ -75,6 +75,7 @@ fun MainScreen(
     var showLogoutDialog by remember { mutableStateOf(false) }
     var bookToUpdateAfterReading by remember { mutableStateOf<MyBook?>(null) }
     var lastReadingSessionDuration by remember { mutableStateOf<Int?>(null) }
+    var showFinishReadingDialogBook by remember { mutableStateOf<MyBook?>(null) }
 
     if (showLogoutDialog) {
         AlertDialog(
@@ -195,7 +196,11 @@ fun MainScreen(
                         bookToUpdateAfterReading = null
                         lastReadingSessionDuration = null
                     },
-                    lastReadingSessionDuration = lastReadingSessionDuration
+                    lastReadingSessionDuration = lastReadingSessionDuration,
+                    showFinishReadingDialogBook = showFinishReadingDialogBook,
+                    onDismissFinishReadingDialog = {
+                        showFinishReadingDialogBook = null
+                    }
                 )
             }
             composable(BottomNavItem.Search.route) {
@@ -273,10 +278,11 @@ fun MainScreen(
                             book = book,
                             onNavigateBack = { bottomNavController.popBackStack() },
                             onFinishReading = { timeInSeconds ->
-                                readingViewModel.saveReadingSession(book, timeInSeconds)
-                                bookToUpdateAfterReading = book
-                                lastReadingSessionDuration = timeInSeconds
-                                bottomNavController.popBackStack()
+                                showFinishReadingDialogBook = book
+                                bottomNavController.navigate(BottomNavItem.MyLibrary.route) {
+                                    popUpTo(bottomNavController.graph.findStartDestination().id)
+                                    launchSingleTop = true
+                                }
                             },
                             onDisposeReading = { timeInSeconds ->
                                 readingViewModel.saveReadingSession(book, timeInSeconds)

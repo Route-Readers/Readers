@@ -468,18 +468,52 @@ fun FeedCard(
                             exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top)
                         ) {
                             item.book?.let { book ->
-                                val isInWishlist = wishlist.contains(book.isbn)
-                                val isInMyLibrary = myLibrary.contains(book.isbn)
-                                Spacer(modifier = Modifier.height(8.dp))
-                                SelectedBookCard(
-                                    book = book,
-                                    onClear = null,
-                                    isInWishlist = isInWishlist,
-                                    isInMyLibrary = isInMyLibrary,
-                                    onToggleWishlist = { onToggleWishlist(book, isInWishlist) },
-                                    onToggleMyLibrary = { onToggleMyLibrary(book, isInMyLibrary) }
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
+                                Column {
+                                    val isInWishlist = wishlist.contains(book.isbn)
+                                    val isInMyLibrary = myLibrary.contains(book.isbn)
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    
+                                    // Progress bar section first
+                                    Column {
+                                        val progressPercentage = item.progress
+                                        val progressColor = if (progressPercentage == 100) MaterialTheme.colorScheme.primary else ReadingGreen
+
+                                        Text(
+                                            text = if (progressPercentage == 100) "완독!" else "$progressPercentage%",
+                                            fontSize = 24.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = progressColor
+                                        )
+                                        LinearProgressIndicator(
+                                            progress = { progressPercentage / 100f },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(8.dp)
+                                                .clip(RoundedCornerShape(4.dp)),
+                                            color = progressColor,
+                                            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.4f)
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "이번에 읽은 양: ${item.currentPage} 페이지",
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    
+                                    // Then the book card with buttons
+                                    SelectedBookCard(
+                                        book = book,
+                                        onClear = null,
+                                        isInWishlist = isInWishlist,
+                                        isInMyLibrary = isInMyLibrary,
+                                        onToggleWishlist = { onToggleWishlist(book, isInWishlist) },
+                                        onToggleMyLibrary = { onToggleMyLibrary(book, isInMyLibrary) }
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                }
                             }
                         }
 
@@ -491,30 +525,13 @@ fun FeedCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "${item.book?.title ?: item.bookTitle}",
+                                text = "📖 ${item.book?.title ?: item.bookTitle}",
                                 fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f)
                             )
                             Icon(
                                 imageVector = if (isBookCardExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
                                 contentDescription = if (isBookCardExpanded) "접기" else "펼치기", tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                        }
-
-                        if (item.progress > 0) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                LinearProgressIndicator(
-                                    progress = { item.progress / 100f },
-                                    modifier = Modifier.weight(1f).height(8.dp).clip(RoundedCornerShape(4.dp)),
-                                    color = ReadingGreen,
-                                    trackColor = MaterialTheme.colorScheme.surfaceVariant
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "${item.progress}% (${item.currentPage}p)",
-                                    fontSize = 12.sp, fontWeight = FontWeight.Bold, color = ReadingGreen
-                                )
-                            }
                         }
 
                         Spacer(modifier = Modifier.height(4.dp))

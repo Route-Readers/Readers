@@ -244,7 +244,6 @@ fun ReadingTimerScreen(
                 Button(onClick = {
                     showFinishDialog = false
                     TimerState.setState(book.isbn, false, 0)
-                    TimerState.setCompleted(book.isbn, true)
                     
                     // 독서 세션 저장
                     coroutineScope.launch {

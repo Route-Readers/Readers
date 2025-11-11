@@ -7,6 +7,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.*
@@ -22,6 +23,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -60,7 +62,9 @@ fun MyLibraryScreen(
     onBookSelected: (MyBook?) -> Unit = {},
     bookToUpdate: MyBook?,
     onUpdateFinished: () -> Unit,
-    lastReadingSessionDuration: Int? = null
+    lastReadingSessionDuration: Int? = null,
+    showFinishReadingDialogBook: MyBook?,
+    onDismissFinishReadingDialog: () -> Unit
 ) {
     val context = LocalContext.current
     val myLibraryRepository = remember { MyLibraryRepository() }
@@ -304,13 +308,12 @@ fun MyLibraryScreen(
         )
     }
 
-    showPostToFeedDialog?.let { (book, currentPage) ->
+    showPostToFeedDialog?.let { (book, pagesReadThisSession) ->
         PostToFeedDialog(
             book = book,
             onDismiss = { showPostToFeedDialog = null },
             onPost = { rating, review ->
                 scope.launch {
-                    val progress = if (book.totalPages > 0) (currentPage.toFloat() / book.totalPages * 100).toInt() else 0
                     val feedItem = com.route.readers.ui.screens.feed.FeedItem.BookReview(
                         book = com.route.readers.data.model.Book(
                             title = book.title,
@@ -321,8 +324,8 @@ fun MyLibraryScreen(
                         ),
                         review = review,
                         rating = rating,
-                        currentPage = currentPage,
-                        progress = progress
+                        currentPage = pagesReadThisSession,
+                        progress = book.progressPercentage
                     )
                     val postSuccess = firestoreRepository.addFeedItem(feedItem)
                     if (postSuccess) {
@@ -331,6 +334,34 @@ fun MyLibraryScreen(
                         Toast.makeText(context, "피드 기록에 실패했습니다", Toast.LENGTH_SHORT).show()
                     }
                     showPostToFeedDialog = null
+                }
+            }
+        )
+    }
+
+    showFinishReadingDialogBook?.let { book ->
+        FinishReadingDialog(
+            book = book,
+            onDismiss = { onDismissFinishReadingDialog() },
+            onConfirm = { finalPage ->
+                scope.launch {
+                    val result = mainViewModel.saveReadingSession(
+                        book = book,
+                        newCurrentPage = finalPage,
+                        durationInSeconds = 0 // 독서 완료 시에는 타이머 시간이 별도로 없음
+                    )
+
+                    if (result != null) {
+                        val (updatedBook, pagesReadThisSession) = result
+                        firestoreRepository.markBookAsRead(book.isbn)
+                        Toast.makeText(context, "완독을 축하합니다!", Toast.LENGTH_LONG).show()
+                        refreshBooks()
+                        attendanceViewModel.markReadingActivity()
+                        showPostToFeedDialog = Pair(updatedBook, pagesReadThisSession)
+                    } else {
+                        Toast.makeText(context, "업데이트 실패. 다시 시도해주세요", Toast.LENGTH_SHORT).show()
+                    }
+                    onDismissFinishReadingDialog()
                 }
             }
         )
@@ -414,136 +445,140 @@ fun MyBookCard(
     onDeleteClick: () -> Unit,
     onUpdateClick: () -> Unit = {}
 ) {
-    val borderColor by animateColorAsState(
-        if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-        label = "borderColor"
+    val elevation by animateDpAsState(
+        if (isSelected) 16.dp else 1.dp,
+        label = "elevation"
     )
-    val containerColor by animateColorAsState(
-        when {
-            book.isCompleted -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-            book.currentPage > 0 -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
-            else -> MaterialTheme.colorScheme.surface
-        }, label = "containerColor"
+    val scale by animateFloatAsState(
+        if (isSelected) 1.02f else 1.0f,
+        label = "scale"
     )
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(
-                width = 1.5.dp,
-                color = borderColor,
-                shape = RoundedCornerShape(12.dp)
+            .scale(scale)
+            .shadow(
+                elevation = elevation,
+                shape = RoundedCornerShape(12.dp),
+                clip = false
             )
             .clickable { onProgressClick() },
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp), // Set to 0 as shadow is handled by modifier
         colors = CardDefaults.cardColors(
-            containerColor = when {
-                book.isCompleted -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                book.currentPage > 0 -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
-                else -> MaterialTheme.colorScheme.surface
-            }
+            containerColor = if (book.isCompleted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+            else MaterialTheme.colorScheme.surface
         ),
         shape = RoundedCornerShape(12.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            AsyncImage(
-                model = book.cover.ifEmpty { null },
-                contentDescription = "책 표지",
-                modifier = Modifier
-                    .width(80.dp)
-                    .height(120.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainer),
-                contentScale = ContentScale.Crop,
-                error = painterResource(R.mipmap.readerslogo),
-                placeholder = painterResource(R.mipmap.readerslogo)
-            )
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
+        Column(modifier = Modifier.padding(16.dp)) { // Main column for card content
+            Row( // Row for book cover and text details
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top // Align items to the top
             ) {
-                Text(
-                    text = book.title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    color = MaterialTheme.colorScheme.onSurface
+                AsyncImage(
+                    model = book.cover.ifEmpty { null },
+                    contentDescription = "책 표지",
+                    modifier = Modifier
+                        .width(80.dp)
+                        .height(120.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainer),
+                    contentScale = ContentScale.Crop,
+                    error = painterResource(R.mipmap.readerslogo),
+                    placeholder = painterResource(R.mipmap.readerslogo)
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = book.author,
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(8.dp))
 
-                val progressPercentage = book.progressPercentage
-                val progressColor = when {
-                    book.isCompleted -> MaterialTheme.colorScheme.primary
-                    progressPercentage == 0 -> MaterialTheme.colorScheme.onSurfaceVariant
-                    else -> MaterialTheme.colorScheme.tertiary
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = book.title,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = book.author,
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    val progressPercentage = book.progressPercentage
+                    val progressColor = when {
+                        book.isCompleted -> MaterialTheme.colorScheme.primary
+                        progressPercentage == 0 -> MaterialTheme.colorScheme.onSurfaceVariant
+                        else -> MaterialTheme.colorScheme.tertiary
+                    }
+
+                    Text(
+                        text = if (book.isCompleted) "완독!" else "$progressPercentage%",
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = progressColor
+                    )
                 }
 
-                Text(
-                    text = if (book.isCompleted) "완독!" else "$progressPercentage%",
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = progressColor
-                )
-
-                LinearProgressIndicator(
-                    progress = { if (book.isCompleted) 1f else progressPercentage / 100f },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(8.dp)
-                        .clip(RoundedCornerShape(4.dp)),
-                    color = progressColor,
-                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.4f)
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "${book.currentPage} / ${book.totalPages} 페이지",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                
-                if (showTimer) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "⏱️ ${String.format("%02d:%02d", timerSeconds / 60, timerSeconds % 60)}",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Button(
-                            onClick = onUpdateClick,
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                            modifier = Modifier.height(32.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp)
-                        ) {
-                            Text("업데이트", fontSize = 12.sp)
-                        }
-                    }
+                IconButton(
+                    onClick = onDeleteClick
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "삭제",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 
-            IconButton(
-                onClick = onDeleteClick
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "삭제",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            // Progress bar and pages text below the Row
+            Spacer(modifier = Modifier.height(16.dp)) // Increased margin
+            LinearProgressIndicator(
+                progress = { if (book.isCompleted) 1f else book.progressPercentage / 100f },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                color = when {
+                    book.isCompleted -> MaterialTheme.colorScheme.primary
+                    book.progressPercentage == 0 -> MaterialTheme.colorScheme.onSurfaceVariant
+                    else -> MaterialTheme.colorScheme.tertiary
+                },
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.4f)
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "${book.currentPage} / ${book.totalPages} 페이지",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            
+            if (showTimer) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "⏱️ ${String.format("%02d:%02d", timerSeconds / 60, timerSeconds % 60)}",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Button(
+                        onClick = onUpdateClick,
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        modifier = Modifier.height(32.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp)
+                    ) {
+                        Text("업데이트", fontSize = 12.sp)
+                    }
+                }
             }
         }
     }
@@ -653,8 +688,31 @@ fun PostToFeedDialog(
         onDismissRequest = onDismiss,
         title = { Text("피드에 기록 남기기") },
         text = {
-            Column {
-                Text("『${book.title}』 읽기 진행 상황을 공유해보세요.")
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                AsyncImage(
+                    model = book.getHighQualityImageUrl(),
+                    contentDescription = "책 표지",
+                    modifier = Modifier
+                        .width(80.dp)
+                        .height(120.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainer),
+                    contentScale = ContentScale.Crop,
+                    error = painterResource(R.mipmap.readerslogo),
+                    placeholder = painterResource(R.mipmap.readerslogo)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "『${book.title}』",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "${book.currentPage} / ${book.totalPages} 페이지",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
@@ -692,6 +750,63 @@ fun PostToFeedDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("건너뛰기")
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.surface
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FinishReadingDialog(
+    book: MyBook,
+    onDismiss: () -> Unit,
+    onConfirm: (finalPage: Int) -> Unit
+) {
+    var currentPageText by remember { mutableStateOf(book.currentPage.toString()) }
+    var isError by remember { mutableStateOf(false) }
+    val errorMessage = "현재 페이지(${book.currentPage})와 전체 페이지(${book.totalPages}) 사이의 숫자를 입력해주세요"
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("독서 완료") },
+        text = {
+            Column {
+                Text("『${book.title}』을(를) 완독하셨나요?")
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = currentPageText,
+                    onValueChange = {
+                        currentPageText = it.filter { char -> char.isDigit() }
+                        isError = false
+                    },
+                    label = { Text("읽은 페이지") },
+                    suffix = { Text("/ ${book.totalPages}") },
+                    isError = isError,
+                    supportingText = if (isError) {
+                        { Text(errorMessage, color = MaterialTheme.colorScheme.error) }
+                    } else null
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val page = currentPageText.toIntOrNull()
+                    if (page != null && page >= book.currentPage && page <= book.totalPages) {
+                        onConfirm(page)
+                    } else {
+                        isError = true
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Text("완료")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("취소")
             }
         },
         containerColor = MaterialTheme.colorScheme.surface
