@@ -737,6 +737,11 @@ fun GoalSettingSection(
             Column {
             Column {
                 if (currentGoal != null) {
+                    val totalPages = currentGoal.pages.toIntOrNull() ?: 0
+                    val progress = if (totalPages > 0) {
+                        (currentGoal.currentPage.toFloat() / totalPages.toFloat())
+                    } else 0f
+                    
                     Text(
                         text = "현재 목표: ${currentGoal.bookTitle}",
                         fontWeight = FontWeight.SemiBold,
@@ -747,6 +752,24 @@ fun GoalSettingSection(
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier.weight(1f),
+                            color = DarkRed,
+                            trackColor = DarkRed.copy(alpha = 0.2f)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "${currentGoal.currentPage}/${totalPages}",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 } else {
                     Text(
                         text = "나만의 독서 목표를 설정해보세요!",
