@@ -157,7 +157,7 @@ fun GoalItem(
             Column(modifier = Modifier.weight(1f)) {
                 GoalDetailRow(label = "책", detail = goal.bookTitle)
                 Spacer(modifier = Modifier.height(8.dp))
-                GoalDetailRow(label = "기간", detail = goal.duration)
+                GoalDetailRow(label = "기간", detail = "${goal.duration}일")
                 Spacer(modifier = Modifier.height(8.dp))
 
                 if (goal.dailyPages > 0) {

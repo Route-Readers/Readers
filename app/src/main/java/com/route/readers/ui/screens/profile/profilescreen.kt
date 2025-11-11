@@ -743,7 +743,7 @@ fun GoalSettingSection(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "하루 ${currentGoal.dailyPages}페이지 • ${currentGoal.duration}",
+                        text = "하루 ${currentGoal.dailyPages}페이지 • ${currentGoal.duration}일",
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
