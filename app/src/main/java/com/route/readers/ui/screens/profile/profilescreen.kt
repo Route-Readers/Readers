@@ -1,5 +1,6 @@
 package com.route.readers.ui.screens.profile
 
+import com.route.readers.ui.screens.profile.Goal
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -282,7 +283,10 @@ fun ProfileContent(
 
         if (state.isMyProfile) {
             item {
-                GoalSettingSection(onSetGoalClick = onNavigateToGoal)
+                GoalSettingSection(
+                    onSetGoalClick = onNavigateToGoal,
+                    currentGoal = state.currentGoal
+                )
             }
         }
 
@@ -605,7 +609,10 @@ fun ProfileInfoSection(
 }
 
 @Composable
-fun GoalSettingSection(onSetGoalClick: () -> Unit) {
+fun GoalSettingSection(
+    onSetGoalClick: () -> Unit,
+    currentGoal: Goal? = null
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -623,16 +630,54 @@ fun GoalSettingSection(onSetGoalClick: () -> Unit) {
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column {
-                Text(
-                    text = "나만의 독서 목표를 설정해보세요!",
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "목표를 설정하고 꾸준한 독서 습관을 만들어보세요.",
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            Column {
+                if (currentGoal != null) {
+                    val totalPages = currentGoal.pages.toIntOrNull() ?: 0
+                    val progress = if (totalPages > 0) {
+                        (currentGoal.currentPage.toFloat() / totalPages.toFloat())
+                    } else 0f
+                    
+                    Text(
+                        text = "현재 목표: ${currentGoal.bookTitle}",
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "하루 ${currentGoal.dailyPages}페이지 • ${currentGoal.duration}일",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier.weight(1f),
+                            color = DarkRed,
+                            trackColor = DarkRed.copy(alpha = 0.2f)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "${currentGoal.currentPage}/${totalPages}",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    Text(
+                        text = "나만의 독서 목표를 설정해보세요!",
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "목표를 설정하고 꾸준한 독서 습관을 만들어보세요.",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
             }
             Icon(
                 imageVector = Icons.Default.KeyboardArrowRight,

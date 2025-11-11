@@ -378,6 +378,14 @@ open class ProfileViewModel : ViewModel() {
 
                                                     myLibraryBooks = emptyList(),
 
+                                                    currentGoal = run {
+                                                        val goals = firestoreRepository.getGoals()
+                                                        val myBooks = myLibraryRepository.getMyBooks()
+                                                        goals.firstOrNull()?.let { goal ->
+                                                            val correspondingBook = myBooks.find { it.isbn == goal.bookIsbn }
+                                                            goal.copy(currentPage = correspondingBook?.currentPage ?: 0)
+                                                        }
+                                                    },
     
 
                                                     userInfoMap = emptyMap()
@@ -587,6 +595,14 @@ open class ProfileViewModel : ViewModel() {
                             likedFeedIds = likedFeedIds,
 
                             bookmarkedFeedIds = bookmarkedFeedIds,
+                            currentGoal = run {
+                                val goals = firestoreRepository.getGoals()
+                                val myBooks = myLibraryRepository.getMyBooks()
+                                goals.firstOrNull()?.let { goal ->
+                                    val correspondingBook = myBooks.find { it.isbn == goal.bookIsbn }
+                                    goal.copy(currentPage = correspondingBook?.currentPage ?: 0)
+                                }
+                            },
 
                             wishlist = wishlist,
 
