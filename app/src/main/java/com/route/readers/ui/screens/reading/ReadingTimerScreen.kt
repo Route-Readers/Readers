@@ -3,6 +3,7 @@ package com.route.readers.ui.screens.reading
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -15,10 +16,37 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.route.readers.data.model.MyBook
 import kotlinx.coroutines.delay
+
+// 전역 타이머 상태 저장
+object TimerState {
+    private val timerStates = mutableMapOf<String, Pair<Boolean, Int>>()
+    private val completedBooks = mutableMapOf<String, Boolean>()
+    
+    fun getState(bookIsbn: String): Pair<Boolean, Int> {
+        return timerStates[bookIsbn] ?: Pair(false, 0)
+    }
+    
+    fun setState(bookIsbn: String, isRunning: Boolean, seconds: Int) {
+        timerStates[bookIsbn] = Pair(isRunning, seconds)
+    }
+    
+    fun setCompleted(bookIsbn: String, completed: Boolean) {
+        completedBooks[bookIsbn] = completed
+    }
+    
+    fun isCompleted(bookIsbn: String): Boolean {
+        return completedBooks[bookIsbn] ?: false
+    }
+    
+    fun clearCompleted(bookIsbn: String) {
+        completedBooks.remove(bookIsbn)
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,9 +56,16 @@ fun ReadingTimerScreen(
     onFinishReading: (Int) -> Unit,
     onDisposeReading: (Int) -> Unit // 추가된 콜백
 ) {
-    var isRunning by remember { mutableStateOf(false) }
-    var seconds by remember { mutableStateOf(0) }
+    val (initialIsRunning, initialSeconds) = TimerState.getState(book.isbn)
+    var isRunning by remember { mutableStateOf(initialIsRunning) }
+    var seconds by remember { mutableStateOf(initialSeconds) }
     var showFinishDialog by remember { mutableStateOf(false) }
+    var showBackDialog by remember { mutableStateOf(false) }
+
+    // 타이머 상태 저장
+    LaunchedEffect(isRunning, seconds) {
+        TimerState.setState(book.isbn, isRunning, seconds)
+    }
 
     // 화면이 사라질 때 독서 시간을 저장하기 위한 Effect
     DisposableEffect(Unit) {
@@ -58,7 +93,13 @@ fun ReadingTimerScreen(
             TopAppBar(
                 title = { Text("독서 중") },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = { 
+                        if (isRunning) {
+                            showBackDialog = true
+                        } else {
+                            onNavigateBack()
+                        }
+                    }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "뒤로가기")
                     }
                 },
@@ -80,10 +121,17 @@ fun ReadingTimerScreen(
         ) {
             Text(
                 text = book.title,
-                fontSize = 24.sp,
+                fontSize = when {
+                    book.title.length > 30 -> 16.sp
+                    book.title.length > 20 -> 20.sp
+                    else -> 24.sp
+                },
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth()
             )
             
             Text(
@@ -139,7 +187,7 @@ fun ReadingTimerScreen(
                     .size(80.dp)
                     .background(
                         MaterialTheme.colorScheme.primary,
-                        androidx.compose.foundation.shape.CircleShape
+                        CircleShape
                     )
                     .clickable { isRunning = !isRunning },
                 contentAlignment = Alignment.Center
@@ -154,6 +202,23 @@ fun ReadingTimerScreen(
         }
     }
 
+    if (showBackDialog) {
+        AlertDialog(
+            onDismissRequest = { showBackDialog = false },
+            title = { Text("타이머가 실행 중입니다") },
+            text = { Text("타이머를 일시정지한 후 나가시겠습니까?") },
+            confirmButton = {
+                Button(onClick = {
+                    isRunning = false
+                    showBackDialog = false
+                }) { Text("일시정지") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBackDialog = false }) { Text("취소") }
+            }
+        )
+    }
+
     if (showFinishDialog) {
         AlertDialog(
             onDismissRequest = { showFinishDialog = false },
@@ -162,6 +227,8 @@ fun ReadingTimerScreen(
             confirmButton = {
                 Button(onClick = {
                     showFinishDialog = false
+                    TimerState.setState(book.isbn, false, 0) // 완료 시 타이머 초기화
+                    TimerState.setCompleted(book.isbn, true) // 완료 상태 설정
                     onFinishReading(seconds)
                 }) { Text("완료") }
             },
