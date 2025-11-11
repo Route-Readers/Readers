@@ -32,13 +32,15 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.route.readers.R
 import com.route.readers.data.model.MyBook
+import com.route.readers.data.model.Book
 import com.route.readers.data.remote.MyLibraryRepository
 import com.route.readers.data.remote.FirestoreRepository
 import com.route.readers.ui.screens.attendance.AttendanceViewModel
 import com.route.readers.ui.screens.profile.ProfileViewModel
 import com.route.readers.ui.theme.*
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
+import com.route.readers.ui.screens.reading.TimerState
+import com.route.readers.ui.screens.feed.FeedItem
 import kotlin.Pair
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
@@ -56,11 +58,13 @@ fun MyLibraryScreen(
 ) {
     val context = LocalContext.current
     val myLibraryRepository = remember { MyLibraryRepository() }
+    val firestoreRepository = remember { FirestoreRepository() }
     var books by remember { mutableStateOf<List<MyBook>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var showProgressDialogBook by remember { mutableStateOf<MyBook?>(null) }
     var showDeleteDialog by remember { mutableStateOf<MyBook?>(null) }
     var showPostToFeedDialog by remember { mutableStateOf<Pair<MyBook, Int>?>(null) }
+    var showTimerCompletedDialog by remember { mutableStateOf<MyBook?>(null) }
     var selectedBook by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     var selectedFilter by remember { mutableStateOf(FilterState.READING) }
@@ -74,8 +78,6 @@ fun MyLibraryScreen(
             }
         }
     }
-
-    val firestoreRepository = remember { FirestoreRepository() }
 
     fun refreshBooks() {
         scope.launch {
@@ -95,6 +97,16 @@ fun MyLibraryScreen(
     LaunchedEffect(Unit) {
         refreshBooks()
         attendanceViewModel.checkAttendance()
+    }
+
+    // 타이머 완료 감지 로직
+    LaunchedEffect(books) {
+        books.forEach { book ->
+            if (TimerState.isCompleted(book.isbn)) {
+                showTimerCompletedDialog = book
+                TimerState.clearCompleted(book.isbn)
+            }
+        }
     }
 
     Column(
@@ -313,6 +325,43 @@ fun MyLibraryScreen(
             }
         )
     }
+
+    // 타이머 완료 후 평가 다이얼로그
+    showTimerCompletedDialog?.let { book ->
+        PostToFeedDialog(
+            book = book,
+            onDismiss = { showTimerCompletedDialog = null },
+            onPost = { rating, review ->
+                scope.launch {
+                    val bookObj = Book(
+                        title = book.title,
+                        author = book.author,
+                        isbn = book.isbn,
+                        cover = book.cover,
+                        currentPage = book.currentPage,
+                        totalPages = book.totalPages,
+                        progress = if (book.totalPages > 0) (book.currentPage * 100) / book.totalPages else 0,
+                        isCompleted = book.isCompleted
+                    )
+                    val feedItem = FeedItem.BookReview(
+                        book = bookObj,
+                        bookTitle = book.title,
+                        review = review,
+                        rating = rating,
+                        currentPage = book.currentPage,
+                        progress = if (book.totalPages > 0) (book.currentPage * 100) / book.totalPages else 0
+                    )
+                    val success = firestoreRepository.addFeedItem(feedItem)
+                    if (success) {
+                        Toast.makeText(context, "피드에 기록되었습니다", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "피드 기록에 실패했습니다", Toast.LENGTH_SHORT).show()
+                    }
+                    showTimerCompletedDialog = null
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -365,7 +414,6 @@ fun MyBookCard(
             ),
         colors = CardDefaults.cardColors(
             containerColor = when {
-                isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
                 book.isCompleted -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
                 book.currentPage > 0 -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
                 else -> MaterialTheme.colorScheme.surface
