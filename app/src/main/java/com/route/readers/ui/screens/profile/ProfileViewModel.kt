@@ -378,6 +378,7 @@ open class ProfileViewModel : ViewModel() {
 
                                                     myLibraryBooks = emptyList(),
 
+                                                    currentGoal = firestoreRepository.getGoals().firstOrNull(),
     
 
                                                     userInfoMap = emptyMap()
@@ -587,6 +588,7 @@ open class ProfileViewModel : ViewModel() {
                             likedFeedIds = likedFeedIds,
 
                             bookmarkedFeedIds = bookmarkedFeedIds,
+                            currentGoal = firestoreRepository.getGoals().firstOrNull(),
 
                             wishlist = wishlist,
 

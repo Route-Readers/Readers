@@ -5,6 +5,7 @@ import com.route.readers.data.model.Challenge
 import com.route.readers.data.model.MyBook
 import com.route.readers.data.model.User
 import com.route.readers.ui.screens.feed.FeedItem
+import com.route.readers.ui.screens.profile.Goal
 
 data class Achievement(
     val id: String,
@@ -43,7 +44,8 @@ sealed class ProfileUiState {
         val myLibrary: List<String> = emptyList(),
         val myLibraryBooks: List<MyBook> = emptyList(),
         val readBooks: List<MyBook> = emptyList(),
-        val userInfoMap: Map<String, User> = emptyMap()
+        val userInfoMap: Map<String, User> = emptyMap(),
+        val currentGoal: Goal? = null,
     ) : ProfileUiState()
 
     data class Error(val message: String) : ProfileUiState()
