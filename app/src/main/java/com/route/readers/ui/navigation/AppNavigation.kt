@@ -191,9 +191,6 @@ fun AppNavigation(navController: NavHostController) {
                 onNavigateToChallenge = {
                     navController.navigate("challenge_route")
                 },
-                onNavigateToTokenShop = {
-                    navController.navigate("token_shop_route")
-                },
                 onNavigateToUsedBookDetail = { bookId ->
                     navController.navigate("used_book_detail_route/$bookId")
                 },

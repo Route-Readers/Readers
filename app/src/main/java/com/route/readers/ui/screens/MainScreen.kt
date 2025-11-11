@@ -1,5 +1,6 @@
 package com.route.readers.ui.screens
 
+import android.widget.Toast
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.background
@@ -18,6 +19,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -57,10 +59,11 @@ fun MainScreen(
     onNavigateToMyAccount: () -> Unit,
     onNavigateToAttendance: () -> Unit,
     onNavigateToChallenge: () -> Unit,
-    onNavigateToTokenShop: () -> Unit,
+
     onNavigateToUsedBookDetail: (String) -> Unit,
     onNavigateToChatList: () -> Unit
 ) {
+    val context = LocalContext.current
     val bottomNavController = rememberNavController()
     val mainViewModel: MainViewModel = viewModel()
     val readingViewModel: ReadingViewModel = viewModel()
@@ -114,7 +117,9 @@ fun MainScreen(
                     onMyAccountClick = onNavigateToMyAccount,
                     onAttendanceClick = onNavigateToAttendance,
                     onNavigateToChallenge = onNavigateToChallenge,
-                    onTokenClick = onNavigateToTokenShop
+                    onTokenClick = { 
+                        Toast.makeText(context, "아직 공개되지 않은 기능이에요", Toast.LENGTH_SHORT).show()
+                    }
                 )
             }
         },

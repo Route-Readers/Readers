@@ -128,8 +128,8 @@ fun FeedTopAppBar(
 
 @Composable
 fun TokenBadge(tokens: Int, onClick: () -> Unit) {
-    val tokenColor = Color(0xFFFFA000)
-    val backgroundColor = tokenColor.copy(alpha = 0.1f)
+    val tokenColor = Color(0xFFFFA000).copy(alpha = 0.4f) // 투명도 적용
+    val backgroundColor = tokenColor.copy(alpha = 0.05f) // 배경도 더 투명하게
 
     Row(
         modifier = Modifier
