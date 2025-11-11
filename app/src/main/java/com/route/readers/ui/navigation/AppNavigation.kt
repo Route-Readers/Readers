@@ -25,6 +25,8 @@ import com.route.readers.ui.screens.MainScreen
 import com.route.readers.ui.screens.add_feed.AddFeedScreen
 import com.route.readers.ui.screens.attendance.AttendanceScreen
 import com.route.readers.ui.screens.attendance.AttendanceViewModel
+import com.route.readers.ui.screens.bookclub.BookClubScreen
+import com.route.readers.ui.screens.bookclub.BookClubChatScreen
 import com.route.readers.ui.screens.challenge.ChallengeScreen
 import com.route.readers.ui.screens.login.LoginScreen
 import com.route.readers.ui.screens.login.LoginViewModel
@@ -350,7 +352,12 @@ fun AppNavigation(navController: NavHostController) {
         }
 
         composable("challenge_route") {
-            ChallengeScreen()
+            ChallengeScreen(
+                onNavigateToChat = { clubId, clubName ->
+                    val encodedClubName = URLEncoder.encode(clubName, "UTF-8")
+                    navController.navigate("bookclub_chat_route/$clubId/$encodedClubName")
+                }
+            )
         }
 
         composable(
@@ -383,6 +390,26 @@ fun AppNavigation(navController: NavHostController) {
                     sellerId = sellerId,
                     bookId = bookId,
                     onNavigateBack = { navController.popBackStack() }
+                )
+            }
+        }
+
+        composable(
+            route = "bookclub_chat_route/{clubId}/{clubName}",
+            arguments = listOf(
+                navArgument("clubId") { type = NavType.StringType },
+                navArgument("clubName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val clubId = backStackEntry.arguments?.getString("clubId")
+            val clubName = backStackEntry.arguments?.getString("clubName")?.let {
+                URLDecoder.decode(it, "UTF-8")
+            }
+            if (clubId != null && clubName != null) {
+                BookClubChatScreen(
+                    bookClubId = clubId,
+                    bookClubName = clubName,
+                    onBackClick = { navController.popBackStack() }
                 )
             }
         }

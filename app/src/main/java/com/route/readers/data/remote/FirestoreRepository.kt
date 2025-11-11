@@ -7,6 +7,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.route.readers.data.model.MyBook
 import com.route.readers.data.model.ReadingSession
+import com.route.readers.data.model.User
 import com.route.readers.ui.screens.feed.FeedItem
 import com.route.readers.ui.screens.profile.Goal
 import kotlinx.coroutines.tasks.await
@@ -29,6 +30,16 @@ class FirestoreRepository {
 
     private fun getGoalsCollection(userId: String) =
         getUsersCollection().document(userId).collection("goals")
+
+    suspend fun getUserProfile(userId: String): User? {
+        return try {
+            val doc = getUsersCollection().document(userId).get().await()
+            doc.toObject(User::class.java)
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error getting user profile: ${e.message}", e)
+            null
+        }
+    }
 
     suspend fun saveGoal(goal: Goal): Boolean {
         return try {
@@ -250,7 +261,7 @@ class FirestoreRepository {
         return try {
             val userId = auth.currentUser?.uid ?: return false
             val user = getUsersCollection().document(userId).get().await()
-                .toObject(com.route.readers.data.model.User::class.java)
+                .toObject(User::class.java)
             val userName = user?.nickname ?: ""
 
             val itemWithUser = when (feedItem) {
@@ -298,7 +309,7 @@ class FirestoreRepository {
         return try {
             var query = getUsersCollection().document(userId)
                 .collection("reading_sessions")
-                .orderBy("startTime") // startTime 기준으로 정렬
+                .orderBy("startTime")
 
             if (startDate != null) {
                 query = query.whereGreaterThanOrEqualTo("startTime", startDate)

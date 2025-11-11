@@ -104,6 +104,10 @@ class StatisticsViewModel : ViewModel() {
         loadStatistics()
     }
 
+    fun refreshStatistics() {
+        loadStatistics()
+    }
+
     private fun loadStatistics() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)

@@ -20,7 +20,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.route.readers.data.model.MyBook
+import com.route.readers.data.model.ReadingSession
+import com.route.readers.data.remote.FirestoreRepository
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.util.Calendar
+import java.util.Date
+import java.util.UUID
 
 // 전역 타이머 상태 저장
 object TimerState {
@@ -54,33 +60,43 @@ fun ReadingTimerScreen(
     book: MyBook,
     onNavigateBack: () -> Unit,
     onFinishReading: (Int) -> Unit,
-    onDisposeReading: (Int) -> Unit // 추가된 콜백
+    onDisposeReading: (Int) -> Unit
 ) {
+    val firestoreRepository = remember { FirestoreRepository() }
+    val coroutineScope = rememberCoroutineScope()
     val (initialIsRunning, initialSeconds) = TimerState.getState(book.isbn)
     var isRunning by remember { mutableStateOf(initialIsRunning) }
     var seconds by remember { mutableStateOf(initialSeconds) }
     var showFinishDialog by remember { mutableStateOf(false) }
     var showBackDialog by remember { mutableStateOf(false) }
+    var sessionStartTime by remember { mutableStateOf<Date?>(null) }
+
+    // 타이머 시작 시 세션 시작 시간 기록
+    LaunchedEffect(isRunning) {
+        if (isRunning && sessionStartTime == null) {
+            sessionStartTime = Date()
+        }
+        if (isRunning) {
+            while (isRunning) {
+                delay(1000)
+                seconds++
+            }
+        }
+    }
 
     // 타이머 상태 저장
     LaunchedEffect(isRunning, seconds) {
         TimerState.setState(book.isbn, isRunning, seconds)
     }
 
-    // 화면이 사라질 때 독서 시간을 저장하기 위한 Effect
+    // 화면이 사라질 때 독서 시간을 저장
     DisposableEffect(Unit) {
         onDispose {
             if (seconds > 0) {
+                coroutineScope.launch {
+                    saveReadingSession(firestoreRepository, book.isbn, sessionStartTime, seconds)
+                }
                 onDisposeReading(seconds)
-            }
-        }
-    }
-
-    LaunchedEffect(isRunning) {
-        if (isRunning) {
-            while (isRunning) {
-                delay(1000)
-                seconds++
             }
         }
     }
@@ -227,8 +243,14 @@ fun ReadingTimerScreen(
             confirmButton = {
                 Button(onClick = {
                     showFinishDialog = false
-                    TimerState.setState(book.isbn, false, 0) // 완료 시 타이머 초기화
-                    TimerState.setCompleted(book.isbn, true) // 완료 상태 설정
+                    TimerState.setState(book.isbn, false, 0)
+                    TimerState.setCompleted(book.isbn, true)
+                    
+                    // 독서 세션 저장
+                    coroutineScope.launch {
+                        saveReadingSession(firestoreRepository, book.isbn, sessionStartTime, seconds)
+                    }
+                    
                     onFinishReading(seconds)
                 }) { Text("완료") }
             },
@@ -236,5 +258,34 @@ fun ReadingTimerScreen(
                 TextButton(onClick = { showFinishDialog = false }) { Text("취소") }
             }
         )
+    }
+}
+
+// 독서 세션을 Firestore에 저장하는 함수
+private suspend fun saveReadingSession(
+    firestoreRepository: FirestoreRepository,
+    bookId: String,
+    startTime: Date?,
+    durationInSeconds: Int
+) {
+    if (durationInSeconds > 0 && startTime != null) {
+        val calendar = Calendar.getInstance()
+        calendar.time = startTime
+        
+        val session = ReadingSession(
+            sessionId = UUID.randomUUID().toString(),
+            bookId = bookId,
+            startTime = startTime,
+            endTime = Date(),
+            durationInSeconds = durationInSeconds,
+            pagesRead = 0,
+            year = calendar.get(Calendar.YEAR),
+            month = calendar.get(Calendar.MONTH) + 1,
+            dayOfMonth = calendar.get(Calendar.DAY_OF_MONTH),
+            dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK),
+            weekOfYear = calendar.get(Calendar.WEEK_OF_YEAR)
+        )
+        
+        firestoreRepository.addReadingSession(session)
     }
 }
