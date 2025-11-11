@@ -68,6 +68,10 @@ fun UserProfileImage(
                     "penguin" -> R.drawable.penguin
                     "redpanda" -> R.drawable.redpanda
                     "squirrel" -> R.drawable.squirrel
+                    "cat" -> R.drawable.cat
+                    "dog" -> R.drawable.dog
+                    "fox" -> R.drawable.fox
+                    "rabbit" -> R.drawable.rabbit
                     else -> null
                 }
 

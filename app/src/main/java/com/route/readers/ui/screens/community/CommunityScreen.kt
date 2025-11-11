@@ -44,7 +44,10 @@ import com.route.readers.ui.theme.DarkRed
 fun CommunityScreen(
     viewModel: CommunityViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     onNavigateToFriendsList: () -> Unit = {},
-    onNavigateToNotifications: () -> Unit = {}
+    onNavigateToNotifications: () -> Unit = {},
+    onNavigateToUsedBookDetail: (String) -> Unit = {},
+    onNavigateToChatList: () -> Unit = {},
+    isActive: Boolean = false
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showAddFriendDialog by remember { mutableStateOf(false) }
@@ -76,42 +79,41 @@ fun CommunityScreen(
         )
     }
 
-    // ▼▼▼ 핵심 수정 부분 ▼▼▼
+    LaunchedEffect(isActive) {
+        if (isActive) {
+            viewModel.refreshChallenges()
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.background)
     ) {
-        // 1. 화면 자체의 TopAppBar를 완전히 제거합니다.
-        //    (MainScreen.kt의 TopAppBar가 이 화면의 상단 바 역할을 합니다.)
-
-        // 2. 화면의 시작 부분에 적절한 패딩을 줍니다.
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 3. 탭 선택 UI를 구성합니다.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(20.dp) // 탭 사이 간격
+            horizontalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             Text(
                 "커뮤니티",
                 fontSize = 18.sp,
-                color = if (selectedTab == 0) Color.Black else Color.Gray,
+                color = if (selectedTab == 0) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
                 modifier = Modifier.clickable { selectedTab = 0 }
             )
             Text(
                 "중고책 거래",
                 fontSize = 18.sp,
-                color = if (selectedTab == 1) Color.Black else Color.Gray,
+                color = if (selectedTab == 1) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
                 modifier = Modifier.clickable { selectedTab = 1 }
             )
         }
 
-        // 4. 탭에 따라 콘텐츠를 표시합니다.
         when (selectedTab) {
             0 -> {
                 if (showChatScreen != null) {
@@ -135,10 +137,12 @@ fun CommunityScreen(
                     )
                 }
             }
-            1 -> UsedBookTradeScreen()
+            1 -> UsedBookTradeScreen(
+                onNavigateToDetail = onNavigateToUsedBookDetail,
+                onNavigateToChatList = onNavigateToChatList
+            )
         }
     }
-    // ▲▲▲ 핵심 수정 부분 ▲▲▲
 
     if (showAddFriendDialog) {
         AddFriendDialog(
@@ -223,7 +227,7 @@ fun CommunityContent(
             item {
                 SwipeableChallengeCard(
                     userChallenge = uiState.userActiveChallenge,
-                    availableChallenges = uiState.challenges,
+                    availableChallenges = uiState.availableChallenges,
                     onChallengeSelected = { challenge -> onJoinChallenge(challenge.id) },
                     onChallengeReset = onResetChallenge,
                     currentUserId = currentUserId
@@ -235,7 +239,6 @@ fun CommunityContent(
         item {
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 친구 섹션
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -243,9 +246,10 @@ fun CommunityContent(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        Icons.Default.Group, // 아이콘 변경
+                        Icons.Default.Group,
                         contentDescription = null,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
@@ -268,7 +272,7 @@ fun CommunityContent(
                 }
                 if (uiState.hasMoreFriends) {
                     TextButton(onClick = onNavigateToFriendsList) {
-                        Text("전체보기", color = Color.Gray)
+                        Text("전체보기", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -287,7 +291,6 @@ fun CommunityContent(
         item {
             Spacer(modifier = Modifier.height(24.dp))
 
-            // 북클럽 섹션
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -295,7 +298,8 @@ fun CommunityContent(
                 Icon(
                     Icons.Default.Book,
                     contentDescription = null,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -326,7 +330,6 @@ fun CommunityContent(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // 나의 업적 섹션
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -334,7 +337,8 @@ fun CommunityContent(
                 Icon(
                     Icons.Default.EmojiEvents,
                     contentDescription = null,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -386,11 +390,10 @@ fun CommunityContent(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // 친구에게 독서 알림 보내기
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = DarkRed)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
             ) {
                 Row(
                     modifier = Modifier
@@ -401,20 +404,20 @@ fun CommunityContent(
                     Icon(
                         Icons.Default.Send,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             "친구에게 독서 알림 보내기",
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
                             "함께 읽을 친구를 초대해보세요!",
-                            color = Color.LightGray,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
                             fontSize = 14.sp
                         )
                     }
@@ -422,15 +425,15 @@ fun CommunityContent(
                         onClick = { onSendNotification() },
                         enabled = !uiState.isNotificationSending,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.White,
-                            contentColor = Color.Black
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                         ),
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         if (uiState.isNotificationSending) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(16.dp),
-                                color = Color.Black,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
                                 strokeWidth = 2.dp
                             )
                         } else {
@@ -446,8 +449,6 @@ fun CommunityContent(
 }
 
 
-// ... 이하 나머지 코드는 모두 그대로 유지 ...
-
 @Composable
 fun BookClubItem(
     bookClub: BookClub,
@@ -460,13 +461,13 @@ fun BookClubItem(
         Box(
             modifier = Modifier
                 .size(48.dp)
-                .background(DarkRed.copy(alpha = 0.1f), RoundedCornerShape(8.dp)),
+                .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(8.dp)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 Icons.Default.Book,
                 contentDescription = null,
-                tint = DarkRed
+                tint = MaterialTheme.colorScheme.onPrimaryContainer
             )
         }
 
@@ -476,17 +477,18 @@ fun BookClubItem(
             Text(
                 bookClub.name,
                 fontSize = 16.sp,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onBackground
             )
             Text(
                 "현재 도서: ${bookClub.currentBook}",
                 fontSize = 14.sp,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
                 "다음 모임: ${bookClub.nextMeetingDate}",
                 fontSize = 12.sp,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
@@ -744,7 +746,7 @@ fun BookClubChatScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         TopAppBar(
             title = {
@@ -757,7 +759,7 @@ fun BookClubChatScreen(
                     Text(
                         "${bookClub.currentBook} - ${bookClub.memberCount}명",
                         fontSize = 12.sp,
-                        color = Color.Gray
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             },
@@ -767,7 +769,7 @@ fun BookClubChatScreen(
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = Color.White
+                containerColor = MaterialTheme.colorScheme.surface
             )
         )
 
@@ -777,7 +779,7 @@ fun BookClubChatScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(vertical = 8.dp),
-            reverseLayout = true // 최신 메시지가 아래에 보이도록
+            reverseLayout = true
         ) {
             items(messages.reversed()) { message ->
                 ChatMessageItem(message = message)
@@ -832,13 +834,13 @@ fun ChatMessageItem(message: ChatMessage) {
             Box(
                 modifier = Modifier
                     .size(32.dp)
-                    .clip(CircleShape) // 원형으로 변경
-                    .background(Color.Gray),
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     message.senderName.first().toString(),
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -854,21 +856,21 @@ fun ChatMessageItem(message: ChatMessage) {
                 Text(
                     message.senderName,
                     fontSize = 12.sp,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
                 )
             }
 
             Card(
                 colors = CardDefaults.cardColors(
-                    containerColor = if (isMyMessage) DarkRed else Color(0xFFF5F5F5)
+                    containerColor = if (isMyMessage) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text(
                     message.message,
                     modifier = Modifier.padding(12.dp),
-                    color = if (isMyMessage) Color.White else Color.Black
+                    color = if (isMyMessage) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -945,13 +947,13 @@ fun FriendItemWithDelete(
         Box(
             modifier = Modifier
                 .size(48.dp)
-                .clip(CircleShape) // 원형으로 변경
-                .background(Color.Gray),
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 friend.name.first().toString(),
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Bold
             )
         }
@@ -962,12 +964,13 @@ fun FriendItemWithDelete(
             Text(
                 friend.name,
                 fontSize = 16.sp,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onBackground
             )
             Text(
                 friend.currentBook,
                 fontSize = 14.sp,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
@@ -978,8 +981,8 @@ fun FriendItemWithDelete(
                         Modifier
                             .size(8.dp)
                             .clip(CircleShape)
-                            .background(Color.Green)
-                    ) // 온라인 표시 점
+                            .background(Color(0xFF34C759))
+                    )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 IconButton(
@@ -989,7 +992,7 @@ fun FriendItemWithDelete(
                     Icon(
                         Icons.Default.Delete,
                         contentDescription = "친구 삭제",
-                        tint = Color.Red,
+                        tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -997,7 +1000,7 @@ fun FriendItemWithDelete(
             Text(
                 friend.lastActive,
                 fontSize = 12.sp,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -1013,7 +1016,7 @@ fun AchievementCard(
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(
             modifier = Modifier
@@ -1026,7 +1029,7 @@ fun AchievementCard(
                 icon,
                 contentDescription = null,
                 modifier = Modifier.size(32.dp),
-                tint = Color.Gray
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
@@ -1035,12 +1038,13 @@ fun AchievementCard(
                 fontWeight = FontWeight.Medium,
                 textAlign = TextAlign.Center,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
                 subtitle,
                 fontSize = 10.sp,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             )
         }
     }
@@ -1055,16 +1059,16 @@ fun ChallengeCardInCommunity(
 ) {
     val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
     val isJoined = challenge.participants.contains(currentUserId)
-    
+
     val daysRemaining = challenge.endDate?.let {
         val diff = it.time - System.currentTimeMillis()
         java.util.concurrent.TimeUnit.MILLISECONDS.toDays(diff).toInt()
     } ?: 0
-    
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkRed)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary)
     ) {
         Column(
             modifier = Modifier.padding(20.dp)
@@ -1078,20 +1082,20 @@ fun ChallengeCardInCommunity(
                     Icon(
                         Icons.Default.Send,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         "주간 독서 챌린지",
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onPrimary,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium
                     )
                 }
                 Text(
                     "${daysRemaining}일 남음",
-                    color = Color.LightGray,
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
                     fontSize = 14.sp
                 )
             }
@@ -1100,7 +1104,7 @@ fun ChallengeCardInCommunity(
 
             Text(
                 challenge.title,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -1110,7 +1114,7 @@ fun ChallengeCardInCommunity(
 
                 Text(
                     "내 진행률",
-                    color = Color.LightGray,
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
                     fontSize = 14.sp
                 )
 
@@ -1125,15 +1129,15 @@ fun ChallengeCardInCommunity(
                         .fillMaxWidth()
                         .height(8.dp)
                         .clip(RoundedCornerShape(4.dp)),
-                    color = Color.White,
-                    trackColor = Color.Gray
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
-                
+
                 Text(
                     "${userProgress} / ${challenge.goal} (${(progress * 100).toInt()}%)",
-                    color = Color.LightGray,
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
                     fontSize = 14.sp
                 )
             }
@@ -1147,15 +1151,15 @@ fun ChallengeCardInCommunity(
             ) {
                 Text(
                     "${challenge.participants.size}명 참여 중",
-                    color = Color.LightGray,
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
                     fontSize = 14.sp
                 )
                 if (!isJoined) {
                     Button(
                         onClick = onJoinClick,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.White,
-                            contentColor = Color.Black
+                            containerColor = MaterialTheme.colorScheme.onPrimary,
+                            contentColor = MaterialTheme.colorScheme.primary
                         ),
                         shape = RoundedCornerShape(8.dp)
                     ) {

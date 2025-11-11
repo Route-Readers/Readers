@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -53,16 +55,27 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.firebase.auth.FirebaseAuth
+import androidx.compose.material3.AlertDialog
+import androidx.compose.runtime.rememberCoroutineScope
+import com.route.readers.data.model.Title
 import com.route.readers.ui.theme.DarkRed
+import kotlinx.coroutines.launch
+
+val levelTitles = mapOf(
+    1 to Title("새싹", "레벨 1 달성"),
+    5 to Title("책벌레", "레벨 5 달성"),
+    10 to Title("독서왕", "레벨 10 달성")
+)
 
 data class LevelInfo(
     val currentLevel: Int,
     val currentPoints: Int,
     val pointsForNextLevel: Int,
-    val totalPointsForCurrentLevel: Int
+    val totalPointsForCurrentLevel: Int,
+    val newTitle: Title? = null
 )
 
-fun calculateLevelInfo(totalPoints: Int): LevelInfo {
+fun calculateLevelInfo(totalPoints: Int, oldLevel: Int): LevelInfo {
     val xpPerLevel = 100
     var currentLevel = 1
     var pointsNeededForNext = xpPerLevel
@@ -75,13 +88,16 @@ fun calculateLevelInfo(totalPoints: Int): LevelInfo {
         if (currentLevel >= 10) break
     }
 
+    val newTitle = if (currentLevel > oldLevel) levelTitles[currentLevel] else null
+
     if (currentLevel >= 10) {
         val maxLevelPoints = accumulatedPoints + pointsNeededForNext
         return LevelInfo(
             currentLevel = 10,
             currentPoints = totalPoints.coerceAtMost(maxLevelPoints),
             pointsForNextLevel = maxLevelPoints,
-            totalPointsForCurrentLevel = accumulatedPoints
+            totalPointsForCurrentLevel = accumulatedPoints,
+            newTitle = newTitle
         )
     }
 
@@ -89,7 +105,8 @@ fun calculateLevelInfo(totalPoints: Int): LevelInfo {
         currentLevel = currentLevel,
         currentPoints = totalPoints - accumulatedPoints,
         pointsForNextLevel = pointsNeededForNext,
-        totalPointsForCurrentLevel = accumulatedPoints
+        totalPointsForCurrentLevel = accumulatedPoints,
+        newTitle = newTitle
     )
 }
 
@@ -101,11 +118,26 @@ fun LevelScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+    var showTitleDialog by remember { mutableStateOf<Title?>(null) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(key1 = currentUserId) {
         if (currentUserId != null) {
             viewModel.fetchUserProfile(currentUserId)
         }
+    }
+
+    if (showTitleDialog != null) {
+        AlertDialog(
+            onDismissRequest = { showTitleDialog = null },
+            title = { Text("새로운 칭호 획득!") },
+            text = { Text("축하합니다! 새로운 칭호 '${showTitleDialog?.name}'을 획득하셨습니다.") },
+            confirmButton = {
+                Button(onClick = { showTitleDialog = null }) {
+                    Text("확인")
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -129,7 +161,7 @@ fun LevelScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()
@@ -139,32 +171,160 @@ fun LevelScreen(
         ) {
             when (val state = uiState) {
                 is ProfileUiState.Success -> {
-                    val levelInfo = calculateLevelInfo(state.user.totalPoints)
-                    LevelInfoCard(
-                        currentLevel = levelInfo.currentLevel,
-                        currentPoints = levelInfo.currentPoints,
-                        pointsForNextLevel = levelInfo.pointsForNextLevel
-                    )
-                    AchievementsSection(
-                        readBookCount = state.readBooks.size,
-                        claimedAchievements = state.user.claimedAchievements,
-                        onClaimPoints = { achievementId, points ->
-                            viewModel.claimAchievementPoints(achievementId, points)
+                    item {
+                        val levelInfo = calculateLevelInfo(state.user.totalPoints, state.user.level)
+
+                        LaunchedEffect(levelInfo.newTitle) {
+                            levelInfo.newTitle?.let { newTitle ->
+                                showTitleDialog = newTitle
+                                scope.launch {
+                                    viewModel.updateUserTitle(newTitle.name)
+                                }
+                            }
                         }
-                    )
+
+                        LevelInfoCard(
+                            currentLevel = levelInfo.currentLevel,
+                            currentPoints = levelInfo.currentPoints,
+                            pointsForNextLevel = levelInfo.pointsForNextLevel
+                        )
+                    }
+                    item {
+                        val achievementPoints = mapOf(
+                            "read_1" to 50,
+                            "read_10" to 100,
+                            "read_50" to 200,
+                            "read_100" to 500,
+                            "attendance_7" to 50,
+                            "attendance_30" to 100,
+                            "attendance_100" to 200,
+                            "reading_7" to 50,
+                            "reading_30" to 100,
+                            "reading_100" to 200
+                        )
+
+                        AchievementsSection(
+                            achievements = state.achievements,
+                            claimedAchievements = state.user.claimedAchievements,
+                            onClaimPoints = { achievementId, points ->
+                                viewModel.claimAchievementPoints(achievementId, points)
+                            },
+                            achievementPoints = achievementPoints
+                        )
+                    }
+                    item {
+                        val levelInfo = calculateLevelInfo(state.user.totalPoints, state.user.level)
+                        TitlesSection(
+                            currentLevel = levelInfo.currentLevel,
+                            unlockedTitles = state.user.titles,
+                            equippedTitle = state.user.title,
+                            onEquipTitle = { title ->
+                                viewModel.updateUserTitle(title)
+                            }
+                        )
+                    }
                 }
                 is ProfileUiState.Loading -> {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
+                    item {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
                     }
                 }
                 is ProfileUiState.Error -> {
-                    Text(text = "사용자 정보를 불러오는 데 실패했습니다: ${state.message}")
+                    item {
+                        Text(text = "사용자 정보를 불러오는 데 실패했습니다: ${state.message}")
+                    }
                 }
             }
         }
     }
 }
+
+@Composable
+fun TitlesSection(
+    currentLevel: Int,
+    unlockedTitles: List<String>,
+    equippedTitle: String?,
+    onEquipTitle: (String) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = "칭호",
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+            modifier = Modifier.padding(bottom = 8.dp),
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            levelTitles.forEach { (level, title) ->
+                TitleItem(
+                    title = title,
+                    level = level,
+                    isUnlocked = currentLevel >= level,
+                    isEquipped = title.name == equippedTitle,
+                    onEquip = { onEquipTitle(title.name) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun TitleItem(
+    title: Title,
+    level: Int,
+    isUnlocked: Boolean,
+    isEquipped: Boolean,
+    onEquip: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(
+                    text = title.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isUnlocked) MaterialTheme.colorScheme.onSurface else Color.Gray
+                )
+                Text(
+                    text = "레벨 $level 달성",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (isUnlocked) MaterialTheme.colorScheme.onSurfaceVariant else Color.Gray
+                )
+            }
+            if (isUnlocked) {
+                Button(
+                    onClick = onEquip,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isEquipped) Color.Gray else DarkRed,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text(if (isEquipped) "장착 해제" else "장착")
+                }
+            } else {
+                Text(
+                    text = "레벨 $level",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Gray
+                )
+            }
+        }
+    }
+}
+
 
 @Composable
 fun LevelInfoCard(
@@ -272,33 +432,19 @@ fun LevelInfoCard(
 
 @Composable
 fun AchievementsSection(
-    readBookCount: Int,
+    achievements: List<Achievement>,
     claimedAchievements: List<String>,
-    onClaimPoints: (String, Int) -> Unit
+    onClaimPoints: (String, Int) -> Unit,
+    achievementPoints: Map<String, Int>
 ) {
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabs = listOf("진행 중", "완료")
 
-    val achievementPoints = mapOf(
-        "read_1" to 50,
-        "read_10" to 100,
-        "read_50" to 200,
-        "read_100" to 500
-    )
+    var selectedCategoryIndex by remember { mutableStateOf(0) }
+    val categories = listOf("독서", "출석")
 
-    val allAchievements = achievementPoints.keys.map { id ->
-        val target = id.split("_").last().toInt()
-        Achievement(
-            id = id,
-            title = "책 ${target}권 읽기",
-            description = "${target}권의 책을 완독하세요",
-            currentProgress = readBookCount,
-            targetProgress = target
-        )
-    }
-
-    val inProgress = allAchievements.filter { !it.isCompleted }
-    val completed = allAchievements.filter { it.isCompleted }
+    val inProgress = achievements.filter { !it.isCompleted }
+    val completed = achievements.filter { it.isCompleted }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
@@ -333,10 +479,37 @@ fun AchievementsSection(
             }
         }
 
+        TabRow(
+            selectedTabIndex = selectedCategoryIndex,
+            containerColor = Color.Transparent,
+            contentColor = DarkRed,
+            indicator = { tabPositions ->
+                TabRowDefaults.SecondaryIndicator(
+                    modifier = Modifier.tabIndicatorOffset(tabPositions[selectedCategoryIndex]),
+                    color = DarkRed
+                )
+            }
+        ) {
+            categories.forEachIndexed { index, title ->
+                Tab(
+                    selected = selectedCategoryIndex == index,
+                    onClick = { selectedCategoryIndex = index },
+                    text = {
+                        Text(
+                            text = title,
+                            fontWeight = FontWeight.Bold,
+                            color = if (selectedCategoryIndex == index) DarkRed else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                )
+            }
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            val achievementsToShow = if (selectedTabIndex == 0) inProgress else completed
+            val achievementsToShow = (if (selectedTabIndex == 0) inProgress else completed)
+                .filter { it.category == categories[selectedCategoryIndex] }
             if (achievementsToShow.isEmpty()) {
                 Text(
                     text = if (selectedTabIndex == 0) "진행 중인 업적이 없습니다." else "완료된 업적이 없습니다.",

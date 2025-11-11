@@ -31,20 +31,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.EmojiEvents
-import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.LocalFireDepartment
-import androidx.compose.material.icons.rounded.Palette
-import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.WorkspacePremium
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -104,6 +103,7 @@ import com.route.readers.ui.screens.feed.FeedCard
 import com.route.readers.ui.screens.feed.FeedItem
 import com.route.readers.ui.theme.DarkRed
 import kotlinx.coroutines.launch
+import kotlin.text.isNotEmpty
 import kotlin.text.toFloat
 
 @Composable
@@ -114,6 +114,7 @@ fun ProfileScreen(
     onNavigateToMyBookList: () -> Unit,
     onNavigateToLevel: () -> Unit,
     onNavigateToCustomization: () -> Unit = {},
+    onNavigateToGoal: () -> Unit,
     viewModel: ProfileViewModel = viewModel()
 ) {
     var showCustomization by remember { mutableStateOf(false) }
@@ -162,7 +163,7 @@ fun ProfileScreen(
                 is ProfileUiState.Loading -> CircularProgressIndicator()
                 is ProfileUiState.Error -> Text(text = state.message)
                 is ProfileUiState.Success -> {
-                    val levelInfo = calculateLevelInfo(state.user.totalPoints)
+                    val levelInfo = calculateLevelInfo(state.user.totalPoints, state.user.level)
                     ProfileContent(
                         state = state,
                         level = levelInfo.currentLevel,
@@ -191,6 +192,7 @@ fun ProfileScreen(
                         },
                         onNavigateToMyBookList = onNavigateToMyBookList,
                         onNavigateToLevel = onNavigateToLevel,
+                        onNavigateToGoal = onNavigateToGoal,
                         onBlockUser = { viewModel.blockUser(state.user.uid) },
                         onUnblockUser = { viewModel.unblockUser(state.user.uid) },
                         onBookmarkClick = { feedId, isBookmarked ->
@@ -223,6 +225,7 @@ fun ProfileContent(
     onNavigateToCustomization: () -> Unit,
     onNavigateToMyBookList: () -> Unit,
     onNavigateToLevel: () -> Unit,
+    onNavigateToGoal: () -> Unit,
     onBlockUser: () -> Unit,
     onUnblockUser: () -> Unit,
     onBookmarkClick: (String, Boolean) -> Unit
@@ -259,26 +262,27 @@ fun ProfileContent(
         contentPadding = PaddingValues(bottom = 16.dp)
     ) {
         item {
-            Column(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                ProfileInfoSection(
-                    user = user,
-                    level = level,
-                    isMyProfile = state.isMyProfile,
-                    isFollowing = state.isFollowing,
-                    isBlocked = state.isBlocked,
-                    onFollowClick = onFollowClick,
-                    onUnfollowClick = onUnfollowClick,
-                    onFollowListClick = onFollowListClick,
-                    onUpdateProfileImage = onUpdateProfileImage,
-                    onNavigateToCustomization = onNavigateToCustomization,
-                    onNavigateToMyBookList = onNavigateToMyBookList,
-                    onNavigateToLevel = onNavigateToLevel,
-                    onBlockUser = onBlockUser,
-                    onUnblockUser = onUnblockUser
-                )
+            ProfileInfoSection(
+                user = user,
+                level = level,
+                isMyProfile = state.isMyProfile,
+                isFollowing = state.isFollowing,
+                isBlocked = state.isBlocked,
+                onFollowClick = onFollowClick,
+                onUnfollowClick = onUnfollowClick,
+                onFollowListClick = onFollowListClick,
+                onUpdateProfileImage = onUpdateProfileImage,
+                onNavigateToCustomization = onNavigateToCustomization,
+                onNavigateToMyBookList = onNavigateToMyBookList,
+                onNavigateToLevel = onNavigateToLevel,
+                onBlockUser = onBlockUser,
+                onUnblockUser = onUnblockUser
+            )
+        }
+
+        if (state.isMyProfile) {
+            item {
+                GoalSettingSection(onSetGoalClick = onNavigateToGoal)
             }
         }
 
@@ -432,6 +436,9 @@ fun AchievementsSection(
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("진행 중", "완료")
 
+    var selectedCategoryIndex by remember { mutableIntStateOf(0) }
+    val categories = listOf("독서", "출석")
+
     Column(modifier = Modifier.fillMaxWidth()) {
         TabRow(
             selectedTabIndex = selectedTabIndex,
@@ -453,7 +460,28 @@ fun AchievementsSection(
             }
         }
 
-        val achievementsToShow = if (selectedTabIndex == 0) ongoingAchievements else completedAchievements
+        TabRow(
+            selectedTabIndex = selectedCategoryIndex,
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = DarkRed,
+            indicator = { tabPositions ->
+                TabRowDefaults.Indicator(
+                    Modifier.tabIndicatorOffset(tabPositions[selectedCategoryIndex]),
+                    color = DarkRed
+                )
+            }
+        ) {
+            categories.forEachIndexed { index, title ->
+                Tab(
+                    selected = selectedCategoryIndex == index,
+                    onClick = { selectedCategoryIndex = index },
+                    text = { Text(text = title) }
+                )
+            }
+        }
+
+        val achievementsToShow = (if (selectedTabIndex == 0) ongoingAchievements else completedAchievements)
+            .filter { it.category == categories[selectedCategoryIndex] }
 
         Column(
             modifier = Modifier
@@ -472,8 +500,17 @@ fun AchievementsSection(
                     textAlign = TextAlign.Center
                 )
             } else {
-                achievementsToShow.forEach { achievement ->
-                    AchievementItem(achievement = achievement, onClick = { onAchievementClick(achievement) })
+                achievementsToShow.groupBy { it.category }.forEach { (category, achievements) ->
+                    Text(
+                        text = category,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    achievements.forEach { achievement ->
+                        AchievementItem(achievement = achievement, onClick = { onAchievementClick(achievement) })
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }
@@ -552,94 +589,6 @@ fun AchievementItem(achievement: Achievement, onClick: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun PostsSection(
-    myPosts: List<FeedItem>,
-    savedPosts: List<FeedItem>,
-    isMyProfile: Boolean,
-    likedFeedIds: Set<String>,
-    bookmarkedFeedIds: Set<String>,
-    onLikeClick: (feedId: String, isLiked: Boolean) -> Unit,
-    onBookmarkClick: (feedId: String, isBookmarked: Boolean) -> Unit,
-    onDeleteClick: (feedId: String) -> Unit,
-    wishlist: List<String>,
-    myLibrary: List<String>,
-    onToggleWishlist: (Book, Boolean) -> Unit,
-    onToggleMyLibrary: (Book, Boolean) -> Unit,
-    userInfoMap: Map<String, User>
-) {
-    var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = if (isMyProfile) listOf("내가 쓴 글", "저장한 글") else listOf("작성한 글")
-
-    Column(Modifier.background(MaterialTheme.colorScheme.background)) {
-        SecondaryTabRow(
-            selectedTabIndex = selectedTabIndex,
-            containerColor = Color.Transparent,
-            contentColor = DarkRed,
-            indicator = {
-                TabRowDefaults.Indicator(
-                    modifier = Modifier.tabIndicatorOffset(selectedTabIndex),
-                    color = DarkRed
-                )
-            }
-        ) {
-            tabs.forEachIndexed { index, title ->
-                Tab(
-                    selected = selectedTabIndex == index,
-                    onClick = { selectedTabIndex = index },
-                    text = { Text(text = title) }
-                )
-            }
-        }
-
-        val postsToShow = when {
-            selectedTabIndex == 0 -> myPosts
-            selectedTabIndex == 1 && isMyProfile -> savedPosts
-            else -> emptyList()
-        }
-
-        if (postsToShow.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 48.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = if (selectedTabIndex == 0) "작성한 글이 없습니다." else "저장한 글이 없습니다.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        } else {
-            Column(
-                modifier = Modifier.padding(top = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                postsToShow.forEach { post ->
-                    val isLiked = likedFeedIds.contains(post.id)
-                    val isBookmarked = bookmarkedFeedIds.contains(post.id)
-
-                    FeedCard(
-                        item = post,
-                        isLiked = isLiked,
-                        isBookmarked = isBookmarked,
-                        onLikeClick = { onLikeClick(post.id, isLiked) },
-                        onBookmarkClick = { onBookmarkClick(post.id, isBookmarked) },
-                        onDeleteClick = { onDeleteClick(post.id) },
-                        onUserClick = { },
-                        wishlist = wishlist,
-                        myLibrary = myLibrary,
-                        onToggleWishlist = onToggleWishlist,
-                        onToggleMyLibrary = onToggleMyLibrary,
-                        followerInfoMap = userInfoMap
-                    )
-                }
-            }
-        }
-    }
-}
-
 @Composable
 fun ProfileInfoSection(
     user: User,
@@ -657,15 +606,10 @@ fun ProfileInfoSection(
     onBlockUser: () -> Unit,
     onUnblockUser: () -> Unit
 ) {
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent(),
-        onResult = { uri: Uri? ->
-            uri?.let { onUpdateProfileImage(it) }
-        }
-    )
-
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
@@ -684,9 +628,27 @@ fun ProfileInfoSection(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(text = user.nickname, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-            LevelChip(level = level, onClick = onNavigateToLevel)
-            Spacer(modifier = Modifier.height(16.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                LevelChip(level = level, onClick = onNavigateToLevel)
+                user.title?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+            }
 
+            Spacer(modifier = Modifier.height(8.dp))
+
+            ReadingStreakSection(
+                attendanceDays = user.consecutiveDays,
+                readingDays = user.consecutiveReadingDays
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
@@ -744,6 +706,108 @@ fun ProfileInfoSection(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun GoalSettingSection(onSetGoalClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .clickable { onSetGoalClick() },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, DarkRed.copy(alpha = 0.3f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(
+                    text = "나만의 독서 목표를 설정해보세요!",
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "목표를 설정하고 꾸준한 독서 습관을 만들어보세요.",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowRight,
+                contentDescription = "목표 설정으로 이동",
+                tint = DarkRed
+            )
+        }
+    }
+}
+
+@Composable
+fun ReadingStreakSection(attendanceDays: Int, readingDays: Int) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+        elevation = CardDefaults.cardElevation(0.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            StreakItem(
+                icon = Icons.Rounded.LocalFireDepartment,
+                label = "연속 출석",
+                days = attendanceDays,
+                iconColor = Color(0xFF81C784)
+            )
+            StreakItem(
+                icon = Icons.Rounded.LocalFireDepartment,
+                label = "연속 독서",
+                days = readingDays,
+                iconColor = Color(0xFFE57373)
+            )
+        }
+    }
+}
+
+@Composable
+fun StreakItem(icon: ImageVector, label: String, days: Int, iconColor: Color) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = iconColor,
+                modifier = Modifier.size(20.dp)
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Text(
+            text = "$days 일",
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 
@@ -958,6 +1022,10 @@ fun ProfileImage(
                     "penguin" -> R.drawable.penguin
                     "redpanda" -> R.drawable.redpanda
                     "squirrel" -> R.drawable.squirrel
+                    "cat" -> R.drawable.cat
+                    "dog" -> R.drawable.dog
+                    "fox" -> R.drawable.fox
+                    "rabbit" -> R.drawable.rabbit
                     else -> null
                 }
 
@@ -1055,7 +1123,10 @@ fun EmptyFavoriteBooks(onNavigateToSearch: () -> Unit) {
                 contentDescription = "관심 도서 추가",
                 modifier = Modifier
                     .size(40.dp)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), CircleShape)
+                    .background(
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        CircleShape
+                    )
                     .padding(8.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -1264,12 +1335,12 @@ fun LevelChip(level: Int, onClick: () -> Unit) {
             modifier = Modifier
                 .size(24.dp)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.onSurface),
+                .background(MaterialTheme.colorScheme.primary),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = level.toString(),
-                color = Color(0xFFF0E68C),
+                color = MaterialTheme.colorScheme.onPrimary,
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp
             )

@@ -19,6 +19,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.route.readers.ui.community.used_trade.ChatScreen
+import com.route.readers.ui.community.used_trade.UsedBookDetailScreen
 import com.route.readers.ui.screens.MainScreen
 import com.route.readers.ui.screens.add_feed.AddFeedScreen
 import com.route.readers.ui.screens.attendance.AttendanceScreen
@@ -31,6 +33,7 @@ import com.route.readers.ui.screens.login.SignUpScreen
 import com.route.readers.ui.screens.profile.AccountScreen
 import com.route.readers.ui.screens.profile.FollowListScreen
 import com.route.readers.ui.screens.profile.FollowListViewModel
+import com.route.readers.ui.screens.profile.GoalScreen
 import com.route.readers.ui.screens.profile.LevelScreen
 import com.route.readers.ui.screens.profile.MyBookListScreen
 import com.route.readers.ui.screens.profile.ProfileCustomizationScreen
@@ -190,6 +193,12 @@ fun AppNavigation(navController: NavHostController) {
                 },
                 onNavigateToTokenShop = {
                     navController.navigate("token_shop_route")
+                },
+                onNavigateToUsedBookDetail = { bookId ->
+                    navController.navigate("used_book_detail_route/$bookId")
+                },
+                onNavigateToChatList = {
+                    navController.navigate("chat_list_route")
                 }
             )
         }
@@ -240,6 +249,9 @@ fun AppNavigation(navController: NavHostController) {
                     },
                     onNavigateToCustomization = {
                         navController.navigate("profile_customization_route")
+                    },
+                    onNavigateToGoal = {
+                        navController.navigate("goal_route")
                     }
                 )
             }
@@ -314,6 +326,12 @@ fun AppNavigation(navController: NavHostController) {
             )
         }
 
+        composable("goal_route") {
+            GoalScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
         composable("add_feed_route") {
             AddFeedScreen(
                 onNavigateBack = {
@@ -333,6 +351,40 @@ fun AppNavigation(navController: NavHostController) {
 
         composable("challenge_route") {
             ChallengeScreen()
+        }
+
+        composable(
+            route = "used_book_detail_route/{bookId}",
+            arguments = listOf(navArgument("bookId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val bookId = backStackEntry.arguments?.getString("bookId")
+            if (bookId != null) {
+                UsedBookDetailScreen(
+                    bookId = bookId,
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToChat = { sellerId, bookIdForChat ->
+                        navController.navigate("chat_route/$sellerId/$bookIdForChat")
+                    }
+                )
+            }
+        }
+
+        composable(
+            route = "chat_route/{sellerId}/{bookId}",
+            arguments = listOf(
+                navArgument("sellerId") { type = NavType.StringType },
+                navArgument("bookId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val sellerId = backStackEntry.arguments?.getString("sellerId")
+            val bookId = backStackEntry.arguments?.getString("bookId")
+            if (sellerId != null && bookId != null) {
+                ChatScreen(
+                    sellerId = sellerId,
+                    bookId = bookId,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
         }
     }
 }

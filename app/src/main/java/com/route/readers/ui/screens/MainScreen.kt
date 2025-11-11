@@ -18,8 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.runtime.LaunchedEffect
-import kotlinx.coroutines.delay
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -44,8 +43,8 @@ import com.route.readers.ui.screens.profile.BlockedUserScreen
 import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.profile.ProfileViewModel
 import com.route.readers.ui.screens.reading.ReadingTimerScreen
+import com.route.readers.ui.screens.reading.ReadingViewModel
 import com.route.readers.ui.screens.search.SearchScreen
-import androidx.lifecycle.viewmodel.compose.viewModel
 import java.net.URLEncoder
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -58,16 +57,21 @@ fun MainScreen(
     onNavigateToMyAccount: () -> Unit,
     onNavigateToAttendance: () -> Unit,
     onNavigateToChallenge: () -> Unit,
-    onNavigateToTokenShop: () -> Unit
+    onNavigateToTokenShop: () -> Unit,
+    onNavigateToUsedBookDetail: (String) -> Unit,
+    onNavigateToChatList: () -> Unit
 ) {
     val bottomNavController = rememberNavController()
     val mainViewModel: MainViewModel = viewModel()
+    val readingViewModel: ReadingViewModel = viewModel()
     val currentUserId = remember { FirebaseAuth.getInstance().currentUser?.uid }
     var selectedBook by remember { mutableStateOf<MyBook?>(null) }
     var timerCompletedBook by remember { mutableStateOf<MyBook?>(null) }
     val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var bookToUpdateAfterReading by remember { mutableStateOf<MyBook?>(null) }
+    var lastReadingSessionDuration by remember { mutableStateOf<Int?>(null) }
 
     if (showLogoutDialog) {
         AlertDialog(
@@ -101,7 +105,7 @@ fun MainScreen(
             if (shouldShowTopBar) {
                 val consecutiveReadingDays by attendanceViewModel.consecutiveReadingDays.collectAsState()
                 val tokens by mainViewModel.tokens.collectAsState()
-                
+
                 FeedTopAppBar(
                     consecutiveReadingDays = consecutiveReadingDays,
                     tokens = tokens,
@@ -134,7 +138,7 @@ fun MainScreen(
                         }
                     },
                     selectedBook = selectedBook,
-                    onStartReading = { 
+                    onStartReading = {
                         selectedBook?.let { book ->
                             bottomNavController.navigate("reading_timer/${book.isbn}")
                         }
@@ -170,6 +174,7 @@ fun MainScreen(
             composable(BottomNavItem.MyLibrary.route) {
                 MyLibraryScreen(
                     attendanceViewModel = attendanceViewModel,
+                    mainViewModel = mainViewModel,
                     onNavigateToSearch = {
                         bottomNavController.navigate(BottomNavItem.Search.route) {
                             popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
@@ -179,7 +184,13 @@ fun MainScreen(
                     },
                     onBookSelected = { book ->
                         selectedBook = book
-                    }
+                    },
+                    bookToUpdate = bookToUpdateAfterReading,
+                    onUpdateFinished = {
+                        bookToUpdateAfterReading = null
+                        lastReadingSessionDuration = null
+                    },
+                    lastReadingSessionDuration = lastReadingSessionDuration
                 )
             }
             composable(BottomNavItem.Search.route) {
@@ -192,11 +203,13 @@ fun MainScreen(
                 CommunityScreen(
                     viewModel = communityViewModel,
                     onNavigateToFriendsList = { bottomNavController.navigate("friends_list") },
-                    onNavigateToNotifications = { bottomNavController.navigate("notifications") }
+                    onNavigateToNotifications = { bottomNavController.navigate("notifications") },
+                    onNavigateToUsedBookDetail = onNavigateToUsedBookDetail,
+                    onNavigateToChatList = onNavigateToChatList,
+                    isActive = currentRoute == BottomNavItem.Community.route
                 )
             }
             composable("friends_list") {
-                val communityViewModel: CommunityViewModel = viewModel()
                 AllUsersScreen(
                     onNavigateBack = { bottomNavController.popBackStack() },
                     onUserClick = { userId -> bottomNavController.navigate("profile_route/$userId") }
@@ -231,6 +244,9 @@ fun MainScreen(
                         },
                         onNavigateToCustomization = {
                             navController.navigate("profile_customization_route")
+                        },
+                        onNavigateToGoal = {
+                            navController.navigate("goal_route")
                         }
                     )
                 }
@@ -251,9 +267,14 @@ fun MainScreen(
                         ReadingTimerScreen(
                             book = book,
                             onNavigateBack = { bottomNavController.popBackStack() },
-                            onFinishReading = { readingTimeSeconds ->
-                                // 독서 시간 기록 로직 추가 가능
+                            onFinishReading = { timeInSeconds ->
+                                readingViewModel.saveReadingSession(book, timeInSeconds)
+                                bookToUpdateAfterReading = book
+                                lastReadingSessionDuration = timeInSeconds
                                 bottomNavController.popBackStack()
+                            },
+                            onDisposeReading = { timeInSeconds ->
+                                readingViewModel.saveReadingSession(book, timeInSeconds)
                             }
                         )
                     }

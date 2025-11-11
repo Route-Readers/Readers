@@ -1,14 +1,17 @@
 package com.route.readers.ui.screens.profile
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.data.UserPreferencesRepository
+import com.route.readers.data.model.User
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.flow.SharingStarted
 
 class AccountViewModel(
@@ -43,14 +46,16 @@ class AccountViewModel(
     fun updateUserPrivacySetting(isPrivate: Boolean) {
         val userId = auth.currentUser?.uid ?: return
         viewModelScope.launch {
-            val userRef = db.collection("users").document(userId)
-            userRef.update("isPrivate", isPrivate)
-                .addOnSuccessListener {
-                    fetchUserProfile(userId)
-                }
-                .addOnFailureListener {
-                    fetchUserProfile(userId)
-                }
+            try {
+                db.collection("users").document(userId)
+                    .update("private", isPrivate)
+                    .await()
+                
+                fetchUserProfile(userId)
+                Log.d("AccountViewModel", "User privacy setting updated successfully.")
+            } catch (e: Exception) {
+                Log.e("AccountViewModel", "Failed to update user privacy setting.", e)
+            }
         }
     }
 

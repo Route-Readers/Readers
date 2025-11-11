@@ -4,9 +4,15 @@ import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import com.route.readers.data.model.MyBook
+import com.route.readers.data.model.ReadingSession
 import com.route.readers.ui.screens.feed.FeedItem
+import com.route.readers.ui.screens.profile.Goal
 import kotlinx.coroutines.tasks.await
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class FirestoreRepository {
     private val firestore = FirebaseFirestore.getInstance()
@@ -20,6 +26,64 @@ class FirestoreRepository {
 
     private fun getReadBooksCollection(userId: String) =
         getUsersCollection().document(userId).collection("readBooks")
+
+    private fun getGoalsCollection(userId: String) =
+        getUsersCollection().document(userId).collection("goals")
+
+    suspend fun saveGoal(goal: Goal): Boolean {
+        return try {
+            val userId = auth.currentUser?.uid ?: return false
+            getGoalsCollection(userId).add(goal).await()
+            true
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error saving goal: ${e.message}", e)
+            false
+        }
+    }
+
+    suspend fun getPagesReadToday(): Int {
+        val userId = auth.currentUser?.uid ?: return 0
+        return try {
+            val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            val doc = getUsersCollection().document(userId)
+                .collection("daily_reading").document(today)
+                .get().await()
+            doc.getLong("pagesRead")?.toInt() ?: 0
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error getting pages read today", e)
+            0
+        }
+    }
+
+    suspend fun getGoals(): List<Goal> {
+        return try {
+            val userId = auth.currentUser?.uid ?: return emptyList()
+            getGoalsCollection(userId).get().await().toObjects(Goal::class.java)
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error fetching goals: ${e.message}", e)
+            emptyList()
+        }
+    }
+
+    suspend fun deleteGoal(bookIsbn: String): Boolean {
+        val userId = auth.currentUser?.uid ?: return false
+        return try {
+            val querySnapshot = getGoalsCollection(userId)
+                .whereEqualTo("bookIsbn", bookIsbn)
+                .limit(1)
+                .get()
+                .await()
+
+            if (!querySnapshot.isEmpty) {
+                val documentToDelete = querySnapshot.documents[0]
+                documentToDelete.reference.delete().await()
+            }
+            true
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error deleting goal", e)
+            false
+        }
+    }
 
     suspend fun addBookToLibrary(book: MyBook): Boolean {
         return try {
@@ -55,6 +119,19 @@ class FirestoreRepository {
             val book = bookSnapshot.toObject(MyBook::class.java)
 
             if (book != null) {
+                val oldCurrentPage = book.currentPage
+                val pagesReadThisSession = currentPage - oldCurrentPage
+
+                if (pagesReadThisSession > 0) {
+                    val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                    val dailyReadingRef = getUsersCollection().document(userId)
+                        .collection("daily_reading").document(today)
+                    dailyReadingRef.set(
+                        mapOf("pagesRead" to FieldValue.increment(pagesReadThisSession.toLong())),
+                        SetOptions.merge()
+                    ).await()
+                }
+
                 val updateData = mutableMapOf<String, Any>(
                     "currentPage" to currentPage,
                     "lastReadDate" to System.currentTimeMillis()
@@ -146,7 +223,10 @@ class FirestoreRepository {
                 }.await()
                 true
             } else {
-                Log.e("FirestoreRepository", "Failed to get book details from myLibrary for ISBN: $isbn")
+                Log.e(
+                    "FirestoreRepository",
+                    "Failed to get book details from myLibrary for ISBN: $isbn"
+                )
                 false
             }
         } catch (e: Exception) {
@@ -188,10 +268,57 @@ class FirestoreRepository {
         }
     }
 
+    suspend fun addReadingTime(bookId: String, timeInSeconds: Int): Boolean {
+        val userId = auth.currentUser?.uid ?: return false
+        return try {
+            val docRef = getMyBooksCollection(userId).document(bookId)
+            docRef.update("totalReadingTime", FieldValue.increment(timeInSeconds.toLong())).await()
+            true
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error updating reading time: ${e.message}", e)
+            false
+        }
+    }
+
+    suspend fun addReadingSession(session: ReadingSession): Boolean {
+        val userId = auth.currentUser?.uid ?: return false
+        return try {
+            getUsersCollection().document(userId)
+                .collection("reading_sessions")
+                .add(session)
+                .await()
+            true
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error adding reading session: ${e.message}", e)
+            false
+        }
+    }
+
+    suspend fun getReadingSessions(userId: String, startDate: Date?, endDate: Date?): List<ReadingSession> {
+        return try {
+            var query = getUsersCollection().document(userId)
+                .collection("reading_sessions")
+                .orderBy("startTime") // startTime 기준으로 정렬
+
+            if (startDate != null) {
+                query = query.whereGreaterThanOrEqualTo("startTime", startDate)
+            }
+            if (endDate != null) {
+                query = query.whereLessThanOrEqualTo("startTime", endDate)
+            }
+
+            query.get().await().documents.mapNotNull { it.toObject(ReadingSession::class.java) }
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error getting reading sessions: ${e.message}", e)
+            emptyList()
+        }
+    }
+
     suspend fun incrementReadBookCount(): Boolean {
         return try {
             val userId = auth.currentUser?.uid ?: return false
-            getUsersCollection().document(userId).update("readBookCount", FieldValue.increment(1)).await()
+            getUsersCollection().document(userId).update("readBookCount", FieldValue.increment(1))
+                .await()
             true
         } catch (e: Exception) {
             Log.e("FirestoreRepository", "Error incrementing read book count", e)

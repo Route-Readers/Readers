@@ -7,6 +7,8 @@ import java.util.Date
 enum class ChallengeType {
     CONSECUTIVE_READING_WITH_FRIEND, // 친구와 연속 읽기
     DAILY_PAGES_READING,             // 매일 페이지 읽기
+    CONSECUTIVE_READING,             // 7일 연속 독서
+    CUSTOM,                          // 사용자 생성 챌린지
     UNKNOWN                          // 알 수 없는 타입
 }
 

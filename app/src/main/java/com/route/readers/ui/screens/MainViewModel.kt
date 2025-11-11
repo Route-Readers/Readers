@@ -5,10 +5,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.route.readers.data.model.ReadingSession
 import com.route.readers.data.model.User
+import com.route.readers.data.model.Challenge
+import com.route.readers.data.remote.MyLibraryRepository
+import com.route.readers.data.remote.ChallengeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -19,6 +24,8 @@ class MainViewModel : ViewModel() {
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
     private val currentUserId = auth.currentUser?.uid
+    private val myLibraryRepository = MyLibraryRepository()
+    private val challengeRepository = ChallengeRepository()
 
     private val _consecutiveDays = MutableStateFlow(0)
     val consecutiveDays = _consecutiveDays.asStateFlow()
@@ -110,6 +117,114 @@ class MainViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Failed to load user tokens", e)
                 _tokens.value = 0
+            }
+        }
+    }
+
+    fun addReadingTime(bookId: String, timeInSeconds: Int) {
+        viewModelScope.launch {
+            myLibraryRepository.addReadingTime(bookId, timeInSeconds)
+        }
+    }
+
+    suspend fun saveReadingSession(
+        book: com.route.readers.data.model.MyBook,
+        newCurrentPage: Int,
+        durationInSeconds: Int
+    ): Pair<com.route.readers.data.model.MyBook, Int>? {
+        val userId = auth.currentUser?.uid ?: return null
+        val oldCurrentPage = book.currentPage
+        val pagesReadThisSession = newCurrentPage - oldCurrentPage
+
+        if (pagesReadThisSession < 0) {
+            Log.e("MainViewModel", "Pages read this session cannot be negative.")
+            return null
+        }
+
+        val isCompleted = newCurrentPage >= book.totalPages
+
+        // 1. 책 진행률 업데이트 (페이지, 완료 여부)
+        val updateSuccess = myLibraryRepository.updateReadingProgress(
+            book.isbn,
+            newCurrentPage,
+            isCompleted
+        )
+
+        if (!updateSuccess) {
+            Log.e("MainViewModel", "Failed to update reading progress for book: ${book.isbn}")
+            return null
+        }
+
+        // 2. 독서 세션 저장
+        val endTime = Date()
+        val startTime = Date(endTime.time - (durationInSeconds * 1000L))
+
+        val calendar = Calendar.getInstance().apply { time = startTime }
+        val year = calendar.get(Calendar.YEAR)
+        val month = calendar.get(Calendar.MONTH) + 1 // Calendar.MONTH는 0부터 시작
+        val dayOfMonth = calendar.get(Calendar.DAY_OF_MONTH)
+        val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK) // 1(일) ~ 7(토)
+        val weekOfYear = calendar.get(Calendar.WEEK_OF_YEAR)
+
+        val readingSession = ReadingSession(
+            sessionId = db.collection("users").document(userId).collection("reading_sessions").document().id,
+            bookId = book.isbn,
+            startTime = startTime,
+            endTime = endTime,
+            durationInSeconds = durationInSeconds,
+            pagesRead = pagesReadThisSession,
+            year = year,
+            month = month,
+            dayOfMonth = dayOfMonth,
+            dayOfWeek = dayOfWeek,
+            weekOfYear = weekOfYear
+        )
+
+        val sessionSaveSuccess = myLibraryRepository.addReadingSession(readingSession)
+        if (!sessionSaveSuccess) {
+            Log.e("MainViewModel", "Failed to save reading session for book: ${book.isbn}")
+            return null
+        }
+
+        // 3. 챌린지 진행도 업데이트
+        if (pagesReadThisSession > 0) {
+            updateChallengeProgress(userId, pagesReadThisSession, startTime)
+        }
+
+        // 4. 피드 게시 다이얼로그를 위한 정보 반환
+        val updatedBook = book.copy(
+            currentPage = newCurrentPage,
+            isCompleted = isCompleted,
+            lastReadDate = endTime.time
+        )
+        return Pair(updatedBook, pagesReadThisSession)
+    }
+
+    private fun updateChallengeProgress(userId: String, pagesRead: Int, readingDate: Date) {
+        GlobalScope.launch {
+            try {
+                Log.d("MainViewModel", "Updating challenge progress: userId=$userId, pagesRead=$pagesRead")
+                val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                val dateStr = sdf.format(readingDate)
+                
+                // 활성화된 일일 페이지 챌린지들을 가져와서 업데이트
+                val activeChallenges = challengeRepository.getActiveChallenges(userId)
+                Log.d("MainViewModel", "Found ${activeChallenges.size} active challenges")
+                
+                activeChallenges.forEach { challenge: Challenge ->
+                    Log.d("MainViewModel", "Challenge: ${challenge.title}, type: ${challenge.type}")
+                    if (challenge.type == com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING) {
+                        Log.d("MainViewModel", "Updating daily progress for challenge: ${challenge.id}")
+                        challengeRepository.updateDailyProgress(
+                            challengeId = challenge.id,
+                            userId = userId,
+                            date = dateStr,
+                            dailyAmount = pagesRead
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Failed to update challenge progress", e)
             }
         }
     }

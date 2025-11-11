@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:insetTop="30dp"
+    android:insetBottom="30dp"
+    android:insetLeft="30dp"
+    android:insetRight="30dp">
+
+    <layer-list>
+        <!-- 아이콘 -->
+        <item
+            android:width="80dp"
+            android:height="80dp"
+            android:drawable="@mipmap/app_icon_foreground"
+            android:gravity="center_horizontal|top" />
+
+        <!-- 로고 -->
+        <item
+            android:width="100dp"
+            android:height="24dp"
+            android:drawable="@drawable/readers"
+            android:gravity="center_horizontal|bottom" />
+    </layer-list>
+</inset>

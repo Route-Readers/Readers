@@ -435,7 +435,18 @@ fun FeedCard(
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
-                        Text(text = item.userName, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = item.userName, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+                            userInfo?.title?.let { title ->
+                                Text(
+                                    text = " $title",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(start = 4.dp)
+                                )
+                            }
+                        }
                         Text(text = formatTimestamp(item.timestamp), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                     }
                 }

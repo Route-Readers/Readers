@@ -5,6 +5,8 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.*
@@ -53,8 +55,12 @@ private enum class FilterState {
 fun MyLibraryScreen(
     onNavigateToSearch: () -> Unit,
     attendanceViewModel: AttendanceViewModel,
+    mainViewModel: com.route.readers.ui.screens.MainViewModel = viewModel(), // 새로 추가된 파라미터
     profileViewModel: ProfileViewModel = viewModel(),
-    onBookSelected: (MyBook?) -> Unit = {}
+    onBookSelected: (MyBook?) -> Unit = {},
+    bookToUpdate: MyBook?,
+    onUpdateFinished: () -> Unit,
+    lastReadingSessionDuration: Int? = null
 ) {
     val context = LocalContext.current
     val myLibraryRepository = remember { MyLibraryRepository() }
@@ -252,17 +258,21 @@ fun MyLibraryScreen(
             onUpdate = { currentPage ->
                 scope.launch {
                     if (currentPage >= book.currentPage) {
-                        val isCompleted = currentPage == book.totalPages && book.totalPages > 0
-                        val success = myLibraryRepository.updateReadingProgress(book.isbn, currentPage, isCompleted)
+                        val result = mainViewModel.saveReadingSession(
+                            book = book,
+                            newCurrentPage = currentPage,
+                            durationInSeconds = lastReadingSessionDuration ?: 0 // durationInSeconds 전달
+                        )
 
-                        if (success) {
-                            if (isCompleted && !book.isCompleted) {
+                        if (result != null) {
+                            val (updatedBook, pagesReadThisSession) = result
+                            if (updatedBook.isCompleted && !book.isCompleted) {
                                 firestoreRepository.markBookAsRead(book.isbn)
                                 Toast.makeText(context, "완독을 축하합니다!", Toast.LENGTH_LONG).show()
                             }
                             refreshBooks()
                             attendanceViewModel.markReadingActivity()
-                            showPostToFeedDialog = Pair(book, currentPage)
+                            showPostToFeedDialog = Pair(updatedBook, pagesReadThisSession)
                         } else {
                             Toast.makeText(context, "업데이트 실패. 다시 시도해주세요", Toast.LENGTH_SHORT).show()
                         }
@@ -404,14 +414,28 @@ fun MyBookCard(
     onDeleteClick: () -> Unit,
     onUpdateClick: () -> Unit = {}
 ) {
+    val borderColor by animateColorAsState(
+        if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+        label = "borderColor"
+    )
+    val containerColor by animateColorAsState(
+        when {
+            book.isCompleted -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+            book.currentPage > 0 -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
+            else -> MaterialTheme.colorScheme.surface
+        }, label = "containerColor"
+    )
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onProgressClick() }
-            .shadow(
-                elevation = if (isSelected) 8.dp else 2.dp,
+            .border(
+                width = 1.5.dp,
+                color = borderColor,
                 shape = RoundedCornerShape(12.dp)
-            ),
+            )
+            .clickable { onProgressClick() },
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(
             containerColor = when {
                 book.isCompleted -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
