@@ -96,6 +96,15 @@
                 android:minWidth="40dp"
                 android:gravity="end" />
 
+            <ImageButton
+                android:id="@+id/widget_play_button"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:src="@drawable/ic_play_arrow"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Play"
+                android:layout_marginStart="8dp" />
+
         </LinearLayout>
 
         <!-- 하단 텍스트 -->

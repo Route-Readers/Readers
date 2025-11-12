@@ -47,6 +47,10 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".ui.screens.BookReaderActivity"
+            android:exported="false" />
+
         <receiver
             android:name=".widget.ReadingProgressWidget"
             android:exported="true">

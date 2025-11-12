@@ -39,6 +39,7 @@ class ReadingProgressWidget : AppWidgetProvider() {
         val style = settingsRepository.getWidgetStyle()
         val showFriendReading = settingsRepository.getShowFriendReading()
         val showProgressBar = settingsRepository.getShowProgressBar()
+        val showPlayButton = settingsRepository.getShowPlayButton()
         val colorScheme = settingsRepository.getColorScheme()
 
         val layoutId = when (style) {
@@ -56,7 +57,7 @@ class ReadingProgressWidget : AppWidgetProvider() {
         views.setOnClickPendingIntent(R.id.widget_container, pendingIntent)
 
         // 데이터 로드 및 업데이트
-        loadCurrentBook(context, views, appWidgetManager, appWidgetId, showFriendReading, showProgressBar, colorScheme)
+        loadCurrentBook(context, views, appWidgetManager, appWidgetId, showFriendReading, showProgressBar, showPlayButton, colorScheme)
     }
 
     private fun loadCurrentBook(
@@ -66,6 +67,7 @@ class ReadingProgressWidget : AppWidgetProvider() {
         appWidgetId: Int,
         showFriendReading: Boolean,
         showProgressBar: Boolean,
+        showPlayButton: Boolean,
         colorScheme: WidgetColorScheme
     ) {
         val bgColor = when (colorScheme) {
@@ -138,12 +140,28 @@ class ReadingProgressWidget : AppWidgetProvider() {
                             }
                         }
 
+                        if (showPlayButton) {
+                            views.setViewVisibility(R.id.widget_play_button, View.VISIBLE)
+                        } else {
+                            views.setViewVisibility(R.id.widget_play_button, View.GONE)
+                        }
+
 
                         if (bitmap != null) {
                             views.setImageViewBitmap(R.id.widget_book_cover, bitmap)
                         } else {
                             views.setImageViewResource(R.id.widget_book_cover, R.drawable.book_cover_placeholder)
                         }
+
+                        val playIntent = Intent(context, com.route.readers.ui.screens.BookReaderActivity::class.java)
+                        val playPendingIntent = PendingIntent.getActivity(
+                            context,
+                            appWidgetId,
+                            playIntent,
+                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                        )
+                        views.setOnClickPendingIntent(R.id.widget_play_button, playPendingIntent)
+
                     } else {
                         views.setTextViewText(R.id.widget_book_title, "📖 읽고 있는 책이 없습니다")
                         if (views.layoutId == R.layout.widget_reading_progress) {
