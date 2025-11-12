@@ -66,7 +66,6 @@ import com.route.readers.ui.screens.profile.ProfileUiState
 import com.route.readers.ui.screens.profile.ProfileViewModel
 import com.route.readers.ui.screens.profile.StatisticsScreen
 import com.route.readers.ui.screens.token.TokenShopScreen
-import com.route.readers.ui.screens.widget.WidgetScreen
 import com.route.readers.ui.theme.ReadersTheme
 import com.route.readers.widget.WidgetUpdateHelper
 import java.net.URLDecoder
@@ -361,8 +360,14 @@ fun RootAppNavigation(accountViewModel: AccountViewModel) {
             AccountScreen(
                 onNavigateBack = { appNavController.popBackStack() },
                 onNavigateToStatistics = { appNavController.navigate("statistics_route") },
-                appNavController = appNavController,
+                onNavigateToWidgetScreen = { appNavController.navigate("widget_route") },
                 viewModel = accountViewModel
+            )
+        }
+
+        composable("widget_route") {
+            com.route.readers.ui.screens.profile.WidgetScreen(
+                onNavigateBack = { appNavController.popBackStack() }
             )
         }
 
@@ -472,12 +477,6 @@ fun RootAppNavigation(accountViewModel: AccountViewModel) {
         composable("goal_route") {
             GoalScreen(
                 onBack = { appNavController.popBackStack() }
-            )
-        }
-
-        composable("widget_route") {
-            WidgetScreen(
-                onNavigateBack = { appNavController.popBackStack() }
             )
         }
 

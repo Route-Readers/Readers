@@ -37,8 +37,8 @@ import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Extension // For Widget icon
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -70,7 +70,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController // Import NavController
 import com.route.readers.data.UserPreferencesRepository
 import com.route.readers.ui.theme.DarkRed
 
@@ -100,7 +99,7 @@ data class AccountMenuItem(
 fun AccountScreen(
     onNavigateBack: () -> Unit,
     onNavigateToStatistics: () -> Unit,
-    appNavController: NavController?,
+    onNavigateToWidgetScreen: () -> Unit,
     viewModel: AccountViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -109,6 +108,7 @@ fun AccountScreen(
     var isStatisticsMenuExpanded by remember { mutableStateOf(false) }
     var isDisplayMenuExpanded by remember { mutableStateOf(false) }
     var isNotificationsMenuExpanded by remember { mutableStateOf(false) }
+    var isWidgetMenuExpanded by remember { mutableStateOf(false) }
 
     val uiState by viewModel.uiState.collectAsState()
     val isDarkMode by viewModel.isDarkMode.collectAsState()
@@ -128,6 +128,7 @@ fun AccountScreen(
                 isStatisticsMenuExpanded = false
                 isDisplayMenuExpanded = false
                 isNotificationsMenuExpanded = false
+                isWidgetMenuExpanded = false
             }
         ),
         AccountMenuItem(
@@ -141,6 +142,7 @@ fun AccountScreen(
                 isStatisticsMenuExpanded = false
                 isDisplayMenuExpanded = false
                 isNotificationsMenuExpanded = false
+                isWidgetMenuExpanded = false
             }
         ),
         AccountMenuItem(
@@ -154,6 +156,7 @@ fun AccountScreen(
                 isActivityMenuExpanded = false
                 isDisplayMenuExpanded = false
                 isNotificationsMenuExpanded = false
+                isWidgetMenuExpanded = false
             }
         ),
         AccountMenuItem(
@@ -167,6 +170,7 @@ fun AccountScreen(
                 isActivityMenuExpanded = false
                 isStatisticsMenuExpanded = false
                 isNotificationsMenuExpanded = false
+                isWidgetMenuExpanded = false
             }
         ),
         AccountMenuItem(
@@ -180,15 +184,21 @@ fun AccountScreen(
                 isActivityMenuExpanded = false
                 isStatisticsMenuExpanded = false
                 isDisplayMenuExpanded = false
+                isWidgetMenuExpanded = false
             }
         ),
         AccountMenuItem(
             type = MenuItemType.WIDGET,
-            title = "위젯",
-            subtitle = "독서 위젯 설정",
-            icon = Icons.Default.Extension,
+            title = "위젯 설정",
+            subtitle = "홈 화면 위젯 설정",
+            icon = Icons.Default.Widgets,
             onClick = {
-                appNavController?.navigate("widget_route")
+                isWidgetMenuExpanded = !isWidgetMenuExpanded
+                isPrivacyMenuExpanded = false
+                isActivityMenuExpanded = false
+                isStatisticsMenuExpanded = false
+                isDisplayMenuExpanded = false
+                isNotificationsMenuExpanded = false
             }
         ),
         AccountMenuItem(
@@ -347,6 +357,20 @@ fun AccountScreen(
                                     NotificationSettings()
                                 }
                             }
+
+                            if (item.type == MenuItemType.WIDGET) {
+                                AnimatedVisibility(
+                                    visible = isWidgetMenuExpanded,
+                                    enter = expandVertically(animationSpec = tween(300)) + fadeIn(
+                                        animationSpec = tween(300)
+                                    ),
+                                    exit = shrinkVertically(animationSpec = tween(300)) + fadeOut(
+                                        animationSpec = tween(300)
+                                    )
+                                ) {
+                                    WidgetButton(onClick = onNavigateToWidgetScreen)
+                                }
+                            }
                         }
                     }
                 }
@@ -399,6 +423,33 @@ fun AccountMenuItemCard(item: AccountMenuItem) {
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             modifier = Modifier.size(28.dp)
+        )
+    }
+}
+
+@Composable
+fun WidgetButton(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 2.dp)
+            .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = "위젯 설정",
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 16.sp,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = "위젯 설정 페이지로 이동",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
         )
     }
 }
