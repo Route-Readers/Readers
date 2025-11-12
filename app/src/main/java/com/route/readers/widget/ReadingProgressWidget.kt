@@ -11,6 +11,7 @@ import com.route.readers.MainActivity
 import com.route.readers.R
 import com.route.readers.data.WidgetSettingsRepository
 import com.route.readers.data.remote.MyLibraryRepository
+import com.route.readers.ui.screens.profile.WidgetColorScheme
 import com.route.readers.ui.screens.profile.WidgetStyle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,6 +39,7 @@ class ReadingProgressWidget : AppWidgetProvider() {
         val style = settingsRepository.getWidgetStyle()
         val showFriendReading = settingsRepository.getShowFriendReading()
         val showProgressBar = settingsRepository.getShowProgressBar()
+        val colorScheme = settingsRepository.getColorScheme()
 
         val layoutId = when (style) {
             WidgetStyle.NORMAL -> R.layout.widget_reading_progress
@@ -54,7 +56,7 @@ class ReadingProgressWidget : AppWidgetProvider() {
         views.setOnClickPendingIntent(R.id.widget_container, pendingIntent)
 
         // 데이터 로드 및 업데이트
-        loadCurrentBook(context, views, appWidgetManager, appWidgetId, showFriendReading, showProgressBar)
+        loadCurrentBook(context, views, appWidgetManager, appWidgetId, showFriendReading, showProgressBar, colorScheme)
     }
 
     private fun loadCurrentBook(
@@ -63,8 +65,16 @@ class ReadingProgressWidget : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int,
         showFriendReading: Boolean,
-        showProgressBar: Boolean
+        showProgressBar: Boolean,
+        colorScheme: WidgetColorScheme
     ) {
+        val bgColor = when (colorScheme) {
+            WidgetColorScheme.LIGHT -> R.color.widget_background_light
+            WidgetColorScheme.DARK -> R.color.widget_background_dark
+            else -> R.color.widget_background_system
+        }
+        views.setInt(R.id.widget_container, "setBackgroundResource", bgColor)
+
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val repository = MyLibraryRepository()
@@ -104,10 +114,12 @@ class ReadingProgressWidget : AppWidgetProvider() {
                             views.setViewVisibility(R.id.widget_progress, View.GONE)
                         }
 
-                        if (showFriendReading && views.layoutId == R.layout.widget_reading_progress_minimal) {
-                            views.setViewVisibility(R.id.widget_friend_reading, View.VISIBLE)
-                        } else if (views.layoutId == R.layout.widget_reading_progress_minimal) {
-                            views.setViewVisibility(R.id.widget_friend_reading, View.GONE)
+                        if (views.layoutId == R.layout.widget_reading_progress_minimal) {
+                            if (showFriendReading) {
+                                views.setViewVisibility(R.id.widget_friend_reading, View.VISIBLE)
+                            } else {
+                                views.setViewVisibility(R.id.widget_friend_reading, View.GONE)
+                            }
                         }
 
 
