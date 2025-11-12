@@ -34,6 +34,7 @@ import com.route.readers.ui.screens.login.OnboardingScreen
 import com.route.readers.ui.screens.login.SignUpScreen
 import com.route.readers.ui.screens.profile.AccountScreen
 import com.route.readers.ui.screens.profile.FollowListScreen
+import com.route.readers.ui.screens.profile.FollowRequestsScreen
 import com.route.readers.ui.screens.profile.FollowListViewModel
 import com.route.readers.ui.screens.profile.GoalScreen
 import com.route.readers.ui.screens.profile.LevelScreen
@@ -256,6 +257,10 @@ fun AppNavigation(navController: NavHostController) {
             }
         }
 
+        composable("follow_requests_route") {
+            FollowRequestsScreen()
+        }
+
         composable(
             route = "follow_list_route/{userId}/{listType}/{nickname}",
             arguments = listOf(
@@ -282,6 +287,9 @@ fun AppNavigation(navController: NavHostController) {
                         }
                     },
                     onNavigateBack = { navController.popBackStack() },
+                    onNavigateToFollowRequests = {
+                        navController.navigate("follow_requests_route")
+                    },
                     viewModel = followListViewModel
                 )
             }

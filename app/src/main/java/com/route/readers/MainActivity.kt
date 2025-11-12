@@ -438,9 +438,14 @@ fun RootAppNavigation(accountViewModel: AccountViewModel) {
                             launchSingleTop = true
                         }
                     },
-                    onNavigateBack = { appNavController.popBackStack() }
+                    onNavigateBack = { appNavController.popBackStack() },
+                    onNavigateToFollowRequests = { appNavController.navigate("follow_requests_route") }
                 )
             }
+        }
+
+        composable("follow_requests_route") {
+            com.route.readers.ui.screens.profile.FollowRequestsScreen()
         }
 
         composable("add_feed_route") {

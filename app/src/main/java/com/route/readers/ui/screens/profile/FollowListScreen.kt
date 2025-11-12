@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
@@ -64,6 +65,7 @@ fun FollowListScreen(
     nickname: String,
     onUserClick: (String) -> Unit,
     onNavigateBack: () -> Unit,
+    onNavigateToFollowRequests: () -> Unit,
     viewModel: FollowListViewModel = viewModel()
 ) {
     val tabs = listOf("팔로워", "팔로잉", "사용자")
@@ -79,6 +81,7 @@ fun FollowListScreen(
     val uiState by viewModel.uiState.collectAsState()
     val searchedUsers by viewModel.searchedUsers.collectAsState()
     val keyboardController = LocalSoftwareKeyboardController.current
+    val isMyProfile by viewModel.isMyProfile.collectAsState()
 
     LaunchedEffect(key1 = userId, key2 = selectedTabIndex) {
         viewModel.loadListForTab(userId, selectedTabIndex)
@@ -97,6 +100,14 @@ fun FollowListScreen(
                     }
                 },
                 actions = {
+                    if (isMyProfile) {
+                        IconButton(onClick = onNavigateToFollowRequests) {
+                            Icon(
+                                imageVector = Icons.Default.Notifications,
+                                contentDescription = "팔로우 요청"
+                            )
+                        }
+                    }
                     IconButton(onClick = {
                         if (selectedTabIndex == 2) viewModel.loadAllUsers() else viewModel.refresh()
                     }) {
