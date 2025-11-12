@@ -360,6 +360,7 @@ fun RootAppNavigation(accountViewModel: AccountViewModel) {
             AccountScreen(
                 onNavigateBack = { appNavController.popBackStack() },
                 onNavigateToStatistics = { appNavController.navigate("statistics_route") },
+                appNavController = appNavController,
                 viewModel = accountViewModel
             )
         }
