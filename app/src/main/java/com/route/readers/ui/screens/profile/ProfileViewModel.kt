@@ -1084,6 +1084,9 @@ open class ProfileViewModel : ViewModel() {
                     batch.update(requesterUserRef, "followingCount", FieldValue.increment(1))
                 }.await()
 
+                // UI에서 요청 제거
+                _followRequests.value = _followRequests.value.filter { it.uid != requesterId }
+
             } catch (e: Exception) {
                 Log.e("ProfileViewModel", "Error accepting follow request", e)
             }
@@ -1096,6 +1099,10 @@ open class ProfileViewModel : ViewModel() {
             try {
                 db.collection("users").document(currentUserId)
                     .collection("followRequests").document(requesterId).delete().await()
+
+                // UI에서 요청 제거
+                _followRequests.value = _followRequests.value.filter { it.uid != requesterId }
+
             } catch (e: Exception) {
                 Log.e("ProfileViewModel", "Error declining follow request", e)
             }
