@@ -75,6 +75,22 @@ class ReadingProgressWidget : AppWidgetProvider() {
         }
         views.setInt(R.id.widget_container, "setBackgroundResource", bgColor)
 
+        val textColor = if (colorScheme == WidgetColorScheme.DARK) {
+            android.R.color.white
+        } else {
+            android.R.color.black
+        }
+        views.setTextColor(R.id.widget_book_title, context.getColor(textColor))
+        if (views.layoutId == R.layout.widget_reading_progress) {
+            views.setTextColor(R.id.widget_book_author, context.getColor(textColor))
+            views.setTextColor(R.id.widget_page_info, context.getColor(textColor))
+        }
+        views.setTextColor(R.id.widget_progress, context.getColor(textColor))
+        if (views.layoutId == R.layout.widget_reading_progress_minimal) {
+            views.setTextColor(R.id.widget_friend_reading, context.getColor(textColor))
+        }
+
+
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val repository = MyLibraryRepository()
