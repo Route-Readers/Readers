@@ -31,6 +31,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
@@ -39,6 +40,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.EmojiEvents
@@ -53,6 +55,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -69,6 +73,8 @@ import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -107,9 +113,11 @@ import kotlinx.coroutines.launch
 import kotlin.text.isNotEmpty
 import kotlin.text.toFloat
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     userId: String,
+    onNavigateBack: () -> Unit,
     onNavigateToFollowList: (listType: String, nickname: String) -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToMyBookList: () -> Unit,
@@ -151,11 +159,24 @@ fun ProfileScreen(
     }
 
     Scaffold(
+        topBar = {
+            val state = uiState
+            if (state is ProfileUiState.Success) {
+                ProfileTopAppBar(
+                    user = state.user,
+                    isMyProfile = state.isMyProfile,
+                    onNavigateBack = onNavigateBack,
+                    onBlockUser = { viewModel.blockUser(state.user.uid) },
+                    onUnblockUser = { viewModel.unblockUser(state.user.uid) }
+                )
+            }
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { paddingValues ->
         Box(
             modifier = Modifier
-                .fillMaxSize(),
+                .fillMaxSize()
+                .padding(paddingValues),
             contentAlignment = Alignment.Center
         ) {
             when (val state = uiState) {
@@ -194,6 +215,7 @@ fun ProfileScreen(
                         onNavigateToGoal = onNavigateToGoal,
                         onBlockUser = { viewModel.blockUser(state.user.uid) },
                         onUnblockUser = { viewModel.unblockUser(state.user.uid) },
+                        isRequestPending = state.isRequestPending,
                         onBookmarkClick = { feedId, isBookmarked ->
                             viewModel.toggleBookmark(feedId, isBookmarked)
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -208,6 +230,60 @@ fun ProfileScreen(
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ProfileTopAppBar(
+    user: User,
+    isMyProfile: Boolean,
+    onNavigateBack: () -> Unit,
+    onBlockUser: () -> Unit,
+    onUnblockUser: () -> Unit
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
+    TopAppBar(
+        title = { Text(user.nickname, fontWeight = FontWeight.Bold) },
+        navigationIcon = {
+            if (!isMyProfile) {
+                IconButton(onClick = onNavigateBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "뒤로 가기"
+                    )
+                }
+            }
+        },
+        actions = {
+            if (!isMyProfile) {
+                Box {
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "더보기"
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("차단하기") },
+                            onClick = {
+                                onBlockUser()
+                                menuExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface
+        )
+    )
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -227,6 +303,7 @@ fun ProfileContent(
     onNavigateToGoal: () -> Unit,
     onBlockUser: () -> Unit,
     onUnblockUser: () -> Unit,
+    isRequestPending: Boolean,
     onBookmarkClick: (String, Boolean) -> Unit
 ) {
     val user = state.user
@@ -261,23 +338,23 @@ fun ProfileContent(
         contentPadding = PaddingValues(vertical = 8.dp)
     ) {
         item {
-            ProfileInfoSection(
-                user = user,
-                level = level,
-                isMyProfile = state.isMyProfile,
-                isFollowing = state.isFollowing,
-                isBlocked = state.isBlocked,
-                onFollowClick = onFollowClick,
-                onUnfollowClick = onUnfollowClick,
-                onFollowListClick = onFollowListClick,
-                onUpdateProfileImage = onUpdateProfileImage,
-                onNavigateToCustomization = onNavigateToCustomization,
-                onNavigateToMyBookList = onNavigateToMyBookList,
-                onNavigateToLevel = onNavigateToLevel,
-                onBlockUser = onBlockUser,
-                onUnblockUser = onUnblockUser
-            )
-        }
+                            ProfileInfoSection(
+                                user = user,
+                                level = level,
+                                isMyProfile = state.isMyProfile,
+                                isFollowing = state.isFollowing,
+                                isRequestPending = state.isRequestPending,
+                                isBlocked = state.isBlocked,
+                                onFollowClick = onFollowClick,
+                                onUnfollowClick = onUnfollowClick,
+                                onFollowListClick = onFollowListClick,
+                                onUpdateProfileImage = onUpdateProfileImage,
+                                onNavigateToCustomization = onNavigateToCustomization,
+                                onNavigateToMyBookList = onNavigateToMyBookList,
+                                onNavigateToLevel = onNavigateToLevel,
+                                onBlockUser = onBlockUser,
+                                onUnblockUser = onUnblockUser
+                            )        }
 
         if (state.isMyProfile) {
             item {
@@ -492,6 +569,7 @@ fun ProfileInfoSection(
     level: Int,
     isMyProfile: Boolean,
     isFollowing: Boolean,
+    isRequestPending: Boolean,
     isBlocked: Boolean,
     onFollowClick: () -> Unit,
     onUnfollowClick: () -> Unit,
@@ -581,15 +659,16 @@ fun ProfileInfoSection(
                         }
                     } else {
                         Button(
-                            onClick = { if (isFollowing) onUnfollowClick() else onFollowClick() },
+                            onClick = onFollowClick,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (isFollowing) MaterialTheme.colorScheme.secondary else DarkRed,
                                 contentColor = if (isFollowing) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onPrimary
-                            )
+                            ),
+                            enabled = !isRequestPending
                         ) {
-                            Text(text = if (isFollowing) "언팔로우" else "팔로우")
+                            Text(text = if (isRequestPending) "요청됨" else if (isFollowing) "언팔로우" else "팔로우")
                         }
                         OutlinedButton(
                             onClick = onBlockUser,

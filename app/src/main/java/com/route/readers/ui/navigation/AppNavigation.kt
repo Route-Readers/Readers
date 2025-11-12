@@ -25,7 +25,6 @@ import com.route.readers.ui.screens.MainScreen
 import com.route.readers.ui.screens.add_feed.AddFeedScreen
 import com.route.readers.ui.screens.attendance.AttendanceScreen
 import com.route.readers.ui.screens.attendance.AttendanceViewModel
-import com.route.readers.ui.screens.bookclub.BookClubScreen
 import com.route.readers.ui.screens.bookclub.BookClubChatScreen
 import com.route.readers.ui.screens.challenge.ChallengeScreen
 import com.route.readers.ui.screens.login.LoginScreen
@@ -34,8 +33,8 @@ import com.route.readers.ui.screens.login.OnboardingScreen
 import com.route.readers.ui.screens.login.SignUpScreen
 import com.route.readers.ui.screens.profile.AccountScreen
 import com.route.readers.ui.screens.profile.FollowListScreen
-import com.route.readers.ui.screens.profile.FollowRequestsScreen
 import com.route.readers.ui.screens.profile.FollowListViewModel
+import com.route.readers.ui.screens.profile.FollowRequestsScreen
 import com.route.readers.ui.screens.profile.GoalScreen
 import com.route.readers.ui.screens.profile.LevelScreen
 import com.route.readers.ui.screens.profile.MyBookListScreen
@@ -234,6 +233,7 @@ fun AppNavigation(navController: NavHostController) {
                 ProfileScreen(
                     userId = userId,
                     viewModel = profileViewModel,
+                    onNavigateBack = { navController.popBackStack() },
                     onNavigateToFollowList = { listType, nickname ->
                         val encodedNickname = URLEncoder.encode(nickname, "UTF-8")
                         navController.navigate("follow_list_route/$userId/$listType/$encodedNickname")
