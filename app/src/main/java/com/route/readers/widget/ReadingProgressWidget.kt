@@ -5,10 +5,13 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
+import android.view.View
 import android.widget.RemoteViews
 import com.route.readers.MainActivity
 import com.route.readers.R
+import com.route.readers.data.WidgetSettingsRepository
 import com.route.readers.data.remote.MyLibraryRepository
+import com.route.readers.ui.screens.profile.WidgetStyle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -31,7 +34,16 @@ class ReadingProgressWidget : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int
     ) {
-        val views = RemoteViews(context.packageName, R.layout.widget_reading_progress)
+        val settingsRepository = WidgetSettingsRepository(context)
+        val style = settingsRepository.getWidgetStyle()
+        val showFriendReading = settingsRepository.getShowFriendReading()
+        val showProgressBar = settingsRepository.getShowProgressBar()
+
+        val layoutId = when (style) {
+            WidgetStyle.NORMAL -> R.layout.widget_reading_progress
+            WidgetStyle.MINIMAL -> R.layout.widget_reading_progress_minimal
+        }
+        val views = RemoteViews(context.packageName, layoutId)
 
         // 앱 실행 인텐트
         val intent = Intent(context, MainActivity::class.java)
@@ -42,14 +54,16 @@ class ReadingProgressWidget : AppWidgetProvider() {
         views.setOnClickPendingIntent(R.id.widget_container, pendingIntent)
 
         // 데이터 로드 및 업데이트
-        loadCurrentBook(context, views, appWidgetManager, appWidgetId)
+        loadCurrentBook(context, views, appWidgetManager, appWidgetId, showFriendReading, showProgressBar)
     }
 
     private fun loadCurrentBook(
         context: Context,
         views: RemoteViews,
         appWidgetManager: AppWidgetManager,
-        appWidgetId: Int
+        appWidgetId: Int,
+        showFriendReading: Boolean,
+        showProgressBar: Boolean
     ) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
@@ -70,16 +84,32 @@ class ReadingProgressWidget : AppWidgetProvider() {
                 withContext(Dispatchers.Main) {
                     if (currentBook != null) {
                         views.setTextViewText(R.id.widget_book_title, currentBook.title)
-                        views.setTextViewText(R.id.widget_book_author, currentBook.author)
-                        views.setTextViewText(R.id.widget_progress, "${currentBook.progressPercentage}%")
-                        views.setProgressBar(R.id.widget_progress_bar, 100, currentBook.progressPercentage, false)
-
-                        val pageInfo = if (currentBook.totalPages > 0) {
-                            "${currentBook.currentPage} / ${currentBook.totalPages} 페이지"
-                        } else {
-                            "페이지 정보 없음"
+                        if (views.layoutId == R.layout.widget_reading_progress) {
+                            views.setTextViewText(R.id.widget_book_author, currentBook.author)
+                            val pageInfo = if (currentBook.totalPages > 0) {
+                                "${currentBook.currentPage} / ${currentBook.totalPages} 페이지"
+                            } else {
+                                "페이지 정보 없음"
+                            }
+                            views.setTextViewText(R.id.widget_page_info, pageInfo)
                         }
-                        views.setTextViewText(R.id.widget_page_info, pageInfo)
+
+                        if (showProgressBar) {
+                            views.setViewVisibility(R.id.widget_progress_bar, View.VISIBLE)
+                            views.setViewVisibility(R.id.widget_progress, View.VISIBLE)
+                            views.setTextViewText(R.id.widget_progress, "${currentBook.progressPercentage}%")
+                            views.setProgressBar(R.id.widget_progress_bar, 100, currentBook.progressPercentage, false)
+                        } else {
+                            views.setViewVisibility(R.id.widget_progress_bar, View.GONE)
+                            views.setViewVisibility(R.id.widget_progress, View.GONE)
+                        }
+
+                        if (showFriendReading && views.layoutId == R.layout.widget_reading_progress_minimal) {
+                            views.setViewVisibility(R.id.widget_friend_reading, View.VISIBLE)
+                        } else if (views.layoutId == R.layout.widget_reading_progress_minimal) {
+                            views.setViewVisibility(R.id.widget_friend_reading, View.GONE)
+                        }
+
 
                         if (bitmap != null) {
                             views.setImageViewBitmap(R.id.widget_book_cover, bitmap)
@@ -88,9 +118,11 @@ class ReadingProgressWidget : AppWidgetProvider() {
                         }
                     } else {
                         views.setTextViewText(R.id.widget_book_title, "📖 읽고 있는 책이 없습니다")
-                        views.setTextViewText(R.id.widget_book_author, "새로운 책을 추가해보세요!")
+                        if (views.layoutId == R.layout.widget_reading_progress) {
+                            views.setTextViewText(R.id.widget_book_author, "새로운 책을 추가해보세요!")
+                            views.setTextViewText(R.id.widget_page_info, "")
+                        }
                         views.setTextViewText(R.id.widget_progress, "0%")
-                        views.setTextViewText(R.id.widget_page_info, "")
                         views.setProgressBar(R.id.widget_progress_bar, 100, 0, false)
                         views.setImageViewResource(R.id.widget_book_cover, R.drawable.book_cover_placeholder)
                     }
@@ -99,9 +131,11 @@ class ReadingProgressWidget : AppWidgetProvider() {
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     views.setTextViewText(R.id.widget_book_title, "데이터 로드 실패")
-                    views.setTextViewText(R.id.widget_book_author, "")
+                    if (views.layoutId == R.layout.widget_reading_progress) {
+                        views.setTextViewText(R.id.widget_book_author, "")
+                        views.setTextViewText(R.id.widget_page_info, "")
+                    }
                     views.setTextViewText(R.id.widget_progress, "0%")
-                    views.setTextViewText(R.id.widget_page_info, "")
                     appWidgetManager.updateAppWidget(appWidgetId, views)
                 }
             }
