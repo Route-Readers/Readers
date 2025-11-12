@@ -392,6 +392,7 @@ fun RootAppNavigation(accountViewModel: AccountViewModel) {
                 ProfileScreen(
                     userId = userId,
                     viewModel = profileViewModel,
+                    onNavigateBack = { appNavController.popBackStack() },
                     onNavigateToFollowList = { listType, nickname ->
                         val encodedNickname = URLEncoder.encode(nickname, "UTF-8")
                         appNavController.navigate("follow_list_route/$userId/$listType/$encodedNickname")
