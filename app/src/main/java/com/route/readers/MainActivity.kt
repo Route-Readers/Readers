@@ -360,7 +360,14 @@ fun RootAppNavigation(accountViewModel: AccountViewModel) {
             AccountScreen(
                 onNavigateBack = { appNavController.popBackStack() },
                 onNavigateToStatistics = { appNavController.navigate("statistics_route") },
+                onNavigateToWidgetScreen = { appNavController.navigate("widget_route") },
                 viewModel = accountViewModel
+            )
+        }
+
+        composable("widget_route") {
+            com.route.readers.ui.screens.profile.WidgetScreen(
+                onNavigateBack = { appNavController.popBackStack() }
             )
         }
 

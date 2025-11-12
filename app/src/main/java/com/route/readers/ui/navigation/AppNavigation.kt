@@ -44,6 +44,7 @@ import com.route.readers.ui.screens.profile.ProfileSetupScreen
 import com.route.readers.ui.screens.profile.ProfileUiState
 import com.route.readers.ui.screens.profile.ProfileViewModel
 import com.route.readers.ui.screens.profile.StatisticsScreen
+import com.route.readers.ui.screens.profile.WidgetScreen
 import com.route.readers.ui.screens.token.TokenShopScreen
 import java.net.URLDecoder
 import java.net.URLEncoder
@@ -213,12 +214,21 @@ fun AppNavigation(navController: NavHostController) {
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToStatistics = {
                     navController.navigate("statistics_route")
+                },
+                onNavigateToWidgetScreen = {
+                    navController.navigate("widget_route")
                 }
             )
         }
 
         composable("statistics_route") {
             StatisticsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("widget_route") {
+            WidgetScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
