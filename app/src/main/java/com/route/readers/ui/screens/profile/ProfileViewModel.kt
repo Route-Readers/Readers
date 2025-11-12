@@ -970,9 +970,13 @@ open class ProfileViewModel : ViewModel() {
     private val _followRequests = MutableStateFlow<List<User>>(emptyList())
     val followRequests: StateFlow<List<User>> = _followRequests.asStateFlow()
 
+    private val _isLoadingFollowRequests = MutableStateFlow(false)
+    val isLoadingFollowRequests: StateFlow<Boolean> = _isLoadingFollowRequests.asStateFlow()
+
     fun getFollowRequests() {
         if (currentUserId == null) return
         viewModelScope.launch {
+            _isLoadingFollowRequests.value = true
             try {
                 val requestsSnapshot = db.collection("users").document(currentUserId)
                     .collection("followRequests").get().await()
@@ -988,6 +992,9 @@ open class ProfileViewModel : ViewModel() {
                 }
             } catch (e: Exception) {
                 Log.e("ProfileViewModel", "Error getting follow requests", e)
+                _followRequests.value = emptyList()
+            } finally {
+                _isLoadingFollowRequests.value = false
             }
         }
     }

@@ -258,7 +258,7 @@ fun AppNavigation(navController: NavHostController) {
         }
 
         composable("follow_requests_route") {
-            FollowRequestsScreen()
+            FollowRequestsScreen(onNavigateBack = { navController.popBackStack() })
         }
 
         composable(
