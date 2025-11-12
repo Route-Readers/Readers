@@ -215,6 +215,7 @@ fun ProfileScreen(
                         onNavigateToGoal = onNavigateToGoal,
                         onBlockUser = { viewModel.blockUser(state.user.uid) },
                         onUnblockUser = { viewModel.unblockUser(state.user.uid) },
+                        isRequestPending = state.isRequestPending,
                         onBookmarkClick = { feedId, isBookmarked ->
                             viewModel.toggleBookmark(feedId, isBookmarked)
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -302,6 +303,7 @@ fun ProfileContent(
     onNavigateToGoal: () -> Unit,
     onBlockUser: () -> Unit,
     onUnblockUser: () -> Unit,
+    isRequestPending: Boolean,
     onBookmarkClick: (String, Boolean) -> Unit
 ) {
     val user = state.user
@@ -336,23 +338,23 @@ fun ProfileContent(
         contentPadding = PaddingValues(vertical = 8.dp)
     ) {
         item {
-            ProfileInfoSection(
-                user = user,
-                level = level,
-                isMyProfile = state.isMyProfile,
-                isFollowing = state.isFollowing,
-                isBlocked = state.isBlocked,
-                onFollowClick = onFollowClick,
-                onUnfollowClick = onUnfollowClick,
-                onFollowListClick = onFollowListClick,
-                onUpdateProfileImage = onUpdateProfileImage,
-                onNavigateToCustomization = onNavigateToCustomization,
-                onNavigateToMyBookList = onNavigateToMyBookList,
-                onNavigateToLevel = onNavigateToLevel,
-                onBlockUser = onBlockUser,
-                onUnblockUser = onUnblockUser
-            )
-        }
+                            ProfileInfoSection(
+                                user = user,
+                                level = level,
+                                isMyProfile = state.isMyProfile,
+                                isFollowing = state.isFollowing,
+                                isRequestPending = state.isRequestPending,
+                                isBlocked = state.isBlocked,
+                                onFollowClick = onFollowClick,
+                                onUnfollowClick = onUnfollowClick,
+                                onFollowListClick = onFollowListClick,
+                                onUpdateProfileImage = onUpdateProfileImage,
+                                onNavigateToCustomization = onNavigateToCustomization,
+                                onNavigateToMyBookList = onNavigateToMyBookList,
+                                onNavigateToLevel = onNavigateToLevel,
+                                onBlockUser = onBlockUser,
+                                onUnblockUser = onUnblockUser
+                            )        }
 
         if (state.isMyProfile) {
             item {
@@ -567,6 +569,7 @@ fun ProfileInfoSection(
     level: Int,
     isMyProfile: Boolean,
     isFollowing: Boolean,
+    isRequestPending: Boolean,
     isBlocked: Boolean,
     onFollowClick: () -> Unit,
     onUnfollowClick: () -> Unit,
@@ -656,15 +659,16 @@ fun ProfileInfoSection(
                         }
                     } else {
                         Button(
-                            onClick = { if (isFollowing) onUnfollowClick() else onFollowClick() },
+                            onClick = onFollowClick,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = if (isFollowing) MaterialTheme.colorScheme.secondary else DarkRed,
                                 contentColor = if (isFollowing) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onPrimary
-                            )
+                            ),
+                            enabled = !isRequestPending
                         ) {
-                            Text(text = if (isFollowing) "언팔로우" else "팔로우")
+                            Text(text = if (isRequestPending) "요청됨" else if (isFollowing) "언팔로우" else "팔로우")
                         }
                         OutlinedButton(
                             onClick = onBlockUser,

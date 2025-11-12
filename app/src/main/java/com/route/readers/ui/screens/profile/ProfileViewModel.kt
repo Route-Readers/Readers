@@ -206,19 +206,55 @@ open class ProfileViewModel : ViewModel() {
 
 
 
-                if (user != null) {
+                                if (user != null) {
 
 
 
-                    val isMyProfile = targetUserId == currentUserId
+                
 
 
 
-                    val isFollowing =
+                                    val isMyProfile = targetUserId == currentUserId
 
 
 
-                        if (currentUserId != null) user.followers.contains(currentUserId) else false
+                
+
+
+
+                                    val isFollowing =
+
+
+
+                                        if (currentUserId != null) user.followers.contains(currentUserId) else false
+
+
+
+                
+
+
+
+                                    var isRequestPending = false
+
+
+
+                                    if (!isMyProfile && currentUserId != null) {
+
+
+
+                                        val outgoingRequestSnapshot = db.collection("users").document(currentUserId)
+
+
+
+                                            .collection("outgoingFollowRequests").document(targetUserId).get().await()
+
+
+
+                                        isRequestPending = outgoingRequestSnapshot.exists()
+
+
+
+                                    }
 
 
 
@@ -300,19 +336,39 @@ open class ProfileViewModel : ViewModel() {
 
 
 
-                        _uiState.value = ProfileUiState.Success(
+                                            _uiState.value = ProfileUiState.Success(
 
 
 
-                            user = user,
+                        
 
 
 
-                            isFollowing = isFollowing,
+                                                    user = user,
 
 
 
-                            isMyProfile = isMyProfile,
+                        
+
+
+
+                                                    isFollowing = isFollowing,
+
+
+
+                        
+
+
+
+                                                    isRequestPending = isRequestPending,
+
+
+
+                        
+
+
+
+                                                    isMyProfile = isMyProfile,
 
 
 
@@ -567,6 +623,8 @@ open class ProfileViewModel : ViewModel() {
                         user = updatedUser,
 
                         isFollowing = isFollowing,
+
+                        isRequestPending = isRequestPending,
 
                         isMyProfile = isMyProfile,
 
@@ -1056,7 +1114,17 @@ open class ProfileViewModel : ViewModel() {
                 )
 
                 requestRef.set(requestData).await()
-                // UI 상태를 '요청됨'으로 업데이트 할 수 있습니다.
+
+                // Add to current user's outgoing follow requests
+                db.collection("users").document(currentUserId)
+                    .collection("outgoingFollowRequests").document(targetUserId)
+                    .set(requestData).await()
+
+                // Update UI state to reflect that a request has been sent
+                val currentState = _uiState.value
+                if (currentState is ProfileUiState.Success) {
+                    _uiState.value = currentState.copy(isRequestPending = true)
+                }
             } catch (e: Exception) {
                 Log.e("ProfileViewModel", "Error requesting follow", e)
             }
