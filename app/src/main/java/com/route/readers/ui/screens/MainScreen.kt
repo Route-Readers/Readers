@@ -59,7 +59,6 @@ fun MainScreen(
     onNavigateToMyAccount: () -> Unit,
     onNavigateToAttendance: () -> Unit,
     onNavigateToChallenge: () -> Unit,
-
     onNavigateToUsedBookDetail: (String) -> Unit,
     onNavigateToChatList: () -> Unit
 ) {
@@ -118,7 +117,7 @@ fun MainScreen(
                     onMyAccountClick = onNavigateToMyAccount,
                     onAttendanceClick = onNavigateToAttendance,
                     onNavigateToChallenge = onNavigateToChallenge,
-                    onTokenClick = { 
+                    onTokenClick = {
                         Toast.makeText(context, "아직 공개되지 않은 기능이에요", Toast.LENGTH_SHORT).show()
                     }
                 )
@@ -235,6 +234,7 @@ fun MainScreen(
                     ProfileScreen(
                         userId = userId,
                         viewModel = profileViewModel,
+                        onNavigateBack = { bottomNavController.popBackStack() },
                         onNavigateToFollowList = { listType, nickname ->
                             val encodedNickname = URLEncoder.encode(nickname, "UTF-8")
                             navController.navigate("follow_list_route/$userId/$listType/$encodedNickname")
