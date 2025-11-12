@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Extension // For Widget icon
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -69,6 +70,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController // Import NavController
 import com.route.readers.data.UserPreferencesRepository
 import com.route.readers.ui.theme.DarkRed
 
@@ -79,6 +81,7 @@ enum class MenuItemType {
     STATISTICS,
     DISPLAY,
     NOTIFICATIONS,
+    WIDGET,
     TERMS,
     CONTACT
 }
@@ -97,6 +100,7 @@ data class AccountMenuItem(
 fun AccountScreen(
     onNavigateBack: () -> Unit,
     onNavigateToStatistics: () -> Unit,
+    appNavController: NavController?,
     viewModel: AccountViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -176,6 +180,15 @@ fun AccountScreen(
                 isActivityMenuExpanded = false
                 isStatisticsMenuExpanded = false
                 isDisplayMenuExpanded = false
+            }
+        ),
+        AccountMenuItem(
+            type = MenuItemType.WIDGET,
+            title = "위젯",
+            subtitle = "독서 위젯 설정",
+            icon = Icons.Default.Extension,
+            onClick = {
+                appNavController?.navigate("widget_route")
             }
         ),
         AccountMenuItem(
