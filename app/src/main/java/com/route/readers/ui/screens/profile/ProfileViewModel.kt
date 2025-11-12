@@ -967,39 +967,137 @@ open class ProfileViewModel : ViewModel() {
         }
     }
 
+    private val _followRequests = MutableStateFlow<List<User>>(emptyList())
+    val followRequests: StateFlow<List<User>> = _followRequests.asStateFlow()
+
+    private val _isLoadingFollowRequests = MutableStateFlow(false)
+    val isLoadingFollowRequests: StateFlow<Boolean> = _isLoadingFollowRequests.asStateFlow()
+
+    fun getFollowRequests() {
+        if (currentUserId == null) return
+        viewModelScope.launch {
+            _isLoadingFollowRequests.value = true
+            try {
+                val requestsSnapshot = db.collection("users").document(currentUserId)
+                    .collection("followRequests").get().await()
+                
+                val requesterIds = requestsSnapshot.documents.map { it.id }
+
+                if (requesterIds.isNotEmpty()) {
+                    val usersSnapshot = db.collection("users").whereIn("uid", requesterIds).get().await()
+                    val users = usersSnapshot.toObjects(User::class.java)
+                    _followRequests.value = users
+                } else {
+                    _followRequests.value = emptyList()
+                }
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Error getting follow requests", e)
+                _followRequests.value = emptyList()
+            } finally {
+                _isLoadingFollowRequests.value = false
+            }
+        }
+    }
+
     fun followUser(targetUserId: String) {
         if (currentUserId == null || currentUserId == targetUserId) return
-        refreshUiStateForFollow(targetUserId, true)
+
         viewModelScope.launch {
             try {
-                val targetUserRef = db.collection("users").document(targetUserId)
-                val currentUserRef = db.collection("users").document(currentUserId)
-                val currentUserName =
-                    currentUserRef.get().await().getString("nickname") ?: "알 수 없음"
-                db.runBatch { batch ->
-                    batch.update(targetUserRef, "followers", FieldValue.arrayUnion(currentUserId))
-                    batch.update(targetUserRef, "followerCount", FieldValue.increment(1))
-                    batch.update(
-                        currentUserRef,
-                        "following",
-                        FieldValue.arrayUnion(targetUserId)
+                val targetUserDoc = db.collection("users").document(targetUserId).get().await()
+                val targetUser = targetUserDoc.toObject(User::class.java)
+
+                if (targetUser?.isPrivate == true) {
+                    requestFollow(targetUserId)
+                } else {
+                    // 기존 팔로우 로직 (공개 계정)
+                    refreshUiStateForFollow(targetUserId, true)
+                    val targetUserRef = db.collection("users").document(targetUserId)
+                    val currentUserRef = db.collection("users").document(currentUserId)
+                    val currentUserName = currentUserRef.get().await().getString("nickname") ?: "알 수 없음"
+
+                    db.runBatch { batch ->
+                        batch.update(targetUserRef, "followers", FieldValue.arrayUnion(currentUserId))
+                        batch.update(targetUserRef, "followerCount", FieldValue.increment(1))
+                        batch.update(currentUserRef, "following", FieldValue.arrayUnion(targetUserId))
+                        batch.update(currentUserRef, "followingCount", FieldValue.increment(1))
+                    }.await()
+
+                    val followNotification = hashMapOf(
+                        "type" to "FOLLOW_NOTIFICATION",
+                        "authorId" to currentUserId,
+                        "userName" to currentUserName,
+                        "followerId" to currentUserId,
+                        "receiverId" to targetUserId,
+                        "isFollowedBack" to false,
+                        "timestamp" to FieldValue.serverTimestamp(),
+                        "likeCount" to 0,
+                        "commentCount" to 0
                     )
-                    batch.update(currentUserRef, "followingCount", FieldValue.increment(1))
-                }.await()
-                val followNotification = hashMapOf(
-                    "type" to "FOLLOW_NOTIFICATION",
-                    "authorId" to currentUserId,
-                    "userName" to currentUserName,
-                    "followerId" to currentUserId,
-                    "receiverId" to targetUserId,
-                    "isFollowedBack" to false,
-                    "timestamp" to FieldValue.serverTimestamp(),
-                    "likeCount" to 0,
-                    "commentCount" to 0
-                )
-                db.collection("feeds").add(followNotification).await()
+                    db.collection("feeds").add(followNotification).await()
+                }
             } catch (e: Exception) {
                 refreshUiStateForFollow(targetUserId, false)
+                Log.e("ProfileViewModel", "Error in followUser", e)
+            }
+        }
+    }
+
+    fun requestFollow(targetUserId: String) {
+        if (currentUserId == null) return
+        viewModelScope.launch {
+            try {
+                val requestRef = db.collection("users").document(targetUserId)
+                    .collection("followRequests").document(currentUserId)
+                
+                val requestData = hashMapOf(
+                    "requesterId" to currentUserId,
+                    "timestamp" to FieldValue.serverTimestamp()
+                )
+
+                requestRef.set(requestData).await()
+                // UI 상태를 '요청됨'으로 업데이트 할 수 있습니다.
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Error requesting follow", e)
+            }
+        }
+    }
+
+    fun acceptFollowRequest(requesterId: String) {
+        if (currentUserId == null) return
+        viewModelScope.launch {
+            try {
+                // 1. followRequests에서 요청 삭제
+                db.collection("users").document(currentUserId)
+                    .collection("followRequests").document(requesterId).delete().await()
+
+                // 2. 팔로우 관계 추가
+                val targetUserRef = db.collection("users").document(currentUserId) // 현재 사용자(팔로우 받는 사람)
+                val requesterUserRef = db.collection("users").document(requesterId) // 요청 보낸 사람
+
+                db.runBatch { batch ->
+                    // 현재 사용자에게 팔로워 추가
+                    batch.update(targetUserRef, "followers", FieldValue.arrayUnion(requesterId))
+                    batch.update(targetUserRef, "followerCount", FieldValue.increment(1))
+                    // 요청자에게 팔로잉 추가
+                    batch.update(requesterUserRef, "following", FieldValue.arrayUnion(currentUserId))
+                    batch.update(requesterUserRef, "followingCount", FieldValue.increment(1))
+                }.await()
+
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Error accepting follow request", e)
+            }
+        }
+    }
+
+    fun declineFollowRequest(requesterId: String) {
+        if (currentUserId == null) return
+        viewModelScope.launch {
+            try {
+                db.collection("users").document(currentUserId)
+                    .collection("followRequests").document(requesterId).delete().await()
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Error declining follow request", e)
             }
         }
     }

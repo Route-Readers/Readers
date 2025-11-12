@@ -56,11 +56,15 @@ class FollowListViewModel : ViewModel() {
         initialValue = emptyList()
     )
 
+    private val _isMyProfile = MutableStateFlow(false)
+    val isMyProfile = _isMyProfile.asStateFlow()
+
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
     }
 
     fun loadListForTab(userId: String, tabIndex: Int) {
+        _isMyProfile.value = userId == currentUserId
         when (tabIndex) {
             0 -> loadFollowList(userId, "followers")
             1 -> loadFollowList(userId, "following")
