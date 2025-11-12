@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="위젯 디자인 선택"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="16dp"/>
+
+    <RadioGroup
+        android:id="@+id/design_radio_group"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <RadioButton
+            android:id="@+id/design_default"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="기본 디자인"
+            android:checked="true"/>
+
+        <RadioButton
+            android:id="@+id/design_minimal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="미니멀 디자인"/>
+
+        <!-- Add more RadioButtons for additional designs here -->
+
+    </RadioGroup>
+
+    <Button
+        android:id="@+id/save_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="위젯 추가"
+        android:layout_marginTop="24dp"/>
+
+</LinearLayout>
