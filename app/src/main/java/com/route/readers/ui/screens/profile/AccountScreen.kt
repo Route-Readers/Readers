@@ -71,8 +71,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.route.readers.data.UserPreferencesRepository
+import com.route.readers.notification.DailyNotificationScheduler
 import com.route.readers.ui.theme.DarkRed
-
+import com.route.readers.util.SharedPreferencesManager
 
 enum class MenuItemType {
     PRIVACY,
@@ -583,6 +584,22 @@ fun DarkModeToggle(
 fun NotificationSettings() {
     val context = LocalContext.current
 
+    // Load initial state from SharedPreferences
+    var readingAlarm by remember {
+        mutableStateOf(SharedPreferencesManager.isNotificationEnabled(context))
+    }
+    val (initialHour, initialMinute) = SharedPreferencesManager.getNotificationTime(context)
+    var alarmHour by remember { mutableStateOf(initialHour) }
+    var alarmMinute by remember { mutableStateOf(initialMinute) }
+
+    // Other notification states (not persisted for now)
+    var friendReadingAlarm by remember { mutableStateOf(true) }
+    var messageAlarm by remember { mutableStateOf(true) }
+    var friendRequestAlarm by remember { mutableStateOf(true) }
+    var followAlarm by remember { mutableStateOf(true) }
+    var noNotifications by remember { mutableStateOf(false) }
+
+
     Column(
         modifier = Modifier
             .padding(top = 2.dp)
@@ -591,20 +608,19 @@ fun NotificationSettings() {
             .background(MaterialTheme.colorScheme.surface)
             .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
-        var readingAlarm by remember { mutableStateOf(true) }
-        var friendReadingAlarm by remember { mutableStateOf(true) }
-        var messageAlarm by remember { mutableStateOf(true) }
-        var friendRequestAlarm by remember { mutableStateOf(true) }
-        var followAlarm by remember { mutableStateOf(true) }
-        var noNotifications by remember { mutableStateOf(false) }
-        var alarmHour by remember { mutableStateOf(20) }
-        var alarmMinute by remember { mutableStateOf(0) }
-
         NotificationToggleItem(
             title = "독서 시간 알람",
             subtitle = "설정한 시간에 독서 알림 받기",
             checked = readingAlarm && !noNotifications,
-            onCheckedChange = { readingAlarm = it },
+            onCheckedChange = { isEnabled ->
+                readingAlarm = isEnabled
+                SharedPreferencesManager.setNotificationEnabled(context, isEnabled)
+                if (isEnabled) {
+                    DailyNotificationScheduler.scheduleDailyNotification(context)
+                } else {
+                    DailyNotificationScheduler.cancelDailyNotification(context)
+                }
+            },
             enabled = !noNotifications
         )
 
@@ -616,6 +632,9 @@ fun NotificationSettings() {
                 onTimeChange = { hour, minute ->
                     alarmHour = hour
                     alarmMinute = minute
+                    SharedPreferencesManager.setNotificationTime(context, hour, minute)
+                    // Re-schedule with the new time
+                    DailyNotificationScheduler.scheduleDailyNotification(context)
                 }
             )
         }
