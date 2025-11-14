@@ -206,55 +206,55 @@ open class ProfileViewModel : ViewModel() {
 
 
 
-                                if (user != null) {
+                if (user != null) {
 
 
 
-                
 
 
 
-                                    val isMyProfile = targetUserId == currentUserId
+
+                    val isMyProfile = targetUserId == currentUserId
 
 
 
-                
 
 
 
-                                    val isFollowing =
+
+                    val isFollowing =
 
 
 
-                                        if (currentUserId != null) user.followers.contains(currentUserId) else false
+                        if (currentUserId != null) user.followers.contains(currentUserId) else false
 
 
 
-                
 
 
 
-                                    var isRequestPending = false
+
+                    var isRequestPending = false
 
 
 
-                                    if (!isMyProfile && currentUserId != null) {
+                    if (!isMyProfile && currentUserId != null) {
 
 
 
-                                        val outgoingRequestSnapshot = db.collection("users").document(currentUserId)
+                        val outgoingRequestSnapshot = db.collection("users").document(currentUserId)
 
 
 
-                                            .collection("outgoingFollowRequests").document(targetUserId).get().await()
+                            .collection("outgoingFollowRequests").document(targetUserId).get().await()
 
 
 
-                                        isRequestPending = outgoingRequestSnapshot.exists()
+                        isRequestPending = outgoingRequestSnapshot.exists()
 
 
 
-                                    }
+                    }
 
 
 
@@ -336,39 +336,39 @@ open class ProfileViewModel : ViewModel() {
 
 
 
-                                            _uiState.value = ProfileUiState.Success(
+                        _uiState.value = ProfileUiState.Success(
 
 
 
-                        
 
 
 
-                                                    user = user,
+
+                            user = user,
 
 
 
-                        
 
 
 
-                                                    isFollowing = isFollowing,
+
+                            isFollowing = isFollowing,
 
 
 
-                        
 
 
 
-                                                    isRequestPending = isRequestPending,
+
+                            isRequestPending = isRequestPending,
 
 
 
-                        
 
 
 
-                                                    isMyProfile = isMyProfile,
+
+                            isMyProfile = isMyProfile,
 
 
 
@@ -1179,26 +1179,47 @@ open class ProfileViewModel : ViewModel() {
 
     fun unfollowUser(targetUserId: String) {
         if (currentUserId == null || currentUserId == targetUserId) return
-        refreshUiStateForFollow(targetUserId, false)
+
         viewModelScope.launch {
             try {
                 val targetUserRef = db.collection("users").document(targetUserId)
                 val currentUserRef = db.collection("users").document(currentUserId)
-                db.runBatch { batch ->
-                    batch.update(
-                        targetUserRef,
-                        "followers",
-                        FieldValue.arrayRemove(currentUserId)
-                    )
-                    batch.update(targetUserRef, "followerCount", FieldValue.increment(-1))
-                    batch.update(
-                        currentUserRef,
-                        "following",
-                        FieldValue.arrayRemove(targetUserId)
-                    )
-                    batch.update(currentUserRef, "followingCount", FieldValue.increment(-1))
-                }.await()
+
+                // Check if there's an outgoing follow request to this user
+                val outgoingRequestDoc = currentUserRef.collection("outgoingFollowRequests").document(targetUserId).get().await()
+
+                if (outgoingRequestDoc.exists()) {
+                    // If a request is pending, delete the outgoing request
+                    currentUserRef.collection("outgoingFollowRequests").document(targetUserId).delete().await()
+                    // And also delete the corresponding incoming request from the target user
+                    targetUserRef.collection("followRequests").document(currentUserId).delete().await()
+                    // Update UI state to reflect cancellation
+                    val currentState = _uiState.value
+                    if (currentState is ProfileUiState.Success) {
+                        _uiState.value = currentState.copy(isRequestPending = false)
+                    }
+                    refreshUiStateForFollow(targetUserId, false) // Refresh UI after cancelling request
+                } else {
+                    // If no request is pending, proceed with normal unfollow logic
+                    refreshUiStateForFollow(targetUserId, false)
+                    db.runBatch { batch ->
+                        batch.update(
+                            targetUserRef,
+                            "followers",
+                            FieldValue.arrayRemove(currentUserId)
+                        )
+                        batch.update(targetUserRef, "followerCount", FieldValue.increment(-1))
+                        batch.update(
+                            currentUserRef,
+                            "following",
+                            FieldValue.arrayRemove(targetUserId)
+                        )
+                        batch.update(currentUserRef, "followingCount", FieldValue.increment(-1))
+                    }.await()
+                }
             } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Error in unfollowUser", e)
+                // If an error occurs during unfollow, try to revert UI state
                 refreshUiStateForFollow(targetUserId, true)
             }
         }

@@ -317,6 +317,10 @@ class FollowListViewModel : ViewModel() {
                     currentState.pendingFollowRequests
                 }
 
+                // Immediately update the local state for a responsive UI
+                _currentUserFollowingIds.value = updatedFollowingIds
+                _pendingFollowRequests.value = updatedPendingRequests
+
                 val updatedUsers = if (isCurrentlyFollowing && currentListType == "following") {
                     currentState.users.filter { it.uid != targetUserId }
                 } else {
@@ -334,6 +338,7 @@ class FollowListViewModel : ViewModel() {
                         }
                     }
                 }
+                _usersFlow.value = updatedUsers // <--- ADDED THIS LINE
 
             } catch (e: Exception) {
                 // Handle exception
