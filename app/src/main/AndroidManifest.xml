@@ -121,6 +121,11 @@
         </receiver>
 
         <service
+            android:name=".service.ReadingTimerService"
+            android:enabled="true"
+            android:exported="false" />
+
+        <service
             android:name=".notification.MyFirebaseMessagingService"
             android:exported="false">
             <intent-filter>
