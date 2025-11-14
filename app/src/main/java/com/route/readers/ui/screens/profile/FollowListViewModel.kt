@@ -259,6 +259,7 @@ class FollowListViewModel : ViewModel() {
             }
 
             val isCurrentlyFollowing = currentState.currentUserFollowingIds.contains(targetUserId)
+            val isRequestPending = currentState.pendingFollowRequests.contains(targetUserId) // Get isRequestPending here
             val currentUserRef = db.collection("users").document(currentUserId)
             val targetUserRef = db.collection("users").document(targetUserId)
 
@@ -266,6 +267,11 @@ class FollowListViewModel : ViewModel() {
                 val targetUserDoc = targetUserRef.get().await()
                 val targetUser = targetUserDoc.toObject(User::class.java)
 
+                if (isRequestPending) {
+                    cancelFollowRequest(targetUserId)
+                    return@launch
+                }
+                
                 if (targetUser?.isPrivate == true && !isCurrentlyFollowing) {
                     // Private account, send follow request
                     sendFollowRequest(targetUserId)
@@ -402,6 +408,26 @@ class FollowListViewModel : ViewModel() {
             } catch (e: Exception) {
                 // Handle exception
             }
+        }
+    }
+
+    private suspend fun cancelFollowRequest(targetUserId: String) {
+        if (currentUserId == null) return
+        try {
+            // Remove from current user's outgoing requests
+            db.collection("users").document(currentUserId)
+                .collection("outgoingFollowRequests").document(targetUserId)
+                .delete().await()
+
+            // Remove from target user's incoming requests
+            db.collection("users").document(targetUserId)
+                .collection("followRequests").document(currentUserId)
+                .delete().await()
+
+            // Update UI state
+            _pendingFollowRequests.value = _pendingFollowRequests.value - targetUserId
+        } catch (e: Exception) {
+            _error.value = "팔로우 요청 취소 중 오류가 발생했습니다: ${e.message}"
         }
     }
 }
