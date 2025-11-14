@@ -43,5 +43,6 @@ data class User(@DocumentId @get:Exclude
                 val friendReadingAlarmEnabled: Boolean? = true,
                 val followAlarmEnabled: Boolean? = true,
                 val messageAlarmEnabled: Boolean? = true,
-                val friendRequestAlarmEnabled: Boolean? = true
+                val friendRequestAlarmEnabled: Boolean? = true,
+                val likeAlarmEnabled: Boolean? = true
 )
