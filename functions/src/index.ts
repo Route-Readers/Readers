@@ -62,6 +62,13 @@ export const sendFcmNotification = onDocumentCreated(
                     console.log(`User ${targetUserId} has disabled follow alarms. Skipping notification.`);
                     shouldSendNotification = false;
                 }
+            } else if (notificationType === "LIKE") {
+                const likeAlarmEnabled = receiverData?.likeAlarmEnabled;
+                console.log(`User ${targetUserId} likeAlarmEnabled: ${likeAlarmEnabled}`);
+                if (likeAlarmEnabled === false) {
+                    console.log(`User ${targetUserId} has disabled like alarms. Skipping notification.`);
+                    shouldSendNotification = false;
+                }
             }
 
             if (!shouldSendNotification) {
@@ -100,3 +107,65 @@ export const sendFcmNotification = onDocumentCreated(
             }
         }
     });
+
+export const onLikeCreated = onDocumentUpdated(
+    {
+        document: "feeds/{feedId}",
+        region: "asia-northeast3",
+    },
+    async (event) => {
+        const beforeData = event.data?.before.data();
+        const afterData = event.data?.after.data();
+
+        if (!beforeData || !afterData) {
+            console.log("No data before or after for the event.");
+            return;
+        }
+
+        const beforeLikedBy: string[] = beforeData.likedBy || [];
+        const afterLikedBy: string[] = afterData.likedBy || [];
+
+        // Determine if a new like was added
+        const newLikes = afterLikedBy.filter(
+            (userId) => !beforeLikedBy.includes(userId)
+        );
+
+        if (newLikes.length === 0) {
+            console.log("No new likes detected.");
+            return;
+        }
+
+        const likerId = newLikes[0]; // Assuming only one new like at a time
+        const feedOwnerId = afterData.authorId;
+        const feedTitle = afterData.title || afterData.reviewContent?.substring(0, 50) + "..."; // Get title or snippet
+
+        if (likerId === feedOwnerId) {
+            console.log("Liker is the feed owner. Skipping notification.");
+            return;
+        }
+
+        try {
+            const db = admin.firestore();
+
+            // Get liker's display name
+            const likerDoc = await db.collection("users").doc(likerId).get();
+            const likerData = likerDoc.data();
+            const likerDisplayName = likerData?.nickname || "Someone";
+
+            // Create a request in fcmRequests collection
+            await db.collection("fcmRequests").add({
+                targetUserId: feedOwnerId,
+                title: "새로운 좋아요!",
+                message: `${likerDisplayName}님이 회원님의 글을 좋아합니다: ${feedTitle}`,
+                notificationType: "LIKE",
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+
+            console.log(`FCM request created for new like on feed ${event.params.feedId}`);
+
+        } catch (error) {
+            console.error("Error processing like event:", error);
+        }
+    }
+);
+
