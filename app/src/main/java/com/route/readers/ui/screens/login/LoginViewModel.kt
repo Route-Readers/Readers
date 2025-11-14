@@ -86,6 +86,9 @@ class LoginViewModel : ViewModel() {
                 // 항상 FCM 토큰 업데이트
                 com.route.readers.notification.FCMTokenManager.updateFCMToken()
                 
+                // 항상 FCM 토큰 업데이트
+                com.route.readers.notification.FCMTokenManager.updateFCMToken()
+                
                 val document = db.collection("users").document(uid).get().await()
                 if (document.exists() && document.getString("nickname") != null) {
                     _uiState.value = LoginUiState.ExistingUser

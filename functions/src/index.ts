@@ -46,14 +46,27 @@ export const sendFcmNotification = onDocumentCreated(
             }
 
             // 3. 알림 유형에 따른 설정 확인
+            let shouldSendNotification = true;
+
             if (notificationType === "READING_INVITATION") {
                 const friendReadingAlarmEnabled = receiverData?.friendReadingAlarmEnabled;
                 console.log(`User ${targetUserId} friendReadingAlarmEnabled: ${friendReadingAlarmEnabled}`);
                 if (friendReadingAlarmEnabled === false) {
                     console.log(`User ${targetUserId} has disabled friend reading alarms. Skipping notification.`);
-                    await snapshot.ref.delete();
-                    return;
+                    shouldSendNotification = false;
                 }
+            } else if (notificationType === "FOLLOW" || notificationType === "FOLLOW_REQUEST") {
+                const followAlarmEnabled = receiverData?.followAlarmEnabled; // Use the field from User.kt
+                console.log(`User ${targetUserId} followAlarmEnabled: ${followAlarmEnabled}`);
+                if (followAlarmEnabled === false) {
+                    console.log(`User ${targetUserId} has disabled follow alarms. Skipping notification.`);
+                    shouldSendNotification = false;
+                }
+            }
+
+            if (!shouldSendNotification) {
+                await snapshot.ref.delete();
+                return;
             }
 
             // 4. 알림 메시지(Payload) 구성
@@ -61,6 +74,10 @@ export const sendFcmNotification = onDocumentCreated(
                 notification: {
                     title: title,
                     body: body,
+                },
+                data: { // Add data payload for custom handling on client
+                    notificationType: notificationType,
+                    // Add other relevant data if needed, e.g., senderId
                 },
                 token: fcmToken,
             };

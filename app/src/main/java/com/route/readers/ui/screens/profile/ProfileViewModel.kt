@@ -15,6 +15,7 @@ import com.route.readers.data.remote.BookRepository
 import com.route.readers.data.remote.FirestoreRepository
 import com.route.readers.data.remote.MyLibraryRepository
 import com.route.readers.data.remote.WishlistRepository
+import com.route.readers.notification.FCMNotificationSender
 import com.route.readers.ui.screens.attendance.AttendanceViewModel
 import com.route.readers.ui.screens.feed.FeedItem
 import com.route.readers.ui.screens.feed.toFeedItem
@@ -1093,6 +1094,16 @@ open class ProfileViewModel : ViewModel() {
                         "commentCount" to 0
                     )
                     db.collection("feeds").add(followNotification).await()
+
+                    // FCM 알림 요청
+                    FCMNotificationSender.sendNotificationRequest(
+                        targetUserId = targetUserId,
+                        senderId = currentUserId,
+                        senderNickname = currentUserName,
+                        notificationType = "FOLLOW",
+                        title = "새로운 팔로워",
+                        body = "${currentUserName}님이 당신을 팔로우하기 시작했습니다!"
+                    )
                 }
             } catch (e: Exception) {
                 refreshUiStateForFollow(targetUserId, false)
@@ -1119,6 +1130,19 @@ open class ProfileViewModel : ViewModel() {
                 db.collection("users").document(currentUserId)
                     .collection("outgoingFollowRequests").document(targetUserId)
                     .set(requestData).await()
+
+                // Fetch target user's nickname for notification
+                val currentUserNickname = db.collection("users").document(currentUserId).get().await().getString("nickname") ?: "알 수 없는 사용자"
+
+                // FCM 알림 요청
+                FCMNotificationSender.sendNotificationRequest(
+                    targetUserId = targetUserId,
+                    senderId = currentUserId,
+                    senderNickname = currentUserNickname,
+                    notificationType = "FOLLOW_REQUEST",
+                    title = "팔로우 요청",
+                    body = "${currentUserNickname}님이 당신을 팔로우하고 싶어합니다."
+                )
 
                 // Update UI state to reflect that a request has been sent
                 val currentState = _uiState.value
@@ -1154,6 +1178,20 @@ open class ProfileViewModel : ViewModel() {
 
                 // UI에서 요청 제거
                 _followRequests.value = _followRequests.value.filter { it.uid != requesterId }
+
+                // Fetch current user's nickname for notification
+                val currentUserNickname = db.collection("users").document(currentUserId).get().await().getString("nickname") ?: "알 수 없는 사용자"
+                val requesterNickname = requesterUserRef.get().await().getString("nickname") ?: "알 수 없는 사용자"
+
+                // FCM 알림 요청 (요청자에게)
+                FCMNotificationSender.sendNotificationRequest(
+                    targetUserId = requesterId, // 요청자에게 알림
+                    senderId = currentUserId,
+                    senderNickname = currentUserNickname,
+                    notificationType = "FOLLOW",
+                    title = "팔로우 수락",
+                    body = "${currentUserNickname}님이 당신의 팔로우 요청을 수락했습니다."
+                )
 
             } catch (e: Exception) {
                 Log.e("ProfileViewModel", "Error accepting follow request", e)
