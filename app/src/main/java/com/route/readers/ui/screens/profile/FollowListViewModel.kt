@@ -30,8 +30,35 @@ class FollowListViewModel : ViewModel() {
     private val auth = FirebaseAuth.getInstance()
     private val currentUserId = auth.currentUser?.uid
 
-    private val _uiState = MutableStateFlow<FollowListUiState>(FollowListUiState.Loading)
-    val uiState = _uiState.asStateFlow()
+    private var followStatusListener: com.google.firebase.firestore.ListenerRegistration? = null
+    private var outgoingFollowRequestListener: com.google.firebase.firestore.ListenerRegistration? = null
+
+    // Separate StateFlows for real-time updates from listeners
+    private val _currentUserFollowingIds = MutableStateFlow<Set<String>>(emptySet())
+    private val _pendingFollowRequests = MutableStateFlow<Set<String>>(emptySet())
+    private val _blockedUsers = MutableStateFlow<Set<String>>(emptySet())
+    private val _blockedByUsers = MutableStateFlow<Set<String>>(emptySet())
+
+    private val _usersFlow = MutableStateFlow<List<User>>(emptyList())
+    private val _loading = MutableStateFlow(true)
+    private val _error = MutableStateFlow<String?>(null)
+
+    val uiState = combine(
+        _usersFlow,
+        _currentUserFollowingIds,
+        _pendingFollowRequests,
+        _loading,
+        _error
+    ) { users, followingIds, pendingRequests, loading, error ->
+        if (loading) FollowListUiState.Loading
+        else if (error != null) FollowListUiState.Error(error)
+        else FollowListUiState.Success(users, followingIds, pendingRequests)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = FollowListUiState.Loading
+    )
+
 
     private var currentListOwnerId: String? = null
     private var currentListType: String? = null
@@ -39,7 +66,7 @@ class FollowListViewModel : ViewModel() {
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
 
-    val searchedUsers = combine(_searchQuery, _uiState) { query, state ->
+    val searchedUsers = combine(_searchQuery, uiState) { query, state -> // Use uiState here, not _uiState
         if (state is FollowListUiState.Success) {
             if (query.isBlank()) {
                 state.users
@@ -60,6 +87,59 @@ class FollowListViewModel : ViewModel() {
     private val _isMyProfile = MutableStateFlow(false)
     val isMyProfile = _isMyProfile.asStateFlow()
 
+    init {
+        setupFollowStatusListener()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        followStatusListener?.remove()
+        outgoingFollowRequestListener?.remove()
+    }
+
+    private fun setupFollowStatusListener() {
+        currentUserId?.let { userId ->
+            val userRef = db.collection("users").document(userId)
+
+            followStatusListener = userRef.addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    _error.value = "팔로우 상태를 가져오는 중 오류가 발생했습니다: ${error.message}"
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null && snapshot.exists()) {
+                    val newCurrentUserFollowingIds = (snapshot.get("following") as? List<String>)?.toSet() ?: emptySet()
+                    _currentUserFollowingIds.value = newCurrentUserFollowingIds
+                    _blockedUsers.value = (snapshot.get("blockedUsers") as? List<String>)?.toSet() ?: emptySet()
+                    _blockedByUsers.value = (snapshot.get("blockedBy") as? List<String>)?.toSet() ?: emptySet()
+
+                    // Check if any pending requests have been accepted
+                    val acceptedRequests = _pendingFollowRequests.value.filter {
+                        it in newCurrentUserFollowingIds
+                    }.toSet()
+
+                    if (acceptedRequests.isNotEmpty()) {
+                        _pendingFollowRequests.value = _pendingFollowRequests.value - acceptedRequests
+                    }
+                }
+                // No direct _uiState update here. uiState will react via combine.
+            }
+
+            val outgoingRequestsRef = userRef.collection("outgoingFollowRequests")
+            outgoingFollowRequestListener = outgoingRequestsRef.addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    _error.value = "보낸 팔로우 요청을 가져오는 중 오류가 발생했습니다: ${error.message}"
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null) {
+                    _pendingFollowRequests.value = snapshot.documents.map { it.id }.toSet()
+                }
+                // No direct _uiState update here. uiState will react via combine.
+            }
+        }
+    }
+
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
     }
@@ -79,34 +159,30 @@ class FollowListViewModel : ViewModel() {
         _searchQuery.value = ""
 
         viewModelScope.launch {
-            _uiState.value = FollowListUiState.Loading
+            _loading.value = true
+            _error.value = null
             if (currentUserId == null) {
-                _uiState.value = FollowListUiState.Error("로그인이 필요합니다.")
+                _error.value = "로그인이 필요합니다."
+                _loading.value = false
                 return@launch
             }
 
             try {
-
-                val currentUserDoc = db.collection("users").document(currentUserId).get().await()
-                val currentUserFollowingIds = (currentUserDoc.get("following") as? List<String>)?.toSet() ?: emptySet()
-                val blockedUsers = (currentUserDoc.get("blockedUsers") as? List<String>)?.toSet() ?: emptySet()
-                val blockedByUsers = (currentUserDoc.get("blockedBy") as? List<String>)?.toSet() ?: emptySet()
+                val blockedUsers = _blockedUsers.value
+                val blockedByUsers = _blockedByUsers.value
                 val exclusionSet = blockedUsers + blockedByUsers
-
-                // Fetch pending follow requests sent by the current user
-                val outgoingRequestsSnapshot = db.collection("users").document(currentUserId)
-                    .collection("outgoingFollowRequests").get().await()
-                val pendingFollowRequests = outgoingRequestsSnapshot.documents.map { it.id }.toSet()
 
                 val targetUserDoc = db.collection("users").document(userId).get().await()
                 if (!targetUserDoc.exists()) {
-                    _uiState.value = FollowListUiState.Error("사용자를 찾을 수 없습니다.")
+                    _error.value = "사용자를 찾을 수 없습니다."
+                    _loading.value = false
                     return@launch
                 }
 
                 val userIds = (targetUserDoc.get(listType) as? List<String>)?.filterNot { it in exclusionSet }
                 if (userIds.isNullOrEmpty()) {
-                    _uiState.value = FollowListUiState.Success(emptyList(), currentUserFollowingIds, pendingFollowRequests)
+                    _usersFlow.value = emptyList()
+                    _loading.value = false
                     return@launch
                 }
 
@@ -116,12 +192,15 @@ class FollowListViewModel : ViewModel() {
                     fetchedUsers.addAll(usersQuery.toObjects(User::class.java))
                 }
 
-                _uiState.value = FollowListUiState.Success(fetchedUsers, currentUserFollowingIds, pendingFollowRequests)
+                _usersFlow.value = fetchedUsers
 
             } catch (e: Exception) {
-                _uiState.value = FollowListUiState.Error("목록을 불러오는 중 오류가 발생했습니다: ${e.message}")
+                _error.value = "목록을 불러오는 중 오류가 발생했습니다: ${e.message}"
+            } finally {
+                _loading.value = false
             }
         }
+
     }
 
     fun loadAllUsers() {
@@ -130,24 +209,18 @@ class FollowListViewModel : ViewModel() {
         _searchQuery.value = ""
 
         viewModelScope.launch {
-            _uiState.value = FollowListUiState.Loading
+            _loading.value = true
+            _error.value = null
             if (currentUserId == null) {
-                _uiState.value = FollowListUiState.Error("로그인이 필요합니다.")
+                _error.value = "로그인이 필요합니다."
+                _loading.value = false
                 return@launch
             }
 
             try {
-
-                val currentUserDoc = db.collection("users").document(currentUserId).get().await()
-                val currentUserFollowingIds = (currentUserDoc.get("following") as? List<String>)?.toSet() ?: emptySet()
-                val blockedUsers = (currentUserDoc.get("blockedUsers") as? List<String>)?.toSet() ?: emptySet()
-                val blockedByUsers = (currentUserDoc.get("blockedBy") as? List<String>)?.toSet() ?: emptySet()
+                val blockedUsers = _blockedUsers.value
+                val blockedByUsers = _blockedByUsers.value
                 val exclusionSet = blockedUsers + blockedByUsers
-
-                // Fetch pending follow requests sent by the current user
-                val outgoingRequestsSnapshot = db.collection("users").document(currentUserId)
-                    .collection("outgoingFollowRequests").get().await()
-                val pendingFollowRequests = outgoingRequestsSnapshot.documents.map { it.id }.toSet()
 
                 val allUsersQuery = db.collection("users").limit(100).get().await()
                 val allUsers = allUsersQuery.toObjects(User::class.java)
@@ -155,9 +228,11 @@ class FollowListViewModel : ViewModel() {
 
                 val sortedUsers = allUsers.sortedByDescending { it.uid == currentUserId }
 
-                _uiState.value = FollowListUiState.Success(sortedUsers, currentUserFollowingIds, pendingFollowRequests)
+                _usersFlow.value = sortedUsers
             } catch (e: Exception) {
-                _uiState.value = FollowListUiState.Error("전체 사용자 목록을 불러오는 중 오류가 발생했습니다: ${e.message}")
+                _error.value = "전체 사용자 목록을 불러오는 중 오류가 발생했습니다: ${e.message}"
+            } finally {
+                _loading.value = false
             }
         }
     }
@@ -194,11 +269,8 @@ class FollowListViewModel : ViewModel() {
                 if (targetUser?.isPrivate == true && !isCurrentlyFollowing) {
                     // Private account, send follow request
                     sendFollowRequest(targetUserId)
-                    // Update UI to show "요청됨" (Requested)
-                    val updatedFollowingIds = currentState.currentUserFollowingIds + targetUserId // Temporarily add to show requested state
-                    _uiState.value = currentState.copy(
-                        currentUserFollowingIds = updatedFollowingIds
-                    )
+                    // Update UI to show "요청됨" (Requested) by adding to pendingFollowRequests
+                    _pendingFollowRequests.value = currentState.pendingFollowRequests + targetUserId
                     return@launch
                 }
 
@@ -231,25 +303,31 @@ class FollowListViewModel : ViewModel() {
                 } else {
                     currentState.currentUserFollowingIds + targetUserId
                 }
-
-                val updatedUsers = currentState.users.map { user ->
-                    if (user.uid == currentUserId) {
-                        val newFollowingCount = user.followingCount + if (isCurrentlyFollowing) -1 else 1
-                        user.copy(followingCount = newFollowingCount)
-                    }
-                    else if (user.uid == targetUserId) {
-                        val newFollowerCount = user.followerCount + if (isCurrentlyFollowing) -1 else 1
-                        user.copy(followerCount = newFollowerCount)
-                    }
-                    else {
-                        user
-                    }
+                
+                // If unfollowing a user who was previously a pending request (e.g., if the request was declined before being accepted)
+                val updatedPendingRequests = if (isCurrentlyFollowing && currentState.pendingFollowRequests.contains(targetUserId)) {
+                    currentState.pendingFollowRequests - targetUserId
+                } else {
+                    currentState.pendingFollowRequests
                 }
 
-                _uiState.value = currentState.copy(
-                    users = updatedUsers,
-                    currentUserFollowingIds = updatedFollowingIds
-                )
+                val updatedUsers = if (isCurrentlyFollowing && currentListType == "following") {
+                    currentState.users.filter { it.uid != targetUserId }
+                } else {
+                    currentState.users.map { user ->
+                        if (user.uid == currentUserId) {
+                            val newFollowingCount = user.followingCount + if (isCurrentlyFollowing) -1 else 1
+                            user.copy(followingCount = newFollowingCount)
+                        }
+                        else if (user.uid == targetUserId) {
+                            val newFollowerCount = user.followerCount + if (isCurrentlyFollowing) -1 else 1
+                            user.copy(followerCount = newFollowerCount)
+                        }
+                        else {
+                            user
+                        }
+                    }
+                }
 
             } catch (e: Exception) {
                 // Handle exception
@@ -271,11 +349,7 @@ class FollowListViewModel : ViewModel() {
             requestRef.set(requestData).await()
 
             // Update UI state to reflect that a request has been sent
-            val currentState = _uiState.value
-            if (currentState is FollowListUiState.Success) {
-                val updatedPendingRequests = currentState.pendingFollowRequests + targetUserId
-                _uiState.value = currentState.copy(pendingFollowRequests = updatedPendingRequests)
-            }
+            _pendingFollowRequests.value = _pendingFollowRequests.value + targetUserId
         } catch (e: Exception) {
             // Handle exception
         }
@@ -320,12 +394,10 @@ class FollowListViewModel : ViewModel() {
                 }.await()
 
                 val updatedUsers = currentState.users.filterNot { it.uid == targetUserId }
-                val updatedFollowingIds = currentState.currentUserFollowingIds - targetUserId
-
-                _uiState.value = currentState.copy(
-                    users = updatedUsers,
-                    currentUserFollowingIds = updatedFollowingIds
-                )
+                _usersFlow.value = updatedUsers
+                _currentUserFollowingIds.value = currentState.currentUserFollowingIds - targetUserId
+                _blockedUsers.value = _blockedUsers.value + targetUserId
+                _blockedByUsers.value = _blockedByUsers.value + targetUserId
 
             } catch (e: Exception) {
                 // Handle exception
