@@ -232,17 +232,21 @@ class FollowListViewModel : ViewModel() {
                     currentState.currentUserFollowingIds + targetUserId
                 }
 
-                val updatedUsers = currentState.users.map { user ->
-                    if (user.uid == currentUserId) {
-                        val newFollowingCount = user.followingCount + if (isCurrentlyFollowing) -1 else 1
-                        user.copy(followingCount = newFollowingCount)
-                    }
-                    else if (user.uid == targetUserId) {
-                        val newFollowerCount = user.followerCount + if (isCurrentlyFollowing) -1 else 1
-                        user.copy(followerCount = newFollowerCount)
-                    }
-                    else {
-                        user
+                val updatedUsers = if (isCurrentlyFollowing && currentListType == "following") {
+                    currentState.users.filter { it.uid != targetUserId }
+                } else {
+                    currentState.users.map { user ->
+                        if (user.uid == currentUserId) {
+                            val newFollowingCount = user.followingCount + if (isCurrentlyFollowing) -1 else 1
+                            user.copy(followingCount = newFollowingCount)
+                        }
+                        else if (user.uid == targetUserId) {
+                            val newFollowerCount = user.followerCount + if (isCurrentlyFollowing) -1 else 1
+                            user.copy(followerCount = newFollowerCount)
+                        }
+                        else {
+                            user
+                        }
                     }
                 }
 
