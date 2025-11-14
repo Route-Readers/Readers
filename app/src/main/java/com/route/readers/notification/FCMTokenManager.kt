@@ -1,26 +1,35 @@
 package com.route.readers.notification
-// 현재 사용하지 않는 코드 파일이지만 추후 파이어베이스 업그레이드하면 FCM 기반으로 친구메시지 보낼sudo..
+
+import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.tasks.await
 
 object FCMTokenManager {
-    
+
+    private const val TAG = "FCMTokenManager"
+
     suspend fun updateFCMToken() {
+        val currentUser = FirebaseAuth.getInstance().currentUser
+        if (currentUser == null) {
+            Log.w(TAG, "No authenticated user found. Cannot update FCM token.")
+            return
+        }
+
         try {
             val token = FirebaseMessaging.getInstance().token.await()
-            val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
-            
+            val userId = currentUser.uid
+
             FirebaseFirestore.getInstance()
                 .collection("users")
                 .document(userId)
                 .update("fcmToken", token)
                 .await()
-                
-            android.util.Log.d("FCMTokenManager", "FCM token updated: $token")
+
+            Log.d(TAG, "FCM token updated successfully for user $userId: $token")
         } catch (e: Exception) {
-            android.util.Log.e("FCMTokenManager", "Failed to update FCM token", e)
+            Log.e(TAG, "Error updating FCM token: ${e.message}", e)
         }
     }
 }

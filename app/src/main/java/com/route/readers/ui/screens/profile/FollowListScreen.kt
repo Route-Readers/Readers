@@ -273,7 +273,7 @@ fun UserItem(
 
         if (user.uid != currentUserId) {
             val buttonText = if (isRequestPending) {
-                "요청됨"
+                "요청됨" // Reverted to "요청됨"
             } else {
                 when (selectedTabIndex) {
                     0 -> if (isFollowing) "팔로우 취소" else "맞팔로우"
@@ -282,6 +282,7 @@ fun UserItem(
                 }
             }
 
+            // usePrimaryColor should not apply if a request is pending, as the button will be disabled.
             val usePrimaryColor = !isFollowing && selectedTabIndex != 1 && !isRequestPending
 
             Button(
@@ -291,7 +292,7 @@ fun UserItem(
                     containerColor = if (usePrimaryColor) DarkRed else MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = if (usePrimaryColor) Color.White else MaterialTheme.colorScheme.onSecondaryContainer
                 ),
-                enabled = !isRequestPending // Disable button if request is pending
+                enabled = !isRequestPending // Reverted to disabled if request is pending
             ) {
                 Text(buttonText, fontSize = 13.sp)
             }

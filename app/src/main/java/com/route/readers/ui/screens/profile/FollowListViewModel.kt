@@ -6,6 +6,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.data.model.User
+import com.route.readers.notification.FCMNotificationSender
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -259,6 +260,7 @@ class FollowListViewModel : ViewModel() {
             }
 
             val isCurrentlyFollowing = currentState.currentUserFollowingIds.contains(targetUserId)
+            val isRequestPending = currentState.pendingFollowRequests.contains(targetUserId) // Get isRequestPending here
             val currentUserRef = db.collection("users").document(currentUserId)
             val targetUserRef = db.collection("users").document(targetUserId)
 
@@ -266,6 +268,11 @@ class FollowListViewModel : ViewModel() {
                 val targetUserDoc = targetUserRef.get().await()
                 val targetUser = targetUserDoc.toObject(User::class.java)
 
+                if (isRequestPending) {
+                    cancelFollowRequest(targetUserId)
+                    return@launch
+                }
+                
                 if (targetUser?.isPrivate == true && !isCurrentlyFollowing) {
                     // Private account, send follow request
                     sendFollowRequest(targetUserId)
@@ -273,6 +280,9 @@ class FollowListViewModel : ViewModel() {
                     _pendingFollowRequests.value = currentState.pendingFollowRequests + targetUserId
                     return@launch
                 }
+
+                val currentUserNickname = db.collection("users").document(currentUserId).get().await().getString("nickname") ?: "알 수 없는 사용자"
+                var sendFollowNotification = false
 
                 db.runTransaction { transaction ->
                     if (isCurrentlyFollowing) {
@@ -294,9 +304,22 @@ class FollowListViewModel : ViewModel() {
                             "isFollowedBack" to false,
                             "timestamp" to FieldValue.serverTimestamp()
                         ))
+                        sendFollowNotification = true // Set flag to send notification outside
                     }
                     null
                 }.await()
+
+                if (sendFollowNotification) {
+                    // FCM 알림 요청 (트랜잭션 완료 후)
+                    FCMNotificationSender.sendNotificationRequest(
+                        targetUserId = targetUserId,
+                        senderId = currentUserId,
+                        senderNickname = currentUserNickname,
+                        notificationType = "FOLLOW",
+                        title = "새로운 팔로워",
+                        body = "${currentUserNickname}님이 당신을 팔로우하기 시작했습니다!"
+                    )
+                }
 
                 val updatedFollowingIds = if (isCurrentlyFollowing) {
                     currentState.currentUserFollowingIds - targetUserId
@@ -310,6 +333,10 @@ class FollowListViewModel : ViewModel() {
                 } else {
                     currentState.pendingFollowRequests
                 }
+
+                // Immediately update the local state for a responsive UI
+                _currentUserFollowingIds.value = updatedFollowingIds
+                _pendingFollowRequests.value = updatedPendingRequests
 
                 val updatedUsers = if (isCurrentlyFollowing && currentListType == "following") {
                     currentState.users.filter { it.uid != targetUserId }
@@ -328,6 +355,7 @@ class FollowListViewModel : ViewModel() {
                         }
                     }
                 }
+                _usersFlow.value = updatedUsers // <--- ADDED THIS LINE
 
             } catch (e: Exception) {
                 // Handle exception
@@ -350,6 +378,19 @@ class FollowListViewModel : ViewModel() {
 
             // Update UI state to reflect that a request has been sent
             _pendingFollowRequests.value = _pendingFollowRequests.value + targetUserId
+
+            // Fetch current user's nickname for notification
+            val currentUserNickname = db.collection("users").document(currentUserId).get().await().getString("nickname") ?: "알 수 없는 사용자"
+
+            // FCM 알림 요청
+            FCMNotificationSender.sendNotificationRequest(
+                targetUserId = targetUserId,
+                senderId = currentUserId,
+                senderNickname = currentUserNickname,
+                notificationType = "FOLLOW_REQUEST",
+                title = "팔로우 요청",
+                body = "${currentUserNickname}님이 당신을 팔로우하고 싶어합니다."
+            )
         } catch (e: Exception) {
             // Handle exception
         }
@@ -402,6 +443,26 @@ class FollowListViewModel : ViewModel() {
             } catch (e: Exception) {
                 // Handle exception
             }
+        }
+    }
+
+    private suspend fun cancelFollowRequest(targetUserId: String) {
+        if (currentUserId == null) return
+        try {
+            // Remove from current user's outgoing requests
+            db.collection("users").document(currentUserId)
+                .collection("outgoingFollowRequests").document(targetUserId)
+                .delete().await()
+
+            // Remove from target user's incoming requests
+            db.collection("users").document(targetUserId)
+                .collection("followRequests").document(currentUserId)
+                .delete().await()
+
+            // Update UI state
+            _pendingFollowRequests.value = _pendingFollowRequests.value - targetUserId
+        } catch (e: Exception) {
+            _error.value = "팔로우 요청 취소 중 오류가 발생했습니다: ${e.message}"
         }
     }
 }

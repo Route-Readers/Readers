@@ -50,7 +50,7 @@ class AccountViewModel(
                 db.collection("users").document(userId)
                     .update("private", isPrivate)
                     .await()
-                
+
                 fetchUserProfile(userId)
                 Log.d("AccountViewModel", "User privacy setting updated successfully.")
             } catch (e: Exception) {

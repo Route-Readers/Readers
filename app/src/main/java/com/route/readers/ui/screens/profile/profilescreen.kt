@@ -338,23 +338,23 @@ fun ProfileContent(
         contentPadding = PaddingValues(vertical = 8.dp)
     ) {
         item {
-                            ProfileInfoSection(
-                                user = user,
-                                level = level,
-                                isMyProfile = state.isMyProfile,
-                                isFollowing = state.isFollowing,
-                                isRequestPending = state.isRequestPending,
-                                isBlocked = state.isBlocked,
-                                onFollowClick = onFollowClick,
-                                onUnfollowClick = onUnfollowClick,
-                                onFollowListClick = onFollowListClick,
-                                onUpdateProfileImage = onUpdateProfileImage,
-                                onNavigateToCustomization = onNavigateToCustomization,
-                                onNavigateToMyBookList = onNavigateToMyBookList,
-                                onNavigateToLevel = onNavigateToLevel,
-                                onBlockUser = onBlockUser,
-                                onUnblockUser = onUnblockUser
-                            )        }
+            ProfileInfoSection(
+                user = user,
+                level = level,
+                isMyProfile = state.isMyProfile,
+                isFollowing = state.isFollowing,
+                isRequestPending = state.isRequestPending,
+                isBlocked = state.isBlocked,
+                onFollowClick = onFollowClick,
+                onUnfollowClick = onUnfollowClick,
+                onFollowListClick = onFollowListClick,
+                onUpdateProfileImage = onUpdateProfileImage,
+                onNavigateToCustomization = onNavigateToCustomization,
+                onNavigateToMyBookList = onNavigateToMyBookList,
+                onNavigateToLevel = onNavigateToLevel,
+                onBlockUser = onBlockUser,
+                onUnblockUser = onUnblockUser
+            )        }
 
         if (state.isMyProfile) {
             item {
@@ -659,16 +659,33 @@ fun ProfileInfoSection(
                         }
                     } else {
                         Button(
-                            onClick = onFollowClick,
+                            onClick = {
+                                if (isFollowing) { // Only call unfollow if already following
+                                    onUnfollowClick()
+                                } else { // Otherwise, try to follow (or send request)
+                                    onFollowClick()
+                                }
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isFollowing) MaterialTheme.colorScheme.secondary else DarkRed,
-                                contentColor = if (isFollowing) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onPrimary
+                                // If a request is pending, it should look disabled.
+                                // If already following, use secondary color for "언팔로우".
+                                // Otherwise, use DarkRed for "팔로우".
+                                containerColor = when {
+                                    isRequestPending -> MaterialTheme.colorScheme.surfaceVariant
+                                    isFollowing -> MaterialTheme.colorScheme.secondary
+                                    else -> DarkRed
+                                },
+                                contentColor = when {
+                                    isRequestPending -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    isFollowing -> MaterialTheme.colorScheme.onSecondary
+                                    else -> MaterialTheme.colorScheme.onPrimary
+                                }
                             ),
-                            enabled = !isRequestPending
+                            enabled = !isRequestPending // Disabled if request is pending
                         ) {
-                            Text(text = if (isRequestPending) "요청됨" else if (isFollowing) "언팔로우" else "팔로우")
+                            Text(text = if (isRequestPending) "요청됨" else if (isFollowing) "언팔로우" else "팔로우") // Reverted button text for pending
                         }
                         OutlinedButton(
                             onClick = onBlockUser,
