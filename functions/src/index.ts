@@ -21,7 +21,9 @@ export const sendFcmNotification = onDocumentCreated(
         // 1. 요청 데이터 가져오기
         const requestData = snapshot.data();
         // NotificationRepository에서 보낸 필드 이름 사용
-        const {targetUserId, title, message: body} = requestData;
+        const {targetUserId, title, message: body, notificationType} = requestData;
+
+        console.log(`New FCM request. Type: ${notificationType}`);
 
         if (!targetUserId || !title || !body) {
             console.error("Request data is missing fields", requestData);
@@ -31,9 +33,10 @@ export const sendFcmNotification = onDocumentCreated(
         try {
             const db = admin.firestore();
 
-            // 2. 받는 사람(Receiver)의 FCM 토큰 가져오기
+            // 2. 받는 사람(Receiver)의 FCM 토큰 및 알림 설정 가져오기
             const receiverDoc = await db.collection("users").doc(targetUserId).get();
-            const fcmToken = receiverDoc.data()?.fcmToken;
+            const receiverData = receiverDoc.data();
+            const fcmToken = receiverData?.fcmToken;
 
             if (!fcmToken) {
                 console.log(`No FCM token for receiver ${targetUserId}`);
@@ -42,7 +45,18 @@ export const sendFcmNotification = onDocumentCreated(
                 return;
             }
 
-            // 3. 알림 메시지(Payload) 구성
+            // 3. 알림 유형에 따른 설정 확인
+            if (notificationType === "READING_INVITATION") {
+                const friendReadingAlarmEnabled = receiverData?.friendReadingAlarmEnabled;
+                console.log(`User ${targetUserId} friendReadingAlarmEnabled: ${friendReadingAlarmEnabled}`);
+                if (friendReadingAlarmEnabled === false) {
+                    console.log(`User ${targetUserId} has disabled friend reading alarms. Skipping notification.`);
+                    await snapshot.ref.delete();
+                    return;
+                }
+            }
+
+            // 4. 알림 메시지(Payload) 구성
             const fcmMessage = {
                 notification: {
                     title: title,
@@ -51,11 +65,12 @@ export const sendFcmNotification = onDocumentCreated(
                 token: fcmToken,
             };
 
-            // 4. FCM으로 메시지 전송
+            // 5. FCM으로 메시지 전송
             console.log(`Sending notification to token: ${fcmToken}`);
             await getMessaging().send(fcmMessage);
+            console.log("Successfully sent message");
 
-            // 5. 처리 완료된 요청 문서는 삭제
+            // 6. 처리 완료된 요청 문서는 삭제
             await snapshot.ref.delete();
 
         } catch (error) {
