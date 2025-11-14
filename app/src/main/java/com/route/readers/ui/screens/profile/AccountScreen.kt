@@ -355,7 +355,10 @@ fun AccountScreen(
                                         animationSpec = tween(300)
                                     )
                                 ) {
-                                    NotificationSettings()
+                                    NotificationSettings(
+                                        viewModel = viewModel,
+                                        user = state.user
+                                    )
                                 }
                             }
 
@@ -581,24 +584,18 @@ fun DarkModeToggle(
 }
 
 @Composable
-fun NotificationSettings() {
+fun NotificationSettings(
+    viewModel: AccountViewModel,
+    user: com.route.readers.data.model.User
+) {
     val context = LocalContext.current
 
-    // Load initial state from SharedPreferences
     var readingAlarm by remember {
         mutableStateOf(SharedPreferencesManager.isNotificationEnabled(context))
     }
     val (initialHour, initialMinute) = SharedPreferencesManager.getNotificationTime(context)
     var alarmHour by remember { mutableStateOf(initialHour) }
     var alarmMinute by remember { mutableStateOf(initialMinute) }
-
-    // Other notification states (not persisted for now)
-    var friendReadingAlarm by remember { mutableStateOf(true) }
-    var messageAlarm by remember { mutableStateOf(true) }
-    var friendRequestAlarm by remember { mutableStateOf(true) }
-    var followAlarm by remember { mutableStateOf(true) }
-    var noNotifications by remember { mutableStateOf(false) }
-
 
     Column(
         modifier = Modifier
@@ -611,7 +608,7 @@ fun NotificationSettings() {
         NotificationToggleItem(
             title = "독서 시간 알람",
             subtitle = "설정한 시간에 독서 알림 받기",
-            checked = readingAlarm && !noNotifications,
+            checked = readingAlarm,
             onCheckedChange = { isEnabled ->
                 readingAlarm = isEnabled
                 SharedPreferencesManager.setNotificationEnabled(context, isEnabled)
@@ -621,10 +618,10 @@ fun NotificationSettings() {
                     DailyNotificationScheduler.cancelDailyNotification(context)
                 }
             },
-            enabled = !noNotifications
+            enabled = true
         )
 
-        if (readingAlarm && !noNotifications) {
+        if (readingAlarm) {
             Spacer(modifier = Modifier.height(8.dp))
             TimeSettingRow(
                 selectedHour = alarmHour,
@@ -633,7 +630,6 @@ fun NotificationSettings() {
                     alarmHour = hour
                     alarmMinute = minute
                     SharedPreferencesManager.setNotificationTime(context, hour, minute)
-                    // Re-schedule with the new time
                     DailyNotificationScheduler.scheduleDailyNotification(context)
                 }
             )
@@ -644,9 +640,11 @@ fun NotificationSettings() {
         NotificationToggleItem(
             title = "친구 독서 알람",
             subtitle = "친구가 보내는 독서 알림 받기",
-            checked = friendReadingAlarm && !noNotifications,
-            onCheckedChange = { friendReadingAlarm = it },
-            enabled = !noNotifications
+            checked = user.friendReadingAlarmEnabled ?: true,
+            onCheckedChange = {
+                viewModel.updateNotificationSetting("friendReadingAlarmEnabled", it)
+            },
+            enabled = true
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -654,9 +652,11 @@ fun NotificationSettings() {
         NotificationToggleItem(
             title = "메시지 알람",
             subtitle = "새로운 메시지 알림 받기",
-            checked = messageAlarm && !noNotifications,
-            onCheckedChange = { messageAlarm = it },
-            enabled = !noNotifications
+            checked = user.messageAlarmEnabled ?: true,
+            onCheckedChange = {
+                viewModel.updateNotificationSetting("messageAlarmEnabled", it)
+            },
+            enabled = true
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -664,9 +664,11 @@ fun NotificationSettings() {
         NotificationToggleItem(
             title = "친구 요청 알람",
             subtitle = "새로운 친구 요청 알림 받기",
-            checked = friendRequestAlarm && !noNotifications,
-            onCheckedChange = { friendRequestAlarm = it },
-            enabled = !noNotifications
+            checked = user.friendRequestAlarmEnabled ?: true,
+            onCheckedChange = {
+                viewModel.updateNotificationSetting("friendRequestAlarmEnabled", it)
+            },
+            enabled = true
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -674,39 +676,9 @@ fun NotificationSettings() {
         NotificationToggleItem(
             title = "팔로우 알람",
             subtitle = "새로운 팔로워 알림 받기",
-            checked = followAlarm && !noNotifications,
+            checked = user.followAlarmEnabled ?: true,
             onCheckedChange = {
-                followAlarm = it
-                val sharedPref = context.getSharedPreferences("notification_settings", android.content.Context.MODE_PRIVATE)
-                sharedPref.edit().putBoolean("follow_notifications", it).apply()
-            },
-            enabled = !noNotifications
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        NotificationToggleItem(
-            title = "알림 받지 않기",
-            subtitle = "모든 알림을 끄기",
-            checked = noNotifications,
-            onCheckedChange = {
-                noNotifications = it
-                if (it) {
-                    readingAlarm = false
-                    friendReadingAlarm = false
-                    messageAlarm = false
-                    friendRequestAlarm = false
-                    followAlarm = false
-                }
+                viewModel.updateNotificationSetting("followAlarmEnabled", it)
             },
             enabled = true
         )

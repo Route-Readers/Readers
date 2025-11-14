@@ -12,6 +12,7 @@ import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.route.readers.MainActivity
 import com.route.readers.R
+import com.route.readers.ReadersApplication // Add this import
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
@@ -29,15 +30,17 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
 
-        // 데이터 메시지 처리
-        if (message.data.isNotEmpty()) {
-            val title = message.data["title"] ?: "새 알림"
-            val body = message.data["message"] ?: "새로운 메시지가 도착했습니다."
-            showNotification(title, body)
-        } else {
-            // 알림 메시지 처리 (기존 로직)
-            message.notification?.let {
-                showNotification(it.title ?: "새 알림", it.body ?: "새로운 메시지가 도착했습니다.")
+        if (ReadersApplication.isAppInForeground) {
+            // 데이터 메시지 처리
+            if (message.data.isNotEmpty()) {
+                val title = message.data["title"] ?: "새 알림"
+                val body = message.data["message"] ?: "새로운 메시지가 도착했습니다."
+                showNotification(title, body)
+            } else {
+                // 알림 메시지 처리 (기존 로직)
+                message.notification?.let {
+                    showNotification(it.title ?: "새 알림", it.body ?: "새로운 메시지가 도착했습니다.")
+                }
             }
         }
     }

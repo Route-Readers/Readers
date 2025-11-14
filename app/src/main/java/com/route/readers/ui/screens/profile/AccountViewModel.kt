@@ -64,4 +64,20 @@ class AccountViewModel(
             userPreferencesRepository.updateDarkMode(isDark)
         }
     }
+
+    fun updateNotificationSetting(key: String, value: Boolean) {
+        val userId = auth.currentUser?.uid ?: return
+        viewModelScope.launch {
+            try {
+                db.collection("users").document(userId)
+                    .update(key, value)
+                    .await()
+
+                fetchUserProfile(userId)
+                Log.d("AccountViewModel", "User notification setting '$key' updated successfully.")
+            } catch (e: Exception) {
+                Log.e("AccountViewModel", "Failed to update user notification setting '$key'.", e)
+            }
+        }
+    }
 }
