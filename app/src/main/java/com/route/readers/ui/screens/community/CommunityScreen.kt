@@ -39,7 +39,7 @@ import com.route.readers.data.model.ChatMessage
 import com.route.readers.ui.community.used_trade.UsedBookTradeScreen
 import com.route.readers.ui.components.BookClubCard
 import com.route.readers.ui.theme.DarkRed
-import com.route.readers.ui.screens.bookclub.BookClubScreen
+import com.route.readers.ui.screens.bookclub.BookClubChatScreen
 import java.net.URLEncoder
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -96,10 +96,13 @@ fun CommunityScreen(
         when (selectedTab) {
             0 -> {
                 if (showChatScreen != null) {
-                    BookClubChatScreen(
-                        bookClub = showChatScreen!!,
-                        onBack = { showChatScreen = null }
-                    )
+                    showChatScreen?.let { bookClub ->
+                        BookClubChatScreen(
+                            bookClubId = bookClub.id,
+                            bookClubName = bookClub.name,
+                            onBackClick = { showChatScreen = null }
+                        )
+                    }
                 } else {
                     CommunityContent(
                         uiState = uiState,
@@ -692,169 +695,7 @@ fun CreateBookClubDialog(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun BookClubChatScreen(
-    bookClub: BookClub,
-    onBack: () -> Unit
-) {
-    var messages by remember {
-        mutableStateOf(
-            listOf(
-                ChatMessage(
-                    id = "1",
-                    bookClubId = bookClub.id,
-                    senderId = "user1",
-                    senderName = "김독서",
-                    message = "안녕하세요! 오늘 3장까지 읽었어요",
-                    timestamp = System.currentTimeMillis() - 3600000
-                ),
-                ChatMessage(
-                    id = "2",
-                    bookClubId = bookClub.id,
-                    senderId = "user2",
-                    senderName = "이책벌레",
-                    message = "저도 방금 3장 끝냈습니다. 정말 흥미로운 내용이네요!",
-                    timestamp = System.currentTimeMillis() - 1800000
-                )
-            )
-        )
-    }
-    var newMessage by remember { mutableStateOf("") }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        TopAppBar(
-            title = {
-                Column {
-                    Text(
-                        bookClub.name,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        "${bookClub.currentBook} - ${bookClub.memberCount}명",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            },
-            navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "뒤로가기")
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
-        )
-
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(vertical = 8.dp),
-            reverseLayout = true
-        ) {
-            items(messages.reversed()) { message ->
-                ChatMessageItem(message = message)
-            }
-        }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = newMessage,
-                onValueChange = { newMessage = it },
-                placeholder = { Text("메시지를 입력하세요...") },
-                modifier = Modifier.weight(1f),
-                maxLines = 3
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Button(
-                onClick = {
-                    if (newMessage.isNotBlank()) {
-                        val message = ChatMessage(
-                            id = (messages.size + 1).toString(),
-                            bookClubId = bookClub.id,
-                            senderId = "currentUser",
-                            senderName = "나",
-                            message = newMessage,
-                            timestamp = System.currentTimeMillis()
-                        )
-                        messages = messages + message
-                        newMessage = ""
-                    }
-                }
-            ) {
-                Icon(Icons.Default.Send, contentDescription = "전송")
-            }
-        }
-    }
-}
-
-@Composable
-fun ChatMessageItem(message: ChatMessage) {
-    val isMyMessage = message.senderId == "currentUser"
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isMyMessage) Arrangement.End else Arrangement.Start
-    ) {
-        if (!isMyMessage) {
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    message.senderName.first().toString(),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-        }
-
-        Column(
-            modifier = Modifier.widthIn(max = 280.dp),
-            horizontalAlignment = if (isMyMessage) Alignment.End else Alignment.Start
-        ) {
-            if (!isMyMessage) {
-                Text(
-                    message.senderName,
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
-                )
-            }
-
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isMyMessage) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
-                ),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text(
-                    message.message,
-                    modifier = Modifier.padding(12.dp),
-                    color = if (isMyMessage) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
 
 @Composable
 fun AddFriendDialog(
