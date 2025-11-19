@@ -83,6 +83,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentSnapshot
 import com.route.readers.data.model.Book
 import com.route.readers.data.model.User
+import com.route.readers.ui.components.NativeAdComposable
 import com.route.readers.ui.components.UserProfileImage
 import com.route.readers.ui.screens.attendance.AttendanceViewModel
 import com.route.readers.ui.theme.DarkRed
@@ -335,38 +336,50 @@ fun ActualFeedContent(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 80.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
-        items(feedItems, key = { it.id }) { item ->
-            val isLiked = likedFeedIds.contains(item.id)
-            val isBookmarked = bookmarkedFeedIds.contains(item.id)
-            FeedCard(
-                item = item,
-                isLiked = isLiked,
-                isBookmarked = isBookmarked,
-                onLikeClick = { onLikeClick(item.id, isLiked) },
-                onBookmarkClick = { onBookmarkClick(item.id, isBookmarked) },
-                onDeleteClick = {
-                    feedToDelete = item.id
-                    showDeleteDialog = true
-                },
-                onUserClick = {
-                    val userId = when (item) {
-                        is FeedItem.BookReview -> item.authorId
-                        is FeedItem.FollowNotification -> item.followerId
-                    }
-                    onNavigateToOtherUserProfile(userId)
-                },
-                onFollowBack = onFollowBack,
-                followerInfoMap = followerInfoMap,
-                modifier = Modifier,
-                wishlist = wishlist,
-                myLibrary = myLibrary,
-                onToggleWishlist = onToggleWishlist,
-                onToggleMyLibrary = onToggleMyLibrary
-            )
-            HorizontalDivider(
-                thickness = 1.dp,
-                color = Color(0xFFE0E0E0)
-            )
+        feedItems.forEachIndexed { index, item ->
+            item(key = item.id) {
+                val isLiked = likedFeedIds.contains(item.id)
+                val isBookmarked = bookmarkedFeedIds.contains(item.id)
+                FeedCard(
+                    item = item,
+                    isLiked = isLiked,
+                    isBookmarked = isBookmarked,
+                    onLikeClick = { onLikeClick(item.id, isLiked) },
+                    onBookmarkClick = { onBookmarkClick(item.id, isBookmarked) },
+                    onDeleteClick = {
+                        feedToDelete = item.id
+                        showDeleteDialog = true
+                    },
+                    onUserClick = {
+                        val userId = when (item) {
+                            is FeedItem.BookReview -> item.authorId
+                            is FeedItem.FollowNotification -> item.followerId
+                        }
+                        onNavigateToOtherUserProfile(userId)
+                    },
+                    onFollowBack = onFollowBack,
+                    followerInfoMap = followerInfoMap,
+                    modifier = Modifier,
+                    wishlist = wishlist,
+                    myLibrary = myLibrary,
+                    onToggleWishlist = onToggleWishlist,
+                    onToggleMyLibrary = onToggleMyLibrary
+                )
+                HorizontalDivider(
+                    thickness = 1.dp,
+                    color = Color(0xFFE0E0E0)
+                )
+            }
+
+            if ((index + 1) % 5 == 0) {
+                item {
+                    NativeAdComposable()
+                    HorizontalDivider(
+                        thickness = 1.dp,
+                        color = Color(0xFFE0E0E0)
+                    )
+                }
+            }
         }
     }
 }
