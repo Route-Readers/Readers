@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -42,7 +43,8 @@ fun FeedTopAppBar(
     onMyAccountClick: () -> Unit,
     onAttendanceClick: () -> Unit,
     onNavigateToChallenge: () -> Unit,
-    onTokenClick: () -> Unit
+    onTokenClick: () -> Unit,
+    onShowInterstitialAd: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
@@ -78,6 +80,14 @@ fun FeedTopAppBar(
                 Icon(
                     imageVector = Icons.Default.EmojiEvents,
                     contentDescription = "챌린지",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            IconButton(onClick = onShowInterstitialAd) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = "Show Ad",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }

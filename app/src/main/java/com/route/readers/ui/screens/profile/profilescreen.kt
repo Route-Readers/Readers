@@ -100,6 +100,7 @@ import com.route.readers.R
 import com.route.readers.data.model.Book
 import com.route.readers.data.model.Challenge
 import com.route.readers.data.model.User
+import com.route.readers.ui.components.AdBanner
 import com.route.readers.ui.screens.feed.FeedCard
 import com.route.readers.ui.screens.feed.FeedItem
 import com.route.readers.ui.theme.DarkRed
@@ -280,6 +281,9 @@ fun ProfileContent(
         }
 
         if (state.isMyProfile) {
+            item {
+                AdBanner() // Ad banner above the GoalSettingSection
+            }
             item {
                 GoalSettingSection(
                     onSetGoalClick = onNavigateToGoal,

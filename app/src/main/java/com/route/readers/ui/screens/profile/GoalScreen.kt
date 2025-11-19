@@ -55,11 +55,11 @@ fun GoalScreen(
                 }
             }
         }
-    ) { paddingValues ->
+    ) { paddingValues -> // 1. Scaffold의 content 람다에서 paddingValues를 파라미터로 받습니다.
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .padding(paddingValues) // 2. 받은 paddingValues를 Modifier.padding()에 적용합니다.
                 .padding(16.dp),
             contentAlignment = Alignment.TopCenter
         ) {
@@ -94,12 +94,12 @@ fun GoalScreen(
         }
     }
 
-    showDeleteDialog?.let { goalToDelete ->
+    showDeleteDialog?.let {
         DeleteGoalConfirmDialog(
-            goal = goalToDelete,
+            goal = it,
             onDismiss = { showDeleteDialog = null },
             onConfirm = {
-                goalViewModel.deleteGoal(goalToDelete)
+                goalViewModel.deleteGoal(it)
                 showDeleteDialog = null
             }
         )

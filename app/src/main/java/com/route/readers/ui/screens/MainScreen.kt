@@ -31,6 +31,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.google.firebase.auth.FirebaseAuth
 import com.route.readers.data.model.MyBook
+import com.route.readers.ui.components.AdBanner
 import com.route.readers.ui.components.BottomNavBar
 import com.route.readers.ui.components.BottomNavItem
 import com.route.readers.ui.screens.attendance.AttendanceViewModel
@@ -46,8 +47,11 @@ import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.profile.ProfileViewModel
 import com.route.readers.ui.screens.reading.ReadingTimerScreen
 import com.route.readers.ui.screens.reading.ReadingViewModel
+import android.app.Activity
 import com.route.readers.ui.screens.search.SearchScreen
+import com.route.readers.utils.InterstitialAdManager
 import java.net.URLEncoder
+import androidx.compose.foundation.layout.Column
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,6 +68,8 @@ fun MainScreen(
     onNavigateToChatList: () -> Unit
 ) {
     val context = LocalContext.current
+    val activity = LocalContext.current as Activity
+    val interstitialAdManager = remember { InterstitialAdManager(context) }
     val bottomNavController = rememberNavController()
     val mainViewModel: MainViewModel = viewModel()
     val readingViewModel: ReadingViewModel = viewModel()
@@ -120,7 +126,8 @@ fun MainScreen(
                     onNavigateToChallenge = onNavigateToChallenge,
                     onTokenClick = { 
                         Toast.makeText(context, "아직 공개되지 않은 기능이에요", Toast.LENGTH_SHORT).show()
-                    }
+                    },
+                    onShowInterstitialAd = { interstitialAdManager.showAd(activity) }
                 )
             }
         },
@@ -267,37 +274,38 @@ fun MainScreen(
             composable("blockList") {
                 BlockedUserScreen(onNavigateBack = { bottomNavController.popBackStack() })
             }
-                        composable(
-                            route = "reading_timer/{bookIsbn}?startNow={startNow}",
-                            arguments = listOf(
-                                navArgument("bookIsbn") { type = NavType.StringType },
-                                navArgument("startNow") {
-                                    type = NavType.BoolType
-                                    defaultValue = false
+            composable(
+                route = "reading_timer/{bookIsbn}?startNow={startNow}",
+                arguments = listOf(
+                    navArgument("bookIsbn") { type = NavType.StringType },
+                    navArgument("startNow") {
+                        type = NavType.BoolType
+                        defaultValue = false
+                    }
+                )
+            ) { backStackEntry ->
+                val bookIsbn = backStackEntry.arguments?.getString("bookIsbn")
+                val startNow = backStackEntry.arguments?.getBoolean("startNow") ?: false
+                selectedBook?.let { book ->
+                    if (book.isbn == bookIsbn) {
+                        ReadingTimerScreen(
+                            book = book,
+                            onNavigateBack = { bottomNavController.popBackStack() },
+                            onFinishReading = { timeInSeconds ->
+                                showFinishReadingDialogBook = book
+                                bottomNavController.navigate(BottomNavItem.MyLibrary.route) {
+                                    popUpTo(bottomNavController.graph.findStartDestination().id)
+                                    launchSingleTop = true
                                 }
-                            )
-                        ) { backStackEntry ->
-                            val bookIsbn = backStackEntry.arguments?.getString("bookIsbn")
-                            val startNow = backStackEntry.arguments?.getBoolean("startNow") ?: false
-                            selectedBook?.let { book ->
-                                if (book.isbn == bookIsbn) {
-                                    ReadingTimerScreen(
-                                        book = book,
-                                        onNavigateBack = { bottomNavController.popBackStack() },
-                                        onFinishReading = { timeInSeconds ->
-                                            showFinishReadingDialogBook = book
-                                            bottomNavController.navigate(BottomNavItem.MyLibrary.route) {
-                                                popUpTo(bottomNavController.graph.findStartDestination().id)
-                                                launchSingleTop = true
-                                            }
-                                        },
-                                        onDisposeReading = { timeInSeconds ->
-                                            readingViewModel.saveReadingSession(book, timeInSeconds)
-                                        },
-                                        startNow = startNow
-                                    )
-                                }
-                            }
-                        }        }
+                            },
+                            onDisposeReading = { timeInSeconds ->
+                                readingViewModel.saveReadingSession(book, timeInSeconds)
+                            },
+                            startNow = startNow
+                        )
+                    }
+                }
+            }
+        }
     }
 }
