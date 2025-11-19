@@ -12,12 +12,10 @@ import com.google.android.gms.ads.AdView
 @Composable
 fun AdBanner() {
     AndroidView(
-        modifier = Modifier.fillMaxWidth(),
         factory = { context: Context ->
             AdView(context).apply {
-                // AdSize는 AdView에 직접 설정하는 것이 일반적입니다.
-                // 이 예제에서는 BANNER 크기를 사용합니다.
-                this.setAdSize(AdSize.BANNER)
+                val adaptiveAdSize = AdSize.getPortraitAnchoredAdaptiveBannerAdSize(context, 300)
+                this.setAdSize(adaptiveAdSize)
                 adUnitId = "ca-app-pub-3940256099942544/6300978111" // Test Ad Unit ID
                 loadAd(AdRequest.Builder().build())
             }

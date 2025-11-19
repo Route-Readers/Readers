@@ -84,6 +84,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentSnapshot
 import com.route.readers.data.model.Book
 import com.route.readers.data.model.User
+import com.route.readers.ui.components.AdBanner
 import com.route.readers.ui.components.NativeAdComposable
 import com.route.readers.ui.components.UserProfileImage
 import com.route.readers.ui.screens.attendance.AttendanceViewModel
@@ -236,12 +237,14 @@ fun SortableFeedContent(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        Box(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
-            contentAlignment = Alignment.CenterEnd
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            AdBanner()
             Text(
                 text = sortOption.displayName,
                 fontSize = 14.sp,
