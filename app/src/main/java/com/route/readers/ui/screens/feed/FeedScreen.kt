@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -336,49 +337,45 @@ fun ActualFeedContent(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 80.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
-        feedItems.forEachIndexed { index, item ->
-            item(key = item.id) {
-                val isLiked = likedFeedIds.contains(item.id)
-                val isBookmarked = bookmarkedFeedIds.contains(item.id)
-                FeedCard(
-                    item = item,
-                    isLiked = isLiked,
-                    isBookmarked = isBookmarked,
-                    onLikeClick = { onLikeClick(item.id, isLiked) },
-                    onBookmarkClick = { onBookmarkClick(item.id, isBookmarked) },
-                    onDeleteClick = {
-                        feedToDelete = item.id
-                        showDeleteDialog = true
-                    },
-                    onUserClick = {
-                        val userId = when (item) {
-                            is FeedItem.BookReview -> item.authorId
-                            is FeedItem.FollowNotification -> item.followerId
-                        }
-                        onNavigateToOtherUserProfile(userId)
-                    },
-                    onFollowBack = onFollowBack,
-                    followerInfoMap = followerInfoMap,
-                    modifier = Modifier,
-                    wishlist = wishlist,
-                    myLibrary = myLibrary,
-                    onToggleWishlist = onToggleWishlist,
-                    onToggleMyLibrary = onToggleMyLibrary
-                )
+        itemsIndexed(feedItems, key = { _, item -> item.id }) { index, item ->
+            val isLiked = likedFeedIds.contains(item.id)
+            val isBookmarked = bookmarkedFeedIds.contains(item.id)
+            FeedCard(
+                item = item,
+                isLiked = isLiked,
+                isBookmarked = isBookmarked,
+                onLikeClick = { onLikeClick(item.id, isLiked) },
+                onBookmarkClick = { onBookmarkClick(item.id, isBookmarked) },
+                onDeleteClick = {
+                    feedToDelete = item.id
+                    showDeleteDialog = true
+                },
+                onUserClick = {
+                    val userId = when (item) {
+                        is FeedItem.BookReview -> item.authorId
+                        is FeedItem.FollowNotification -> item.followerId
+                    }
+                    onNavigateToOtherUserProfile(userId)
+                },
+                onFollowBack = onFollowBack,
+                followerInfoMap = followerInfoMap,
+                modifier = Modifier,
+                wishlist = wishlist,
+                myLibrary = myLibrary,
+                onToggleWishlist = onToggleWishlist,
+                onToggleMyLibrary = onToggleMyLibrary
+            )
+            HorizontalDivider(
+                thickness = 1.dp,
+                color = Color(0xFFE0E0E0)
+            )
+
+            if ((index + 1) % 3 == 0) {
+                NativeAdComposable()
                 HorizontalDivider(
                     thickness = 1.dp,
                     color = Color(0xFFE0E0E0)
                 )
-            }
-
-            if ((index + 1) % 5 == 0) {
-                item {
-                    NativeAdComposable()
-                    HorizontalDivider(
-                        thickness = 1.dp,
-                        color = Color(0xFFE0E0E0)
-                    )
-                }
             }
         }
     }
