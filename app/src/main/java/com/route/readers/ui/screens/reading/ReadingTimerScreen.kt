@@ -60,12 +60,13 @@ fun ReadingTimerScreen(
     book: MyBook,
     onNavigateBack: () -> Unit,
     onFinishReading: (Int) -> Unit,
-    onDisposeReading: (Int) -> Unit
+    onDisposeReading: (Int) -> Unit,
+    startNow: Boolean = false
 ) {
     val firestoreRepository = remember { FirestoreRepository() }
     val coroutineScope = rememberCoroutineScope()
     val (initialIsRunning, initialSeconds) = TimerState.getState(book.isbn)
-    var isRunning by remember { mutableStateOf(initialIsRunning) }
+    var isRunning by remember { mutableStateOf(startNow || initialIsRunning) }
     var seconds by remember { mutableStateOf(initialSeconds) }
     var showFinishDialog by remember { mutableStateOf(false) }
     var showBackDialog by remember { mutableStateOf(false) }

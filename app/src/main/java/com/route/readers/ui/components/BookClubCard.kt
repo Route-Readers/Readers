@@ -63,7 +63,7 @@ fun BookClubCard(
                             MaterialTheme.colorScheme.onSurface
                         }
                     )
-
+                    
                     if (bookClub.description.isNotBlank()) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
@@ -79,7 +79,7 @@ fun BookClubCard(
                         )
                     }
                 }
-
+                
                 if (bookClub.isJoined) {
                     Surface(
                         shape = MaterialTheme.shapes.small,
@@ -95,9 +95,9 @@ fun BookClubCard(
                     }
                 }
             }
-
+            
             Spacer(modifier = Modifier.height(12.dp))
-
+            
             // 책 정보 섹션
             Row(
                 verticalAlignment = Alignment.CenterVertically
@@ -126,9 +126,9 @@ fun BookClubCard(
                     }
                 )
             }
-
+            
             Spacer(modifier = Modifier.height(12.dp))
-
+            
             // 하단 액션 섹션
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -156,7 +156,7 @@ fun BookClubCard(
                             MaterialTheme.colorScheme.onSurfaceVariant
                         }
                     )
-
+                    
                     // 생성일 표시
                     if (bookClub.createdAt > 0) {
                         Spacer(modifier = Modifier.width(12.dp))
@@ -172,7 +172,7 @@ fun BookClubCard(
                         )
                     }
                 }
-
+                
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (bookClub.isJoined && onChatClick != null) {
                         IconButton(
@@ -187,7 +187,7 @@ fun BookClubCard(
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                     }
-
+                    
                     Button(
                         onClick = onJoinClick,
                         colors = ButtonDefaults.buttonColors(

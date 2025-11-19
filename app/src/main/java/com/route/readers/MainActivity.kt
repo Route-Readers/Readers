@@ -360,14 +360,7 @@ fun RootAppNavigation(accountViewModel: AccountViewModel) {
             AccountScreen(
                 onNavigateBack = { appNavController.popBackStack() },
                 onNavigateToStatistics = { appNavController.navigate("statistics_route") },
-                onNavigateToWidgetScreen = { appNavController.navigate("widget_route") },
                 viewModel = accountViewModel
-            )
-        }
-
-        composable("widget_route") {
-            com.route.readers.ui.screens.profile.WidgetScreen(
-                onNavigateBack = { appNavController.popBackStack() }
             )
         }
 
@@ -399,7 +392,6 @@ fun RootAppNavigation(accountViewModel: AccountViewModel) {
                 ProfileScreen(
                     userId = userId,
                     viewModel = profileViewModel,
-                    onNavigateBack = { appNavController.popBackStack() },
                     onNavigateToFollowList = { listType, nickname ->
                         val encodedNickname = URLEncoder.encode(nickname, "UTF-8")
                         appNavController.navigate("follow_list_route/$userId/$listType/$encodedNickname")
@@ -446,14 +438,9 @@ fun RootAppNavigation(accountViewModel: AccountViewModel) {
                             launchSingleTop = true
                         }
                     },
-                    onNavigateBack = { appNavController.popBackStack() },
-                    onNavigateToFollowRequests = { appNavController.navigate("follow_requests_route") }
+                    onNavigateBack = { appNavController.popBackStack() }
                 )
             }
-        }
-
-        composable("follow_requests_route") {
-            com.route.readers.ui.screens.profile.FollowRequestsScreen(onNavigateBack = { appNavController.popBackStack() })
         }
 
         composable("add_feed_route") {

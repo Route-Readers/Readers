@@ -1,8 +1,6 @@
 package com.route.readers
 
 import android.app.Application
-import androidx.lifecycle.DefaultLifecycleObserver
-import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.route.readers.notification.FCMTokenManager
 import com.route.readers.utils.SessionTimer
@@ -24,19 +22,5 @@ class ReadersApplication : Application() {
         GlobalScope.launch {
             FCMTokenManager.updateFCMToken()
         }
-
-        ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
-            override fun onStart(owner: LifecycleOwner) {
-                isAppInForeground = true
-            }
-
-            override fun onStop(owner: LifecycleOwner) {
-                isAppInForeground = false
-            }
-        })
-    }
-
-    companion object {
-        var isAppInForeground: Boolean = false
     }
 }

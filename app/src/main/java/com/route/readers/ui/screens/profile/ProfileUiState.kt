@@ -25,7 +25,6 @@ sealed class ProfileUiState {
     data class Success(
         val user: User,
         val isFollowing: Boolean,
-        val isRequestPending: Boolean,
         val isMyProfile: Boolean,
         val isBlocked: Boolean,
         val recommendedBooks: List<Book>,

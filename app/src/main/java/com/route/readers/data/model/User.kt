@@ -38,11 +38,5 @@ data class User(@DocumentId @get:Exclude
                 val totalReadingDays: Int = 0,
                 val lastLoginDate: String = "",
                 @PropertyName("private")
-                val isPrivate: Boolean = false,
-
-                val friendReadingAlarmEnabled: Boolean? = true,
-                val followAlarmEnabled: Boolean? = true,
-                val messageAlarmEnabled: Boolean? = true,
-                val friendRequestAlarmEnabled: Boolean? = true,
-                val likeAlarmEnabled: Boolean? = true
+                val isPrivate: Boolean = false
 )
