@@ -159,27 +159,19 @@ class NotificationRepository(private val context: Context? = null) {
                 
                 // 각 맞팔 친구에게 알림 보내기
                 mutualFollowers.forEach { friendId ->
-                    // 친구의 알림 설정 가져오기
-                    val friendUserDoc = firestore.collection("users").document(friendId).get().await()
-                    val friendReadingAlarmEnabled = friendUserDoc.getBoolean("friendReadingAlarmEnabled") ?: true // 기본값은 true로 설정
-
-                    if (friendReadingAlarmEnabled) {
-                        android.util.Log.d("NotificationRepository", "Sending notification to mutual follower: $friendId")
-                        
-                        // Firestore에 알림 저장
-                        createNotification(
-                            userId = friendId,
-                            type = NotificationType.READING_INVITATION,
-                            title = title,
-                            message = message,
-                            data = mapOf("fromUserId" to userId, "fromUserName" to userName)
-                        )
-                        
-                        // FCM 푸시 알림 전송
-                        sendFCMNotification(friendId, title, message, NotificationType.READING_INVITATION)
-                    } else {
-                        android.util.Log.d("NotificationRepository", "Friend $friendId has disabled reading notifications.")
-                    }
+                    android.util.Log.d("NotificationRepository", "Sending notification to mutual follower: $friendId")
+                    
+                    // Firestore에 알림 저장
+                    createNotification(
+                        userId = friendId,
+                        type = NotificationType.READING_INVITATION,
+                        title = title,
+                        message = message,
+                        data = mapOf("fromUserId" to userId, "fromUserName" to userName)
+                    )
+                    
+                    // FCM 푸시 알림 전송
+                    sendFCMNotification(friendId, title, message)
                 }
                 
                 android.util.Log.d("NotificationRepository", "Successfully sent ${mutualFollowers.size} notifications")
@@ -190,14 +182,13 @@ class NotificationRepository(private val context: Context? = null) {
         }
     }
 
-    private suspend fun sendFCMNotification(userId: String, title: String, message: String, notificationType: NotificationType) {
+    private suspend fun sendFCMNotification(userId: String, title: String, message: String) {
         try {
             // fcmRequests 컬렉션에 문서를 추가하여 Cloud Function을 트리거합니다.
             val fcmRequest = hashMapOf(
                 "targetUserId" to userId,
                 "title" to title,
                 "message" to message,
-                "notificationType" to notificationType.name,
                 "createdAt" to com.google.firebase.Timestamp.now()
             )
 

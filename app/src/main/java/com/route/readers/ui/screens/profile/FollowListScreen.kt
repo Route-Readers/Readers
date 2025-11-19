@@ -17,7 +17,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
@@ -65,7 +64,6 @@ fun FollowListScreen(
     nickname: String,
     onUserClick: (String) -> Unit,
     onNavigateBack: () -> Unit,
-    onNavigateToFollowRequests: () -> Unit,
     viewModel: FollowListViewModel = viewModel()
 ) {
     val tabs = listOf("팔로워", "팔로잉", "사용자")
@@ -81,7 +79,6 @@ fun FollowListScreen(
     val uiState by viewModel.uiState.collectAsState()
     val searchedUsers by viewModel.searchedUsers.collectAsState()
     val keyboardController = LocalSoftwareKeyboardController.current
-    val isMyProfile by viewModel.isMyProfile.collectAsState()
 
     LaunchedEffect(key1 = userId, key2 = selectedTabIndex) {
         viewModel.loadListForTab(userId, selectedTabIndex)
@@ -100,14 +97,6 @@ fun FollowListScreen(
                     }
                 },
                 actions = {
-                    if (isMyProfile) {
-                        IconButton(onClick = onNavigateToFollowRequests) {
-                            Icon(
-                                imageVector = Icons.Default.Notifications,
-                                contentDescription = "팔로우 요청"
-                            )
-                        }
-                    }
                     IconButton(onClick = {
                         if (selectedTabIndex == 2) viewModel.loadAllUsers() else viewModel.refresh()
                     }) {
@@ -214,11 +203,9 @@ fun FollowListScreen(
                         LazyColumn(modifier = Modifier.fillMaxSize()) {
                             items(searchedUsers, key = { it.uid }) { user ->
                                 val isFollowing = (uiState as FollowListUiState.Success).currentUserFollowingIds.contains(user.uid)
-                                val isRequestPending = (uiState as FollowListUiState.Success).pendingFollowRequests.contains(user.uid)
                                 UserItem(
                                     user = user,
                                     isFollowing = isFollowing,
-                                    isRequestPending = isRequestPending,
                                     selectedTabIndex = selectedTabIndex,
                                     onUserClick = { onUserClick(user.uid) },
                                     onFollowClick = { viewModel.toggleFollow(user.uid) }
@@ -237,7 +224,6 @@ fun FollowListScreen(
 fun UserItem(
     user: User,
     isFollowing: Boolean,
-    isRequestPending: Boolean,
     selectedTabIndex: Int,
     onUserClick: () -> Unit,
     onFollowClick: () -> Unit
@@ -272,18 +258,13 @@ fun UserItem(
         Spacer(modifier = Modifier.width(16.dp))
 
         if (user.uid != currentUserId) {
-            val buttonText = if (isRequestPending) {
-                "요청됨" // Reverted to "요청됨"
-            } else {
-                when (selectedTabIndex) {
-                    0 -> if (isFollowing) "팔로우 취소" else "맞팔로우"
-                    1 -> "팔로우 취소"
-                    else -> if (isFollowing) "팔로우 취소" else "팔로우"
-                }
+            val buttonText = when (selectedTabIndex) {
+                0 -> if (isFollowing) "팔로우 취소" else "맞팔로우"
+                1 -> "팔로우 취소"
+                else -> if (isFollowing) "팔로우 취소" else "팔로우"
             }
 
-            // usePrimaryColor should not apply if a request is pending, as the button will be disabled.
-            val usePrimaryColor = !isFollowing && selectedTabIndex != 1 && !isRequestPending
+            val usePrimaryColor = !isFollowing && selectedTabIndex != 1
 
             Button(
                 onClick = onFollowClick,
@@ -291,8 +272,7 @@ fun UserItem(
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (usePrimaryColor) DarkRed else MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = if (usePrimaryColor) Color.White else MaterialTheme.colorScheme.onSecondaryContainer
-                ),
-                enabled = !isRequestPending // Reverted to disabled if request is pending
+                )
             ) {
                 Text(buttonText, fontSize = 13.sp)
             }

@@ -50,7 +50,7 @@ class AccountViewModel(
                 db.collection("users").document(userId)
                     .update("private", isPrivate)
                     .await()
-
+                
                 fetchUserProfile(userId)
                 Log.d("AccountViewModel", "User privacy setting updated successfully.")
             } catch (e: Exception) {
@@ -62,22 +62,6 @@ class AccountViewModel(
     fun updateDarkModeSetting(isDark: Boolean) {
         viewModelScope.launch {
             userPreferencesRepository.updateDarkMode(isDark)
-        }
-    }
-
-    fun updateNotificationSetting(key: String, value: Boolean) {
-        val userId = auth.currentUser?.uid ?: return
-        viewModelScope.launch {
-            try {
-                db.collection("users").document(userId)
-                    .update(key, value)
-                    .await()
-
-                fetchUserProfile(userId)
-                Log.d("AccountViewModel", "User notification setting '$key' updated successfully.")
-            } catch (e: Exception) {
-                Log.e("AccountViewModel", "Failed to update user notification setting '$key'.", e)
-            }
         }
     }
 }

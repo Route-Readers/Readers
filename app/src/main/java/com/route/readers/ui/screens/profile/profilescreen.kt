@@ -31,7 +31,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
@@ -40,7 +39,6 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.EmojiEvents
@@ -55,8 +53,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -73,8 +69,6 @@ import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -113,11 +107,9 @@ import kotlinx.coroutines.launch
 import kotlin.text.isNotEmpty
 import kotlin.text.toFloat
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     userId: String,
-    onNavigateBack: () -> Unit,
     onNavigateToFollowList: (listType: String, nickname: String) -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToMyBookList: () -> Unit,
@@ -159,24 +151,11 @@ fun ProfileScreen(
     }
 
     Scaffold(
-        topBar = {
-            val state = uiState
-            if (state is ProfileUiState.Success) {
-                ProfileTopAppBar(
-                    user = state.user,
-                    isMyProfile = state.isMyProfile,
-                    onNavigateBack = onNavigateBack,
-                    onBlockUser = { viewModel.blockUser(state.user.uid) },
-                    onUnblockUser = { viewModel.unblockUser(state.user.uid) }
-                )
-            }
-        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { paddingValues ->
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
+                .fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
             when (val state = uiState) {
@@ -215,7 +194,6 @@ fun ProfileScreen(
                         onNavigateToGoal = onNavigateToGoal,
                         onBlockUser = { viewModel.blockUser(state.user.uid) },
                         onUnblockUser = { viewModel.unblockUser(state.user.uid) },
-                        isRequestPending = state.isRequestPending,
                         onBookmarkClick = { feedId, isBookmarked ->
                             viewModel.toggleBookmark(feedId, isBookmarked)
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -230,60 +208,6 @@ fun ProfileScreen(
             }
         }
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ProfileTopAppBar(
-    user: User,
-    isMyProfile: Boolean,
-    onNavigateBack: () -> Unit,
-    onBlockUser: () -> Unit,
-    onUnblockUser: () -> Unit
-) {
-    var menuExpanded by remember { mutableStateOf(false) }
-
-    TopAppBar(
-        title = { Text(user.nickname, fontWeight = FontWeight.Bold) },
-        navigationIcon = {
-            if (!isMyProfile) {
-                IconButton(onClick = onNavigateBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "뒤로 가기"
-                    )
-                }
-            }
-        },
-        actions = {
-            if (!isMyProfile) {
-                Box {
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "더보기"
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("차단하기") },
-                            onClick = {
-                                onBlockUser()
-                                menuExpanded = false
-                            }
-                        )
-                    }
-                }
-            }
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            titleContentColor = MaterialTheme.colorScheme.onSurface
-        )
-    )
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -303,7 +227,6 @@ fun ProfileContent(
     onNavigateToGoal: () -> Unit,
     onBlockUser: () -> Unit,
     onUnblockUser: () -> Unit,
-    isRequestPending: Boolean,
     onBookmarkClick: (String, Boolean) -> Unit
 ) {
     val user = state.user
@@ -335,7 +258,7 @@ fun ProfileContent(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(vertical = 0.dp)
+        contentPadding = PaddingValues(vertical = 8.dp)
     ) {
         item {
             ProfileInfoSection(
@@ -343,7 +266,6 @@ fun ProfileContent(
                 level = level,
                 isMyProfile = state.isMyProfile,
                 isFollowing = state.isFollowing,
-                isRequestPending = state.isRequestPending,
                 isBlocked = state.isBlocked,
                 onFollowClick = onFollowClick,
                 onUnfollowClick = onUnfollowClick,
@@ -354,7 +276,8 @@ fun ProfileContent(
                 onNavigateToLevel = onNavigateToLevel,
                 onBlockUser = onBlockUser,
                 onUnblockUser = onUnblockUser
-            )        }
+            )
+        }
 
         if (state.isMyProfile) {
             item {
@@ -569,7 +492,6 @@ fun ProfileInfoSection(
     level: Int,
     isMyProfile: Boolean,
     isFollowing: Boolean,
-    isRequestPending: Boolean,
     isBlocked: Boolean,
     onFollowClick: () -> Unit,
     onUnfollowClick: () -> Unit,
@@ -659,33 +581,15 @@ fun ProfileInfoSection(
                         }
                     } else {
                         Button(
-                            onClick = {
-                                if (isFollowing) { // Only call unfollow if already following
-                                    onUnfollowClick()
-                                } else { // Otherwise, try to follow (or send request)
-                                    onFollowClick()
-                                }
-                            },
+                            onClick = { if (isFollowing) onUnfollowClick() else onFollowClick() },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(
-                                // If a request is pending, it should look disabled.
-                                // If already following, use secondary color for "언팔로우".
-                                // Otherwise, use DarkRed for "팔로우".
-                                containerColor = when {
-                                    isRequestPending -> MaterialTheme.colorScheme.surfaceVariant
-                                    isFollowing -> MaterialTheme.colorScheme.secondary
-                                    else -> DarkRed
-                                },
-                                contentColor = when {
-                                    isRequestPending -> MaterialTheme.colorScheme.onSurfaceVariant
-                                    isFollowing -> MaterialTheme.colorScheme.onSecondary
-                                    else -> MaterialTheme.colorScheme.onPrimary
-                                }
-                            ),
-                            enabled = !isRequestPending // Disabled if request is pending
+                                containerColor = if (isFollowing) MaterialTheme.colorScheme.secondary else DarkRed,
+                                contentColor = if (isFollowing) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onPrimary
+                            )
                         ) {
-                            Text(text = if (isRequestPending) "요청됨" else if (isFollowing) "언팔로우" else "팔로우") // Reverted button text for pending
+                            Text(text = if (isFollowing) "언팔로우" else "팔로우")
                         }
                         OutlinedButton(
                             onClick = onBlockUser,
@@ -724,54 +628,54 @@ fun GoalSettingSection(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column {
-                Column {
-                    if (currentGoal != null) {
-                        val totalPages = currentGoal.pages.toIntOrNull() ?: 0
-                        val progress = if (totalPages > 0) {
-                            (currentGoal.currentPage.toFloat() / totalPages.toFloat())
-                        } else 0f
-
-                        Text(
-                            text = "현재 목표: ${currentGoal.bookTitle}",
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
+            Column {
+                if (currentGoal != null) {
+                    val totalPages = currentGoal.pages.toIntOrNull() ?: 0
+                    val progress = if (totalPages > 0) {
+                        (currentGoal.currentPage.toFloat() / totalPages.toFloat())
+                    } else 0f
+                    
+                    Text(
+                        text = "현재 목표: ${currentGoal.bookTitle}",
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "하루 ${currentGoal.dailyPages}페이지 • ${currentGoal.duration}일",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier.weight(1f),
+                            color = DarkRed,
+                            trackColor = DarkRed.copy(alpha = 0.2f)
                         )
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "하루 ${currentGoal.dailyPages}페이지 • ${currentGoal.duration}일",
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            LinearProgressIndicator(
-                                progress = { progress },
-                                modifier = Modifier.weight(1f),
-                                color = DarkRed,
-                                trackColor = DarkRed.copy(alpha = 0.2f)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "${currentGoal.currentPage}/${totalPages}",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    } else {
-                        Text(
-                            text = "나만의 독서 목표를 설정해보세요!",
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "목표를 설정하고 꾸준한 독서 습관을 만들어보세요.",
-                            fontSize = 13.sp,
+                            text = "${currentGoal.currentPage}/${totalPages}",
+                            fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                } else {
+                    Text(
+                        text = "나만의 독서 목표를 설정해보세요!",
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "목표를 설정하고 꾸준한 독서 습관을 만들어보세요.",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
+            }
             }
             Icon(
                 imageVector = Icons.Default.KeyboardArrowRight,

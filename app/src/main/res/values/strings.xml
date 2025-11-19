@@ -2,13 +2,4 @@
 <resources>
     <string name="app_name">Readers</string>
     <string name="widget_description">현재 읽고 있는 책의 진행률을 표시합니다</string>
-    <string name="widget_description_small">현재 읽고 있는 책의 진행률을 표시합니다 (작은 버전)</string>
-    <string name="widget_description_large">현재 읽고 있는 책의 진행률을 표시합니다 (큰 버전)</string>
-    <string name="widget_description_4x1">현재 읽고 있는 책의 진행률을 표시합니다 (4x1 버전)</string>
-    <string name="widget_description_4x2">현재 읽고 있는 책의 진행률을 표시합니다 (4x2 버전)</string>
-    <string name="widget_name_reading_progress">독서 진행 위젯</string>
-    <string name="widget_name_reading_progress_small">독서 진행 위젯 (작게)</string>
-    <string name="widget_name_reading_progress_large">독서 진행 위젯 (크게)</string>
-    <string name="widget_name_reading_progress_4x1">독서 진행 위젯 (4x1)</string>
-    <string name="widget_name_reading_progress_4x2">독서 진행 위젯 (4x2)</string>
 </resources>

@@ -38,7 +38,6 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -71,9 +70,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.route.readers.data.UserPreferencesRepository
-import com.route.readers.notification.DailyNotificationScheduler
 import com.route.readers.ui.theme.DarkRed
-import com.route.readers.util.SharedPreferencesManager
+
 
 enum class MenuItemType {
     PRIVACY,
@@ -81,7 +79,6 @@ enum class MenuItemType {
     STATISTICS,
     DISPLAY,
     NOTIFICATIONS,
-    WIDGET,
     TERMS,
     CONTACT
 }
@@ -100,7 +97,6 @@ data class AccountMenuItem(
 fun AccountScreen(
     onNavigateBack: () -> Unit,
     onNavigateToStatistics: () -> Unit,
-    onNavigateToWidgetScreen: () -> Unit,
     viewModel: AccountViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -109,7 +105,6 @@ fun AccountScreen(
     var isStatisticsMenuExpanded by remember { mutableStateOf(false) }
     var isDisplayMenuExpanded by remember { mutableStateOf(false) }
     var isNotificationsMenuExpanded by remember { mutableStateOf(false) }
-    var isWidgetMenuExpanded by remember { mutableStateOf(false) }
 
     val uiState by viewModel.uiState.collectAsState()
     val isDarkMode by viewModel.isDarkMode.collectAsState()
@@ -129,7 +124,6 @@ fun AccountScreen(
                 isStatisticsMenuExpanded = false
                 isDisplayMenuExpanded = false
                 isNotificationsMenuExpanded = false
-                isWidgetMenuExpanded = false
             }
         ),
         AccountMenuItem(
@@ -143,7 +137,6 @@ fun AccountScreen(
                 isStatisticsMenuExpanded = false
                 isDisplayMenuExpanded = false
                 isNotificationsMenuExpanded = false
-                isWidgetMenuExpanded = false
             }
         ),
         AccountMenuItem(
@@ -157,7 +150,6 @@ fun AccountScreen(
                 isActivityMenuExpanded = false
                 isDisplayMenuExpanded = false
                 isNotificationsMenuExpanded = false
-                isWidgetMenuExpanded = false
             }
         ),
         AccountMenuItem(
@@ -171,7 +163,6 @@ fun AccountScreen(
                 isActivityMenuExpanded = false
                 isStatisticsMenuExpanded = false
                 isNotificationsMenuExpanded = false
-                isWidgetMenuExpanded = false
             }
         ),
         AccountMenuItem(
@@ -185,21 +176,6 @@ fun AccountScreen(
                 isActivityMenuExpanded = false
                 isStatisticsMenuExpanded = false
                 isDisplayMenuExpanded = false
-                isWidgetMenuExpanded = false
-            }
-        ),
-        AccountMenuItem(
-            type = MenuItemType.WIDGET,
-            title = "위젯 설정",
-            subtitle = "홈 화면 위젯 설정",
-            icon = Icons.Default.Widgets,
-            onClick = {
-                isWidgetMenuExpanded = !isWidgetMenuExpanded
-                isPrivacyMenuExpanded = false
-                isActivityMenuExpanded = false
-                isStatisticsMenuExpanded = false
-                isDisplayMenuExpanded = false
-                isNotificationsMenuExpanded = false
             }
         ),
         AccountMenuItem(
@@ -355,24 +331,7 @@ fun AccountScreen(
                                         animationSpec = tween(300)
                                     )
                                 ) {
-                                    NotificationSettings(
-                                        viewModel = viewModel,
-                                        user = state.user
-                                    )
-                                }
-                            }
-
-                            if (item.type == MenuItemType.WIDGET) {
-                                AnimatedVisibility(
-                                    visible = isWidgetMenuExpanded,
-                                    enter = expandVertically(animationSpec = tween(300)) + fadeIn(
-                                        animationSpec = tween(300)
-                                    ),
-                                    exit = shrinkVertically(animationSpec = tween(300)) + fadeOut(
-                                        animationSpec = tween(300)
-                                    )
-                                ) {
-                                    WidgetButton(onClick = onNavigateToWidgetScreen)
+                                    NotificationSettings()
                                 }
                             }
                         }
@@ -427,33 +386,6 @@ fun AccountMenuItemCard(item: AccountMenuItem) {
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             modifier = Modifier.size(28.dp)
-        )
-    }
-}
-
-@Composable
-fun WidgetButton(onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 2.dp)
-            .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
-            .background(MaterialTheme.colorScheme.surface)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = "위젯 설정",
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 16.sp,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = "위젯 설정 페이지로 이동",
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
         )
     }
 }
@@ -584,18 +516,8 @@ fun DarkModeToggle(
 }
 
 @Composable
-fun NotificationSettings(
-    viewModel: AccountViewModel,
-    user: com.route.readers.data.model.User
-) {
+fun NotificationSettings() {
     val context = LocalContext.current
-
-    var readingAlarm by remember {
-        mutableStateOf(SharedPreferencesManager.isNotificationEnabled(context))
-    }
-    val (initialHour, initialMinute) = SharedPreferencesManager.getNotificationTime(context)
-    var alarmHour by remember { mutableStateOf(initialHour) }
-    var alarmMinute by remember { mutableStateOf(initialMinute) }
 
     Column(
         modifier = Modifier
@@ -605,23 +527,24 @@ fun NotificationSettings(
             .background(MaterialTheme.colorScheme.surface)
             .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
+        var readingAlarm by remember { mutableStateOf(true) }
+        var friendReadingAlarm by remember { mutableStateOf(true) }
+        var messageAlarm by remember { mutableStateOf(true) }
+        var friendRequestAlarm by remember { mutableStateOf(true) }
+        var followAlarm by remember { mutableStateOf(true) }
+        var noNotifications by remember { mutableStateOf(false) }
+        var alarmHour by remember { mutableStateOf(20) }
+        var alarmMinute by remember { mutableStateOf(0) }
+
         NotificationToggleItem(
             title = "독서 시간 알람",
             subtitle = "설정한 시간에 독서 알림 받기",
-            checked = readingAlarm,
-            onCheckedChange = { isEnabled ->
-                readingAlarm = isEnabled
-                SharedPreferencesManager.setNotificationEnabled(context, isEnabled)
-                if (isEnabled) {
-                    DailyNotificationScheduler.scheduleDailyNotification(context)
-                } else {
-                    DailyNotificationScheduler.cancelDailyNotification(context)
-                }
-            },
-            enabled = true
+            checked = readingAlarm && !noNotifications,
+            onCheckedChange = { readingAlarm = it },
+            enabled = !noNotifications
         )
 
-        if (readingAlarm) {
+        if (readingAlarm && !noNotifications) {
             Spacer(modifier = Modifier.height(8.dp))
             TimeSettingRow(
                 selectedHour = alarmHour,
@@ -629,8 +552,6 @@ fun NotificationSettings(
                 onTimeChange = { hour, minute ->
                     alarmHour = hour
                     alarmMinute = minute
-                    SharedPreferencesManager.setNotificationTime(context, hour, minute)
-                    DailyNotificationScheduler.scheduleDailyNotification(context)
                 }
             )
         }
@@ -640,11 +561,9 @@ fun NotificationSettings(
         NotificationToggleItem(
             title = "친구 독서 알람",
             subtitle = "친구가 보내는 독서 알림 받기",
-            checked = user.friendReadingAlarmEnabled ?: true,
-            onCheckedChange = {
-                viewModel.updateNotificationSetting("friendReadingAlarmEnabled", it)
-            },
-            enabled = true
+            checked = friendReadingAlarm && !noNotifications,
+            onCheckedChange = { friendReadingAlarm = it },
+            enabled = !noNotifications
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -652,11 +571,9 @@ fun NotificationSettings(
         NotificationToggleItem(
             title = "메시지 알람",
             subtitle = "새로운 메시지 알림 받기",
-            checked = user.messageAlarmEnabled ?: true,
-            onCheckedChange = {
-                viewModel.updateNotificationSetting("messageAlarmEnabled", it)
-            },
-            enabled = true
+            checked = messageAlarm && !noNotifications,
+            onCheckedChange = { messageAlarm = it },
+            enabled = !noNotifications
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -664,11 +581,9 @@ fun NotificationSettings(
         NotificationToggleItem(
             title = "친구 요청 알람",
             subtitle = "새로운 친구 요청 알림 받기",
-            checked = user.friendRequestAlarmEnabled ?: true,
-            onCheckedChange = {
-                viewModel.updateNotificationSetting("friendRequestAlarmEnabled", it)
-            },
-            enabled = true
+            checked = friendRequestAlarm && !noNotifications,
+            onCheckedChange = { friendRequestAlarm = it },
+            enabled = !noNotifications
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -676,9 +591,39 @@ fun NotificationSettings(
         NotificationToggleItem(
             title = "팔로우 알람",
             subtitle = "새로운 팔로워 알림 받기",
-            checked = user.followAlarmEnabled ?: true,
+            checked = followAlarm && !noNotifications,
             onCheckedChange = {
-                viewModel.updateNotificationSetting("followAlarmEnabled", it)
+                followAlarm = it
+                val sharedPref = context.getSharedPreferences("notification_settings", android.content.Context.MODE_PRIVATE)
+                sharedPref.edit().putBoolean("follow_notifications", it).apply()
+            },
+            enabled = !noNotifications
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        NotificationToggleItem(
+            title = "알림 받지 않기",
+            subtitle = "모든 알림을 끄기",
+            checked = noNotifications,
+            onCheckedChange = {
+                noNotifications = it
+                if (it) {
+                    readingAlarm = false
+                    friendReadingAlarm = false
+                    messageAlarm = false
+                    friendRequestAlarm = false
+                    followAlarm = false
+                }
             },
             enabled = true
         )

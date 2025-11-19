@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import com.route.readers.data.remote.UserRepository // Import UserRepository
 
 sealed class LoginUiState {
     object Idle : LoginUiState()
@@ -24,7 +23,6 @@ sealed class LoginUiState {
 class LoginViewModel : ViewModel() {
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
     private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
-    private val userRepository: UserRepository = UserRepository() // Instantiate UserRepository
 
     private val _uiState = MutableStateFlow<LoginUiState>(LoginUiState.Idle)
     val uiState = _uiState.asStateFlow()
@@ -41,10 +39,7 @@ class LoginViewModel : ViewModel() {
                 if (task.isSuccessful) {
                     val user = auth.currentUser
                     if (user != null && user.isEmailVerified) {
-                        viewModelScope.launch { // Launch coroutine for suspend call
-                            userRepository.ensureLikeAlarmEnabled(user.uid) // Ensure field exists
-                            checkIfUserProfileExists(user.uid)
-                        }
+                        checkIfUserProfileExists(user.uid)
                     } else if (user != null && !user.isEmailVerified) {
                         _uiState.value = LoginUiState.Error("이메일 인증을 먼저 완료해주세요.")
                         auth.signOut()
@@ -81,19 +76,13 @@ class LoginViewModel : ViewModel() {
             _uiState.value = LoginUiState.Error("사용자 정보를 가져오는데 실패했습니다.")
             return
         }
-        viewModelScope.launch { // Launch coroutine for suspend call
-            userRepository.ensureLikeAlarmEnabled(firebaseUser.uid) // Ensure field exists
-            checkIfUserProfileExists(firebaseUser.uid)
-        }
+        checkIfUserProfileExists(firebaseUser.uid)
     }
 
     private fun checkIfUserProfileExists(uid: String) {
         viewModelScope.launch {
             _uiState.value = LoginUiState.Loading
             try {
-                // 항상 FCM 토큰 업데이트
-                com.route.readers.notification.FCMTokenManager.updateFCMToken()
-                
                 // 항상 FCM 토큰 업데이트
                 com.route.readers.notification.FCMTokenManager.updateFCMToken()
                 
