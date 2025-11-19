@@ -4,25 +4,21 @@ import android.content.Context
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.notification.FollowNotificationHelper
-import com.route.readers.ui.screens.community.Friend
+import com.route.readers.data.model.User // Corrected import
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.tasks.await
 
-sealed class AddFriendResult {
-    object Success : AddFriendResult()
-    object UserNotFound : AddFriendResult()
-    object AlreadyFriend : AddFriendResult()
-    data class Error(val message: String) : AddFriendResult()
-}
+// Friend management is now handled by followUser and unfollowUser.
+// Mutual followers automatically become friends.
 
 class FriendsRepository {
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
     
-    private val _friends = MutableStateFlow<List<Friend>>(emptyList())
-    val friends: StateFlow<List<Friend>> = _friends.asStateFlow()
+    private val _friends = MutableStateFlow<List<User>>(emptyList()) // Changed to List<User>
+    val friends: StateFlow<List<User>> = _friends.asStateFlow() // Changed to List<User>
     
     private var friendsListener: com.google.firebase.firestore.ListenerRegistration? = null
     
@@ -57,7 +53,7 @@ class FriendsRepository {
             return
         }
         
-        val friendsList = mutableListOf<Friend>()
+        val friendsList = mutableListOf<User>() // Changed to List<User>
         var loadedCount = 0
         
         friendIds.forEach { friendId ->
@@ -66,26 +62,20 @@ class FriendsRepository {
                 .get()
                 .addOnSuccessListener { friendDoc ->
                     if (friendDoc.exists()) {
-                        val friend = Friend(
-                            id = friendId,
-                            name = friendDoc.getString("nickname") ?: "알 수 없음",
-                            currentBook = "최근 본 책: 독서 중",
-                            isOnline = false,
-                            lastActive = "최근 활동"
-                        )
-                        friendsList.add(friend)
+                        val user = friendDoc.toObject(User::class.java) // Deserialize to User object
+                        user?.let { friendsList.add(it) }
                     }
                     
                     loadedCount++
                     if (loadedCount == friendIds.size) {
-                        _friends.value = friendsList.sortedBy { it.name }
+                        _friends.value = friendsList.sortedBy { it.nickname } // Sorted by nickname
                     }
                 }
                 .addOnFailureListener { e ->
                     e.printStackTrace()
                     loadedCount++
                     if (loadedCount == friendIds.size) {
-                        _friends.value = friendsList.sortedBy { it.name }
+                        _friends.value = friendsList.sortedBy { it.nickname }
                     }
                 }
         }
@@ -114,57 +104,130 @@ class FriendsRepository {
         friendsListener = null
     }
     
-    suspend fun addFriend(friendNickname: String): AddFriendResult {
-        // 이제 FriendRequestRepository를 사용하여 친구 요청을 보냄
-        val friendRequestRepository = FriendRequestRepository()
-        return friendRequestRepository.sendFriendRequest(friendNickname)
-    }
-    
-    suspend fun removeFriend(friendId: String) {
-        currentUserId?.let { userId ->
+    suspend fun followUser(userId: String, context: Context) {
+        currentUserId?.let { currentId ->
+            if (currentId == userId) return@let
+
             try {
-                val currentUserDoc = firestore.collection("users")
-                    .document(userId)
-                    .get()
-                    .await()
-                
-                val currentFriends = currentUserDoc.get("friends") as? MutableList<String> ?: mutableListOf()
-                currentFriends.remove(friendId)
-                
-                firestore.collection("users")
-                    .document(userId)
-                    .update("friends", currentFriends)
-                    .await()
-                
-                loadFriends()
+                val currentUserDocRef = firestore.collection("users").document(currentId)
+                val targetUserDocRef = firestore.collection("users").document(userId)
+
+                // Firestore transaction to ensure atomicity
+                firestore.runTransaction { transaction ->
+                    val currentUserSnapshot = transaction.get(currentUserDocRef)
+                    val targetUserSnapshot = transaction.get(targetUserDocRef)
+
+                    val currentFollowing = currentUserSnapshot.get("following") as? MutableList<String>
+                        ?: mutableListOf()
+                    if (!currentFollowing.contains(userId)) {
+                        currentFollowing.add(userId)
+                        transaction.update(currentUserDocRef, "following", currentFollowing)
+                        transaction.update(
+                            currentUserDocRef,
+                            "followingCount",
+                            currentFollowing.size.toLong()
+                        )
+                    }
+
+                    val targetFollowers =
+                        targetUserSnapshot.get("followers") as? MutableList<String> ?: mutableListOf()
+                    if (!targetFollowers.contains(currentId)) {
+                        targetFollowers.add(currentId)
+                        transaction.update(targetUserDocRef, "followers", targetFollowers)
+                        transaction.update(
+                            targetUserDocRef,
+                            "followerCount",
+                            targetFollowers.size.toLong()
+                        )
+                    }
+
+                    // Check for mutual follow
+                    val targetFollowing =
+                        targetUserSnapshot.get("following") as? List<String> ?: emptyList()
+                    if (targetFollowing.contains(currentId)) {
+                        // They are now mutual followers, so they become friends
+                        val currentUserFriends =
+                            currentUserSnapshot.get("friends") as? MutableList<String>
+                                ?: mutableListOf()
+                        if (!currentUserFriends.contains(userId)) {
+                            currentUserFriends.add(userId)
+                            transaction.update(currentUserDocRef, "friends", currentUserFriends)
+                        }
+
+                        val targetUserFriends =
+                            targetUserSnapshot.get("friends") as? MutableList<String>
+                                ?: mutableListOf()
+                        if (!targetUserFriends.contains(currentId)) {
+                            targetUserFriends.add(currentId)
+                            transaction.update(targetUserDocRef, "friends", targetUserFriends)
+                        }
+                    }
+                }.await()
+
+                // Send notification after transaction is successful
+                val currentUserNickname =
+                    firestore.collection("users").document(currentId).get().await()
+                        .getString("nickname") ?: "알 수 없는 사용자"
+                FollowNotificationHelper.sendFollowNotification(context, currentUserNickname)
+
             } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
     }
-    
-    suspend fun followUser(userId: String, context: Context) {
+
+    suspend fun unfollowUser(userId: String) {
         currentUserId?.let { currentId ->
+            if (currentId == userId) return@let
+
             try {
-                val currentUserDoc = firestore.collection("users").document(currentId)
-                val currentUserData = currentUserDoc.get().await()
-                val currentFollowing = currentUserData.get("following") as? MutableList<String> ?: mutableListOf()
-                
-                if (!currentFollowing.contains(userId)) {
-                    currentFollowing.add(userId)
-                    currentUserDoc.update("following", currentFollowing).await()
-                    
-                    val targetUserDoc = firestore.collection("users").document(userId)
-                    val targetFollowers = targetUserDoc.get().await().get("followers") as? MutableList<String> ?: mutableListOf()
-                    
-                    if (!targetFollowers.contains(currentId)) {
-                        targetFollowers.add(currentId)
-                        targetUserDoc.update("followers", targetFollowers).await()
-                        
-                        val currentUserNickname = currentUserData.getString("nickname") ?: "알 수 없는 사용자"
-                        FollowNotificationHelper.sendFollowNotification(context, currentUserNickname)
+                val currentUserDocRef = firestore.collection("users").document(currentId)
+                val targetUserDocRef = firestore.collection("users").document(userId)
+
+                firestore.runTransaction { transaction ->
+                    // Remove from current user's following list
+                    val currentUserSnapshot = transaction.get(currentUserDocRef)
+                    val currentFollowing =
+                        currentUserSnapshot.get("following") as? MutableList<String>
+                            ?: mutableListOf()
+                    if (currentFollowing.remove(userId)) {
+                        transaction.update(currentUserDocRef, "following", currentFollowing)
+                        transaction.update(
+                            currentUserDocRef,
+                            "followingCount",
+                            currentFollowing.size.toLong()
+                        )
                     }
-                }
+
+                    // Remove from target user's followers list
+                    val targetUserSnapshot = transaction.get(targetUserDocRef)
+                    val targetFollowers =
+                        targetUserSnapshot.get("followers") as? MutableList<String>
+                            ?: mutableListOf()
+                    if (targetFollowers.remove(currentId)) {
+                        transaction.update(targetUserDocRef, "followers", targetFollowers)
+                        transaction.update(
+                            targetUserDocRef,
+                            "followerCount",
+                            targetFollowers.size.toLong()
+                        )
+                    }
+
+                    // Remove friendship
+                    val currentUserFriends =
+                        currentUserSnapshot.get("friends") as? MutableList<String>
+                            ?: mutableListOf()
+                    if (currentUserFriends.remove(userId)) {
+                        transaction.update(currentUserDocRef, "friends", currentUserFriends)
+                    }
+
+                    val targetUserFriends =
+                        targetUserSnapshot.get("friends") as? MutableList<String>
+                            ?: mutableListOf()
+                    if (targetUserFriends.remove(currentId)) {
+                        transaction.update(targetUserDocRef, "friends", targetUserFriends)
+                    }
+                }.await()
             } catch (e: Exception) {
                 e.printStackTrace()
             }

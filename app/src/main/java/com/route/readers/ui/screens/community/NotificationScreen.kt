@@ -9,8 +9,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
@@ -20,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.route.readers.data.model.FriendRequest
 import com.route.readers.data.model.Notification
 import com.route.readers.data.model.NotificationType
 import java.text.SimpleDateFormat
@@ -33,12 +30,10 @@ fun NotificationScreen(
     viewModel: NotificationViewModel = viewModel()
 ) {
     val notifications by viewModel.notifications.collectAsState()
-    val friendRequests by viewModel.friendRequests.collectAsState()
     var selectedTabIndex by remember { mutableStateOf(0) }
 
     LaunchedEffect(Unit) {
         viewModel.loadNotifications()
-        viewModel.loadFriendRequests()
     }
 
     // 알림을 읽음/안읽음으로 분리하고 시간순 정렬
@@ -49,9 +44,6 @@ fun NotificationScreen(
     val readNotifications = notifications
         .filter { it.isRead }
         .sortedByDescending { it.timestamp }
-
-    // 친구 요청도 시간순 정렬
-    val sortedFriendRequests = friendRequests.sortedByDescending { it.timestamp }
 
     Scaffold(
         topBar = {
@@ -97,7 +89,7 @@ fun NotificationScreen(
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("새 알림")
-                            val newCount = sortedFriendRequests.size + unreadNotifications.size
+                            val newCount = unreadNotifications.size
                             if (newCount > 0) {
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Badge {
@@ -116,8 +108,7 @@ fun NotificationScreen(
 
             // 탭 내용
             when (selectedTabIndex) {
-                0 -> NewNotificationsTab(
-                    friendRequests = sortedFriendRequests,
+                0 -> NewNotificationsTab( // Removed friendRequests parameter
                     unreadNotifications = unreadNotifications,
                     viewModel = viewModel
                 )
@@ -131,8 +122,7 @@ fun NotificationScreen(
 
 @Composable
 fun NewNotificationsTab(
-    friendRequests: List<FriendRequest>,
-    unreadNotifications: List<Notification>,
+    unreadNotifications: List<Notification>, // Removed friendRequests parameter
     viewModel: NotificationViewModel
 ) {
     LazyColumn(
@@ -142,27 +132,6 @@ fun NewNotificationsTab(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // 친구 요청 (최우선)
-        if (friendRequests.isNotEmpty()) {
-            item {
-                Text(
-                    text = "친구 요청 (${friendRequests.size})",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 8.dp),
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-            }
-
-            items(friendRequests, key = { it.id }) { request ->
-                FriendRequestItem(
-                    request = request,
-                    onAccept = { viewModel.acceptFriendRequest(request.id) },
-                    onReject = { viewModel.rejectFriendRequest(request.id) }
-                )
-            }
-        }
-
         // 읽지 않은 알림
         if (unreadNotifications.isNotEmpty()) {
             item {
@@ -170,7 +139,7 @@ fun NewNotificationsTab(
                     text = "새 알림 (${unreadNotifications.size})",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
+                    modifier = Modifier.padding(bottom = 8.dp), // Removed top padding, adjusted to bottom
                     color = MaterialTheme.colorScheme.onBackground
                 )
             }
@@ -185,7 +154,7 @@ fun NewNotificationsTab(
             }
         }
 
-        if (friendRequests.isEmpty() && unreadNotifications.isEmpty()) {
+        if (unreadNotifications.isEmpty()) { // Condition updated
             item {
                 Box(
                     modifier = Modifier
@@ -236,54 +205,6 @@ fun ReadNotificationsTab(
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun FriendRequestItem(
-    request: FriendRequest,
-    onAccept: () -> Unit,
-    onReject: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = "${request.senderNickname}님이 친구 요청을 보냈습니다",
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Button(
-                    onClick = onAccept,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.Check, contentDescription = "수락")
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("수락")
-                }
-
-                OutlinedButton(
-                    onClick = onReject,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.Close, contentDescription = "거절")
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("거절")
                 }
             }
         }
@@ -368,36 +289,6 @@ fun NotificationItem(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                }
-            }
-
-            if (notification.type == NotificationType.FRIEND_REQUEST &&
-                !notification.isRead
-            ) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = {
-                            val requestId = notification.data["requestId"] as? String ?: ""
-                            if(requestId.isNotEmpty()) viewModel.acceptFriendRequest(requestId)
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("수락")
-                    }
-
-                    OutlinedButton(
-                        onClick = {
-                            val requestId = notification.data["requestId"] as? String ?: ""
-                            if(requestId.isNotEmpty()) viewModel.rejectFriendRequest(requestId)
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("거절")
-                    }
                 }
             }
         }

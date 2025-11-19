@@ -31,6 +31,8 @@ data class User(@DocumentId @get:Exclude
                 val followerCount: Long = 0,
                 val followingCount: Long = 0,
 
+                val friends: List<String> = emptyList(),
+
                 val readBookCount: Long = 0,
                 val isCurrentlyReading: Boolean = false,
                 val consecutiveDays: Int = 0,

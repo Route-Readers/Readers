@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.route.readers.data.model.BookClub
 import com.route.readers.data.model.Challenge
-import com.route.readers.data.remote.AddFriendResult
+import com.route.readers.data.model.User // Added User import
 import com.route.readers.data.remote.BookClubRepository
 import com.route.readers.data.remote.ChallengeRepository
 import com.route.readers.data.remote.FriendsRepository
@@ -16,26 +16,20 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
-data class Friend(
-    val id: String = "",
-    val name: String,
-    val currentBook: String,
-    val isOnline: Boolean,
-    val lastActive: String
-)
+// Friend data class removed, replaced by User
 
 data class CommunityUiState(
-    val friends: List<Friend> = emptyList(),
+    val friends: List<User> = emptyList(), // Changed to List<User>
     val bookClubs: List<BookClub> = emptyList(),
     val isBookClubsLoading: Boolean = true,
     val isChallengesLoading: Boolean = true,
     val userActiveChallenge: Challenge? = null,
     val availableChallenges: List<Challenge> = emptyList(),
     val addFriendMessage: String? = null,
-    val friendToDelete: Friend? = null,
+    val friendToDelete: User? = null, // Changed to User?
     val isNotificationSending: Boolean = false
 ) {
-    val displayedFriends: List<Friend> = friends.take(5)
+    val displayedFriends: List<User> = friends.take(5) // Changed to List<User>
     val hasMoreFriends: Boolean = friends.size > 5
 }
 
@@ -104,18 +98,8 @@ class CommunityViewModel : ViewModel() {
         initChallenges()
     }
     
-    fun addFriend(friendId: String) {
-        viewModelScope.launch {
-            val result = friendsRepository.addFriend(friendId)
-            val message = when (result) {
-                is AddFriendResult.Success -> "친구 추가 완료!"
-                is AddFriendResult.UserNotFound -> "존재하지 않는 사용자입니다."
-                is AddFriendResult.AlreadyFriend -> "이미 친구입니다."
-                is AddFriendResult.Error -> result.message
-            }
-            _uiState.value = _uiState.value.copy(addFriendMessage = message)
-        }
-    }
+    // addFriend function removed, as friendship is now managed by mutual following.
+    // If a follow action is needed from UI, it should call friendsRepository.followUser.
     
     fun sendReadingNotification() {
         viewModelScope.launch {
@@ -164,14 +148,14 @@ class CommunityViewModel : ViewModel() {
         }
     }
     
-    fun showDeleteConfirmation(friend: Friend) {
+    fun showDeleteConfirmation(friend: User) { // Changed parameter to User
         _uiState.value = _uiState.value.copy(friendToDelete = friend)
     }
     
     fun confirmDeleteFriend() {
-        _uiState.value.friendToDelete?.let { friend ->
+        _uiState.value.friendToDelete?.let { userToDelete -> // Changed to userToDelete
             viewModelScope.launch {
-                friendsRepository.removeFriend(friend.id)
+                friendsRepository.unfollowUser(userToDelete.uid) // Call unfollowUser with user UID
             }
         }
         _uiState.value = _uiState.value.copy(friendToDelete = null)
