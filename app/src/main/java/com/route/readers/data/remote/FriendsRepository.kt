@@ -108,71 +108,84 @@ class FriendsRepository {
         currentUserId?.let { currentId ->
             if (currentId == userId) return@let
 
-            try {
-                val currentUserDocRef = firestore.collection("users").document(currentId)
-                val targetUserDocRef = firestore.collection("users").document(userId)
+            val currentUserDocRef = firestore.collection("users").document(currentId)
+            val targetUserDocRef = firestore.collection("users").document(userId)
 
-                // Firestore transaction to ensure atomicity
-                firestore.runTransaction { transaction ->
-                    val currentUserSnapshot = transaction.get(currentUserDocRef)
-                    val targetUserSnapshot = transaction.get(targetUserDocRef)
+            // Firestore transaction to ensure atomicity
+            firestore.runTransaction { transaction ->
+                // === READ PHASE ===
+                val currentUserSnapshot = transaction.get(currentUserDocRef)
+                val targetUserSnapshot = transaction.get(targetUserDocRef)
 
-                    val currentFollowing = currentUserSnapshot.get("following") as? MutableList<String>
-                        ?: mutableListOf()
-                    if (!currentFollowing.contains(userId)) {
-                        currentFollowing.add(userId)
-                        transaction.update(currentUserDocRef, "following", currentFollowing)
-                        transaction.update(
-                            currentUserDocRef,
-                            "followingCount",
-                            currentFollowing.size.toLong()
-                        )
+                val initialCurrentFollowing = (currentUserSnapshot.get("following") as? List<String>)?.toMutableList() ?: mutableListOf()
+                val initialCurrentUserFriends = (currentUserSnapshot.get("friends") as? List<String>)?.toMutableList() ?: mutableListOf()
+
+                val initialTargetFollowers = (targetUserSnapshot.get("followers") as? List<String>)?.toMutableList() ?: mutableListOf()
+                val initialTargetFollowing = (targetUserSnapshot.get("following") as? List<String>) ?: emptyList() // Not mutable, just for check
+                val initialTargetUserFriends = (targetUserSnapshot.get("friends") as? List<String>)?.toMutableList() ?: mutableListOf()
+
+                // === PROCESSING / MODIFICATION PHASE ===
+                var shouldUpdateCurrentUserFollowing = false
+                if (!initialCurrentFollowing.contains(userId)) {
+                    initialCurrentFollowing.add(userId)
+                    shouldUpdateCurrentUserFollowing = true
+                }
+
+                var shouldUpdateTargetFollowers = false
+                if (!initialTargetFollowers.contains(currentId)) {
+                    initialTargetFollowers.add(currentId)
+                    shouldUpdateTargetFollowers = true
+                }
+
+                var shouldUpdateCurrentUserFriends = false
+                var shouldUpdateTargetUserFriends = false
+
+                // Check for mutual follow
+                if (initialTargetFollowing.contains(currentId)) {
+                    // They are now mutual followers, so they become friends
+                    if (!initialCurrentUserFriends.contains(userId)) {
+                        initialCurrentUserFriends.add(userId)
+                        shouldUpdateCurrentUserFriends = true
                     }
-
-                    val targetFollowers =
-                        targetUserSnapshot.get("followers") as? MutableList<String> ?: mutableListOf()
-                    if (!targetFollowers.contains(currentId)) {
-                        targetFollowers.add(currentId)
-                        transaction.update(targetUserDocRef, "followers", targetFollowers)
-                        transaction.update(
-                            targetUserDocRef,
-                            "followerCount",
-                            targetFollowers.size.toLong()
-                        )
+                    if (!initialTargetUserFriends.contains(currentId)) {
+                        initialTargetUserFriends.add(currentId)
+                        shouldUpdateTargetUserFriends = true
                     }
+                }
 
-                    // Check for mutual follow
-                    val targetFollowing =
-                        targetUserSnapshot.get("following") as? List<String> ?: emptyList()
-                    if (targetFollowing.contains(currentId)) {
-                        // They are now mutual followers, so they become friends
-                        val currentUserFriends =
-                            currentUserSnapshot.get("friends") as? MutableList<String>
-                                ?: mutableListOf()
-                        if (!currentUserFriends.contains(userId)) {
-                            currentUserFriends.add(userId)
-                            transaction.update(currentUserDocRef, "friends", currentUserFriends)
-                        }
+                // === WRITE PHASE ===
+                if (shouldUpdateCurrentUserFollowing) {
+                    transaction.update(currentUserDocRef, "following", initialCurrentFollowing)
+                    transaction.update(
+                        currentUserDocRef,
+                        "followingCount",
+                        initialCurrentFollowing.size.toLong()
+                    )
+                }
 
-                        val targetUserFriends =
-                            targetUserSnapshot.get("friends") as? MutableList<String>
-                                ?: mutableListOf()
-                        if (!targetUserFriends.contains(currentId)) {
-                            targetUserFriends.add(currentId)
-                            transaction.update(targetUserDocRef, "friends", targetUserFriends)
-                        }
-                    }
-                }.await()
+                if (shouldUpdateTargetFollowers) {
+                    transaction.update(targetUserDocRef, "followers", initialTargetFollowers)
+                    transaction.update(
+                        targetUserDocRef,
+                        "followerCount",
+                        initialTargetFollowers.size.toLong()
+                    )
+                }
 
-                // Send notification after transaction is successful
-                val currentUserNickname =
-                    firestore.collection("users").document(currentId).get().await()
-                        .getString("nickname") ?: "알 수 없는 사용자"
-                FollowNotificationHelper.sendFollowNotification(context, currentUserNickname)
+                if (shouldUpdateCurrentUserFriends) {
+                    transaction.update(currentUserDocRef, "friends", initialCurrentUserFriends)
+                }
 
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+                if (shouldUpdateTargetUserFriends) {
+                    transaction.update(targetUserDocRef, "friends", initialTargetUserFriends)
+                }
+            }.await()
+
+            // Send notification after transaction is successful
+            val currentUserNickname =
+                firestore.collection("users").document(currentId).get().await()
+                    .getString("nickname") ?: "알 수 없는 사용자"
+            FollowNotificationHelper.sendFollowNotification(context, currentUserNickname)
         }
     }
 
@@ -180,57 +193,68 @@ class FriendsRepository {
         currentUserId?.let { currentId ->
             if (currentId == userId) return@let
 
-            try {
-                val currentUserDocRef = firestore.collection("users").document(currentId)
-                val targetUserDocRef = firestore.collection("users").document(userId)
+            val currentUserDocRef = firestore.collection("users").document(currentId)
+            val targetUserDocRef = firestore.collection("users").document(userId)
 
-                firestore.runTransaction { transaction ->
-                    // Remove from current user's following list
-                    val currentUserSnapshot = transaction.get(currentUserDocRef)
-                    val currentFollowing =
-                        currentUserSnapshot.get("following") as? MutableList<String>
-                            ?: mutableListOf()
-                    if (currentFollowing.remove(userId)) {
-                        transaction.update(currentUserDocRef, "following", currentFollowing)
-                        transaction.update(
-                            currentUserDocRef,
-                            "followingCount",
-                            currentFollowing.size.toLong()
-                        )
-                    }
+            firestore.runTransaction { transaction ->
+                // === READ PHASE ===
+                val currentUserSnapshot = transaction.get(currentUserDocRef)
+                val targetUserSnapshot = transaction.get(targetUserDocRef)
 
-                    // Remove from target user's followers list
-                    val targetUserSnapshot = transaction.get(targetUserDocRef)
-                    val targetFollowers =
-                        targetUserSnapshot.get("followers") as? MutableList<String>
-                            ?: mutableListOf()
-                    if (targetFollowers.remove(currentId)) {
-                        transaction.update(targetUserDocRef, "followers", targetFollowers)
-                        transaction.update(
-                            targetUserDocRef,
-                            "followerCount",
-                            targetFollowers.size.toLong()
-                        )
-                    }
+                val initialCurrentFollowing = (currentUserSnapshot.get("following") as? List<String>)?.toMutableList() ?: mutableListOf()
+                val initialCurrentUserFriends = (currentUserSnapshot.get("friends") as? List<String>)?.toMutableList() ?: mutableListOf()
 
-                    // Remove friendship
-                    val currentUserFriends =
-                        currentUserSnapshot.get("friends") as? MutableList<String>
-                            ?: mutableListOf()
-                    if (currentUserFriends.remove(userId)) {
-                        transaction.update(currentUserDocRef, "friends", currentUserFriends)
-                    }
+                val initialTargetFollowers = (targetUserSnapshot.get("followers") as? List<String>)?.toMutableList() ?: mutableListOf()
+                val initialTargetUserFriends = (targetUserSnapshot.get("friends") as? List<String>)?.toMutableList() ?: mutableListOf()
 
-                    val targetUserFriends =
-                        targetUserSnapshot.get("friends") as? MutableList<String>
-                            ?: mutableListOf()
-                    if (targetUserFriends.remove(currentId)) {
-                        transaction.update(targetUserDocRef, "friends", targetUserFriends)
-                    }
-                }.await()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+                // === PROCESSING / MODIFICATION PHASE ===
+                var shouldUpdateCurrentUserFollowing = false
+                if (initialCurrentFollowing.remove(userId)) {
+                    shouldUpdateCurrentUserFollowing = true
+                }
+
+                var shouldUpdateTargetFollowers = false
+                if (initialTargetFollowers.remove(currentId)) {
+                    shouldUpdateTargetFollowers = true
+                }
+
+                var shouldUpdateCurrentUserFriends = false
+                if (initialCurrentUserFriends.remove(userId)) {
+                    shouldUpdateCurrentUserFriends = true
+                }
+
+                var shouldUpdateTargetUserFriends = false
+                if (initialTargetUserFriends.remove(currentId)) {
+                    shouldUpdateTargetUserFriends = true
+                }
+
+                // === WRITE PHASE ===
+                if (shouldUpdateCurrentUserFollowing) {
+                    transaction.update(currentUserDocRef, "following", initialCurrentFollowing)
+                    transaction.update(
+                        currentUserDocRef,
+                        "followingCount",
+                        initialCurrentFollowing.size.toLong()
+                    )
+                }
+
+                if (shouldUpdateTargetFollowers) {
+                    transaction.update(targetUserDocRef, "followers", initialTargetFollowers)
+                    transaction.update(
+                        targetUserDocRef,
+                        "followerCount",
+                        initialTargetFollowers.size.toLong()
+                    )
+                }
+
+                if (shouldUpdateCurrentUserFriends) {
+                    transaction.update(currentUserDocRef, "friends", initialCurrentUserFriends)
+                }
+
+                if (shouldUpdateTargetUserFriends) {
+                    transaction.update(targetUserDocRef, "friends", initialTargetUserFriends)
+                }
+            }.await()
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.route.readers
 
 import android.Manifest
+import android.app.Application
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
@@ -84,7 +85,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private val accountViewModel: AccountViewModel by viewModels {
-        AccountViewModelFactory(UserPreferencesRepository(applicationContext))
+        AccountViewModelFactory(application, UserPreferencesRepository(applicationContext))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -174,12 +175,15 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-class AccountViewModelFactory(private val repository: UserPreferencesRepository) :
+class AccountViewModelFactory(
+    private val application: Application,
+    private val repository: UserPreferencesRepository
+) :
     ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(AccountViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return AccountViewModel(repository) as T
+            return AccountViewModel(application, repository) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

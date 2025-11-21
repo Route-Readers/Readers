@@ -155,8 +155,7 @@ fun ProfileScreen(
     ) { paddingValues ->
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues), // Apply paddingValues here
+                .fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
             when (val state = uiState) {
