@@ -3,7 +3,7 @@ package com.route.readers.data.remote
 import android.content.Context
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.route.readers.notification.FollowNotificationHelper
+import com.google.firebase.firestore.FieldValue
 import com.route.readers.data.model.User // Corrected import
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -181,11 +181,21 @@ class FriendsRepository {
                 }
             }.await()
 
-            // Send notification after transaction is successful
+            // Send FCM notification after transaction is successful
             val currentUserNickname =
                 firestore.collection("users").document(currentId).get().await()
                     .getString("nickname") ?: "알 수 없는 사용자"
-            FollowNotificationHelper.sendFollowNotification(context, currentUserNickname)
+
+            // Create a request in fcmRequests collection for the target user
+            firestore.collection("fcmRequests").add(
+                mapOf<String, Any>(
+                    "targetUserId" to userId,
+                    "title" to "새로운 팔로우 요청",
+                    "message" to "${currentUserNickname}님이 회원님을 팔로우합니다.",
+                    "notificationType" to "FOLLOW",
+                    "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
+                )
+            ).await()
         }
     }
 
