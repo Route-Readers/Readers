@@ -1,7 +1,8 @@
 package com.route.readers.ui.screens.feed
 
+import android.app.Application
 import android.util.Log
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
@@ -11,6 +12,7 @@ import com.route.readers.data.model.Book
 import com.route.readers.data.model.MyBook
 import com.route.readers.data.model.User
 import com.route.readers.data.remote.BookRepository
+import com.route.readers.data.remote.FriendsRepository
 import com.route.readers.data.remote.MyLibraryRepository
 import com.route.readers.data.remote.WishlistRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,13 +34,14 @@ sealed class FeedUiState {
     data class Error(val message: String) : FeedUiState()
 }
 
-class FeedViewModel : ViewModel() {
+class FeedViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
     private val wishlistRepository = WishlistRepository()
     private val myLibraryRepository = MyLibraryRepository()
     private val bookRepository = BookRepository()
+    private val friendsRepository = FriendsRepository()
 
     private val _uiState = MutableStateFlow<FeedUiState>(FeedUiState.Loading)
     val uiState = _uiState.asStateFlow()
@@ -335,12 +338,7 @@ class FeedViewModel : ViewModel() {
         val currentUserId = auth.currentUser?.uid ?: return
         viewModelScope.launch {
             try {
-                val currentUserRef = db.collection("users").document(currentUserId)
-                currentUserRef.update("following", FieldValue.arrayUnion(followerId)).await()
-
-                val followerRef = db.collection("users").document(followerId)
-                followerRef.update("followers", FieldValue.arrayUnion(currentUserId)).await()
-
+                friendsRepository.followUser(followerId, getApplication())
                 loadFeeds(isRefresh = false)
             } catch (e: Exception) {
                 Log.e("FeedViewModel", "Error following back user $followerId", e)
