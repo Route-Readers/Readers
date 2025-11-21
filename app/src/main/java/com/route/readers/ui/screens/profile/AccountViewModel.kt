@@ -1,5 +1,6 @@
 package com.route.readers.ui.screens.profile
 
+import android.app.Application
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -15,8 +16,9 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.flow.SharingStarted
 
 class AccountViewModel(
+    application: Application,
     private val userPreferencesRepository: UserPreferencesRepository
-) : ProfileViewModel() {
+) : ProfileViewModel(application) {
 
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()

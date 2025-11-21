@@ -1,11 +1,13 @@
 package com.route.readers.ui.screens.profile
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.data.model.User
+import com.route.readers.data.remote.FriendsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,10 +25,11 @@ sealed class FollowListUiState {
     data class Error(val message: String) : FollowListUiState()
 }
 
-class FollowListViewModel : ViewModel() {
+class FollowListViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
+    private val friendsRepository = FriendsRepository()
     private val currentUserId = auth.currentUser?.uid
 
     private val _uiState = MutableStateFlow<FollowListUiState>(FollowListUiState.Loading)
@@ -159,7 +162,8 @@ class FollowListViewModel : ViewModel() {
 
     fun toggleFollow(targetUserId: String) {
         viewModelScope.launch {
-            if (currentUserId == null || currentUserId == targetUserId) {
+            val currentUserId = this@FollowListViewModel.currentUserId ?: return@launch
+            if (currentUserId == targetUserId) {
                 return@launch
             }
 
@@ -169,61 +173,47 @@ class FollowListViewModel : ViewModel() {
             }
 
             val isCurrentlyFollowing = currentState.currentUserFollowingIds.contains(targetUserId)
-            val currentUserRef = db.collection("users").document(currentUserId)
-            val targetUserRef = db.collection("users").document(targetUserId)
 
-            try {
-                db.runTransaction { transaction ->
-                    if (isCurrentlyFollowing) {
-                        transaction.update(currentUserRef, "following", FieldValue.arrayRemove(targetUserId))
-                        transaction.update(currentUserRef, "followingCount", FieldValue.increment(-1))
-                        transaction.update(targetUserRef, "followers", FieldValue.arrayRemove(currentUserId))
-                        transaction.update(targetUserRef, "followerCount", FieldValue.increment(-1))
-                    } else {
-                        transaction.update(currentUserRef, "following", FieldValue.arrayUnion(targetUserId))
-                        transaction.update(currentUserRef, "followingCount", FieldValue.increment(1))
-                        transaction.update(targetUserRef, "followers", FieldValue.arrayUnion(currentUserId))
-                        transaction.update(targetUserRef, "followerCount", FieldValue.increment(1))
-                        // 팔로우 알림 생성
-                        val followNotificationRef = db.collection("feeds").document()
-                        transaction.set(followNotificationRef, mapOf (
-                            "type" to "FOLLOW_NOTIFICATION",
-                            "followerId" to currentUserId,
-                            "receiverId" to targetUserId,
-                            "isFollowedBack" to false,
-                            "timestamp" to FieldValue.serverTimestamp()
-                        ))
-                    }
-                    null
-                }.await()
+            // Optimistic UI update
+            val updatedFollowingIds = if (isCurrentlyFollowing) {
+                currentState.currentUserFollowingIds - targetUserId
+            } else {
+                currentState.currentUserFollowingIds + targetUserId
+            }
 
-                val updatedFollowingIds = if (isCurrentlyFollowing) {
-                    currentState.currentUserFollowingIds - targetUserId
-                } else {
-                    currentState.currentUserFollowingIds + targetUserId
-                }
-
-                val updatedUsers = currentState.users.map { user ->
+            val updatedUsers = if (isCurrentlyFollowing && currentListType == "following" && currentListOwnerId == currentUserId) {
+                // If unfollowing from your own "following" list, remove the user.
+                currentState.users.filterNot { it.uid == targetUserId }
+            } else {
+                // Otherwise, just update the counts.
+                currentState.users.map { user ->
                     if (user.uid == currentUserId) {
                         val newFollowingCount = user.followingCount + if (isCurrentlyFollowing) -1 else 1
-                        user.copy(followingCount = newFollowingCount)
-                    }
-                    else if (user.uid == targetUserId) {
+                        user.copy(followingCount = newFollowingCount.coerceAtLeast(0))
+                    } else if (user.uid == targetUserId) {
                         val newFollowerCount = user.followerCount + if (isCurrentlyFollowing) -1 else 1
-                        user.copy(followerCount = newFollowerCount)
-                    }
-                    else {
+                        user.copy(followerCount = newFollowerCount.coerceAtLeast(0))
+                    } else {
                         user
                     }
                 }
+            }
 
-                _uiState.value = currentState.copy(
-                    users = updatedUsers,
-                    currentUserFollowingIds = updatedFollowingIds
-                )
+            _uiState.value = currentState.copy(
+                users = updatedUsers,
+                currentUserFollowingIds = updatedFollowingIds
+            )
 
+            try {
+                if (isCurrentlyFollowing) {
+                    friendsRepository.unfollowUser(targetUserId)
+                } else {
+                    friendsRepository.followUser(targetUserId, getApplication())
+                }
             } catch (e: Exception) {
-                // Handle exception
+                // Revert UI on failure and log the error
+                _uiState.value = currentState
+                android.util.Log.e("FollowListViewModel", "Failed to toggle follow for $targetUserId", e)
             }
         }
     }

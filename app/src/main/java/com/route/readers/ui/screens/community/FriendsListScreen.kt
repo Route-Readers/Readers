@@ -75,11 +75,11 @@ fun FriendsListScreen(
         }
 
         // 친구 삭제 확인 다이얼로그
-        uiState.friendToDelete?.let { friend ->
+        uiState.friendToDelete?.let { user ->
             AlertDialog(
                 onDismissRequest = { viewModel.cancelDeleteFriend() },
                 title = { Text("친구 삭제") },
-                text = { Text("${friend.name}님을 친구에서 삭제하시겠습니까?") },
+                text = { Text("${user.nickname}님을 친구에서 삭제하시겠습니까?") },
                 confirmButton = {
                     TextButton(onClick = { viewModel.confirmDeleteFriend() }) {
                         Text("삭제", color = MaterialTheme.colorScheme.error)

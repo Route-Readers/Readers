@@ -1,8 +1,9 @@
 package com.route.readers.ui.screens.profile
 
+import android.app.Application
 import android.net.Uri
 import android.util.Log
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
@@ -13,6 +14,7 @@ import com.route.readers.data.model.MyBook
 import com.route.readers.data.model.User
 import com.route.readers.data.remote.BookRepository
 import com.route.readers.data.remote.FirestoreRepository
+import com.route.readers.data.remote.FriendsRepository
 import com.route.readers.data.remote.MyLibraryRepository
 import com.route.readers.data.remote.WishlistRepository
 import com.route.readers.ui.screens.attendance.AttendanceViewModel
@@ -28,7 +30,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
 
-open class ProfileViewModel : ViewModel() {
+open class ProfileViewModel(application: Application) : AndroidViewModel(application) {
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
     private val storage = FirebaseStorage.getInstance()
@@ -36,6 +38,7 @@ open class ProfileViewModel : ViewModel() {
     private val wishlistRepository = WishlistRepository()
     private val myLibraryRepository = MyLibraryRepository()
     private val firestoreRepository = FirestoreRepository()
+    private val friendsRepository = FriendsRepository()
     private val attendanceViewModel = AttendanceViewModel()
     private val currentUserId = auth.currentUser?.uid
 
@@ -968,65 +971,31 @@ open class ProfileViewModel : ViewModel() {
     }
 
     fun followUser(targetUserId: String) {
-        if (currentUserId == null || currentUserId == targetUserId) return
+        val currentUserId = this.currentUserId ?: return
+        if (currentUserId == targetUserId) return
+
         refreshUiStateForFollow(targetUserId, true)
         viewModelScope.launch {
             try {
-                val targetUserRef = db.collection("users").document(targetUserId)
-                val currentUserRef = db.collection("users").document(currentUserId)
-                val currentUserName =
-                    currentUserRef.get().await().getString("nickname") ?: "알 수 없음"
-                db.runBatch { batch ->
-                    batch.update(targetUserRef, "followers", FieldValue.arrayUnion(currentUserId))
-                    batch.update(targetUserRef, "followerCount", FieldValue.increment(1))
-                    batch.update(
-                        currentUserRef,
-                        "following",
-                        FieldValue.arrayUnion(targetUserId)
-                    )
-                    batch.update(currentUserRef, "followingCount", FieldValue.increment(1))
-                }.await()
-                val followNotification = hashMapOf(
-                    "type" to "FOLLOW_NOTIFICATION",
-                    "authorId" to currentUserId,
-                    "userName" to currentUserName,
-                    "followerId" to currentUserId,
-                    "receiverId" to targetUserId,
-                    "isFollowedBack" to false,
-                    "timestamp" to FieldValue.serverTimestamp(),
-                    "likeCount" to 0,
-                    "commentCount" to 0
-                )
-                db.collection("feeds").add(followNotification).await()
+                friendsRepository.followUser(targetUserId, getApplication())
             } catch (e: Exception) {
                 refreshUiStateForFollow(targetUserId, false)
+                Log.e("ProfileViewModel", "Failed to follow user", e)
             }
         }
     }
 
     fun unfollowUser(targetUserId: String) {
-        if (currentUserId == null || currentUserId == targetUserId) return
+        val currentUserId = this.currentUserId ?: return
+        if (currentUserId == targetUserId) return
+
         refreshUiStateForFollow(targetUserId, false)
         viewModelScope.launch {
             try {
-                val targetUserRef = db.collection("users").document(targetUserId)
-                val currentUserRef = db.collection("users").document(currentUserId)
-                db.runBatch { batch ->
-                    batch.update(
-                        targetUserRef,
-                        "followers",
-                        FieldValue.arrayRemove(currentUserId)
-                    )
-                    batch.update(targetUserRef, "followerCount", FieldValue.increment(-1))
-                    batch.update(
-                        currentUserRef,
-                        "following",
-                        FieldValue.arrayRemove(targetUserId)
-                    )
-                    batch.update(currentUserRef, "followingCount", FieldValue.increment(-1))
-                }.await()
+                friendsRepository.unfollowUser(targetUserId)
             } catch (e: Exception) {
                 refreshUiStateForFollow(targetUserId, true)
+                Log.e("ProfileViewModel", "Failed to unfollow user", e)
             }
         }
     }

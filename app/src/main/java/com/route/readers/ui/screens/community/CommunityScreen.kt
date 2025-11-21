@@ -42,6 +42,8 @@ import com.route.readers.ui.theme.DarkRed
 import com.route.readers.ui.screens.bookclub.BookClubChatScreen
 import java.net.URLEncoder
 
+import com.route.readers.data.model.User // Added User import
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CommunityScreen(
@@ -53,7 +55,6 @@ fun CommunityScreen(
     isActive: Boolean = false
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var showAddFriendDialog by remember { mutableStateOf(false) }
     var showCreateBookClubDialog by remember { mutableStateOf(false) }
     var showChatScreen by remember { mutableStateOf<BookClub?>(null) }
     var selectedTab by remember { mutableStateOf(0) }
@@ -108,8 +109,7 @@ fun CommunityScreen(
                         uiState = uiState,
                         bookClubs = uiState.bookClubs,
                         onNavigateToFriendsList = onNavigateToFriendsList,
-                        onShowAddFriendDialog = { showAddFriendDialog = true },
-                        onRemoveFriend = { friend -> viewModel.showDeleteConfirmation(friend) },
+                        onRemoveFriend = { user -> viewModel.showDeleteConfirmation(user) },
                         onShowCreateBookClubDialog = { showCreateBookClubDialog = true },
                         onJoinBookClub = { bookClub -> showChatScreen = bookClub },
                         onToggleBookClubMembership = { bookClubId, isJoined ->
@@ -133,15 +133,7 @@ fun CommunityScreen(
         }
     }
 
-    if (showAddFriendDialog) {
-        AddFriendDialog(
-            onDismiss = { showAddFriendDialog = false },
-            onAddFriend = { friendId ->
-                viewModel.addFriend(friendId)
-                showAddFriendDialog = false
-            }
-        )
-    }
+
 
     if (showCreateBookClubDialog) {
         CreateBookClubDialog(
@@ -166,11 +158,11 @@ fun CommunityScreen(
         )
     }
 
-    uiState.friendToDelete?.let { friend ->
+    uiState.friendToDelete?.let { user ->
         AlertDialog(
             onDismissRequest = { viewModel.cancelDeleteFriend() },
             title = { Text("친구 삭제") },
-            text = { Text("${friend.name}님을 친구에서 삭제하시겠습니까?") },
+            text = { Text("${user.nickname}님을 친구에서 삭제하시겠습니까?") },
             confirmButton = {
                 TextButton(onClick = { viewModel.confirmDeleteFriend() }) {
                     Text("삭제")
@@ -190,8 +182,7 @@ fun CommunityContent(
     uiState: CommunityUiState,
     bookClubs: List<BookClub>,
     onNavigateToFriendsList: () -> Unit,
-    onShowAddFriendDialog: () -> Unit,
-    onRemoveFriend: (Friend) -> Unit,
+    onRemoveFriend: (User) -> Unit, // Changed to User
     onShowCreateBookClubDialog: () -> Unit,
     onJoinBookClub: (BookClub) -> Unit,
     onToggleBookClubMembership: (String, Boolean) -> Unit,
@@ -239,17 +230,7 @@ fun CommunityContent(
                         fontWeight = FontWeight.Medium
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    TextButton(
-                        onClick = onShowAddFriendDialog
-                    ) {
-                        Icon(
-                            Icons.Default.Add,
-                            contentDescription = "친구 추가",
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("친구 추가", fontSize = 14.sp)
-                    }
+
                 }
                 if (uiState.hasMoreFriends) {
                     TextButton(onClick = onNavigateToFriendsList) {
@@ -697,67 +678,11 @@ fun CreateBookClubDialog(
 
 
 
-@Composable
-fun AddFriendDialog(
-    onDismiss: () -> Unit,
-    onAddFriend: (String) -> Unit
-) {
-    var friendId by remember { mutableStateOf("") }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(24.dp)
-            ) {
-                Text(
-                    "친구 추가",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                OutlinedTextField(
-                    value = friendId,
-                    onValueChange = { friendId = it },
-                    label = { Text("친구 아이디") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text("취소")
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(
-                        onClick = {
-                            if (friendId.isNotBlank()) {
-                                onAddFriend(friendId)
-                            }
-                        }
-                    ) {
-                        Text("추가")
-                    }
-                }
-            }
-        }
-    }
-}
 
 @Composable
 fun FriendItemWithDelete(
-    friend: Friend,
+    friend: User,
     onDeleteClick: () -> Unit
 ) {
     Row(
@@ -772,7 +697,7 @@ fun FriendItemWithDelete(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                friend.name.first().toString(),
+                friend.nickname.first().toString(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Bold
             )
@@ -782,29 +707,15 @@ fun FriendItemWithDelete(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                friend.name,
+                friend.nickname,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onBackground
-            )
-            Text(
-                friend.currentBook,
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
         Column(horizontalAlignment = Alignment.End) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (friend.isOnline) {
-                    Box(
-                        Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF34C759))
-                    )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
                 IconButton(
                     onClick = onDeleteClick,
                     modifier = Modifier.size(24.dp)
@@ -817,11 +728,6 @@ fun FriendItemWithDelete(
                     )
                 }
             }
-            Text(
-                friend.lastActive,
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }
