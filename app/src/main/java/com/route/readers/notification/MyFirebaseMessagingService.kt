@@ -16,6 +16,23 @@ import com.route.readers.R
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
+    override fun onCreate() {
+        super.onCreate()
+        val channelId = "reading_notifications"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                "독서 알림",
+                NotificationManager.IMPORTANCE_HIGH
+            )
+            val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+            android.util.Log.d("FCM_SERVICE", "Notification Channel '$channelId' created.")
+        } else {
+            android.util.Log.d("FCM_SERVICE", "Notification Channels not supported below Android O.")
+        }
+    }
+
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         FirebaseAuth.getInstance().currentUser?.uid?.let { userId ->
@@ -42,15 +59,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
         val channelId = "reading_notifications"
         val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                "독서 알림",
-                NotificationManager.IMPORTANCE_HIGH
-            )
-            notificationManager.createNotificationChannel(channel)
-        }
 
         val intent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
