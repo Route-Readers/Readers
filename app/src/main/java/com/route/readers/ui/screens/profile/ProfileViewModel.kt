@@ -167,7 +167,20 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
 
                                 "consecutiveReadingDays" to 0,
 
-                                "totalReadingDays" to 0
+                                "totalReadingDays" to 0,
+
+                                "followAlarmEnabled" to true,
+
+                                "likeAlarmEnabled" to true,
+
+                                "friendReadingAlarmEnabled" to true,
+
+                                "readingTimeAlarmEnabled" to true,
+                                "messageAlarmEnabled" to true,
+                                "friendRequestAlarmEnabled" to true,
+                                "readingAlarmHour" to 20,
+                                "readingAlarmMinute" to 0,
+                                "fcmToken" to null
 
                             )
 
@@ -794,6 +807,41 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
     
 
             }
+
+    fun updateNotificationSetting(settingName: String, isEnabled: Boolean) {
+        val currentUserId = this.currentUserId ?: return
+
+        viewModelScope.launch {
+            try {
+                val updateData = mapOf(settingName to isEnabled)
+                db.collection("users").document(currentUserId).update(updateData).await()
+
+                // Re-fetch the entire profile to ensure consistency.
+                fetchUserProfile(currentUserId)
+
+            } catch (e: Exception) {
+                // Log the error. The UI will not change, which is a correct
+                // representation of the fact that the data was not saved.
+                Log.e("ProfileViewModel", "Failed to update setting '$settingName'", e)
+            }
+        }
+    }
+
+    fun updateReadingTime(hour: Int, minute: Int) {
+        val currentUserId = this.currentUserId ?: return
+        viewModelScope.launch {
+            try {
+                val updateData = mapOf(
+                    "readingAlarmHour" to hour,
+                    "readingAlarmMinute" to minute
+                )
+                db.collection("users").document(currentUserId).update(updateData).await()
+                fetchUserProfile(currentUserId)
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Failed to update reading time", e)
+            }
+        }
+    }
 
     private fun getAchievementsForUser(
         readBookCount: Int,

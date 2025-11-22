@@ -331,7 +331,10 @@ fun AccountScreen(
                                         animationSpec = tween(300)
                                     )
                                 ) {
-                                    NotificationSettings()
+                                    NotificationSettings(
+                                        uiState = uiState,
+                                        viewModel = viewModel
+                                    )
                                 }
                             }
                         }
@@ -516,8 +519,11 @@ fun DarkModeToggle(
 }
 
 @Composable
-fun NotificationSettings() {
-    val context = LocalContext.current
+fun NotificationSettings(
+    uiState: ProfileUiState,
+    viewModel: AccountViewModel
+) {
+    val user = (uiState as? ProfileUiState.Success)?.user
 
     Column(
         modifier = Modifier
@@ -527,106 +533,103 @@ fun NotificationSettings() {
             .background(MaterialTheme.colorScheme.surface)
             .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
-        var readingAlarm by remember { mutableStateOf(true) }
-        var friendReadingAlarm by remember { mutableStateOf(true) }
-        var messageAlarm by remember { mutableStateOf(true) }
-        var friendRequestAlarm by remember { mutableStateOf(true) }
-        var followAlarm by remember { mutableStateOf(true) }
-        var noNotifications by remember { mutableStateOf(false) }
-        var alarmHour by remember { mutableStateOf(20) }
-        var alarmMinute by remember { mutableStateOf(0) }
+        if (user == null) {
+            Box(modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        } else {
+            // For "All notifications" toggle
+            val allNotificationsDisabled = !user.readingTimeAlarmEnabled &&
+                    !user.friendReadingAlarmEnabled &&
+                    !user.messageAlarmEnabled &&
+                    !user.friendRequestAlarmEnabled &&
+                    !user.followAlarmEnabled
 
-        NotificationToggleItem(
-            title = "독서 시간 알람",
-            subtitle = "설정한 시간에 독서 알림 받기",
-            checked = readingAlarm && !noNotifications,
-            onCheckedChange = { readingAlarm = it },
-            enabled = !noNotifications
-        )
+            NotificationToggleItem(
+                title = "독서 시간 알람",
+                subtitle = "설정한 시간에 독서 알림 받기",
+                checked = user.readingTimeAlarmEnabled,
+                onCheckedChange = { viewModel.updateNotificationSetting("readingTimeAlarmEnabled", it) },
+                enabled = true
+            )
 
-        if (readingAlarm && !noNotifications) {
-            Spacer(modifier = Modifier.height(8.dp))
-            TimeSettingRow(
-                selectedHour = alarmHour,
-                selectedMinute = alarmMinute,
-                onTimeChange = { hour, minute ->
-                    alarmHour = hour
-                    alarmMinute = minute
+            AnimatedVisibility(visible = user.readingTimeAlarmEnabled) {
+                Column {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TimeSettingRow(
+                        selectedHour = user.readingAlarmHour,
+                        selectedMinute = user.readingAlarmMinute,
+                        onTimeChange = { hour, minute ->
+                            viewModel.updateReadingTime(hour, minute)
+                        }
+                    )
                 }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            NotificationToggleItem(
+                title = "친구 독서 알람",
+                subtitle = "친구가 보내는 독서 알림 받기",
+                checked = user.friendReadingAlarmEnabled,
+                onCheckedChange = { viewModel.updateNotificationSetting("friendReadingAlarmEnabled", it) },
+                enabled = true
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            NotificationToggleItem(
+                title = "메시지 알람",
+                subtitle = "새로운 메시지 알림 받기",
+                checked = user.messageAlarmEnabled,
+                onCheckedChange = { viewModel.updateNotificationSetting("messageAlarmEnabled", it) },
+                enabled = true
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            NotificationToggleItem(
+                title = "친구 요청 알람",
+                subtitle = "새로운 친구 요청 알림 받기",
+                checked = user.friendRequestAlarmEnabled,
+                onCheckedChange = { viewModel.updateNotificationSetting("friendRequestAlarmEnabled", it) },
+                enabled = true
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            NotificationToggleItem(
+                title = "팔로우 알람",
+                subtitle = "새로운 팔로워 알림 받기",
+                checked = user.followAlarmEnabled,
+                onCheckedChange = { viewModel.updateNotificationSetting("followAlarmEnabled", it) },
+                enabled = true
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Box(
+                modifier = Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            NotificationToggleItem(
+                title = "알림 받지 않기",
+                subtitle = "모든 알림을 끄기",
+                checked = allNotificationsDisabled,
+                onCheckedChange = { disableAll ->
+                    if (disableAll) {
+                        viewModel.updateNotificationSetting("readingTimeAlarmEnabled", false)
+                        viewModel.updateNotificationSetting("friendReadingAlarmEnabled", false)
+                        viewModel.updateNotificationSetting("messageAlarmEnabled", false)
+                        viewModel.updateNotificationSetting("friendRequestAlarmEnabled", false)
+                        viewModel.updateNotificationSetting("followAlarmEnabled", false)
+                    }
+                    // Turning this "off" doesn't re-enable everything,
+                    // user has to toggle them manually. This is a common UX pattern.
+                },
+                enabled = true
             )
         }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        NotificationToggleItem(
-            title = "친구 독서 알람",
-            subtitle = "친구가 보내는 독서 알림 받기",
-            checked = friendReadingAlarm && !noNotifications,
-            onCheckedChange = { friendReadingAlarm = it },
-            enabled = !noNotifications
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        NotificationToggleItem(
-            title = "메시지 알람",
-            subtitle = "새로운 메시지 알림 받기",
-            checked = messageAlarm && !noNotifications,
-            onCheckedChange = { messageAlarm = it },
-            enabled = !noNotifications
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        NotificationToggleItem(
-            title = "친구 요청 알람",
-            subtitle = "새로운 친구 요청 알림 받기",
-            checked = friendRequestAlarm && !noNotifications,
-            onCheckedChange = { friendRequestAlarm = it },
-            enabled = !noNotifications
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        NotificationToggleItem(
-            title = "팔로우 알람",
-            subtitle = "새로운 팔로워 알림 받기",
-            checked = followAlarm && !noNotifications,
-            onCheckedChange = {
-                followAlarm = it
-                val sharedPref = context.getSharedPreferences("notification_settings", android.content.Context.MODE_PRIVATE)
-                sharedPref.edit().putBoolean("follow_notifications", it).apply()
-            },
-            enabled = !noNotifications
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        NotificationToggleItem(
-            title = "알림 받지 않기",
-            subtitle = "모든 알림을 끄기",
-            checked = noNotifications,
-            onCheckedChange = {
-                noNotifications = it
-                if (it) {
-                    readingAlarm = false
-                    friendReadingAlarm = false
-                    messageAlarm = false
-                    friendRequestAlarm = false
-                    followAlarm = false
-                }
-            },
-            enabled = true
-        )
     }
 }
 

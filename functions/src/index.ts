@@ -1,4 +1,4 @@
-import {onDocumentCreated} from "firebase-functions/v2/firestore";
+import {onDocumentCreated, onDocumentUpdated} from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 import {getMessaging} from "firebase-admin/messaging";
 
@@ -83,7 +83,7 @@ export const sendFcmNotification = onDocumentCreated(
                     body: body,
                 },
                 data: { // Add data payload for custom handling on client
-                    notificationType: notificationType,
+                    notificationType: String(notificationType),
                     // Add other relevant data if needed, e.g., senderId
                 },
                 token: fcmToken,
