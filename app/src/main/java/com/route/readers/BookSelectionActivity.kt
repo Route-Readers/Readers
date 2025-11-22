@@ -61,11 +61,12 @@ class BookSelectionActivity : AppCompatActivity() {
     private fun fetchMyBooks() {
         activityScope.launch {
             val myBooks = firestoreRepository.getMyBooks()
+            val currentlyReadingBooks = myBooks?.filter { !it.isCompleted } // Filter for uncompleted books
             withContext(Dispatchers.Main) {
-                if (!myBooks.isNullOrEmpty()) {
-                    bookAdapter.submitList(myBooks)
+                if (!currentlyReadingBooks.isNullOrEmpty()) {
+                    bookAdapter.submitList(currentlyReadingBooks)
                 } else {
-                    Toast.makeText(this@BookSelectionActivity, "내 서재에 책이 없습니다.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@BookSelectionActivity, "현재 읽는 중인 책이 없습니다.", Toast.LENGTH_LONG).show()
                     finish()
                 }
             }
