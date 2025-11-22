@@ -156,7 +156,7 @@ export const onLikeCreated = onDocumentUpdated(
             await db.collection("fcmRequests").add({
                 targetUserId: feedOwnerId,
                 title: "새로운 좋아요!",
-                message: `${likerDisplayName}님이 회원님의 글을 좋아합니다: ${feedTitle}`,
+                message: `${likerDisplayName}님이 회원님의 글을 좋아합니다. `,
                 notificationType: "LIKE",
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
             });
