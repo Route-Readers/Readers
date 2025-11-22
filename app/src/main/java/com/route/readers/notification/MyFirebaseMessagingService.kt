@@ -48,21 +48,31 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
         message.notification?.let {
             android.util.Log.d("FCM_SERVICE", "onMessageReceived: message.notification is present. Calling showNotification.")
-            showNotification(it.title ?: "새 알림", it.body ?: "새로운 메시지가 도착했습니다.")
+            // Pass message.data here
+            showNotification(it.title ?: "새 알림", it.body ?: "새로운 메시지가 도착했습니다.", message.data)
         } ?: run {
             android.util.Log.d("FCM_SERVICE", "onMessageReceived: message.notification is NULL. Not calling showNotification.")
         }
     }
 
-    private fun showNotification(title: String, message: String) {
-        android.util.Log.d("FCM_SERVICE", "Showing notification: Title='$title', Message='$message'")
+    private fun showNotification(title: String, message: String, data: Map<String, String>) {
+        android.util.Log.d("FCM_SERVICE", "Showing notification: Title='$title', Message='$message', Data='$data'")
 
         val channelId = "reading_notifications"
         val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
 
         val intent = Intent(this, MainActivity::class.java)
+        // Add data to the intent
+        for ((key, value) in data) {
+            intent.putExtra(key, value)
+        }
+        // Set flags to clear activity stack and create a new task
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+
         val pendingIntent = PendingIntent.getActivity(
-            this, 0, intent,
+            this,
+            System.currentTimeMillis().toInt(), // Use unique request code for each notification
+            intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 

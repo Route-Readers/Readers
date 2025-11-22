@@ -218,11 +218,117 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
 
                                     var user: User? = userDocument.toObject(User::class.java)
 
-                                    Log.d("ProfileViewModel", "Fetched user ${user?.nickname}, isPrivate: ${user?.isPrivate}")
+                                                                        Log.d("ProfileViewModel", "Fetched user ${user?.nickname}, isPrivate: ${user?.isPrivate}")
 
-                    
+                                    
 
-                                    if (user != null) {
+                                                                        if (user != null) {
+
+                                                                            val userDocRef = db.collection("users").document(targetUserId)
+
+                                                                            val dbUpdates = mutableMapOf<String, Any?>()
+
+                                                                            var userNeedsDbUpdate = false
+
+                                    
+
+                                                                            // Check and add missing notification fields with default values
+
+                                                                            if (!userDocument.contains("followAlarmEnabled")) {
+
+                                                                                dbUpdates["followAlarmEnabled"] = true
+
+                                                                                userNeedsDbUpdate = true
+
+                                                                            }
+
+                                                                            if (!userDocument.contains("likeAlarmEnabled")) {
+
+                                                                                dbUpdates["likeAlarmEnabled"] = true
+
+                                                                                userNeedsDbUpdate = true
+
+                                                                            }
+
+                                                                            if (!userDocument.contains("friendReadingAlarmEnabled")) {
+
+                                                                                dbUpdates["friendReadingAlarmEnabled"] = true
+
+                                                                                userNeedsDbUpdate = true
+
+                                                                            }
+
+                                                                            if (!userDocument.contains("readingTimeAlarmEnabled")) {
+
+                                                                                dbUpdates["readingTimeAlarmEnabled"] = true
+
+                                                                                userNeedsDbUpdate = true
+
+                                                                            }
+
+                                                                            if (!userDocument.contains("messageAlarmEnabled")) {
+
+                                                                                dbUpdates["messageAlarmEnabled"] = true
+
+                                                                                userNeedsDbUpdate = true
+
+                                                                            }
+
+                                                                            if (!userDocument.contains("friendRequestAlarmEnabled")) {
+
+                                                                                dbUpdates["friendRequestAlarmEnabled"] = true
+
+                                                                                userNeedsDbUpdate = true
+
+                                                                            }
+
+                                                                            if (!userDocument.contains("readingAlarmHour")) {
+
+                                                                                dbUpdates["readingAlarmHour"] = 20
+
+                                                                                userNeedsDbUpdate = true
+
+                                                                            }
+
+                                                                            if (!userDocument.contains("readingAlarmMinute")) {
+
+                                                                                dbUpdates["readingAlarmMinute"] = 0
+
+                                                                                userNeedsDbUpdate = true
+
+                                                                            }
+
+                                                                            if (!userDocument.contains("fcmToken")) {
+
+                                                                                dbUpdates["fcmToken"] = null // Null initially, MyFirebaseMessagingService updates it
+
+                                                                                userNeedsDbUpdate = true
+
+                                                                            }
+
+                                    
+
+                                                                            if (userNeedsDbUpdate) {
+
+                                                                                Log.d("ProfileViewModel", "Migrating user document for missing notification fields.")
+
+                                                                                userDocRef.update(dbUpdates).await()
+
+                                                                                // After updating, re-fetch the user document to ensure consistency
+
+                                                                                val updatedUserDocument = db.collection("users").document(targetUserId).get(com.google.firebase.firestore.Source.SERVER).await()
+
+                                                                                user = updatedUserDocument.toObject(User::class.java) // Re-map to User object
+
+                                                                                if (user == null) {
+
+                                                                                    _uiState.value = ProfileUiState.Error("Migrated user data is null.")
+
+                                                                                    return@launch
+
+                                                                                }
+
+                                                                            }
 
     
 
