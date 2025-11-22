@@ -4,12 +4,25 @@ import android.app.PendingIntent
 import android.app.Service
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
 import android.widget.RemoteViews
+import coil.ImageLoader
+import coil.request.ImageRequest
+import com.google.firebase.auth.FirebaseAuth
+import com.route.readers.data.model.MyBook
+import com.route.readers.data.remote.FirestoreRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Locale
 
 class TimerService : Service() {
@@ -19,12 +32,19 @@ class TimerService : Service() {
     private var elapsedTime: Long = 0L
     private val handler = Handler(Looper.getMainLooper())
     private var appWidgetId: Int = AppWidgetManager.INVALID_APPWIDGET_ID
+    private var serviceJob = Job()
+    private val serviceScope = CoroutineScope(Dispatchers.IO + serviceJob)
+
+    private val firestoreRepository = FirestoreRepository()
+    private val auth = FirebaseAuth.getInstance()
+    private var currentBook: MyBook? = null
+    private var lastLoadedBitmap: Bitmap? = null // Cache the last loaded bitmap
 
     private val updateTimerTask = object : Runnable {
         override fun run() {
             if (timerRunning) {
                 elapsedTime = System.currentTimeMillis() - startTime
-                updateWidget()
+                updateWidget(updateImage = false) // Don't reload image on every second update
                 handler.postDelayed(this, 1000) // Update every second
             }
         }
@@ -34,7 +54,8 @@ class TimerService : Service() {
         const val ACTION_START_TIMER = "com.route.readers.ACTION_START_TIMER"
         const val ACTION_STOP_TIMER = "com.route.readers.ACTION_STOP_TIMER"
         const val ACTION_TOGGLE_TIMER = "com.route.readers.ACTION_TOGGLE_TIMER"
-        const val ACTION_RESET_TIMER = "com.route.readers.ACTION_RESET_TIMER" // New action
+        const val ACTION_RESET_TIMER = "com.route.readers.ACTION_RESET_TIMER"
+        const val ACTION_UPDATE_BOOK_DATA = "com.route.readers.ACTION_UPDATE_BOOK_DATA" // New action to refresh book data
         private const val TAG = "TimerService"
     }
 
@@ -54,9 +75,12 @@ class TimerService : Service() {
                 }
                 ACTION_START_TIMER -> startTimer()
                 ACTION_STOP_TIMER -> stopTimer()
-                ACTION_RESET_TIMER -> resetTimer() // Handle new reset action
+                ACTION_RESET_TIMER -> resetTimer()
+                ACTION_UPDATE_BOOK_DATA -> serviceScope.launch { fetchBookDataAndBitmap(updateImage = true) } // Fetch book data explicitly
             }
         }
+        // Always try to fetch book data on service start or command
+        serviceScope.launch { fetchBookDataAndBitmap(updateImage = true) }
         return START_STICKY // Service will be restarted if killed
     }
 
@@ -82,38 +106,87 @@ class TimerService : Service() {
     private fun resetTimer() {
         stopTimer() // Stop the timer if it's running
         elapsedTime = 0L // Reset elapsed time
-        updateWidget() // Update widget to show "00:00:00"
+        updateWidget(updateImage = false) // Update widget to show "00:00:00" without re-loading image
         updateWidgetButton(false) // Ensure play button is shown
         Log.d(TAG, "Timer reset. appWidgetId: $appWidgetId")
     }
 
-    private fun updateWidget() {
+    private suspend fun fetchBookDataAndBitmap(updateImage: Boolean) {
+        val userId = auth.currentUser?.uid ?: run {
+            Log.w(TAG, "User not logged in. Cannot fetch book data for widget.")
+            currentBook = null
+            lastLoadedBitmap = null
+            withContext(Dispatchers.Main) { updateWidget(updateImage) }
+            return
+        }
+
+        // --- Logic to find the currently reading book ---
+        val myBooks = firestoreRepository.getMyBooks()
+        currentBook = myBooks?.filter { !it.isCompleted } // Filter out completed books
+            ?.sortedByDescending { it.lastReadDate } // Sort by most recent read date
+            ?.firstOrNull() // Take the first (most recent) uncompleted book
+
+        if (currentBook != null) {
+            Log.d(TAG, "Found currently reading book: ${currentBook?.title}")
+        } else {
+            Log.d(TAG, "No currently reading book found in library.")
+        }
+        // --- End of logic to find the currently reading book ---
+
+        if (currentBook != null && updateImage) {
+            val imageUrl = currentBook!!.getHighQualityImageUrl()
+            try {
+                val imageLoader = ImageLoader(this@TimerService)
+                val request = ImageRequest.Builder(this@TimerService)
+                    .data(imageUrl)
+                    .allowHardware(false) // Disable hardware bitmaps for RemoteViews compatibility
+                    .build()
+                val drawable = imageLoader.execute(request).drawable
+                lastLoadedBitmap = (drawable as? BitmapDrawable)?.bitmap
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading book cover image: ${e.message}", e)
+                lastLoadedBitmap = null
+            }
+        }
+        withContext(Dispatchers.Main) { updateWidget(updateImage) } // Update widget with fetched book data (or lack thereof)
+    }
+
+    private fun updateWidget(updateImage: Boolean) { // updateImage param is now just for internal context from fetchBookDataAndBitmap
         val appWidgetManager = AppWidgetManager.getInstance(this)
         val remoteViews = RemoteViews(packageName, R.layout.timer_widget_layout)
 
+        // Update Timer Display
         val hours = (elapsedTime / 3600000).toInt()
         val minutes = (elapsedTime % 3600000 / 60000).toInt()
         val seconds = (elapsedTime % 60000 / 1000).toInt()
-
         val timeFormatted = String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds)
         remoteViews.setTextViewText(R.id.timer_text_view, timeFormatted)
 
-        if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
-            appWidgetManager.updateAppWidget(appWidgetId, remoteViews)
-        } else {
-            // If appWidgetId is invalid, try to update all widgets of this type
-            val componentName = ComponentName(this, TimerWidgetProvider::class.java)
-            appWidgetManager.updateAppWidget(componentName, remoteViews)
+
+        // Update Book Display
+        currentBook?.let { book ->
+            remoteViews.setViewVisibility(R.id.book_cover_image, android.view.View.VISIBLE)
+            remoteViews.setViewVisibility(R.id.book_title_text, android.view.View.VISIBLE)
+            remoteViews.setViewVisibility(R.id.book_author_text, android.view.View.VISIBLE)
+            remoteViews.setViewVisibility(R.id.book_progress_text, android.view.View.VISIBLE)
+
+            remoteViews.setTextViewText(R.id.book_title_text, book.title)
+            remoteViews.setTextViewText(R.id.book_author_text, book.author)
+            remoteViews.setTextViewText(R.id.book_progress_text, "진행률: ${book.progressPercentage}% (${book.currentPage}/${book.totalPages})")
+
+            lastLoadedBitmap?.let {
+                remoteViews.setImageViewBitmap(R.id.book_cover_image, it)
+            } ?: remoteViews.setImageViewResource(R.id.book_cover_image, android.R.drawable.ic_menu_gallery)
+
+        } ?: run {
+            // No current book found, hide book details
+            remoteViews.setViewVisibility(R.id.book_cover_image, android.view.View.GONE)
+            remoteViews.setImageViewResource(R.id.book_cover_image, 0) // Clear any previous image
+            remoteViews.setViewVisibility(R.id.book_title_text, android.view.View.GONE)
+            remoteViews.setViewVisibility(R.id.book_author_text, android.view.View.GONE)
+            remoteViews.setTextViewText(R.id.book_progress_text, "현재 읽는 책 없음")
+            remoteViews.setViewVisibility(R.id.book_progress_text, android.view.View.VISIBLE) // Keep progress text visible for "no book" message
         }
-        Log.d(TAG, "Widget updated: $timeFormatted")
-    }
-
-    private fun updateWidgetButton(isPlaying: Boolean) {
-        val appWidgetManager = AppWidgetManager.getInstance(this)
-        val remoteViews = RemoteViews(packageName, R.layout.timer_widget_layout)
-
-        val iconRes = if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play
-        remoteViews.setImageViewResource(R.id.play_pause_button, iconRes)
 
         // Set up the PendingIntent again for the button click (play/pause)
         val toggleTimerIntent = Intent(this, TimerService::class.java).apply {
@@ -148,6 +221,23 @@ class TimerService : Service() {
             val componentName = ComponentName(this, TimerWidgetProvider::class.java)
             appWidgetManager.updateAppWidget(componentName, remoteViews)
         }
+        Log.d(TAG, "Widget updated: $timeFormatted")
+    }
+
+    private fun updateWidgetButton(isPlaying: Boolean) {
+        val appWidgetManager = AppWidgetManager.getInstance(this)
+        val remoteViews = RemoteViews(packageName, R.layout.timer_widget_layout)
+
+        val iconRes = if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play
+        remoteViews.setImageViewResource(R.id.play_pause_button, iconRes)
+
+        if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+            appWidgetManager.partiallyUpdateAppWidget(appWidgetId, remoteViews) // Use partial update for just the button
+        } else {
+            val componentName = ComponentName(this, TimerWidgetProvider::class.java)
+            val allAppWidgetIds = appWidgetManager.getAppWidgetIds(componentName)
+            appWidgetManager.partiallyUpdateAppWidget(allAppWidgetIds, remoteViews)
+        }
     }
 
 
@@ -158,6 +248,7 @@ class TimerService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         stopTimer() // Ensure timer is stopped when service is destroyed
+        serviceJob.cancel() // Cancel coroutine scope
         Log.d(TAG, "TimerService destroyed.")
     }
 }

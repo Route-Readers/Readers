@@ -53,9 +53,29 @@ class TimerWidgetProvider : AppWidgetProvider() {
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
                 setOnClickPendingIntent(R.id.reset_button, resetPendingIntent)
+
+                // PendingIntent for Refresh button
+                val refreshBookDataIntent = Intent(context, TimerService::class.java).apply {
+                    action = TimerService.ACTION_UPDATE_BOOK_DATA
+                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                }
+                val refreshPendingIntent: PendingIntent = PendingIntent.getService(
+                    context,
+                    appWidgetId + 2, // Use a different request code for refresh
+                    refreshBookDataIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                setOnClickPendingIntent(R.id.refresh_button, refreshPendingIntent)
             }
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
+
+            // Explicitly trigger book data update for this widget instance
+            val updateBookDataIntent = Intent(context, TimerService::class.java).apply {
+                action = TimerService.ACTION_UPDATE_BOOK_DATA
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+            }
+            context.startService(updateBookDataIntent)
         }
     }
 
