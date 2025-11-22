@@ -12,7 +12,13 @@ class TimerWidgetProvider : AppWidgetProvider() {
 
     companion object {
         const val ACTION_TOGGLE_TIMER = "com.route.readers.ACTION_TOGGLE_TIMER"
-        const val ACTION_RESET_TIMER = "com.route.readers.ACTION_RESET_TIMER" // New action
+        const val ACTION_RESET_TIMER = "com.route.readers.ACTION_RESET_TIMER"
+        const val EXTRA_BOOK_ISBN = "com.route.readers.EXTRA_BOOK_ISBN"
+        const val EXTRA_CURRENT_PAGE = "com.route.readers.EXTRA_CURRENT_PAGE"
+        // SharedPreferences keys - must match those used in TimerService
+        const val WIDGET_PREFS_NAME = "widget_preferences"
+        const val CURRENT_BOOK_ISBN_PREF = "current_reading_book_isbn_for_widget"
+        const val CURRENT_BOOK_PAGE_PREF = "current_reading_book_page_for_widget"
     }
 
     override fun onUpdate(
@@ -20,6 +26,10 @@ class TimerWidgetProvider : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray
     ) {
+        val sharedPrefs = context.getSharedPreferences(WIDGET_PREFS_NAME, Context.MODE_PRIVATE)
+        val bookIsbn = sharedPrefs.getString(CURRENT_BOOK_ISBN_PREF, null)
+        val currentPage = sharedPrefs.getInt(CURRENT_BOOK_PAGE_PREF, 0)
+
         appWidgetIds.forEach { appWidgetId ->
             val views: RemoteViews = RemoteViews(
                 context.packageName,
@@ -54,18 +64,33 @@ class TimerWidgetProvider : AppWidgetProvider() {
                 )
                 setOnClickPendingIntent(R.id.reset_button, resetPendingIntent)
 
-                // PendingIntent for Refresh button
-                val refreshBookDataIntent = Intent(context, TimerService::class.java).apply {
-                    action = TimerService.ACTION_UPDATE_BOOK_DATA
-                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                // PendingIntent for Stop button (launches UpdatePageCountActivity)
+                val stopTimerIntent = Intent(context, UpdatePageCountActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) // Needed to launch Activity from non-Activity context
+                    putExtra(EXTRA_BOOK_ISBN, bookIsbn)
+                    putExtra(EXTRA_CURRENT_PAGE, currentPage)
+                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId) // Pass widget ID back
                 }
-                val refreshPendingIntent: PendingIntent = PendingIntent.getService(
+                val stopPendingIntent: PendingIntent = PendingIntent.getActivity(
                     context,
-                    appWidgetId + 2, // Use a different request code for refresh
-                    refreshBookDataIntent,
+                    appWidgetId + 2, // Use a different request code for stop
+                    stopTimerIntent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
-                setOnClickPendingIntent(R.id.refresh_button, refreshPendingIntent)
+                setOnClickPendingIntent(R.id.stop_button, stopPendingIntent) // Use R.id.stop_button
+
+                // PendingIntent for clicking the book info area
+                val bookSelectionIntent = Intent(context, BookSelectionActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) // Needed to launch Activity from non-Activity context
+                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId) // Pass widget ID back
+                }
+                val bookSelectionPendingIntent: PendingIntent = PendingIntent.getActivity(
+                    context,
+                    appWidgetId + 3, // Use a different request code for book selection
+                    bookSelectionIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                setOnClickPendingIntent(R.id.book_info_container, bookSelectionPendingIntent)
             }
 
             appWidgetManager.updateAppWidget(appWidgetId, views)

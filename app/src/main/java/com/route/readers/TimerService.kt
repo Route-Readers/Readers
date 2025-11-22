@@ -40,6 +40,11 @@ class TimerService : Service() {
     private var currentBook: MyBook? = null
     private var lastLoadedBitmap: Bitmap? = null // Cache the last loaded bitmap
 
+    // SharedPreferences keys - must match those used in TimerWidgetProvider
+    private val WIDGET_PREFS_NAME = "widget_preferences"
+    private val CURRENT_BOOK_ISBN_PREF = "current_reading_book_isbn_for_widget"
+    private val CURRENT_BOOK_PAGE_PREF = "current_reading_book_page_for_widget"
+
     private val updateTimerTask = object : Runnable {
         override fun run() {
             if (timerRunning) {
@@ -116,6 +121,13 @@ class TimerService : Service() {
             Log.w(TAG, "User not logged in. Cannot fetch book data for widget.")
             currentBook = null
             lastLoadedBitmap = null
+            // Clear SharedPreferences if no user
+            val sharedPrefs = getSharedPreferences(WIDGET_PREFS_NAME, Context.MODE_PRIVATE)
+            with(sharedPrefs.edit()) {
+                remove(CURRENT_BOOK_ISBN_PREF)
+                remove(CURRENT_BOOK_PAGE_PREF)
+                apply()
+            }
             withContext(Dispatchers.Main) { updateWidget(updateImage) }
             return
         }
@@ -128,10 +140,23 @@ class TimerService : Service() {
 
         if (currentBook != null) {
             Log.d(TAG, "Found currently reading book: ${currentBook?.title}")
+            // Save current book info to SharedPreferences
+            val sharedPrefs = getSharedPreferences(WIDGET_PREFS_NAME, Context.MODE_PRIVATE)
+            with(sharedPrefs.edit()) {
+                putString(CURRENT_BOOK_ISBN_PREF, currentBook?.isbn)
+                putInt(CURRENT_BOOK_PAGE_PREF, currentBook?.currentPage ?: 0)
+                apply()
+            }
         } else {
             Log.d(TAG, "No currently reading book found in library.")
+            // Clear SharedPreferences if no book is found
+            val sharedPrefs = getSharedPreferences(WIDGET_PREFS_NAME, Context.MODE_PRIVATE)
+            with(sharedPrefs.edit()) {
+                remove(CURRENT_BOOK_ISBN_PREF)
+                remove(CURRENT_BOOK_PAGE_PREF)
+                apply()
+            }
         }
-        // --- End of logic to find the currently reading book ---
 
         if (currentBook != null && updateImage) {
             val imageUrl = currentBook!!.getHighQualityImageUrl()

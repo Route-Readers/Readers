@@ -51,6 +51,18 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".UpdatePageCountActivity"
+            android:exported="false"
+            android:label="페이지 업데이트"
+            android:theme="@style/Theme.AppCompat.Dialog" />
+
+        <activity
+            android:name=".BookSelectionActivity"
+            android:exported="false"
+            android:label="책 선택"
+            android:theme="@style/Theme.AppCompat.Light.Dialog" />
+
         <receiver
             android:name=".widget.ReadingProgressWidget"
             android:exported="true">
