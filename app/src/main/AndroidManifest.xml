@@ -51,6 +51,18 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".UpdatePageCountActivity"
+            android:exported="false"
+            android:label="페이지 업데이트"
+            android:theme="@style/Theme.AppCompat.Dialog" />
+
+        <activity
+            android:name=".BookSelectionActivity"
+            android:exported="false"
+            android:label="책 선택"
+            android:theme="@style/Theme.AppCompat.Light.Dialog" />
+
         <receiver
             android:name=".widget.ReadingProgressWidget"
             android:exported="true">
@@ -60,6 +72,17 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".TimerWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/timer_widget_info" />
         </receiver>
 
         <service
@@ -83,6 +106,11 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
+
+        <service
+            android:name=".TimerService"
+            android:enabled="true"
+            android:exported="false" />
 
     </application>
 </manifest>

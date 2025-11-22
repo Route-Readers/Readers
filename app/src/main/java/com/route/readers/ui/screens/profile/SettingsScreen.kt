@@ -10,8 +10,6 @@ import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -19,11 +17,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
+import com.route.readers.ui.screens.profile.ProfileUiState
+import com.route.readers.ui.screens.profile.ProfileViewModel
 
 data class SettingItem(
     val id: String,
@@ -36,11 +37,18 @@ data class SettingItem(
 @Composable
 fun SettingsScreen(
     bottomNavController: NavController?,
-    appNavController: NavController?
+    appNavController: NavController?,
+    profileViewModel: ProfileViewModel = viewModel()
 ) {
     var currentSettingView by remember { mutableStateOf("main") }
     val firebaseAuth = FirebaseAuth.getInstance()
     val context = LocalContext.current
+
+    val uiState by profileViewModel.uiState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        profileViewModel.fetchUserProfile(null)
+    }
 
     val gso = remember {
         GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -57,13 +65,17 @@ fun SettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = if (currentSettingView == "account") "계정 관리" else "환경설정",
+                        text = when (currentSettingView) {
+                            "account" -> "계정 관리"
+                            "notifications" -> "알림 설정"
+                            else -> "환경설정"
+                        },
                         fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = {
-                        if (currentSettingView == "account") {
+                        if (currentSettingView != "main") {
                             currentSettingView = "main"
                         } else {
                             bottomNavController?.popBackStack()
@@ -82,6 +94,9 @@ fun SettingsScreen(
                     modifier = Modifier.padding(innerPadding),
                     onNavigateToAccountManagement = {
                         currentSettingView = "account"
+                    },
+                    onNavigateToNotifications = {
+                        currentSettingView = "notifications"
                     }
                 )
             }
@@ -102,6 +117,13 @@ fun SettingsScreen(
                     }
                 )
             }
+            "notifications" -> {
+                NotificationSettingsContent(
+                    modifier = Modifier.padding(innerPadding),
+                    uiState = uiState,
+                    viewModel = profileViewModel
+                )
+            }
         }
     }
 }
@@ -109,7 +131,8 @@ fun SettingsScreen(
 @Composable
 fun MainSettingsContent(
     modifier: Modifier = Modifier,
-    onNavigateToAccountManagement: () -> Unit
+    onNavigateToAccountManagement: () -> Unit,
+    onNavigateToNotifications: () -> Unit
 ) {
     val settingItems = listOf(
         SettingItem(
@@ -122,7 +145,7 @@ fun MainSettingsContent(
             id = "notifications",
             title = "알림 설정",
             icon = Icons.Filled.Notifications,
-            action = { Log.d("SettingsScreen", "알림 설정 클릭") }
+            action = onNavigateToNotifications
         )
     )
 
@@ -137,6 +160,74 @@ fun MainSettingsContent(
         }
     }
 }
+
+@Composable
+fun NotificationSettingsContent(
+    modifier: Modifier = Modifier,
+    uiState: ProfileUiState,
+    viewModel: ProfileViewModel
+) {
+    val user = (uiState as? ProfileUiState.Success)?.user
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        if (user != null) {
+            NotificationSwitch(
+                title = "팔로우 알림",
+                checked = user.followAlarmEnabled,
+                onCheckedChange = { isEnabled ->
+                    viewModel.updateNotificationSetting("followAlarmEnabled", isEnabled)
+                }
+            )
+            HorizontalDivider()
+            NotificationSwitch(
+                title = "좋아요 알림",
+                checked = user.likeAlarmEnabled,
+                onCheckedChange = { isEnabled ->
+                    viewModel.updateNotificationSetting("likeAlarmEnabled", isEnabled)
+                }
+            )
+            HorizontalDivider()
+            NotificationSwitch(
+                title = "친구 독서 알림",
+                checked = user.friendReadingAlarmEnabled,
+                onCheckedChange = { isEnabled ->
+                    viewModel.updateNotificationSetting("friendReadingAlarmEnabled", isEnabled)
+                }
+            )
+            HorizontalDivider()
+        } else {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        }
+    }
+}
+
+@Composable
+fun NotificationSwitch(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(text = title, fontSize = 16.sp)
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange
+        )
+    }
+}
+
 
 @Composable
 fun AccountManagementContent(

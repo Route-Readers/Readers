@@ -1,4 +1,4 @@
-import {onDocumentCreated} from "firebase-functions/v2/firestore";
+import {onDocumentCreated, onDocumentUpdated} from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 import {getMessaging} from "firebase-admin/messaging";
 
@@ -83,7 +83,7 @@ export const sendFcmNotification = onDocumentCreated(
                     body: body,
                 },
                 data: { // Add data payload for custom handling on client
-                    notificationType: notificationType,
+                    notificationType: String(notificationType),
                     // Add other relevant data if needed, e.g., senderId
                 },
                 token: fcmToken,
@@ -107,6 +107,101 @@ export const sendFcmNotification = onDocumentCreated(
             }
         }
     });
+
+export const sendBookClubChatMessageNotification = onDocumentCreated(
+    {
+        document: "bookClubs/{bookClubId}/messages/{messageId}",
+        region: "asia-northeast3", // Use the same region as other functions
+    },
+    async (event) => {
+        const snapshot = event.data;
+        if (!snapshot) {
+            console.log("No data associated with the chat message event");
+            return;
+        }
+
+        const chatMessage = snapshot.data();
+        const bookClubId = event.params.bookClubId;
+        const senderId = chatMessage.senderId;
+        const senderName = chatMessage.senderName;
+        const messageText = chatMessage.message;
+
+        console.log(`New chat message in bookClub ${bookClubId} from ${senderName} (${senderId}): ${messageText}`);
+
+        if (!bookClubId || !senderId || !senderName || !messageText) {
+            console.error("Missing chat message fields", chatMessage);
+            return;
+        }
+
+        try {
+            const db = admin.firestore();
+
+            // 1. Get BookClub members
+            const bookClubDoc = await db.collection("bookClubs").doc(bookClubId).get();
+            const bookClubData = bookClubDoc.data();
+            const members: string[] = bookClubData?.members || [];
+            const bookClubName: string = bookClubData?.name || "Book Club";
+
+            if (members.length === 0) {
+                console.log(`No members in book club ${bookClubId}. Skipping notification.`);
+                return;
+            }
+
+            // 2. Filter out sender and fetch FCM tokens for remaining members
+            const recipientUids = members.filter(uid => uid !== senderId);
+
+            if (recipientUids.length === 0) {
+                console.log(`No other members to notify in book club ${bookClubId}.`);
+                return;
+            }
+
+            const messagePromises = recipientUids.map(async (recipientUid) => {
+                const userDoc = await db.collection("users").doc(recipientUid).get();
+                const userData = userDoc.data();
+                const fcmToken = userData?.fcmToken;
+                const messageAlarmEnabled = userData?.messageAlarmEnabled;
+
+                if (!fcmToken) {
+                    console.log(`No FCM token for user ${recipientUid}`);
+                    return null;
+                }
+                if (messageAlarmEnabled === false) {
+                    console.log(`User ${recipientUid} has disabled message alarms. Skipping.`);
+                    return null;
+                }
+
+                const notificationTitle = `${bookClubName} 채팅방`;
+                const notificationBody = `${senderName}: ${messageText.substring(0, 50)}${messageText.length > 50 ? "..." : ""}`; // Snippet of message
+
+                const fcmMessage = {
+                    notification: {
+                        title: notificationTitle,
+                        body: notificationBody,
+                    },
+                    data: {
+                        notificationType: "BOOK_CLUB_CHAT_MESSAGE", // New type
+                        bookClubId: bookClubId,
+                        senderId: senderId,
+                        messageId: snapshot.id, // ID of the chat message document
+                        // Potentially add the full message text to data payload for client to parse
+                        message: messageText,
+                        senderName: senderName,
+                        bookClubName: bookClubName
+                    },
+                    token: fcmToken,
+                };
+                return getMessaging().send(fcmMessage);
+            });
+
+            const sendResults = await Promise.all(messagePromises);
+            const successfulSends = sendResults.filter(result => result !== null).length;
+            console.log(`Sent ${successfulSends} chat message notifications for book club ${bookClubId}.`);
+
+        } catch (error) {
+            console.error(`Error sending chat message notification for book club ${bookClubId}:`, error);
+        }
+    }
+);
 
 export const onLikeCreated = onDocumentUpdated(
     {
@@ -156,7 +251,7 @@ export const onLikeCreated = onDocumentUpdated(
             await db.collection("fcmRequests").add({
                 targetUserId: feedOwnerId,
                 title: "새로운 좋아요!",
-                message: `${likerDisplayName}님이 회원님의 글을 좋아합니다: ${feedTitle}`,
+                message: `${likerDisplayName}님이 회원님의 글을 좋아합니다. `,
                 notificationType: "LIKE",
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
             });

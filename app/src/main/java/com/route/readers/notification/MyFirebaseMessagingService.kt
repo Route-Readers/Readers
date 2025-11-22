@@ -1,11 +1,12 @@
 package com.route.readers.notification
-// 얘도 현재 사용하지 않지만 나중에 필요할수도 ..
+
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
+
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessagingService
@@ -15,9 +16,25 @@ import com.route.readers.R
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
+    override fun onCreate() {
+        super.onCreate()
+        val channelId = "reading_notifications"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                "독서 알림",
+                NotificationManager.IMPORTANCE_HIGH
+            )
+            val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+            android.util.Log.d("FCM_SERVICE", "Notification Channel '$channelId' created.")
+        } else {
+            android.util.Log.d("FCM_SERVICE", "Notification Channels not supported below Android O.")
+        }
+    }
+
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        // FCM 토큰을 Firestore에 저장
         FirebaseAuth.getInstance().currentUser?.uid?.let { userId ->
             FirebaseFirestore.getInstance()
                 .collection("users")
@@ -29,35 +46,33 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
 
-        // 데이터 메시지 처리
-        if (message.data.isNotEmpty()) {
-            val title = message.data["title"] ?: "새 알림"
-            val body = message.data["message"] ?: "새로운 메시지가 도착했습니다."
-            showNotification(title, body)
-        } else {
-            // 알림 메시지 처리 (기존 로직)
-            message.notification?.let {
-                showNotification(it.title ?: "새 알림", it.body ?: "새로운 메시지가 도착했습니다.")
-            }
+        message.notification?.let {
+            android.util.Log.d("FCM_SERVICE", "onMessageReceived: message.notification is present. Calling showNotification.")
+            // Pass message.data here
+            showNotification(it.title ?: "새 알림", it.body ?: "새로운 메시지가 도착했습니다.", message.data)
+        } ?: run {
+            android.util.Log.d("FCM_SERVICE", "onMessageReceived: message.notification is NULL. Not calling showNotification.")
         }
     }
 
-    private fun showNotification(title: String, message: String) {
+    private fun showNotification(title: String, message: String, data: Map<String, String>) {
+        android.util.Log.d("FCM_SERVICE", "Showing notification: Title='$title', Message='$message', Data='$data'")
+
         val channelId = "reading_notifications"
         val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                "독서 알림",
-                NotificationManager.IMPORTANCE_HIGH
-            )
-            notificationManager.createNotificationChannel(channel)
-        }
-
         val intent = Intent(this, MainActivity::class.java)
+        // Add data to the intent
+        for ((key, value) in data) {
+            intent.putExtra(key, value)
+        }
+        // Set flags to clear activity stack and create a new task
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+
         val pendingIntent = PendingIntent.getActivity(
-            this, 0, intent,
+            this,
+            System.currentTimeMillis().toInt(), // Use unique request code for each notification
+            intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
@@ -71,5 +86,6 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             .build()
 
         notificationManager.notify(System.currentTimeMillis().toInt(), notification)
+        android.util.Log.d("FCM_SERVICE", "Notification issued with ID: ${System.currentTimeMillis().toInt()}")
     }
 }

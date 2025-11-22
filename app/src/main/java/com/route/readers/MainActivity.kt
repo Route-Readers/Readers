@@ -2,7 +2,10 @@ package com.route.readers
 
 import android.Manifest
 import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -15,7 +18,6 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -27,6 +29,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.ViewModel
@@ -39,9 +42,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.data.UserPreferencesRepository
 import com.route.readers.notification.DailyNotificationScheduler
+import com.route.readers.ui.screens.bookclub.BookClubChatScreen// BookClubChatScreen import 추가
 import com.route.readers.ui.community.used_trade.ChatListScreen
 import com.route.readers.ui.community.used_trade.ChatScreen
 import com.route.readers.ui.community.used_trade.UsedBookDetailScreen
@@ -104,6 +109,13 @@ class MainActivity : ComponentActivity() {
         } else {
             DailyNotificationScheduler.scheduleDailyNotification(this)
         }
+
+        // Extract notification data from the initial intent
+        val initialNotificationType = intent.getStringExtra("notificationType")
+        val initialBookClubId = intent.getStringExtra("bookClubId")
+        val initialBookClubName = intent.getStringExtra("bookClubName")
+
+
         setupNotificationListener()
         setContent {
             val isSystemInDark = isSystemInDarkTheme()
@@ -117,18 +129,33 @@ class MainActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     val appNavController = rememberNavController()
                     CompositionLocalProvider(LocalAppNavController provides appNavController) {
-                        RootAppNavigation(accountViewModel = accountViewModel)
+                        RootAppNavigation(
+                            accountViewModel = accountViewModel,
+                            initialNotificationType = initialNotificationType,
+                            initialBookClubId = initialBookClubId,
+                            initialBookClubName = initialBookClubName
+                        )
                     }
                 }
             }
         }
     }
 
-    private fun setupNotificationListener() {
-        val currentUserId =
-            com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: return
+    // --- 수정된 부분 1: onNewIntent 시그니처 변경 및 로직 수정 ---
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // 새로운 intent로 Activity를 다시 생성하여 onCreate에서 처리하도록 함
+        // 이 방식이 Compose 생명주기와 충돌하지 않고 안정적으로 상태를 갱신할 수 있음
+        recreate()
+    }
 
-        com.google.firebase.firestore.FirebaseFirestore.getInstance()
+    // --- 수정된 부분 2: handleNotificationNavigation 함수 삭제 ---
+    // 이 함수는 RootAppNavigation 내부의 LaunchedEffect로 로직이 이동했으므로 삭제합니다.
+
+    private fun setupNotificationListener() {
+        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+
+        FirebaseFirestore.getInstance()
             .collection("users")
             .document(currentUserId)
             .collection("notifications")
@@ -137,7 +164,7 @@ class MainActivity : ComponentActivity() {
                 if (error != null) return@addSnapshotListener
 
                 snapshots?.documentChanges?.forEach { change ->
-                    if (change.type == com.google.firebase.firestore.DocumentChange.Type.ADDED) {
+                    if (change.type == DocumentChange.Type.ADDED) {
                         val data = change.document.data
                         val title = data["title"] as? String ?: "알림"
                         val message = data["message"] as? String ?: ""
@@ -151,23 +178,23 @@ class MainActivity : ComponentActivity() {
 
     private fun showLocalNotification(title: String, message: String) {
         val notificationManager =
-            getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = android.app.NotificationChannel(
+            val channel = NotificationChannel(
                 "reading_notifications",
                 "독서 알림",
-                android.app.NotificationManager.IMPORTANCE_HIGH
+                NotificationManager.IMPORTANCE_HIGH
             )
             notificationManager.createNotificationChannel(channel)
         }
 
         val notification =
-            androidx.core.app.NotificationCompat.Builder(this, "reading_notifications")
+            NotificationCompat.Builder(this, "reading_notifications")
                 .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(title)
                 .setContentText(message)
-                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true)
                 .build()
 
@@ -190,11 +217,36 @@ class AccountViewModelFactory(
 }
 
 @Composable
-fun RootAppNavigation(accountViewModel: AccountViewModel) {
+fun RootAppNavigation(
+    accountViewModel: AccountViewModel,
+    initialNotificationType: String?,
+    initialBookClubId: String?,
+    initialBookClubName: String?
+) {
     val appNavController = LocalAppNavController.current
         ?: throw IllegalStateException("LocalAppNavController not provided")
 
     val startDestination = "decision_route"
+
+    // --- 수정된 부분 3: LaunchedEffect에서 내비게이션 로직 직접 처리 ---
+    LaunchedEffect(initialNotificationType, initialBookClubId, initialBookClubName) {
+        if (initialNotificationType != null) {
+            when (initialNotificationType) {
+                "BOOK_CLUB_CHAT_MESSAGE" -> {
+                    if (initialBookClubId != null && initialBookClubName != null) {
+                        val encodedClubName = URLEncoder.encode(initialBookClubName, "UTF-8")
+                        // 올바른 라우트로 이동하도록 수정
+                        appNavController.navigate("bookclub_chat_route/$initialBookClubId/$encodedClubName") {
+                            popUpTo(appNavController.graph.startDestinationId) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                }
+                // 다른 알림 타입에 대한 처리도 여기에 추가
+            }
+        }
+    }
 
     NavHost(navController = appNavController, startDestination = startDestination) {
 
@@ -203,6 +255,8 @@ fun RootAppNavigation(accountViewModel: AccountViewModel) {
             val firestore = FirebaseFirestore.getInstance()
             val context = LocalContext.current
 
+            // decision_route는 로그인/프로필 상태 확인 후 적절한 화면으로 보내주는 역할만 함
+            // 알림 처리는 LaunchedEffect가 담당하므로 여기서 별도 처리는 불필요
             LaunchedEffect(Unit) {
                 val currentUser = auth.currentUser
                 if (currentUser == null) {
@@ -224,8 +278,11 @@ fun RootAppNavigation(accountViewModel: AccountViewModel) {
                                 } else {
                                     "profile_setup_route"
                                 }
-                            appNavController.navigate(destination) {
-                                popUpTo("decision_route") { inclusive = true }
+                            // 알림으로 인한 초기 탐색이 아닐 경우에만 기본 로직 실행
+                            if (initialNotificationType == null) {
+                                appNavController.navigate(destination) {
+                                    popUpTo("decision_route") { inclusive = true }
+                                }
                             }
                         }
                         .addOnFailureListener {
@@ -242,8 +299,11 @@ fun RootAppNavigation(accountViewModel: AccountViewModel) {
                         }
                 }
             }
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+            // 알림으로 인해 decision_route에 머무는 동안 로딩 인디케이터 표시
+            if(initialNotificationType == null) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
             }
         }
 
@@ -538,6 +598,28 @@ fun RootAppNavigation(accountViewModel: AccountViewModel) {
                     bookId = bookId,
                     sellerId = otherUserId,
                     onNavigateBack = { appNavController.popBackStack() }
+                )
+            }
+        }
+
+        // Add bookclub chat route
+        composable(
+            route = "bookclub_chat_route/{clubId}/{clubName}",
+            arguments = listOf(
+                navArgument("clubId") { type = NavType.StringType },
+                navArgument("clubName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val clubId = backStackEntry.arguments?.getString("clubId")
+            val clubName = backStackEntry.arguments?.getString("clubName")?.let {
+                URLDecoder.decode(it, "UTF-8")
+            }
+            if (clubId != null && clubName != null) {
+                // BookClubChatScreen composable function
+                BookClubChatScreen(
+                    bookClubId = clubId,
+                    bookClubName = clubName,
+                    onBackClick = { appNavController.popBackStack() }
                 )
             }
         }
