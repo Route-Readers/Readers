@@ -195,6 +195,7 @@ class ChallengeViewModel : ViewModel() {
     fun joinChallenge(challengeId: String) {
         viewModelScope.launch {
             repository.joinChallenge(challengeId, currentUserId)
+            repository.refreshUserActiveChallenge(currentUserId)
         }
     }
 

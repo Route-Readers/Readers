@@ -1,5 +1,7 @@
 package com.route.readers.ui.screens.community
 
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -24,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.route.readers.data.model.Challenge
 import kotlinx.coroutines.delay
+import android.util.Log
 
 enum class ChallengeCardState {
     INITIAL,      // 초기 "참여하세요" 카드
@@ -44,19 +47,21 @@ fun SwipeableChallengeCard(
     var optimisticChallenge by remember { mutableStateOf<Challenge?>(null) }
 
     // This effect synchronizes the card's state with data from the ViewModel.
-    LaunchedEffect(userChallenge, isChallengesLoading) {
-        if (userChallenge != null) {
-            // If there's an active challenge from the backend, show it.
+    LaunchedEffect(userChallenge, isChallengesLoading, optimisticChallenge) {
+        Log.d("SwipeableChallengeCard", "LaunchedEffect triggered. userChallenge: $userChallenge, isChallengesLoading: $isChallengesLoading, optimisticChallenge: $optimisticChallenge")
+
+        if (userChallenge != null || optimisticChallenge != null) {
+            // If there's an active challenge (real or optimistic), show it.
             cardState = ChallengeCardState.ACTIVE
-            optimisticChallenge = null // Clear any optimistic update.
-        } else if (!isChallengesLoading && optimisticChallenge == null) {
-            // If loading is finished, there's no active challenge, and no optimistic one,
-            // then reset to the initial state.
+            if (userChallenge != null && optimisticChallenge != null) {
+                // If real data has arrived, clear optimistic update.
+                optimisticChallenge = null
+            }
+        } else if (!isChallengesLoading) {
+            // If no active challenge (real or optimistic) and not loading, go to initial.
             cardState = ChallengeCardState.INITIAL
-        } else if (userChallenge == null && optimisticChallenge != null) {
-            // If the user has selected a challenge optimistically, keep it in the active state.
-            cardState = ChallengeCardState.ACTIVE
         }
+        // If loading and no challenge, remain in current state (e.g., showing progress indicator).
     }
 
 
@@ -219,15 +224,15 @@ fun ChallengeSelectionCard(
                     textAlign = TextAlign.Center
                 )
             } else {
-                Row(
+                LazyRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    challenges.take(3).forEach { challenge ->
+                    items(challenges) { challenge ->
                         ChallengeOption(
                             challenge = challenge,
                             onSelect = { onSelect(challenge) },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.width(150.dp) // Give each card a fixed width for scrolling
                         )
                     }
                 }
