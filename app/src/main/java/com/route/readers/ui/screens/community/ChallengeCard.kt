@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.route.readers.data.model.Challenge
 import kotlinx.coroutines.delay
+import android.util.Log
 
 enum class ChallengeCardState {
     INITIAL,      // 초기 "참여하세요" 카드
@@ -45,6 +46,7 @@ fun SwipeableChallengeCard(
 
     // This effect synchronizes the card's state with data from the ViewModel.
     LaunchedEffect(userChallenge, isChallengesLoading) {
+        Log.d("SwipeableChallengeCard", "userChallenge updated: $userChallenge, isChallengesLoading: $isChallengesLoading, optimisticChallenge: $optimisticChallenge")
         if (userChallenge != null) {
             // If there's an active challenge from the backend, show it.
             cardState = ChallengeCardState.ACTIVE
