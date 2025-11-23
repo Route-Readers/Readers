@@ -51,14 +51,22 @@ class ChallengeRepository {
             val progress = snapshot.get("progress") as? Map<*, *> ?: emptyMap<String, Int>()
 
             val updatedParticipants = participants + userId
-            val updatedProgress = progress + (userId to 0)
+
+            // 수정된 부분: 새로운 참여자의 진행률을 0으로 초기화합니다.
+            val updatedProgress = progress.toMutableMap().apply {
+                this[userId] = 0
+            }
 
             transaction.update(docRef, mapOf(
                 "participants" to updatedParticipants,
                 "progress" to updatedProgress
             ))
         }.await()
-        refreshUserActiveChallenge(userId)
+
+        val updatedChallenge = challengesCollection.document(challengeId).get().await().toObject(Challenge::class.java)
+        if (updatedChallenge != null) {
+            _userActiveChallenges.value = _userActiveChallenges.value + (userId to updatedChallenge)
+        }
     }
 
     suspend fun leaveChallenge(challengeId: String, userId: String) {
