@@ -37,21 +37,28 @@ fun SwipeableChallengeCard(
     availableChallenges: List<Challenge>,
     onChallengeSelected: (Challenge) -> Unit,
     onChallengeReset: () -> Unit,
-    currentUserId: String
+    currentUserId: String,
+    isChallengesLoading: Boolean
 ) {
-    var cardState by remember { mutableStateOf(
-        if (userChallenge != null) ChallengeCardState.ACTIVE else ChallengeCardState.INITIAL
-    ) }
+    var cardState by remember { mutableStateOf(ChallengeCardState.INITIAL) }
+    var optimisticChallenge by remember { mutableStateOf<Challenge?>(null) }
 
-    // userChallenge가 외부에서(예: 다른 화면에서 참여) 업데이트될 때 UI 상태를 동기화
-    LaunchedEffect(userChallenge) {
-        if (userChallenge != null && cardState != ChallengeCardState.ACTIVE) {
+    // This effect synchronizes the card's state with data from the ViewModel.
+    LaunchedEffect(userChallenge, isChallengesLoading) {
+        if (userChallenge != null) {
+            // If there's an active challenge from the backend, show it.
             cardState = ChallengeCardState.ACTIVE
-        } else if (userChallenge == null && cardState == ChallengeCardState.ACTIVE) {
-            // 다른 곳에서 챌린지가 리셋된 경우
+            optimisticChallenge = null // Clear any optimistic update.
+        } else if (!isChallengesLoading && optimisticChallenge == null) {
+            // If loading is finished, there's no active challenge, and no optimistic one,
+            // then reset to the initial state.
             cardState = ChallengeCardState.INITIAL
+        } else if (userChallenge == null && optimisticChallenge != null) {
+            // If the user has selected a challenge optimistically, keep it in the active state.
+            cardState = ChallengeCardState.ACTIVE
         }
     }
+
 
     Box(
         modifier = Modifier
@@ -59,43 +66,46 @@ fun SwipeableChallengeCard(
             .height(220.dp),
         contentAlignment = Alignment.Center
     ) {
-        when (cardState) {
-            ChallengeCardState.INITIAL -> {
-                InitialChallengeCard(
-                    onSwipe = {
-                        cardState = ChallengeCardState.SELECTING
-                    }
-                )
-            }
-            ChallengeCardState.SELECTING -> {
-                ChallengeSelectionCard(
-                    challenges = availableChallenges,
-                    onSelect = { challenge ->
-                        onChallengeSelected(challenge)
-                        // 낙관적 업데이트: 로딩 상태를 보여주기 위해 즉시 ACTIVE로 변경
-                        cardState = ChallengeCardState.ACTIVE
-                    }
-                )
-            }
-            ChallengeCardState.ACTIVE -> {
-                if (userChallenge != null) {
-                    ActiveChallengeCard(
-                        challenge = userChallenge,
-                        currentUserId = currentUserId,
-                        onReset = {
-                            onChallengeReset()
-                            // 챌린지 변경 시 즉시 SELECTING 상태로 변경
+        // While loading, if we don't have a challenge to show, display a progress indicator.
+        if (isChallengesLoading && userChallenge == null && optimisticChallenge == null) {
+            CircularProgressIndicator()
+        } else {
+            when (cardState) {
+                ChallengeCardState.INITIAL -> {
+                    InitialChallengeCard(
+                        onSwipe = {
                             cardState = ChallengeCardState.SELECTING
                         }
                     )
-                } else {
-                    // 챌린지 참여 후 데이터가 로드되기를 기다리는 동안 로딩 표시
-                    CircularProgressIndicator()
-                    // 만약 5초 이상 userChallenge가 null이면, 다시 선택 화면으로 돌려보냄
-                    LaunchedEffect(Unit) {
-                        delay(5000)
-                        if (userChallenge == null) {
-                            cardState = ChallengeCardState.SELECTING
+                }
+                ChallengeCardState.SELECTING -> {
+                    ChallengeSelectionCard(
+                        challenges = availableChallenges,
+                        onSelect = { challenge ->
+                            onChallengeSelected(challenge)
+                            optimisticChallenge = challenge // Optimistically update the UI.
+                            cardState = ChallengeCardState.ACTIVE
+                        }
+                    )
+                }
+                ChallengeCardState.ACTIVE -> {
+                    val challengeToShow = userChallenge ?: optimisticChallenge
+
+                    if (challengeToShow != null) {
+                        ActiveChallengeCard(
+                            challenge = challengeToShow,
+                            currentUserId = currentUserId,
+                            onReset = {
+                                onChallengeReset()
+                                optimisticChallenge = null
+                                cardState = ChallengeCardState.SELECTING
+                            }
+                        )
+                    } else {
+                        // If for some reason we end up here with no challenge, go back to initial.
+                        // This can happen if the last challenge is left/reset.
+                        LaunchedEffect(Unit) {
+                            cardState = ChallengeCardState.INITIAL
                         }
                     }
                 }
