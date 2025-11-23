@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
@@ -126,6 +127,12 @@ fun BookSearchTab(
         searchText = currentQuery
     }
 
+    LaunchedEffect(Unit) {
+        if (books.isEmpty() && currentQuery.isEmpty()) {
+            bookViewModel.getNewBooks()
+        }
+    }
+
     fun performSearch() {
         if (searchText.isNotBlank()) {
             bookViewModel.performSearch(searchText.trim(), isNewSearch = true)
@@ -150,18 +157,27 @@ fun BookSearchTab(
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { performSearch() }),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color.Transparent,
-                    unfocusedBorderColor = Color.Transparent,
-                    focusedContainerColor = TransparentPrimary,
-                    unfocusedContainerColor = TransparentPrimary
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
                 ),
                 trailingIcon = {
-                    TextButton(
+                    IconButton(
                         onClick = { performSearch() },
                         enabled = searchText.isNotBlank() && !isLoading,
-                        contentPadding = PaddingValues(horizontal = 8.dp)
+                        modifier = Modifier
+                            .padding(end = 4.dp)
+                            .background(
+                                color = if (searchText.isNotBlank()) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                shape = RoundedCornerShape(50)
+                            )
                     ) {
-                        Text("검색", fontSize = 16.sp)
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = "검색",
+                            tint = if (searchText.isNotBlank()) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             )
@@ -210,6 +226,25 @@ fun BookSearchTab(
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
+            } else {
+                item {
+                    Column {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            "따끈따끈한 신간 도서",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "지금 서점에서 가장 인기 있는 책들을 만나보세요!",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 14.sp
+                        )
+                        // Spacer(modifier = Modifier.height(16.dp))
+                    }
+                }
             }
 
             items(books, key = { book -> book.isbn13 ?: book.isbn ?: book.title }) { book ->
@@ -243,37 +278,7 @@ fun BookSearchTab(
         }
 
         if (books.isEmpty() && !isLoading && errorMessage == null) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                "신간 도서",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            TextButton(onClick = { bookViewModel.getNewBooks() }) {
-                                Text("불러오기")
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "최신 출간 도서를 확인해보세요",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 14.sp
-                        )
-                    }
-                }
-            }
+           // Initial empty state if needed, or just empty
         }
     }
 }
