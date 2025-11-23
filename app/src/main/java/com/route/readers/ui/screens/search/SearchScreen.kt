@@ -45,6 +45,8 @@ import com.google.android.gms.tasks.CancellationTokenSource
 import com.route.readers.R
 import com.route.readers.data.model.Book
 import com.route.readers.data.remote.MyLibraryRepository
+import com.route.readers.ui.theme.ReadingGreen
+import com.route.readers.ui.theme.TransparentPrimary
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -150,8 +152,8 @@ fun BookSearchTab(
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color.Transparent,
                     unfocusedBorderColor = Color.Transparent,
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer
+                    focusedContainerColor = TransparentPrimary,
+                    unfocusedContainerColor = TransparentPrimary
                 ),
                 trailingIcon = {
                     TextButton(
@@ -453,8 +455,8 @@ fun LibrarySearchTab(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color.Transparent,
                         unfocusedBorderColor = Color.Transparent,
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer
+                        focusedContainerColor = TransparentPrimary,
+                        unfocusedContainerColor = TransparentPrimary
                     )
                 )
             }
@@ -599,7 +601,7 @@ fun LibraryResultCard(
                         book.isbn13?.let { isbn ->
                             if (availability.containsKey(isbn)) {
                                 val isAvailable = availability[isbn] ?: false
-                                val loanStatusColor = if (isAvailable) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+                                val loanStatusColor = if (isAvailable) ReadingGreen else MaterialTheme.colorScheme.error
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.padding(vertical = 2.dp)

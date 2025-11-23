@@ -39,6 +39,8 @@ val OnErrorDark = Color(0xFF690005)
 // Common Colors
 val StarColor = Color(0xFFFFD700)
 val ReadingGreen = Color(0xFF4CAF50)
+val VeryLightGray = Color(0xFFFAFAFA)
+val TransparentPrimary = PrimaryRed.copy(alpha = 0.1f)
 
 // 별칭(Alias) 추가 - 다른 파일에서 DarkRed를 사용할 수 있도록 함
 val DarkRed = PrimaryRed
