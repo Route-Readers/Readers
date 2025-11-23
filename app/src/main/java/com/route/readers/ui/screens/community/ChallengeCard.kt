@@ -293,7 +293,8 @@ fun ActiveChallengeCard(
     val progress = if (goal > 0) userProgress.toFloat() / goal.toFloat() else 0f
     val daysRemaining = challenge.endDate?.let {
         val diff = it.time - System.currentTimeMillis()
-        java.util.concurrent.TimeUnit.MILLISECONDS.toDays(diff).toInt()
+        val days = java.util.concurrent.TimeUnit.MILLISECONDS.toDays(diff).toInt()
+        days.coerceAtLeast(0)
     } ?: 0
     
     Card(
