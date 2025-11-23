@@ -47,20 +47,21 @@ fun SwipeableChallengeCard(
     var optimisticChallenge by remember { mutableStateOf<Challenge?>(null) }
 
     // This effect synchronizes the card's state with data from the ViewModel.
-    LaunchedEffect(userChallenge, isChallengesLoading) {
-        Log.d("SwipeableChallengeCard", "userChallenge updated: $userChallenge, isChallengesLoading: $isChallengesLoading, optimisticChallenge: $optimisticChallenge")
-        if (userChallenge != null) {
-            // If there's an active challenge from the backend, show it.
+    LaunchedEffect(userChallenge, isChallengesLoading, optimisticChallenge) {
+        Log.d("SwipeableChallengeCard", "LaunchedEffect triggered. userChallenge: $userChallenge, isChallengesLoading: $isChallengesLoading, optimisticChallenge: $optimisticChallenge")
+
+        if (userChallenge != null || optimisticChallenge != null) {
+            // If there's an active challenge (real or optimistic), show it.
             cardState = ChallengeCardState.ACTIVE
-            optimisticChallenge = null // Clear any optimistic update.
-        } else if (!isChallengesLoading && optimisticChallenge == null) {
-            // If loading is finished, there's no active challenge, and no optimistic one,
-            // then reset to the initial state.
+            if (userChallenge != null && optimisticChallenge != null) {
+                // If real data has arrived, clear optimistic update.
+                optimisticChallenge = null
+            }
+        } else if (!isChallengesLoading) {
+            // If no active challenge (real or optimistic) and not loading, go to initial.
             cardState = ChallengeCardState.INITIAL
-        } else if (userChallenge == null && optimisticChallenge != null) {
-            // If the user has selected a challenge optimistically, keep it in the active state.
-            cardState = ChallengeCardState.ACTIVE
         }
+        // If loading and no challenge, remain in current state (e.g., showing progress indicator).
     }
 
 
