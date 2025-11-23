@@ -246,11 +246,6 @@ fun ReadingTimerScreen(
                     showFinishDialog = false
                     TimerState.setState(book.isbn, false, 0)
                     
-                    // 독서 세션 저장
-                    coroutineScope.launch {
-                        saveReadingSession(firestoreRepository, book.isbn, sessionStartTime, seconds)
-                    }
-                    
                     onFinishReading(seconds)
                 }) { Text("완료") }
             },
