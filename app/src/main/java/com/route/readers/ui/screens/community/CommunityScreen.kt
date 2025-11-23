@@ -195,17 +195,16 @@ fun CommunityContent(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp)
     ) {
-        if (!uiState.isChallengesLoading) {
-            item {
-                SwipeableChallengeCard(
-                    userChallenge = uiState.userActiveChallenge,
-                    availableChallenges = uiState.availableChallenges,
-                    onChallengeSelected = { challenge -> onJoinChallenge(challenge.id) },
-                    onChallengeReset = onResetChallenge,
-                    currentUserId = currentUserId
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-            }
+        item {
+            SwipeableChallengeCard(
+                userChallenge = uiState.userActiveChallenge,
+                availableChallenges = uiState.availableChallenges,
+                onChallengeSelected = { challenge -> onJoinChallenge(challenge.id) },
+                onChallengeReset = onResetChallenge,
+                currentUserId = currentUserId,
+                isChallengesLoading = uiState.isChallengesLoading
+            )
+            Spacer(modifier = Modifier.height(24.dp))
         }
 
         item {

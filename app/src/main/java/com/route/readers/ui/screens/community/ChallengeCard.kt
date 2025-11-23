@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.route.readers.data.model.Challenge
+import kotlinx.coroutines.delay
 
 enum class ChallengeCardState {
     INITIAL,      // 초기 "참여하세요" 카드
@@ -36,66 +37,89 @@ fun SwipeableChallengeCard(
     availableChallenges: List<Challenge>,
     onChallengeSelected: (Challenge) -> Unit,
     onChallengeReset: () -> Unit,
-    currentUserId: String
+    currentUserId: String,
+    isChallengesLoading: Boolean
 ) {
-    var cardState by remember { mutableStateOf(
-        if (userChallenge != null) ChallengeCardState.ACTIVE else ChallengeCardState.INITIAL
-    ) }
-    var offsetX by remember { mutableStateOf(0f) }
-    val swipeThreshold = 50f
-    
-    // userChallenge가 변경되면 cardState 업데이트
-    LaunchedEffect(userChallenge) {
-        cardState = if (userChallenge != null) ChallengeCardState.ACTIVE else ChallengeCardState.INITIAL
+    var cardState by remember { mutableStateOf(ChallengeCardState.INITIAL) }
+    var optimisticChallenge by remember { mutableStateOf<Challenge?>(null) }
+
+    // This effect synchronizes the card's state with data from the ViewModel.
+    LaunchedEffect(userChallenge, isChallengesLoading) {
+        if (userChallenge != null) {
+            // If there's an active challenge from the backend, show it.
+            cardState = ChallengeCardState.ACTIVE
+            optimisticChallenge = null // Clear any optimistic update.
+        } else if (!isChallengesLoading && optimisticChallenge == null) {
+            // If loading is finished, there's no active challenge, and no optimistic one,
+            // then reset to the initial state.
+            cardState = ChallengeCardState.INITIAL
+        } else if (userChallenge == null && optimisticChallenge != null) {
+            // If the user has selected a challenge optimistically, keep it in the active state.
+            cardState = ChallengeCardState.ACTIVE
+        }
     }
+
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(220.dp)
+            .height(220.dp),
+        contentAlignment = Alignment.Center
     ) {
-        when (cardState) {
-            ChallengeCardState.INITIAL -> {
-                InitialChallengeCard(
-                    offsetX = offsetX,
-                    onSwipe = { offset ->
-                        offsetX = offset
-                        if (kotlin.math.abs(offsetX) > swipeThreshold) {
-                            cardState = ChallengeCardState.SELECTING
-                            offsetX = 0f
-                        }
-                    }
-                )
-            }
-            ChallengeCardState.SELECTING -> {
-                ChallengeSelectionCard(
-                    challenges = availableChallenges,
-                    onSelect = { challenge ->
-                        onChallengeSelected(challenge)
-                    }
-                )
-            }
-            ChallengeCardState.ACTIVE -> {
-                userChallenge?.let {
-                    ActiveChallengeCard(
-                        challenge = it,
-                        currentUserId = currentUserId,
-                        onReset = {
-                            onChallengeReset()
+        // While loading, if we don't have a challenge to show, display a progress indicator.
+        if (isChallengesLoading && userChallenge == null && optimisticChallenge == null) {
+            CircularProgressIndicator()
+        } else {
+            when (cardState) {
+                ChallengeCardState.INITIAL -> {
+                    InitialChallengeCard(
+                        onSwipe = {
                             cardState = ChallengeCardState.SELECTING
                         }
                     )
+                }
+                ChallengeCardState.SELECTING -> {
+                    ChallengeSelectionCard(
+                        challenges = availableChallenges,
+                        onSelect = { challenge ->
+                            onChallengeSelected(challenge)
+                            optimisticChallenge = challenge // Optimistically update the UI.
+                            cardState = ChallengeCardState.ACTIVE
+                        }
+                    )
+                }
+                ChallengeCardState.ACTIVE -> {
+                    val challengeToShow = userChallenge ?: optimisticChallenge
+
+                    if (challengeToShow != null) {
+                        ActiveChallengeCard(
+                            challenge = challengeToShow,
+                            currentUserId = currentUserId,
+                            onReset = {
+                                onChallengeReset()
+                                optimisticChallenge = null
+                                cardState = ChallengeCardState.SELECTING
+                            }
+                        )
+                    } else {
+                        // If for some reason we end up here with no challenge, go back to initial.
+                        // This can happen if the last challenge is left/reset.
+                        LaunchedEffect(Unit) {
+                            cardState = ChallengeCardState.INITIAL
+                        }
+                    }
                 }
             }
         }
     }
 }
 
+
 @Composable
 fun InitialChallengeCard(
-    offsetX: Float,
-    onSwipe: (Float) -> Unit
+    onSwipe: () -> Unit
 ) {
+    var offsetX by remember { mutableStateOf(0f) }
     val rotation by animateFloatAsState(targetValue = if (offsetX == 0f) 5f else offsetX / 30f)
     
     Card(
@@ -105,9 +129,14 @@ fun InitialChallengeCard(
             .rotate(rotation)
             .pointerInput(Unit) {
                 detectHorizontalDragGestures(
-                    onDragEnd = { onSwipe(0f) },
+                    onDragEnd = {
+                        if (kotlin.math.abs(offsetX) > 50f) {
+                            onSwipe()
+                        }
+                        offsetX = 0f
+                     },
                     onHorizontalDrag = { _, dragAmount ->
-                        onSwipe(offsetX + dragAmount)
+                        offsetX += dragAmount
                     }
                 )
             },
@@ -183,7 +212,7 @@ fun ChallengeSelectionCard(
             
             if (challenges.isEmpty()) {
                 Text(
-                    "챌린지를 불러오는 중...",
+                    "참여 가능한 챌린지를 불러오는 중...",
                     fontSize = 14.sp,
                     color = Color.Gray,
                     modifier = Modifier.fillMaxWidth(),
@@ -260,11 +289,12 @@ fun ActiveChallengeCard(
     onReset: () -> Unit
 ) {
     val userProgress = challenge.progress[currentUserId] ?: 0
-    val totalDays = 7 // 주간 챌린지는 7일
-    val progress = if (totalDays > 0) userProgress.toFloat() / totalDays.toFloat() else 0f
+    val goal = challenge.goal.takeIf { it > 0 } ?: 1 // 목표가 0일 경우 1로 처리하여 0으로 나누기 방지
+    val progress = if (goal > 0) userProgress.toFloat() / goal.toFloat() else 0f
     val daysRemaining = challenge.endDate?.let {
         val diff = it.time - System.currentTimeMillis()
-        java.util.concurrent.TimeUnit.MILLISECONDS.toDays(diff).toInt()
+        val days = java.util.concurrent.TimeUnit.MILLISECONDS.toDays(diff).toInt()
+        days.coerceAtLeast(0)
     } ?: 0
     
     Card(
@@ -349,7 +379,7 @@ fun ActiveChallengeCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    "${userProgress} / ${totalDays}일",
+                    "${userProgress} / ${goal}일",
                     color = Color.White,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
