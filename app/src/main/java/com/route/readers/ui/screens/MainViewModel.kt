@@ -12,6 +12,7 @@ import com.route.readers.data.remote.MyLibraryRepository
 import com.route.readers.data.remote.ChallengeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.tasks.await
@@ -33,9 +34,30 @@ class MainViewModel : ViewModel() {
     private val _tokens = MutableStateFlow(0)
     val tokens = _tokens.asStateFlow()
 
+    private val _userActiveChallenge = MutableStateFlow<Challenge?>(null)
+    val userActiveChallenge: StateFlow<Challenge?> = _userActiveChallenge.asStateFlow()
+
     init {
         checkAndUpdateAttendance()
         loadUserTokens()
+        loadUserActiveChallenge()
+    }
+
+    private fun loadUserActiveChallenge() {
+        if (currentUserId == null) {
+            _userActiveChallenge.value = null
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val activeChallenge = challengeRepository.getUserActiveChallenge(currentUserId)
+                _userActiveChallenge.value = activeChallenge
+                Log.d("MainViewModel", "Loaded active challenge: ${activeChallenge?.title}")
+            } catch (e: Exception) {
+                Log.e("MainViewModel", "Failed to load user active challenge", e)
+                _userActiveChallenge.value = null
+            }
+        }
     }
 
     private fun checkAndUpdateAttendance() {
@@ -223,6 +245,7 @@ class MainViewModel : ViewModel() {
                         )
                     }
                 }
+                loadUserActiveChallenge() // Refresh active challenge after progress update
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Failed to update challenge progress", e)
             }
