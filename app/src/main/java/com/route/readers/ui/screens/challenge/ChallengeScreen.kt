@@ -33,7 +33,7 @@ fun ChallengeScreen(
 
     LaunchedEffect(isActive) {
         if (isActive) {
-            viewModel.refreshChallenges()
+            viewModel.refreshAvailableChallenges()
         }
     }
 
@@ -42,7 +42,7 @@ fun ChallengeScreen(
         while (true) {
             kotlinx.coroutines.delay(5000) // 5초마다 새로고침
             if (isActive) {
-                viewModel.refreshChallenges()
+                viewModel.refreshAvailableChallenges()
             }
         }
     }

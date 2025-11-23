@@ -12,9 +12,14 @@ import com.route.readers.data.remote.MyLibraryRepository
 import com.route.readers.data.remote.ChallengeRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.launchIn
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -33,9 +38,22 @@ class MainViewModel : ViewModel() {
     private val _tokens = MutableStateFlow(0)
     val tokens = _tokens.asStateFlow()
 
+    private val _userActiveChallenge = MutableStateFlow<Challenge?>(null)
+    val userActiveChallenge: StateFlow<Challenge?> = _userActiveChallenge.asStateFlow()
+
     init {
         checkAndUpdateAttendance()
         loadUserTokens()
+        // Initialize the active challenge from the repository's flow
+        currentUserId?.let { userId ->
+            challengeRepository.userActiveChallenges
+                .mapNotNull { it[userId] } // Get the challenge for the current user
+                .onEach { _userActiveChallenge.value = it } // Update MainViewModel's flow
+                .launchIn(viewModelScope) // Collect within ViewModel's scope
+
+            // Explicitly refresh the active challenge in the repository when MainViewModel starts
+            challengeRepository.refreshUserActiveChallenge(userId)
+        }
     }
 
     private fun checkAndUpdateAttendance() {
@@ -223,6 +241,7 @@ class MainViewModel : ViewModel() {
                         )
                     }
                 }
+                // Removed: loadUserActiveChallenge() // Refresh active challenge after progress update
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Failed to update challenge progress", e)
             }

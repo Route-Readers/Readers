@@ -30,6 +30,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.google.firebase.auth.FirebaseAuth
+import com.route.readers.data.model.Challenge
 import com.route.readers.data.model.MyBook
 import com.route.readers.ui.components.AdBanner
 import com.route.readers.ui.components.BottomNavBar
@@ -115,10 +116,12 @@ fun MainScreen(
             if (shouldShowTopBar) {
                 val consecutiveReadingDays by attendanceViewModel.consecutiveReadingDays.collectAsState()
                 val tokens by mainViewModel.tokens.collectAsState()
+                val userActiveChallenge by mainViewModel.userActiveChallenge.collectAsState()
 
                 FeedTopAppBar(
                     consecutiveReadingDays = consecutiveReadingDays,
                     tokens = tokens,
+                    userActiveChallenge = userActiveChallenge,
                     onBlockListClick = { bottomNavController.navigate("blockList") },
                     onLogoutClick = { showLogoutDialog = true },
                     onMyAccountClick = onNavigateToMyAccount,

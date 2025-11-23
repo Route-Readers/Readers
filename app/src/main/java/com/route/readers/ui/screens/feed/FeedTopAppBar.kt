@@ -32,12 +32,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.route.readers.R
+import com.google.firebase.auth.FirebaseAuth
+
+import com.route.readers.data.model.Challenge
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FeedTopAppBar(
     consecutiveReadingDays: Int,
     tokens: Int,
+    userActiveChallenge: Challenge?,
     onBlockListClick: () -> Unit,
     onLogoutClick: () -> Unit,
     onMyAccountClick: () -> Unit,
@@ -76,6 +80,33 @@ fun FeedTopAppBar(
                 onClick = onAttendanceClick
             )
 
+            if (userActiveChallenge != null) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clickable(onClick = onNavigateToChallenge)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.EmojiEvents,
+                        contentDescription = "Active Challenge Icon",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = userActiveChallenge.title,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+
             IconButton(onClick = onNavigateToChallenge) {
                 Icon(
                     imageVector = Icons.Default.EmojiEvents,
@@ -106,7 +137,7 @@ fun FeedTopAppBar(
                     onDismissRequest = { menuExpanded = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("설정") }, // 내 계정에서 설정으로 이름 변경
+                        text = { Text("설정") },
                         onClick = {
                             menuExpanded = false
                             onMyAccountClick()
@@ -123,6 +154,7 @@ fun FeedTopAppBar(
                         text = { Text("로그아웃") },
                         onClick = {
                             menuExpanded = false
+                            FirebaseAuth.getInstance().signOut()
                             onLogoutClick()
                         }
                     )
@@ -135,6 +167,7 @@ fun FeedTopAppBar(
         )
     )
 }
+
 
 @Composable
 fun TokenBadge(tokens: Int, onClick: () -> Unit) {
