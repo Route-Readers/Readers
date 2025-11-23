@@ -598,8 +598,8 @@ fun FeedCard(
                         Button(
                             onClick = { onFollowBack(item.followerId) },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (item.isFollowedBack) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primary,
-                                contentColor = if (item.isFollowedBack) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onPrimary
+                                containerColor = if (item.isFollowedBack) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.primary,
+                                contentColor = if (item.isFollowedBack) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimary
                             ),
                             modifier = Modifier.fillMaxWidth()
                         ) {
