@@ -43,11 +43,8 @@ fun SwipeableChallengeCard(
     ) }
     var offsetX by remember { mutableStateOf(0f) }
     val swipeThreshold = 50f
-    
-    // userChallenge가 변경되면 cardState 업데이트
-    LaunchedEffect(userChallenge) {
-        cardState = if (userChallenge != null) ChallengeCardState.ACTIVE else ChallengeCardState.INITIAL
-    }
+
+    // LaunchedEffect를 제거하고 상태 전환을 직접 관리
 
     Box(
         modifier = Modifier
@@ -72,24 +69,31 @@ fun SwipeableChallengeCard(
                     challenges = availableChallenges,
                     onSelect = { challenge ->
                         onChallengeSelected(challenge)
+                        cardState = ChallengeCardState.ACTIVE // 참여 시 즉시 ACTIVE 상태로 변경 (낙관적 업데이트)
                     }
                 )
             }
             ChallengeCardState.ACTIVE -> {
-                userChallenge?.let {
+                if (userChallenge != null) {
                     ActiveChallengeCard(
-                        challenge = it,
+                        challenge = userChallenge,
                         currentUserId = currentUserId,
                         onReset = {
                             onChallengeReset()
-                            cardState = ChallengeCardState.SELECTING
+                            cardState = ChallengeCardState.SELECTING // 챌린지 변경 시 SELECTING 상태로
                         }
                     )
+                } else {
+                    // userChallenge가 로드되기 전까지 로딩 상태 표시
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
                 }
             }
         }
     }
 }
+
 
 @Composable
 fun InitialChallengeCard(
@@ -260,8 +264,8 @@ fun ActiveChallengeCard(
     onReset: () -> Unit
 ) {
     val userProgress = challenge.progress[currentUserId] ?: 0
-    val totalDays = 7 // 주간 챌린지는 7일
-    val progress = if (totalDays > 0) userProgress.toFloat() / totalDays.toFloat() else 0f
+    val goal = challenge.goal.takeIf { it > 0 } ?: 1 // 목표가 0일 경우 1로 처리하여 0으로 나누기 방지
+    val progress = if (goal > 0) userProgress.toFloat() / goal.toFloat() else 0f
     val daysRemaining = challenge.endDate?.let {
         val diff = it.time - System.currentTimeMillis()
         java.util.concurrent.TimeUnit.MILLISECONDS.toDays(diff).toInt()
@@ -349,7 +353,7 @@ fun ActiveChallengeCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    "${userProgress} / ${totalDays}일",
+                    "${userProgress} / ${goal}일",
                     color = Color.White,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
