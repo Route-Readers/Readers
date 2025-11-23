@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.launchIn
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -30,31 +33,44 @@ class ChallengeViewModel : ViewModel() {
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
     init {
-        initChallenges()
+        // Observe the active challenge from the repository's flow
+        currentUserId.let { userId ->
+            repository.userActiveChallenges
+                .mapNotNull { it[userId] }
+                .onEach { challenge ->
+                    _uiState.value = _uiState.value.copy(
+                        userChallenge = challenge,
+                        isLoading = false
+                    )
+                }
+                .launchIn(viewModelScope)
+
+            // Trigger initial refresh of active challenge in the repository
+            repository.refreshUserActiveChallenge(userId)
+        }
+        
+        loadAvailableChallenges()
+        initDefaultChallenges()
     }
 
-    fun refreshChallenges() {
+    private fun loadAvailableChallenges() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
-            val currentWeekNumber = getCurrentWeekNumber()
-            val weeklyChallenges = repository.getChallengesForWeek(currentWeekNumber)
-
-            val userJoinedChallenge = weeklyChallenges.find { it.participants.contains(currentUserId) }
-
-            if (userJoinedChallenge != null) {
+            try {
+                val currentWeekNumber = getCurrentWeekNumber()
+                val weeklyChallenges = repository.getChallengesForWeek(currentWeekNumber)
                 _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    userChallenge = userJoinedChallenge,
-                    availableChallenges = emptyList()
+                    availableChallenges = weeklyChallenges.filter { it.type != ChallengeType.CUSTOM },
+                    isLoading = false
                 )
-            } else {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    userChallenge = null,
-                    availableChallenges = weeklyChallenges.filter { it.type != ChallengeType.CUSTOM }
-                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(isLoading = false)
             }
         }
+    }
+
+    fun refreshAvailableChallenges() {
+        loadAvailableChallenges()
     }
 
     fun showCreateDialog() {
@@ -97,14 +113,14 @@ class ChallengeViewModel : ViewModel() {
         return year * 100 + week
     }
 
-    private fun initChallenges() {
+    private fun initDefaultChallenges() {
         viewModelScope.launch {
             val currentWeekNumber = getCurrentWeekNumber()
             val existingChallenges = repository.getChallengesForWeek(currentWeekNumber)
             if (existingChallenges.isEmpty()) {
-                viewModelScope.launch { createWeeklyChallengesIfNeeded() }
+                createWeeklyChallengesIfNeeded()
             }
-            refreshChallenges()
+            refreshAvailableChallenges()
         }
     }
 
@@ -171,7 +187,7 @@ class ChallengeViewModel : ViewModel() {
                 progress = mapOf(currentUserId to 0)
             )
             repository.createChallenge(newChallenge)
-            refreshChallenges()
+            refreshAvailableChallenges()
             hideCreateDialog()
         }
     }
@@ -179,7 +195,6 @@ class ChallengeViewModel : ViewModel() {
     fun joinChallenge(challengeId: String) {
         viewModelScope.launch {
             repository.joinChallenge(challengeId, currentUserId)
-            refreshChallenges()
         }
     }
 
@@ -187,11 +202,9 @@ class ChallengeViewModel : ViewModel() {
         viewModelScope.launch {
             val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(java.util.Date())
             repository.updateDailyProgress(challengeId, currentUserId, today, pagesRead)
-            refreshChallenges()
         }
     }
 
-    // 페이지 업데이트 시 자동으로 호출되는 함수
     fun onPagesRead(pagesRead: Int) {
         viewModelScope.launch {
             val userChallenge = _uiState.value.userChallenge

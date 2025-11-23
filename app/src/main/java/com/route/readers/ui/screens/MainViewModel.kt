@@ -16,6 +16,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.launchIn
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -40,23 +44,15 @@ class MainViewModel : ViewModel() {
     init {
         checkAndUpdateAttendance()
         loadUserTokens()
-        loadUserActiveChallenge()
-    }
+        // Initialize the active challenge from the repository's flow
+        currentUserId?.let { userId ->
+            challengeRepository.userActiveChallenges
+                .mapNotNull { it[userId] } // Get the challenge for the current user
+                .onEach { _userActiveChallenge.value = it } // Update MainViewModel's flow
+                .launchIn(viewModelScope) // Collect within ViewModel's scope
 
-    private fun loadUserActiveChallenge() {
-        if (currentUserId == null) {
-            _userActiveChallenge.value = null
-            return
-        }
-        viewModelScope.launch {
-            try {
-                val activeChallenge = challengeRepository.getUserActiveChallenge(currentUserId)
-                _userActiveChallenge.value = activeChallenge
-                Log.d("MainViewModel", "Loaded active challenge: ${activeChallenge?.title}")
-            } catch (e: Exception) {
-                Log.e("MainViewModel", "Failed to load user active challenge", e)
-                _userActiveChallenge.value = null
-            }
+            // Explicitly refresh the active challenge in the repository when MainViewModel starts
+            challengeRepository.refreshUserActiveChallenge(userId)
         }
     }
 
@@ -245,7 +241,7 @@ class MainViewModel : ViewModel() {
                         )
                     }
                 }
-                loadUserActiveChallenge() // Refresh active challenge after progress update
+                // Removed: loadUserActiveChallenge() // Refresh active challenge after progress update
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Failed to update challenge progress", e)
             }

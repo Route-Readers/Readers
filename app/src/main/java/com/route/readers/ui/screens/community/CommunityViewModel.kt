@@ -14,6 +14,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.launchIn
 import java.util.concurrent.TimeUnit
 
 // Friend data class removed, replaced by User
@@ -60,8 +63,25 @@ class CommunityViewModel : ViewModel() {
                 )
             }
         }
+
+        // Observe the active challenge from the repository's flow
+        currentUserId.let { userId ->
+            challengeRepository.userActiveChallenges
+                .mapNotNull { it[userId] }
+                .onEach { challenge ->
+                    _uiState.value = _uiState.value.copy(
+                        userActiveChallenge = challenge,
+                        isChallengesLoading = false
+                    )
+                }
+                .launchIn(viewModelScope)
+
+            // Trigger initial refresh of active challenge in the repository
+            challengeRepository.refreshUserActiveChallenge(userId)
+        }
+
         loadFriends()
-        initChallenges()
+        refreshChallenges() // Load available challenges initially
     }
     
     private fun loadFriends() {
@@ -75,16 +95,12 @@ class CommunityViewModel : ViewModel() {
         return calendar.get(java.util.Calendar.WEEK_OF_YEAR)
     }
     
-    private fun initChallenges() {
+    fun refreshChallenges() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isChallengesLoading = true)
-            
             try {
-                val userChallenge = challengeRepository.getUserActiveChallenge(currentUserId)
-                val availableChallenges = challengeRepository.getChallenges()
-                
+                val availableChallenges = challengeRepository.getChallenges() // Still need to get available challenges
                 _uiState.value = _uiState.value.copy(
-                    userActiveChallenge = userChallenge,
                     availableChallenges = availableChallenges,
                     isChallengesLoading = false
                 )
@@ -93,13 +109,6 @@ class CommunityViewModel : ViewModel() {
             }
         }
     }
-    
-    fun refreshChallenges() {
-        initChallenges()
-    }
-    
-    // addFriend function removed, as friendship is now managed by mutual following.
-    // If a follow action is needed from UI, it should call friendsRepository.followUser.
     
     fun sendReadingNotification() {
         viewModelScope.launch {
@@ -124,7 +133,6 @@ class CommunityViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 challengeRepository.joinChallenge(challengeId, currentUserId)
-                refreshChallenges()
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     addFriendMessage = "챌린지 참여에 실패했습니다."
@@ -138,7 +146,6 @@ class CommunityViewModel : ViewModel() {
             try {
                 _uiState.value.userActiveChallenge?.let { challenge ->
                     challengeRepository.leaveChallenge(challenge.id, currentUserId)
-                    refreshChallenges()
                 }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
