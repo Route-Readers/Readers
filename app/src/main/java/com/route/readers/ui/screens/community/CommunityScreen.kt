@@ -291,67 +291,7 @@ fun CommunityContent(
                 Text("새 북클럽 만들기")
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Default.EmojiEvents,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    "나의 업적",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                AchievementCard(
-                    icon = Icons.Default.Book,
-                    title = "첫 완독",
-                    subtitle = "달성",
-                    modifier = Modifier.weight(1f)
-                )
-                AchievementCard(
-                    icon = Icons.Default.Notifications,
-                    title = "일주일 연속 독서",
-                    subtitle = "달성",
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                AchievementCard(
-                    icon = Icons.Default.Group,
-                    title = "친구 10명 만들기",
-                    subtitle = "달성",
-                    modifier = Modifier.weight(1f)
-                )
-                AchievementCard(
-                    icon = Icons.Default.EmojiEvents,
-                    title = "챌린지 우승",
-                    subtitle = "달성",
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -732,49 +672,7 @@ fun FriendItemWithDelete(
     }
 }
 
-@Composable
-fun AchievementCard(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    subtitle: String,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                modifier = Modifier.size(32.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                title,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                subtitle,
-                fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-            )
-        }
-    }
-}
+
 
 
 
