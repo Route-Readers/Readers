@@ -1,5 +1,7 @@
 package com.route.readers.ui.screens.community
 
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -221,15 +223,15 @@ fun ChallengeSelectionCard(
                     textAlign = TextAlign.Center
                 )
             } else {
-                Row(
+                LazyRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    challenges.take(3).forEach { challenge ->
+                    items(challenges) { challenge ->
                         ChallengeOption(
                             challenge = challenge,
                             onSelect = { onSelect(challenge) },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.width(150.dp) // Give each card a fixed width for scrolling
                         )
                     }
                 }
