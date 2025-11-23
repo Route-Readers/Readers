@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.route.readers.data.model.Challenge
+import kotlinx.coroutines.delay
 
 enum class ChallengeCardState {
     INITIAL,      // 초기 "참여하세요" 카드
@@ -41,26 +42,28 @@ fun SwipeableChallengeCard(
     var cardState by remember { mutableStateOf(
         if (userChallenge != null) ChallengeCardState.ACTIVE else ChallengeCardState.INITIAL
     ) }
-    var offsetX by remember { mutableStateOf(0f) }
-    val swipeThreshold = 50f
 
-    // LaunchedEffect를 제거하고 상태 전환을 직접 관리
+    // userChallenge가 외부에서(예: 다른 화면에서 참여) 업데이트될 때 UI 상태를 동기화
+    LaunchedEffect(userChallenge) {
+        if (userChallenge != null && cardState != ChallengeCardState.ACTIVE) {
+            cardState = ChallengeCardState.ACTIVE
+        } else if (userChallenge == null && cardState == ChallengeCardState.ACTIVE) {
+            // 다른 곳에서 챌린지가 리셋된 경우
+            cardState = ChallengeCardState.INITIAL
+        }
+    }
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(220.dp)
+            .height(220.dp),
+        contentAlignment = Alignment.Center
     ) {
         when (cardState) {
             ChallengeCardState.INITIAL -> {
                 InitialChallengeCard(
-                    offsetX = offsetX,
-                    onSwipe = { offset ->
-                        offsetX = offset
-                        if (kotlin.math.abs(offsetX) > swipeThreshold) {
-                            cardState = ChallengeCardState.SELECTING
-                            offsetX = 0f
-                        }
+                    onSwipe = {
+                        cardState = ChallengeCardState.SELECTING
                     }
                 )
             }
@@ -69,7 +72,8 @@ fun SwipeableChallengeCard(
                     challenges = availableChallenges,
                     onSelect = { challenge ->
                         onChallengeSelected(challenge)
-                        cardState = ChallengeCardState.ACTIVE // 참여 시 즉시 ACTIVE 상태로 변경 (낙관적 업데이트)
+                        // 낙관적 업데이트: 로딩 상태를 보여주기 위해 즉시 ACTIVE로 변경
+                        cardState = ChallengeCardState.ACTIVE
                     }
                 )
             }
@@ -80,13 +84,19 @@ fun SwipeableChallengeCard(
                         currentUserId = currentUserId,
                         onReset = {
                             onChallengeReset()
-                            cardState = ChallengeCardState.SELECTING // 챌린지 변경 시 SELECTING 상태로
+                            // 챌린지 변경 시 즉시 SELECTING 상태로 변경
+                            cardState = ChallengeCardState.SELECTING
                         }
                     )
                 } else {
-                    // userChallenge가 로드되기 전까지 로딩 상태 표시
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
+                    // 챌린지 참여 후 데이터가 로드되기를 기다리는 동안 로딩 표시
+                    CircularProgressIndicator()
+                    // 만약 5초 이상 userChallenge가 null이면, 다시 선택 화면으로 돌려보냄
+                    LaunchedEffect(Unit) {
+                        delay(5000)
+                        if (userChallenge == null) {
+                            cardState = ChallengeCardState.SELECTING
+                        }
                     }
                 }
             }
@@ -97,9 +107,9 @@ fun SwipeableChallengeCard(
 
 @Composable
 fun InitialChallengeCard(
-    offsetX: Float,
-    onSwipe: (Float) -> Unit
+    onSwipe: () -> Unit
 ) {
+    var offsetX by remember { mutableStateOf(0f) }
     val rotation by animateFloatAsState(targetValue = if (offsetX == 0f) 5f else offsetX / 30f)
     
     Card(
@@ -109,9 +119,14 @@ fun InitialChallengeCard(
             .rotate(rotation)
             .pointerInput(Unit) {
                 detectHorizontalDragGestures(
-                    onDragEnd = { onSwipe(0f) },
+                    onDragEnd = {
+                        if (kotlin.math.abs(offsetX) > 50f) {
+                            onSwipe()
+                        }
+                        offsetX = 0f
+                     },
                     onHorizontalDrag = { _, dragAmount ->
-                        onSwipe(offsetX + dragAmount)
+                        offsetX += dragAmount
                     }
                 )
             },
@@ -187,7 +202,7 @@ fun ChallengeSelectionCard(
             
             if (challenges.isEmpty()) {
                 Text(
-                    "챌린지를 불러오는 중...",
+                    "참여 가능한 챌린지를 불러오는 중...",
                     fontSize = 14.sp,
                     color = Color.Gray,
                     modifier = Modifier.fillMaxWidth(),
