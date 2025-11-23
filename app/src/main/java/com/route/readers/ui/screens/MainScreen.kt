@@ -292,6 +292,7 @@ fun MainScreen(
                             book = book,
                             onNavigateBack = { bottomNavController.popBackStack() },
                             onFinishReading = { timeInSeconds ->
+                                lastReadingSessionDuration = timeInSeconds
                                 showFinishReadingDialogBook = book
                                 bottomNavController.navigate(BottomNavItem.MyLibrary.route) {
                                     popUpTo(bottomNavController.graph.findStartDestination().id)

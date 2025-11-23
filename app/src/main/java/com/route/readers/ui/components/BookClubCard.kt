@@ -32,10 +32,10 @@ fun BookClubCard(
                     Modifier.clickable { onChatClick() }
                 } else Modifier
             ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (bookClub.isJoined) {
-                MaterialTheme.colorScheme.primaryContainer
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
             } else {
                 MaterialTheme.colorScheme.surface
             }
@@ -58,7 +58,7 @@ fun BookClubCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         color = if (bookClub.isJoined) {
-                            MaterialTheme.colorScheme.onPrimaryContainer
+                            MaterialTheme.colorScheme.primary
                         } else {
                             MaterialTheme.colorScheme.onSurface
                         }
@@ -72,7 +72,7 @@ fun BookClubCard(
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                             color = if (bookClub.isJoined) {
-                                MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
                             } else {
                                 MaterialTheme.colorScheme.onSurfaceVariant
                             }
@@ -107,7 +107,7 @@ fun BookClubCard(
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
                     tint = if (bookClub.isJoined) {
-                        MaterialTheme.colorScheme.onPrimaryContainer
+                        MaterialTheme.colorScheme.primary
                     } else {
                         MaterialTheme.colorScheme.primary
                     }
@@ -120,7 +120,7 @@ fun BookClubCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     color = if (bookClub.isJoined) {
-                        MaterialTheme.colorScheme.onPrimaryContainer
+                        MaterialTheme.colorScheme.primary
                     } else {
                         MaterialTheme.colorScheme.onSurface
                     }
@@ -141,7 +141,7 @@ fun BookClubCard(
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
                         tint = if (bookClub.isJoined) {
-                            MaterialTheme.colorScheme.onPrimaryContainer
+                            MaterialTheme.colorScheme.primary
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
                         }
@@ -151,7 +151,7 @@ fun BookClubCard(
                         text = "${bookClub.memberCount}명",
                         style = MaterialTheme.typography.bodySmall,
                         color = if (bookClub.isJoined) {
-                            MaterialTheme.colorScheme.onPrimaryContainer
+                            MaterialTheme.colorScheme.primary
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
                         }

@@ -348,13 +348,17 @@ fun MyLibraryScreen(
                     val result = mainViewModel.saveReadingSession(
                         book = book,
                         newCurrentPage = finalPage,
-                        durationInSeconds = 0 // 독서 완료 시에는 타이머 시간이 별도로 없음
+                        durationInSeconds = lastReadingSessionDuration ?: 0
                     )
 
                     if (result != null) {
                         val (updatedBook, pagesReadThisSession) = result
-                        firestoreRepository.markBookAsRead(book.isbn)
-                        Toast.makeText(context, "완독을 축하합니다!", Toast.LENGTH_LONG).show()
+                        
+                        if (updatedBook.isCompleted && !book.isCompleted) {
+                            firestoreRepository.markBookAsRead(book.isbn)
+                            Toast.makeText(context, "완독을 축하합니다!", Toast.LENGTH_LONG).show()
+                        }
+                        
                         refreshBooks()
                         attendanceViewModel.markReadingActivity()
                         showPostToFeedDialog = Pair(updatedBook, pagesReadThisSession)
@@ -769,10 +773,12 @@ fun FinishReadingDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("독서 완료") },
+        title = { Text("독서 종료") },
         text = {
             Column {
-                Text("『${book.title}』을(를) 완독하셨나요?")
+                Text("『${book.title}』 독서를 마칩니다.")
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("어디까지 읽으셨나요?", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = currentPageText,
