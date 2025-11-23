@@ -1,67 +1,73 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp"
-    android:gravity="center_horizontal">
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="페이지 업데이트"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="16dp"/>
-
-    <TextView
-        android:id="@+id/book_title_update_text"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="[책 제목 - 저자 (총 N 페이지)]"
-        android:textSize="18sp"
-        android:textStyle="italic"
-        android:layout_marginBottom="8dp"
-        android:gravity="center_horizontal"/>
-
-    <TextView
-        android:id="@+id/current_page_text"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="현재 페이지: 0"
-        android:textSize="16sp"
-        android:layout_marginBottom="16dp"
-        android:gravity="center_horizontal"/>
-
-    <EditText
-        android:id="@+id/new_page_edit_text"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="새 페이지 번호 입력"
-        android:inputType="number"
-        android:minEms="10"
-        android:gravity="center_horizontal"
-        android:layout_marginBottom="16dp"/>
+    android:fillViewport="true">
 
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_gravity="center_horizontal"> <!-- Ensure buttons are centered -->
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:gravity="center_horizontal">
 
-        <Button
-            android:id="@+id/update_page_button"
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="업데이트"
-            android:layout_marginEnd="8dp"/>
+            android:text="페이지 업데이트"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp"/>
 
-        <Button
-            android:id="@+id/cancel_page_button"
+        <TextView
+            android:id="@+id/book_title_update_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="[책 제목 - 저자 (총 N 페이지)]"
+            android:textSize="18sp"
+            android:textStyle="italic"
+            android:layout_marginBottom="8dp"
+            android:gravity="center_horizontal"/>
+
+        <TextView
+            android:id="@+id/current_page_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="현재 페이지: 0"
+            android:textSize="16sp"
+            android:layout_marginBottom="16dp"
+            android:gravity="center_horizontal"/>
+
+        <EditText
+            android:id="@+id/new_page_edit_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="새 페이지 번호 입력"
+            android:inputType="number"
+            android:minEms="10"
+            android:gravity="center_horizontal"
+            android:layout_marginBottom="16dp"/>
+
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="취소"/>
+            android:orientation="horizontal"
+            android:layout_gravity="center_horizontal"> <!-- Ensure buttons are centered -->
+
+            <Button
+                android:id="@+id/update_page_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="업데이트"
+                android:layout_marginEnd="8dp"/>
+
+            <Button
+                android:id="@+id/cancel_page_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="취소"/>
+
+        </LinearLayout>
 
     </LinearLayout>
-
-</LinearLayout>
+</ScrollView>

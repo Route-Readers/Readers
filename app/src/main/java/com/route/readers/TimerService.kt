@@ -23,14 +23,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import android.widget.Toast
 import java.util.Locale
 
 class TimerService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        Toast.makeText(this, "TimerService created!", Toast.LENGTH_SHORT).show()
         Log.d(TAG, "TimerService created!")
     }
 
@@ -72,7 +70,6 @@ class TimerService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Toast.makeText(this, "onStartCommand executed!", Toast.LENGTH_SHORT).show() // New Toast
         intent?.let {
             appWidgetId = it.getIntExtra(
                 AppWidgetManager.EXTRA_APPWIDGET_ID,
@@ -80,7 +77,6 @@ class TimerService : Service() {
             )
             when (it.action) {
                 ACTION_TOGGLE_TIMER -> {
-                    Toast.makeText(this, "Action: TOGGLE_TIMER", Toast.LENGTH_SHORT).show() // New Toast
                     if (timerRunning) {
                         stopTimer()
                     } else {
@@ -88,23 +84,18 @@ class TimerService : Service() {
                     }
                 }
                 ACTION_START_TIMER -> {
-                    Toast.makeText(this, "Action: START_TIMER", Toast.LENGTH_SHORT).show() // New Toast
                     startTimer()
                 }
                 ACTION_STOP_TIMER -> {
-                    Toast.makeText(this, "Action: STOP_TIMER", Toast.LENGTH_SHORT).show() // New Toast
                     stopTimer()
                 }
                 ACTION_RESET_TIMER -> {
-                    Toast.makeText(this, "Action: RESET_RESET_TIMER", Toast.LENGTH_SHORT).show() // New Toast
                     resetTimer()
                 }
                 ACTION_UPDATE_BOOK_DATA -> {
-                    Toast.makeText(this, "Action: UPDATE_BOOK_DATA", Toast.LENGTH_SHORT).show() // New Toast
                     serviceScope.launch { fetchBookDataAndBitmap(updateImage = true) } // Fetch book data explicitly
                 }
                 else -> { // Added else to catch any unhandled actions
-                    Toast.makeText(this, "Action: Unknown ${it.action}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -141,11 +132,8 @@ class TimerService : Service() {
     }
 
     private suspend fun fetchBookDataAndBitmap(updateImage: Boolean) {
-        withContext(Dispatchers.Main) { Toast.makeText(this@TimerService, "Fetching book data...", Toast.LENGTH_SHORT).show() }
-
         val userId = auth.currentUser?.uid ?: run {
             Log.w(TAG, "User not logged in. Cannot fetch book data for widget.")
-            withContext(Dispatchers.Main) { Toast.makeText(this@TimerService, "로그인 정보 없음", Toast.LENGTH_SHORT).show() }
             currentBook = null
             lastLoadedBitmap = null
             // Clear SharedPreferences if no user
@@ -167,7 +155,6 @@ class TimerService : Service() {
 
         if (currentBook != null) {
             Log.d(TAG, "Found currently reading book: ${currentBook?.title}")
-            withContext(Dispatchers.Main) { Toast.makeText(this@TimerService, "책 발견: ${currentBook?.title}", Toast.LENGTH_SHORT).show() }
             // Save current book info to SharedPreferences
             val sharedPrefs = getSharedPreferences(WIDGET_PREFS_NAME, Context.MODE_PRIVATE)
             with(sharedPrefs.edit()) {
@@ -177,7 +164,6 @@ class TimerService : Service() {
             }
         } else {
             Log.d(TAG, "No currently reading book found in library.")
-            withContext(Dispatchers.Main) { Toast.makeText(this@TimerService, "현재 읽는 중인 책이 없습니다.", Toast.LENGTH_SHORT).show() }
             // Clear SharedPreferences if no book is found
             val sharedPrefs = getSharedPreferences(WIDGET_PREFS_NAME, Context.MODE_PRIVATE)
             with(sharedPrefs.edit()) {
@@ -197,10 +183,8 @@ class TimerService : Service() {
                     .build()
                 val drawable = imageLoader.execute(request).drawable
                 lastLoadedBitmap = (drawable as? BitmapDrawable)?.bitmap
-                withContext(Dispatchers.Main) { Toast.makeText(this@TimerService, "표지 이미지 로드 완료", Toast.LENGTH_SHORT).show() }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading book cover image: ${e.message}", e)
-                withContext(Dispatchers.Main) { Toast.makeText(this@TimerService, "표지 이미지 로드 실패", Toast.LENGTH_SHORT).show() }
                 lastLoadedBitmap = null
             }
         }
@@ -278,7 +262,6 @@ class TimerService : Service() {
             appWidgetManager.updateAppWidget(componentName, remoteViews)
         }
         Log.d(TAG, "Widget updated: $timeFormatted")
-        Toast.makeText(this@TimerService, "위젯 UI 업데이트 완료", Toast.LENGTH_SHORT).show()
     }
 
     private fun updateWidgetButton(isPlaying: Boolean) {
