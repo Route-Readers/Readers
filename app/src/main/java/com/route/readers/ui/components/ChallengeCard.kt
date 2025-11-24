@@ -67,16 +67,27 @@ fun ChallengeCard(
             Spacer(modifier = Modifier.height(16.dp))
 
             if (isJoined) {
-                val userProgress = challenge.progress[currentUserId] ?: 0
-                val progressGoal = when (challenge.type) {
-                    ChallengeType.DAILY_PAGES_READING -> challenge.goal
-                    ChallengeType.CONSECUTIVE_READING, ChallengeType.CONSECUTIVE_READING_WITH_FRIEND -> 7 // Assuming these are weekly challenges
-                    else -> challenge.goal // Default for other types
+                val userProgress = challenge.progress[currentUserId] ?: 0 // This is total pages read for the challenge.
+
+                val (currentProgressValue, totalGoalValue, progressUnit) = when (challenge.type) {
+                    ChallengeType.DAILY_PAGES_READING -> {
+                        // Calculate how many days the daily goal has been met
+                        val dailyGoalMetDays = challenge.dailyProgress[currentUserId]?.values?.count { pages ->
+                            pages >= challenge.goal
+                        } ?: 0
+                        Triple(dailyGoalMetDays, 7, "일") // X/7 일 완료
+                    }
+                    ChallengeType.CONSECUTIVE_READING, ChallengeType.CONSECUTIVE_READING_WITH_FRIEND -> {
+                        Triple(userProgress, 7, "일") // X/7 일 완료 (consecutive days)
+                    }
+                    else -> {
+                        Triple(userProgress, challenge.goal, "일") // Default for other types (e.g., total pages read for a book challenge)
+                    }
                 }
-                val progress = if (progressGoal > 0) userProgress.toFloat() / progressGoal.toFloat() else 0f
+                val overallProgressFraction = if (totalGoalValue > 0) currentProgressValue.toFloat() / totalGoalValue.toFloat() else 0f
 
                 LinearProgressIndicator(
-                    progress = progress,
+                progress = { overallProgressFraction },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -84,7 +95,8 @@ fun ChallengeCard(
                 when (challenge.type) {
                     ChallengeType.DAILY_PAGES_READING -> {
                         val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-                        Text(text = "${userProgress} / ${challenge.goal} 페이지 완료 (${(progress * 100).toInt()}%)")
+                        val todayPages = (challenge.dailyProgress[currentUserId]?.get(todayStr) as? Int) ?: 0
+                        Text(text = "${currentProgressValue} / ${totalGoalValue}${progressUnit} 완료 (${(overallProgressFraction * 100).toInt()}%)")
                         Text(
                             text = "오늘 읽은 페이지: ${todayPages}/${challenge.goal}페이지",
                             style = MaterialTheme.typography.bodySmall,
@@ -93,7 +105,7 @@ fun ChallengeCard(
                         )
                     }
                     else -> {
-                        Text(text = "${userProgress} / ${progressGoal}일 완료 (${(progress * 100).toInt()}%)")
+                        Text(text = "${currentProgressValue} / ${totalGoalValue}${progressUnit} 완료 (${(overallProgressFraction * 100).toInt()}%)")
                     }
                 }
             } else {

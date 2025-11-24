@@ -293,9 +293,21 @@ fun ActiveChallengeCard(
     currentUserId: String,
     onReset: () -> Unit
 ) {
-    val userProgress = challenge.progress[currentUserId] ?: 0
-    val goal = challenge.goal.takeIf { it > 0 } ?: 1 // 목표가 0일 경우 1로 처리하여 0으로 나누기 방지
-    val progress = if (goal > 0) userProgress.toFloat() / goal.toFloat() else 0f
+    val (currentProgressValue, totalGoalValue, progressUnit) = when (challenge.type) {
+        com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING -> {
+            val dailyGoalMetDays = challenge.dailyProgress[currentUserId]?.values?.count { pages ->
+                pages >= challenge.goal
+            } ?: 0
+            Triple(dailyGoalMetDays, 7, "일")
+        }
+        com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING, com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING_WITH_FRIEND -> {
+            Triple(challenge.progress[currentUserId] ?: 0, 7, "일")
+        }
+        else -> {
+            Triple(challenge.progress[currentUserId] ?: 0, challenge.goal.takeIf { it > 0 } ?: 1, "일")
+        }
+    }
+    val overallProgressFraction = if (totalGoalValue > 0) currentProgressValue.toFloat() / totalGoalValue.toFloat() else 0f
     val daysRemaining = challenge.endDate?.let {
         val diff = it.time - System.currentTimeMillis()
         val days = java.util.concurrent.TimeUnit.MILLISECONDS.toDays(diff).toInt()
@@ -368,7 +380,7 @@ fun ActiveChallengeCard(
             Spacer(modifier = Modifier.height(8.dp))
             
             LinearProgressIndicator(
-                progress = { progress },
+                progress = { overallProgressFraction },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(12.dp)
@@ -384,13 +396,13 @@ fun ActiveChallengeCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    "${userProgress} / ${goal}${if (challenge.type == com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING) "페이지" else "일"}",
+                    "${currentProgressValue} / ${totalGoalValue}${progressUnit}",
                     color = Color.White,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    "${(progress * 100).toInt()}%",
+                    "${(overallProgressFraction * 100).toInt()}%",
                     color = Color(0xFF00FF88),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
