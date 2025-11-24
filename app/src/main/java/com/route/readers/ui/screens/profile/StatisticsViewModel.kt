@@ -28,35 +28,40 @@ data class DailyStats(
     val accessTime: String = "0분",
     val totalReadingTime: String = "0분",
     val readingBookCount: Int = 0,
-    val finishedBookCount: Int = 0
+    val finishedBookCount: Int = 0,
+    val totalPagesRead: Int = 0
 )
 
 data class WeeklyStats(
     val accessTime: String = "0분",
     val totalReadingTime: String = "0분",
     val mostReadDay: String = "없음",
-    val finishedBookCount: Int = 0
+    val finishedBookCount: Int = 0,
+    val totalPagesRead: Int = 0
 )
 
 data class MonthlyStats(
     val accessTime: String = "0분",
     val totalReadingTime: String = "0분",
     val mostReadWeek: String = "없음",
-    val finishedBookCount: Int = 0
+    val finishedBookCount: Int = 0,
+    val totalPagesRead: Int = 0
 )
 
 data class YearlyStats(
     val accessTime: String = "0분",
     val totalReadingTime: String = "0분",
     val mostReadMonth: String = "없음",
-    val finishedBookCount: Int = 0
+    val finishedBookCount: Int = 0,
+    val totalPagesRead: Int = 0
 )
 
 data class TotalStats(
     val firstAccessDate: String = "기록 없음",
     val totalAccessDays: Int = 0,
     val totalReadingTime: String = "0분",
-    val totalFinishedBookCount: Int = 0
+    val totalFinishedBookCount: Int = 0,
+    val totalPagesRead: Int = 0
 )
 
 data class GenreStats(
@@ -116,6 +121,9 @@ class StatisticsViewModel : ViewModel() {
                 return@launch
             }
 
+            val user = firestoreRepository.getUserProfile(currentUserId)
+            val totalPagesRead = user?.totalPagesRead ?: 0
+
             val (startDateMillis, endDateMillis) = getDateRangeForSelectedTab()
             val startDate: Date? = if (startDateMillis != null) Date(startDateMillis) else null
             val endDate: Date? = if (endDateMillis != null) Date(endDateMillis) else null
@@ -136,27 +144,27 @@ class StatisticsViewModel : ViewModel() {
 
             when (_uiState.value.selectedTab) {
                 "일" -> _uiState.value = _uiState.value.copy(
-                    dailyStats = calculateDailyStats(sessions, finishedBooksInPeriod),
+                    dailyStats = calculateDailyStats(sessions, finishedBooksInPeriod, totalPagesRead),
                     chartData = calculateDailyChartData(sessions),
                     genreStats = calculateGenreStats(sessions, allBooks)
                 )
                 "주" -> _uiState.value = _uiState.value.copy(
-                    weeklyStats = calculateWeeklyStats(sessions, finishedBooksInPeriod),
+                    weeklyStats = calculateWeeklyStats(sessions, finishedBooksInPeriod, totalPagesRead),
                     chartData = calculateWeeklyChartData(sessions),
                     genreStats = calculateGenreStats(sessions, allBooks)
                 )
                 "월" -> _uiState.value = _uiState.value.copy(
-                    monthlyStats = calculateMonthlyStats(sessions, finishedBooksInPeriod),
+                    monthlyStats = calculateMonthlyStats(sessions, finishedBooksInPeriod, totalPagesRead),
                     chartData = calculateMonthlyChartData(sessions),
                     genreStats = calculateGenreStats(sessions, allBooks)
                 )
                 "년" -> _uiState.value = _uiState.value.copy(
-                    yearlyStats = calculateYearlyStats(sessions, finishedBooksInPeriod),
+                    yearlyStats = calculateYearlyStats(sessions, finishedBooksInPeriod, totalPagesRead),
                     chartData = calculateYearlyChartData(sessions),
                     genreStats = calculateGenreStats(sessions, allBooks)
                 )
                 "전체" -> _uiState.value = _uiState.value.copy(
-                    totalStats = calculateTotalStats(sessions, allBooks),
+                    totalStats = calculateTotalStats(sessions, allBooks, totalPagesRead),
                     genreStats = calculateGenreStats(sessions, allBooks) // 전체 탭에서도 장르 통계 계산
                 )
             }
@@ -199,17 +207,18 @@ class StatisticsViewModel : ViewModel() {
         return result
     }
 
-    private fun calculateDailyStats(sessions: List<ReadingSession>, finishedBooks: List<com.route.readers.data.model.MyBook>): DailyStats {
+    private fun calculateDailyStats(sessions: List<ReadingSession>, finishedBooks: List<com.route.readers.data.model.MyBook>, totalPagesRead: Int): DailyStats {
         val totalDuration = sessions.sumOf { it.durationInSeconds }
         val readingBookCount = sessions.distinctBy { it.bookId }.size
         return DailyStats(
             totalReadingTime = formatDuration(totalDuration),
             readingBookCount = readingBookCount,
-            finishedBookCount = finishedBooks.size
+            finishedBookCount = finishedBooks.size,
+            totalPagesRead = totalPagesRead
         )
     }
 
-    private fun calculateWeeklyStats(sessions: List<ReadingSession>, finishedBooks: List<com.route.readers.data.model.MyBook>): WeeklyStats {
+    private fun calculateWeeklyStats(sessions: List<ReadingSession>, finishedBooks: List<com.route.readers.data.model.MyBook>, totalPagesRead: Int): WeeklyStats {
         val totalDuration = sessions.sumOf { it.durationInSeconds }
         val mostReadDay = sessions.groupBy { it.dayOfWeek }
             .maxByOrNull { it.value.sumOf { s -> s.durationInSeconds } }
@@ -229,11 +238,12 @@ class StatisticsViewModel : ViewModel() {
         return WeeklyStats(
             totalReadingTime = formatDuration(totalDuration),
             mostReadDay = mostReadDay,
-            finishedBookCount = finishedBooks.size
+            finishedBookCount = finishedBooks.size,
+            totalPagesRead = totalPagesRead
         )
     }
 
-    private fun calculateMonthlyStats(sessions: List<ReadingSession>, finishedBooks: List<com.route.readers.data.model.MyBook>): MonthlyStats {
+    private fun calculateMonthlyStats(sessions: List<ReadingSession>, finishedBooks: List<com.route.readers.data.model.MyBook>, totalPagesRead: Int): MonthlyStats {
         val totalDuration = sessions.sumOf { it.durationInSeconds }
         val mostReadWeek = sessions.groupBy { it.weekOfYear }
             .maxByOrNull { it.value.sumOf { s -> s.durationInSeconds } }
@@ -242,11 +252,12 @@ class StatisticsViewModel : ViewModel() {
         return MonthlyStats(
             totalReadingTime = formatDuration(totalDuration),
             mostReadWeek = mostReadWeek,
-            finishedBookCount = finishedBooks.size
+            finishedBookCount = finishedBooks.size,
+            totalPagesRead = totalPagesRead
         )
     }
 
-    private fun calculateYearlyStats(sessions: List<ReadingSession>, finishedBooks: List<com.route.readers.data.model.MyBook>): YearlyStats {
+    private fun calculateYearlyStats(sessions: List<ReadingSession>, finishedBooks: List<com.route.readers.data.model.MyBook>, totalPagesRead: Int): YearlyStats {
         val totalDuration = sessions.sumOf { it.durationInSeconds }
         val mostReadMonth = sessions.groupBy { it.month }
             .maxByOrNull { it.value.sumOf { s -> s.durationInSeconds } }
@@ -255,11 +266,12 @@ class StatisticsViewModel : ViewModel() {
         return YearlyStats(
             totalReadingTime = formatDuration(totalDuration),
             mostReadMonth = mostReadMonth,
-            finishedBookCount = finishedBooks.size
+            finishedBookCount = finishedBooks.size,
+            totalPagesRead = totalPagesRead
         )
     }
 
-    private suspend fun calculateTotalStats(sessions: List<ReadingSession>, allBooks: List<com.route.readers.data.model.MyBook>): TotalStats {
+    private suspend fun calculateTotalStats(sessions: List<ReadingSession>, allBooks: List<com.route.readers.data.model.MyBook>, totalPagesRead: Int): TotalStats {
         val totalDuration = sessions.sumOf { it.durationInSeconds }
         val totalFinishedBookCount = allBooks.count { it.isCompleted }
 
@@ -278,7 +290,8 @@ class StatisticsViewModel : ViewModel() {
             firstAccessDate = firstAccessDate,
             totalAccessDays = totalAccessDays,
             totalReadingTime = formatDuration(totalDuration),
-            totalFinishedBookCount = totalFinishedBookCount
+            totalFinishedBookCount = totalFinishedBookCount,
+            totalPagesRead = totalPagesRead
         )
     }
 
