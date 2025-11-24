@@ -3,9 +3,11 @@ package com.route.readers.ui.screens.profile.settings
 import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.AutoGraph
 import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.*
@@ -15,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -68,6 +71,7 @@ fun SettingsScreen(
                         text = when (currentSettingView) {
                             "account" -> "계정 관리"
                             "notifications" -> "알림 설정"
+                            "statistics" -> "통계 설정"
                             else -> "환경설정"
                         },
                         fontWeight = FontWeight.Bold
@@ -97,6 +101,9 @@ fun SettingsScreen(
                     },
                     onNavigateToNotifications = {
                         currentSettingView = "notifications"
+                    },
+                    onNavigateToStatistics = {
+                        currentSettingView = "statistics"
                     }
                 )
             }
@@ -110,7 +117,7 @@ fun SettingsScreen(
                             appNavController?.navigate("onboarding_route") {
                                 popUpTo(appNavController.graph.findStartDestination().id) {
                                     inclusive = true
-                                }
+                                 }
                                 launchSingleTop = true
                             }
                         }
@@ -124,6 +131,13 @@ fun SettingsScreen(
                     viewModel = profileViewModel
                 )
             }
+            "statistics" -> {
+                StatisticsSettingsContent(
+                    modifier = Modifier.padding(innerPadding),
+                    uiState = uiState,
+                    viewModel = profileViewModel
+                )
+            }
         }
     }
 }
@@ -132,7 +146,8 @@ fun SettingsScreen(
 fun MainSettingsContent(
     modifier: Modifier = Modifier,
     onNavigateToAccountManagement: () -> Unit,
-    onNavigateToNotifications: () -> Unit
+    onNavigateToNotifications: () -> Unit,
+    onNavigateToStatistics: () -> Unit
 ) {
     val settingItems = listOf(
         SettingItem(
@@ -146,6 +161,12 @@ fun MainSettingsContent(
             title = "알림 설정",
             icon = Icons.Filled.Notifications,
             action = onNavigateToNotifications
+        ),
+        SettingItem(
+            id = "statistics",
+            title = "통계 설정",
+            icon = Icons.Filled.AutoGraph,
+            action = onNavigateToStatistics
         )
     )
 
@@ -157,6 +178,58 @@ fun MainSettingsContent(
         settingItems.forEach { item ->
             SettingRow(item = item)
             HorizontalDivider()
+        }
+    }
+}
+
+@Composable
+fun StatisticsSettingsContent(
+    modifier: Modifier = Modifier,
+    uiState: ProfileUiState,
+    viewModel: ProfileViewModel
+) {
+    val user = (uiState as? ProfileUiState.Success)?.user
+    var pagesRead by remember { mutableStateOf(user?.totalPagesRead?.toString() ?: "0") }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Top
+    ) {
+        if (user != null) {
+            Text(
+                text = "현재까지 읽은 총 페이지: ${user.totalPagesRead}",
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            OutlinedTextField(
+                value = pagesRead,
+                onValueChange = { pagesRead = it },
+                label = { Text("읽은 페이지 수") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = {
+                    val pages = pagesRead.toIntOrNull()
+                    if (pages != null) {
+                        viewModel.updateTotalPagesRead(pages)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("저장")
+            }
+        } else {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
         }
     }
 }

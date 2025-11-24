@@ -949,6 +949,19 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
+    fun updateTotalPagesRead(pages: Int) {
+        val currentUserId = this.currentUserId ?: return
+        viewModelScope.launch {
+            try {
+                val updateData = mapOf("totalPagesRead" to pages)
+                db.collection("users").document(currentUserId).update(updateData).await()
+                fetchUserProfile(currentUserId)
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Failed to update total pages read", e)
+            }
+        }
+    }
+
     private fun getAchievementsForUser(
         readBookCount: Int,
         consecutiveAttendanceDays: Int,

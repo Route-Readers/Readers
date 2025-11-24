@@ -134,6 +134,14 @@ class ChallengeRepository {
         refreshUserActiveChallenge(userId)
     }
 
+    suspend fun updatePagesReadChallengeProgress(userId: String, pagesRead: Int) {
+        val challenge = getUserActiveChallenge(userId)
+        if (challenge != null && challenge.type == ChallengeType.DAILY_PAGES_READING) {
+            val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+            updateDailyProgress(challenge.id, userId, today, pagesRead)
+        }
+    }
+
     private fun getCurrentWeekNumber(): Int {
         val calendar = Calendar.getInstance()
         return calendar.get(Calendar.WEEK_OF_YEAR)

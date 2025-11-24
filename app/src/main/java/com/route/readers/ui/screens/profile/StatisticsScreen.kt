@@ -207,6 +207,7 @@ fun DailyStatsContent(date: LocalDate, stats: DailyStats, chartData: List<Point>
             StatisticsDetailRow("총 독서시간", stats.totalReadingTime)
             StatisticsDetailRow("읽는중인 책", "${stats.readingBookCount}권")
             StatisticsDetailRow("완독한 책", "${stats.finishedBookCount}권")
+            StatisticsDetailRow("읽은 페이지 수", "${stats.totalPagesRead}쪽")
         }
         Spacer(modifier = Modifier.height(16.dp)) // Reduced spacer
         StatsLineChart(pointsData = chartData, xAxisLabels = xAxisLabels, yAxisTitle = "독서 시간 (분)", xAxisTitle = "시간대")
@@ -239,6 +240,7 @@ fun WeeklyStatsContent(date: LocalDate, stats: WeeklyStats, chartData: List<Poin
             StatisticsDetailRow("총 독서시간", stats.totalReadingTime)
             StatisticsDetailRow("가장 많이 읽은 요일", stats.mostReadDay)
             StatisticsDetailRow("완독한 책", "${stats.finishedBookCount}권")
+            StatisticsDetailRow("읽은 페이지 수", "${stats.totalPagesRead}쪽")
         }
         Spacer(modifier = Modifier.height(16.dp)) // Reduced spacer
         StatsLineChart(pointsData = chartData, xAxisLabels = xAxisLabels, yAxisTitle = "독서 시간 (분)", xAxisTitle = "요일")
@@ -269,6 +271,7 @@ fun MonthlyStatsContent(date: LocalDate, stats: MonthlyStats, chartData: List<Po
             StatisticsDetailRow("총 독서시간", stats.totalReadingTime)
             StatisticsDetailRow("가장 많이 읽은 주", stats.mostReadWeek)
             StatisticsDetailRow("완독한 책", "${stats.finishedBookCount}권")
+            StatisticsDetailRow("읽은 페이지 수", "${stats.totalPagesRead}쪽")
         }
         Spacer(modifier = Modifier.height(16.dp)) // Reduced spacer
         StatsBarChart(pointsData = chartData, xAxisLabels = xAxisLabels, yAxisTitle = "독서 시간 (분)", xAxisTitle = "일")
@@ -293,6 +296,7 @@ fun YearlyStatsContent(date: LocalDate, stats: YearlyStats, chartData: List<Poin
             StatisticsDetailRow("총 독서시간", stats.totalReadingTime)
             StatisticsDetailRow("가장 많이 읽은 달", stats.mostReadMonth)
             StatisticsDetailRow("완독한 책", "${stats.finishedBookCount}권")
+            StatisticsDetailRow("읽은 페이지 수", "${stats.totalPagesRead}쪽")
         }
         Spacer(modifier = Modifier.height(16.dp)) // Reduced spacer
         StatsLineChart(pointsData = chartData, xAxisLabels = xAxisLabels, yAxisTitle = "독서 시간 (분)", xAxisTitle = "월")
@@ -311,6 +315,7 @@ fun TotalStatsContent(stats: TotalStats) {
             StatisticsDetailRow("총 접속일", "${stats.totalAccessDays}일")
             StatisticsDetailRow("총 독서시간", stats.totalReadingTime)
             StatisticsDetailRow("총 완독 권수", "${stats.totalFinishedBookCount}권")
+            StatisticsDetailRow("읽은 페이지 수", "${stats.totalPagesRead}쪽")
         }
     }
 }
