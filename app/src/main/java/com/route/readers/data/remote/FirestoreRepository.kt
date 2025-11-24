@@ -141,6 +141,9 @@ class FirestoreRepository {
                         mapOf("pagesRead" to FieldValue.increment(pagesReadThisSession.toLong())),
                         SetOptions.merge()
                     ).await()
+
+                    val userRef = getUsersCollection().document(userId)
+                    userRef.update("totalPagesRead", FieldValue.increment(pagesReadThisSession.toLong())).await()
                 }
 
                 val updateData = mutableMapOf<String, Any>(
