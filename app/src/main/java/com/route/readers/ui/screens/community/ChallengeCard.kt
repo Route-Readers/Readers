@@ -384,7 +384,7 @@ fun ActiveChallengeCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    "${userProgress} / ${goal}일",
+                    "${userProgress} / ${goal}${if (challenge.type == com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING) "페이지" else "일"}",
                     color = Color.White,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold

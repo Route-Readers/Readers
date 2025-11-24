@@ -68,8 +68,12 @@ fun ChallengeCard(
 
             if (isJoined) {
                 val userProgress = challenge.progress[currentUserId] ?: 0
-                val totalDays = 7 // 주간 챌린지는 7일
-                val progress = if (totalDays > 0) userProgress.toFloat() / totalDays.toFloat() else 0f
+                val progressGoal = when (challenge.type) {
+                    ChallengeType.DAILY_PAGES_READING -> challenge.goal
+                    ChallengeType.CONSECUTIVE_READING, ChallengeType.CONSECUTIVE_READING_WITH_FRIEND -> 7 // Assuming these are weekly challenges
+                    else -> challenge.goal // Default for other types
+                }
+                val progress = if (progressGoal > 0) userProgress.toFloat() / progressGoal.toFloat() else 0f
 
                 LinearProgressIndicator(
                     progress = progress,
@@ -80,9 +84,7 @@ fun ChallengeCard(
                 when (challenge.type) {
                     ChallengeType.DAILY_PAGES_READING -> {
                         val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-                        val todayPages = (challenge.dailyProgress[currentUserId]?.get(todayStr) as? Int) ?: 0
-
-                        Text(text = "${userProgress} / ${totalDays}일 완료 (${(progress * 100).toInt()}%)")
+                        Text(text = "${userProgress} / ${challenge.goal} 페이지 완료 (${(progress * 100).toInt()}%)")
                         Text(
                             text = "오늘 읽은 페이지: ${todayPages}/${challenge.goal}페이지",
                             style = MaterialTheme.typography.bodySmall,
@@ -91,7 +93,7 @@ fun ChallengeCard(
                         )
                     }
                     else -> {
-                        Text(text = "${userProgress} / ${totalDays}일 완료 (${(progress * 100).toInt()}%)")
+                        Text(text = "${userProgress} / ${progressGoal}일 완료 (${(progress * 100).toInt()}%)")
                     }
                 }
             } else {
