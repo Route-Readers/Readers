@@ -53,6 +53,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -72,6 +73,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
+import com.route.readers.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -120,7 +123,7 @@ fun FeedScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(Color(0xFFF5F5F5)) // Very Light Gray
     ) {
         PullToRefreshBox(
             modifier = Modifier.fillMaxSize(),
@@ -405,23 +408,28 @@ fun FeedCard(
     var isBookCardExpanded by remember { mutableStateOf(false) }
 
     Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(0.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp), // Add vertical spacing between cards
+        shape = MaterialTheme.shapes.medium, // Use the new rounded shape
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp) // Add slight shadow
     ) {
-        Column {
+        Column(
+            modifier = Modifier.padding(bottom = 12.dp) // Add padding at the bottom of the card
+        ) {
+            // Header: User Info & Action
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 16.dp, end = 8.dp, top = 16.dp, bottom = 8.dp),
+                    .padding(16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
-                        .weight(1f, fill = false)
+                        .weight(1f)
                         .clickable(onClick = onUserClick)
                 ) {
                     val userIdForProfile = when (item) {
@@ -431,39 +439,48 @@ fun FeedCard(
                     val userInfo = followerInfoMap[userIdForProfile]
 
                     if (userInfo != null) {
-                        UserProfileImage(user = userInfo, size = 40.dp, fontSize = 20.sp)
+                        UserProfileImage(user = userInfo, size = 44.dp, fontSize = 20.sp)
                     } else {
                         Box(
                             modifier = Modifier
-                                .size(40.dp)
+                                .size(44.dp)
                                 .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary),
+                                .background(MaterialTheme.colorScheme.primaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = item.userName.firstOrNull()?.toString() ?: "R",
-                                color = MaterialTheme.colorScheme.onPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = item.userName, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+                            Text(
+                                text = item.userName,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
                             userInfo?.title?.let { title ->
                                 Text(
-                                    text = " $title",
+                                    text = " • $title",
                                     style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = FontWeight.Medium,
                                     color = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.padding(start = 4.dp)
                                 )
                             }
                         }
-                        Text(text = formatTimestamp(item.timestamp), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                        Text(
+                            text = formatTimestamp(item.timestamp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
-                IconButton(onClick = onBookmarkClick) {
+                IconButton(onClick = onBookmarkClick, modifier = Modifier.size(24.dp)) {
                     Icon(
                         imageVector = if (isBookmarked) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
                         contentDescription = "저장",
@@ -475,6 +492,7 @@ fun FeedCard(
             when (item) {
                 is FeedItem.BookReview -> {
                     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        // Book Info (Collapsible)
                         AnimatedVisibility(
                             visible = isBookCardExpanded,
                             enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
@@ -484,39 +502,37 @@ fun FeedCard(
                                 Column {
                                     val isInWishlist = wishlist.contains(book.isbn)
                                     val isInMyLibrary = myLibrary.contains(book.isbn)
-                                    Spacer(modifier = Modifier.height(8.dp))
                                     
-                                    // Progress bar section first
-                                    Column {
+                                    // Reading Progress
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(bottom = 12.dp)
+                                    ) {
                                         val progressPercentage = item.progress
                                         val progressColor = if (progressPercentage == 100) MaterialTheme.colorScheme.primary else ReadingGreen
-
-                                        Text(
-                                            text = if (progressPercentage == 100) "완독!" else "$progressPercentage%",
-                                            fontSize = 24.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = progressColor
-                                        )
-                                        LinearProgressIndicator(
+                                        
+                                        CircularProgressIndicator(
                                             progress = { progressPercentage / 100f },
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(8.dp)
-                                                .clip(RoundedCornerShape(4.dp)),
+                                            modifier = Modifier.size(40.dp),
                                             color = progressColor,
-                                            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.4f)
+                                            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                                         )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = "이번에 읽은 양: ${item.currentPage} 페이지",
-                                            fontSize = 12.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Column {
+                                            Text(
+                                                text = if (progressPercentage == 100) "완독했어요! 🎉" else "$progressPercentage% 읽었어요",
+                                                style = MaterialTheme.typography.titleSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = progressColor
+                                            )
+                                            Text(
+                                                text = "이번 기록: ${item.currentPage} 페이지",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
                                     }
                                     
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    
-                                    // Then the book card with buttons
                                     SelectedBookCard(
                                         book = book,
                                         onClear = null,
@@ -525,112 +541,136 @@ fun FeedCard(
                                         onToggleWishlist = { onToggleWishlist(book, isInWishlist) },
                                         onToggleMyLibrary = { onToggleMyLibrary(book, isInMyLibrary) }
                                     )
-                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Spacer(modifier = Modifier.height(16.dp))
                                 }
                             }
                         }
 
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { isBookCardExpanded = !isBookCardExpanded }
-                                .padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        // Collapsible Header (Book Title)
+                        Surface(
+                            onClick = { isBookCardExpanded = !isBookCardExpanded },
+                            shape = MaterialTheme.shapes.small,
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), // Neutral gray/brown tint
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(
-                                text = "📖 ${item.book?.title ?: item.bookTitle}",
-                                fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f)
-                            )
-                            Icon(
-                                imageVector = if (isBookCardExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                                contentDescription = if (isBookCardExpanded) "접기" else "펼치기", tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.book_5_24), // Ensure this resource exists or use a default icon
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = item.book?.title ?: item.bookTitle,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Icon(
+                                    imageVector = if (isBookCardExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                                    contentDescription = if (isBookCardExpanded) "접기" else "펼치기",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
 
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Rating
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             val starColor = Color(0xFFFFD700)
                             repeat(5) { index ->
-                                Icon(imageVector = Icons.Filled.Star, contentDescription = null, tint = if (index < item.rating) starColor else MaterialTheme.colorScheme.surfaceVariant)
+                                Icon(
+                                    imageVector = Icons.Filled.Star,
+                                    contentDescription = null,
+                                    tint = if (index < item.rating) starColor else MaterialTheme.colorScheme.surfaceVariant,
+                                    modifier = Modifier.size(16.dp)
+                                )
                             }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("${item.rating}/5", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "${item.rating}.0",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = item.review, fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp), color = MaterialTheme.colorScheme.onSurface)
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Review Content
+                        Text(
+                            text = item.review,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
                     }
 
+                    // Footer: Actions
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 16.dp, end = 8.dp, bottom = 12.dp, top = 4.dp),
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.clickable(onClick = onLikeClick)
-                        ) {
+                        TextButton(onClick = onLikeClick) {
                             Icon(
                                 imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                                 contentDescription = "좋아요",
                                 tint = if (isLiked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(20.dp)
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(text = item.likeCount.toString(), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = item.likeCount.toString(),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
+                        
                         Spacer(modifier = Modifier.weight(1f))
+                        
                         if (item.authorId == currentUserId) {
                             IconButton(onClick = onDeleteClick) {
-                                Icon(imageVector = Icons.Default.Delete, contentDescription = "삭제", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "삭제",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
                         }
                     }
                 }
+                
+                // Handle other feed types like Notification...
                 is FeedItem.FollowNotification -> {
-                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                         val followerName = followerInfoMap[item.followerId]?.nickname ?: "알 수 없는 사용자"
                         Text(
-                            text = "👥 ${followerName}님이 팔로우했습니다!",
-                            fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.primary, fontSize = 16.sp
+                            text = "👋 ${followerName}님이 팔로우를 시작했어요!",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Button(
                             onClick = { onFollowBack(item.followerId) },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (item.isFollowedBack) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.primary,
-                                contentColor = if (item.isFollowedBack) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onPrimary
+                                containerColor = if (item.isFollowedBack) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.primary,
+                                contentColor = if (item.isFollowedBack) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimary
                             ),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(text = if (item.isFollowedBack) "팔로잉" else "맞팔하기")
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(
+                            shape = MaterialTheme.shapes.small,
                             modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
+                            elevation = ButtonDefaults.buttonElevation(0.dp)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.clickable(onClick = onLikeClick)
-                            ) {
-                                Icon(
-                                    imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                                    contentDescription = "좋아요",
-                                    tint = if (isLiked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(text = item.likeCount.toString(), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Spacer(modifier = Modifier.weight(1f))
-                            if (item.receiverId == currentUserId) {
-                                IconButton(onClick = onDeleteClick) {
-                                    Icon(imageVector = Icons.Default.Delete, contentDescription = "삭제", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            }
+                            Text(text = if (item.isFollowedBack) "팔로잉" else "맞팔로우 하기")
                         }
-                    }
+                     }
                 }
             }
         }
