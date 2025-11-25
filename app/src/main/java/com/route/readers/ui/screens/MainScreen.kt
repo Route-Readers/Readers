@@ -1,5 +1,6 @@
 package com.route.readers.ui.screens
 
+import android.app.Activity
 import android.widget.Toast
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -30,15 +31,12 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.google.firebase.auth.FirebaseAuth
-import com.route.readers.data.model.Challenge
 import com.route.readers.data.model.MyBook
-import com.route.readers.ui.components.AdBanner
 import com.route.readers.ui.components.BottomNavBar
 import com.route.readers.ui.components.BottomNavItem
 import com.route.readers.ui.screens.attendance.AttendanceViewModel
 import com.route.readers.ui.screens.community.AllUsersScreen
 import com.route.readers.ui.screens.community.CommunityScreen
-import com.route.readers.ui.screens.community.CommunityViewModel
 import com.route.readers.ui.screens.community.NotificationScreen
 import com.route.readers.ui.screens.feed.FeedScreen
 import com.route.readers.ui.screens.feed.FeedTopAppBar
@@ -48,11 +46,9 @@ import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.profile.ProfileViewModel
 import com.route.readers.ui.screens.reading.ReadingTimerScreen
 import com.route.readers.ui.screens.reading.ReadingViewModel
-import android.app.Activity
 import com.route.readers.ui.screens.search.SearchScreen
 import com.route.readers.utils.InterstitialAdManager
 import java.net.URLEncoder
-import androidx.compose.foundation.layout.Column
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,7 +60,6 @@ fun MainScreen(
     onNavigateToMyAccount: () -> Unit,
     onNavigateToAttendance: () -> Unit,
     onNavigateToChallenge: () -> Unit,
-
     onNavigateToUsedBookDetail: (String) -> Unit,
     onNavigateToChatList: () -> Unit
 ) {
@@ -76,7 +71,6 @@ fun MainScreen(
     val readingViewModel: ReadingViewModel = viewModel()
     val currentUserId = remember { FirebaseAuth.getInstance().currentUser?.uid }
     var selectedBook by remember { mutableStateOf<MyBook?>(null) }
-    var timerCompletedBook by remember { mutableStateOf<MyBook?>(null) }
     val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     var showLogoutDialog by remember { mutableStateOf(false) }
@@ -127,7 +121,7 @@ fun MainScreen(
                     onMyAccountClick = onNavigateToMyAccount,
                     onAttendanceClick = onNavigateToAttendance,
                     onNavigateToChallenge = onNavigateToChallenge,
-                    onTokenClick = { 
+                    onTokenClick = {
                         Toast.makeText(context, "아직 공개되지 않은 기능이에요", Toast.LENGTH_SHORT).show()
                     },
                     onShowInterstitialAd = { interstitialAdManager.showAd(activity) }
@@ -219,9 +213,9 @@ fun MainScreen(
             }
             composable(BottomNavItem.Community.route) {
                 selectedBook = null
-                val communityViewModel: CommunityViewModel = viewModel()
+                // --- 수정된 부분 ---
+                // CommunityScreen이 자체적으로 ViewModel을 생성하도록 viewModel 파라미터를 제거했습니다.
                 CommunityScreen(
-                    viewModel = communityViewModel,
                     onNavigateToFriendsList = { bottomNavController.navigate("friends_list") },
                     onNavigateToNotifications = { bottomNavController.navigate("notifications") },
                     onNavigateToUsedBookDetail = onNavigateToUsedBookDetail,

@@ -39,6 +39,14 @@ class ChallengeRepository {
         }
     }
 
+    suspend fun getChallenge(challengeId: String): Challenge? {
+        return try {
+            challengesCollection.document(challengeId).get().await().toObject(Challenge::class.java)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     suspend fun createChallenge(challenge: Challenge) {
         challengesCollection.document(challenge.id).set(challenge).await()
     }

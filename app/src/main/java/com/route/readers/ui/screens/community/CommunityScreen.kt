@@ -1,5 +1,6 @@
 package com.route.readers.ui.screens.community
 
+import android.app.Application
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -8,13 +9,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,42 +20,49 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.route.readers.data.model.BookClub
-import com.route.readers.data.model.Challenge
-import com.route.readers.data.model.ChatMessage
+import com.route.readers.data.model.User
 import com.route.readers.ui.community.used_trade.UsedBookTradeScreen
 import com.route.readers.ui.components.BookClubCard
-import com.route.readers.ui.theme.DarkRed
 import com.route.readers.ui.screens.bookclub.BookClubChatScreen
-import java.net.URLEncoder
-
-import com.route.readers.data.model.User // Added User import
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CommunityScreen(
-    viewModel: CommunityViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
     onNavigateToFriendsList: () -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
     onNavigateToUsedBookDetail: (String) -> Unit = {},
     onNavigateToChatList: () -> Unit = {},
     isActive: Boolean = false
 ) {
+    // CommunityScreen이 자체적으로 ViewModel을 생성합니다.
+    // Application Context가 필요한 ViewModel이므로 Factory를 사용하여 생성합니다.
+    val context = LocalContext.current
+    val application = context.applicationContext as Application
+    val viewModel: CommunityViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                return CommunityViewModel(application) as T
+            }
+        }
+    )
     val uiState by viewModel.uiState.collectAsState()
     var showCreateBookClubDialog by remember { mutableStateOf(false) }
     var showChatScreen by remember { mutableStateOf<BookClub?>(null) }
     var selectedTab by remember { mutableStateOf(0) }
 
+    // 화면이 활성화될 때 데이터를 새로고침합니다.
     LaunchedEffect(isActive) {
         if (isActive) {
             viewModel.refreshChallenges()
@@ -72,6 +76,7 @@ fun CommunityScreen(
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 
+        // "커뮤니티" / "중고책 거래" 탭
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -94,6 +99,7 @@ fun CommunityScreen(
             )
         }
 
+        // 선택된 탭에 따라 다른 화면을 보여줍니다.
         when (selectedTab) {
             0 -> {
                 if (showChatScreen != null) {
@@ -133,8 +139,7 @@ fun CommunityScreen(
         }
     }
 
-
-
+    // 새 북클럽 만들기 다이얼로그
     if (showCreateBookClubDialog) {
         CreateBookClubDialog(
             onDismiss = { showCreateBookClubDialog = false },
@@ -145,6 +150,7 @@ fun CommunityScreen(
         )
     }
 
+    // 알림 다이얼로그 (친구 추가 메시지 등)
     uiState.addFriendMessage?.let { message ->
         AlertDialog(
             onDismissRequest = { viewModel.clearAddFriendMessage() },
@@ -158,6 +164,7 @@ fun CommunityScreen(
         )
     }
 
+    // 친구 삭제 확인 다이얼로그
     uiState.friendToDelete?.let { user ->
         AlertDialog(
             onDismissRequest = { viewModel.cancelDeleteFriend() },
@@ -182,7 +189,7 @@ fun CommunityContent(
     uiState: CommunityUiState,
     bookClubs: List<BookClub>,
     onNavigateToFriendsList: () -> Unit,
-    onRemoveFriend: (User) -> Unit, // Changed to User
+    onRemoveFriend: (User) -> Unit,
     onShowCreateBookClubDialog: () -> Unit,
     onJoinBookClub: (BookClub) -> Unit,
     onToggleBookClubMembership: (String, Boolean) -> Unit,
@@ -208,8 +215,6 @@ fun CommunityContent(
         }
 
         item {
-            Spacer(modifier = Modifier.height(24.dp))
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -228,8 +233,6 @@ fun CommunityContent(
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-
                 }
                 if (uiState.hasMoreFriends) {
                     TextButton(onClick = onNavigateToFriendsList) {
@@ -237,7 +240,6 @@ fun CommunityContent(
                     }
                 }
             }
-
             Spacer(modifier = Modifier.height(16.dp))
         }
 
@@ -269,7 +271,6 @@ fun CommunityContent(
                     fontWeight = FontWeight.Medium
                 )
             }
-
             Spacer(modifier = Modifier.height(16.dp))
         }
 
@@ -290,8 +291,9 @@ fun CommunityContent(
                 Text("새 북클럽 만들기")
             }
 
+            Spacer(modifier = Modifier.height(16.dp))
 
-
+            // 친구에게 독서 알림 보내기 카드
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -324,7 +326,7 @@ fun CommunityContent(
                         )
                     }
                     Button(
-                        onClick = { onSendNotification() },
+                        onClick = onSendNotification,
                         enabled = !uiState.isNotificationSending,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
@@ -344,62 +346,7 @@ fun CommunityContent(
                     }
                 }
             }
-
             Spacer(modifier = Modifier.height(16.dp))
-        }
-    }
-}
-
-
-@Composable
-fun BookClubItem(
-    bookClub: BookClub,
-    onJoinClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(8.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                Icons.Default.Book,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                bookClub.name,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Text(
-                "현재 도서: ${bookClub.currentBook}",
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                "다음 모임: ${bookClub.nextMeetingDate}",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        TextButton(onClick = onJoinClick) {
-            Text(
-                "참여",
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.primary
-            )
         }
     }
 }
@@ -422,7 +369,7 @@ fun CreateBookClubDialog(
     LaunchedEffect(currentBook) {
         if (currentBook.length >= 2) {
             isSearching = true
-            kotlinx.coroutines.delay(500)
+            delay(500) // 사용자 타이핑 대기
             try {
                 val results = bookRepository.getBookSearch(currentBook, maxResults = 5)
                 searchResults = results
@@ -453,7 +400,6 @@ fun CreateBookClubDialog(
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
-
                 Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
@@ -463,7 +409,6 @@ fun CreateBookClubDialog(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
-
                 Spacer(modifier = Modifier.height(12.dp))
 
                 OutlinedTextField(
@@ -473,9 +418,9 @@ fun CreateBookClubDialog(
                     modifier = Modifier.fillMaxWidth(),
                     maxLines = 2
                 )
-
                 Spacer(modifier = Modifier.height(12.dp))
 
+                // 책 검색 UI
                 Column {
                     OutlinedTextField(
                         value = currentBook,
@@ -527,9 +472,7 @@ fun CreateBookClubDialog(
                                                 .clip(RoundedCornerShape(4.dp)),
                                             contentScale = ContentScale.Fit
                                         )
-
                                         Spacer(modifier = Modifier.width(12.dp))
-
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
                                                 text = book.title,
@@ -570,9 +513,7 @@ fun CreateBookClubDialog(
                                     .clip(RoundedCornerShape(4.dp)),
                                 contentScale = ContentScale.Fit
                             )
-
                             Spacer(modifier = Modifier.width(12.dp))
-
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = book.title,
@@ -589,6 +530,7 @@ fun CreateBookClubDialog(
                     }
                 }
 
+                // 버튼
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -615,10 +557,6 @@ fun CreateBookClubDialog(
     }
 }
 
-
-
-
-
 @Composable
 fun FriendItemWithDelete(
     friend: User,
@@ -635,15 +573,14 @@ fun FriendItemWithDelete(
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center
         ) {
+            // 프로필 이미지가 없다면 닉네임의 첫 글자를 보여줍니다.
             Text(
                 friend.nickname.first().toString(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Bold
             )
         }
-
         Spacer(modifier = Modifier.width(12.dp))
-
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 friend.nickname,
@@ -652,146 +589,15 @@ fun FriendItemWithDelete(
                 color = MaterialTheme.colorScheme.onBackground
             )
         }
-
-        Column(horizontalAlignment = Alignment.End) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(
-                    onClick = onDeleteClick,
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = "친구 삭제",
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-
-
-
-
-@Composable
-fun ChallengeCardInCommunity(
-    challenge: com.route.readers.data.model.Challenge,
-    onJoinClick: () -> Unit
-) {
-    val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
-    val isJoined = challenge.participants.contains(currentUserId)
-
-    val daysRemaining = challenge.joinDate[currentUserId]?.let { joinDate ->
-        val joinTimestamp = joinDate.time
-        val elapsedMillis = System.currentTimeMillis() - joinTimestamp
-        val elapsedDays = java.util.concurrent.TimeUnit.MILLISECONDS.toDays(elapsedMillis).toInt()
-        (7 - elapsedDays).coerceAtLeast(0)
-    } ?: 0
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary)
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp)
+        IconButton(
+            onClick = onDeleteClick,
+            modifier = Modifier.size(24.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Send,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "주간 독서 챌린지",
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-                Text(
-                    "${daysRemaining}일 남음",
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
-                    fontSize = 14.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                challenge.title,
-                color = MaterialTheme.colorScheme.onPrimary,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
+            Icon(
+                Icons.Default.Delete,
+                contentDescription = "친구 삭제",
+                tint = MaterialTheme.colorScheme.error
             )
-
-            if (isJoined) {
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    "내 진행률",
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
-                    fontSize = 14.sp
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                val userProgress = challenge.progress[currentUserId] ?: 0
-                val progress = if (challenge.goal > 0) userProgress.toFloat() / challenge.goal.toFloat() else 0f
-
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(8.dp)
-                        .clip(RoundedCornerShape(4.dp)),
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f)
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    "${userProgress} / ${challenge.goal} (${(progress * 100).toInt()}%)",
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
-                    fontSize = 14.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "${challenge.participants.size}명 참여 중",
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f),
-                    fontSize = 14.sp
-                )
-                if (!isJoined) {
-                    Button(
-                        onClick = onJoinClick,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.onPrimary,
-                            contentColor = MaterialTheme.colorScheme.primary
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("챌린지 참여")
-                    }
-                }
-            }
         }
     }
 }
