@@ -114,6 +114,9 @@ class MainActivity : ComponentActivity() {
         val initialNotificationType = intent.getStringExtra("notificationType")
         val initialBookClubId = intent.getStringExtra("bookClubId")
         val initialBookClubName = intent.getStringExtra("bookClubName")
+        val initialChatId = intent.getStringExtra("chatId")
+        val initialSenderId = intent.getStringExtra("senderId")
+        val initialBookId = intent.getStringExtra("bookId")
 
 
         setupNotificationListener()
@@ -133,7 +136,10 @@ class MainActivity : ComponentActivity() {
                             accountViewModel = accountViewModel,
                             initialNotificationType = initialNotificationType,
                             initialBookClubId = initialBookClubId,
-                            initialBookClubName = initialBookClubName
+                            initialBookClubName = initialBookClubName,
+                            initialChatId = initialChatId,
+                            initialSenderId = initialSenderId,
+                            initialBookId = initialBookId
                         )
                     }
                 }
@@ -221,7 +227,10 @@ fun RootAppNavigation(
     accountViewModel: AccountViewModel,
     initialNotificationType: String?,
     initialBookClubId: String?,
-    initialBookClubName: String?
+    initialBookClubName: String?,
+    initialChatId: String? = null,
+    initialSenderId: String? = null,
+    initialBookId: String? = null
 ) {
     val appNavController = LocalAppNavController.current
         ?: throw IllegalStateException("LocalAppNavController not provided")
@@ -229,7 +238,7 @@ fun RootAppNavigation(
     val startDestination = "decision_route"
 
     // --- 수정된 부분 3: LaunchedEffect에서 내비게이션 로직 직접 처리 ---
-    LaunchedEffect(initialNotificationType, initialBookClubId, initialBookClubName) {
+    LaunchedEffect(initialNotificationType, initialBookClubId, initialBookClubName, initialChatId, initialSenderId, initialBookId) {
         if (initialNotificationType != null) {
             when (initialNotificationType) {
                 "BOOK_CLUB_CHAT_MESSAGE" -> {
@@ -237,6 +246,15 @@ fun RootAppNavigation(
                         val encodedClubName = URLEncoder.encode(initialBookClubName, "UTF-8")
                         // 올바른 라우트로 이동하도록 수정
                         appNavController.navigate("bookclub_chat_route/$initialBookClubId/$encodedClubName") {
+                            popUpTo(appNavController.graph.startDestinationId) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                }
+                "CHAT_MESSAGE" -> {
+                    if (initialBookId != null && initialSenderId != null) {
+                        appNavController.navigate("chat_route/$initialBookId/$initialSenderId") {
                             popUpTo(appNavController.graph.startDestinationId) { saveState = true }
                             launchSingleTop = true
                             restoreState = true

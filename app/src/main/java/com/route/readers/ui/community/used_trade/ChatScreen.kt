@@ -353,6 +353,10 @@ fun ChatMessageItem(
                 color = timestampColor,
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
             )
+        }
+    }
+}
+
 @Composable
 fun DateHeader(timestamp: Date?) {
     if (timestamp == null) return

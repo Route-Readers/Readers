@@ -8,7 +8,7 @@ admin.initializeApp();
 // "fcmRequests" 컬렉션에 새 문서가 생성될 때마다 이 함수가 실행됨
 export const sendFcmNotification = onDocumentCreated(
     {
-        document: "fcmRequests/{requestId}", // <-- 올바른 컬렉션 이름으로 수정
+        document: "fcmRequests/{requestId}",
         region: "asia-northeast3",
     },
     async (event) => {
@@ -20,13 +20,13 @@ export const sendFcmNotification = onDocumentCreated(
 
         // 1. 요청 데이터 가져오기
         const requestData = snapshot.data();
-        // NotificationRepository에서 보낸 필드 이름 사용
         const {targetUserId, title, message: body, notificationType} = requestData;
 
         console.log(`New FCM request. Type: ${notificationType}`);
 
         if (!targetUserId || !title || !body) {
             console.error("Request data is missing fields", requestData);
+            await snapshot.ref.delete(); // Delete request to prevent re-tries
             return;
         }
 
@@ -39,14 +39,16 @@ export const sendFcmNotification = onDocumentCreated(
             const fcmToken = receiverData?.fcmToken;
 
             if (!fcmToken) {
-                console.log(`No FCM token for receiver ${targetUserId}`);
-                // 처리 완료된 요청 문서는 삭제
+                console.log(`No FCM token for receiver ${targetUserId}. Deleting request.`);
                 await snapshot.ref.delete();
                 return;
             }
 
             // 3. 알림 유형에 따른 설정 확인
             let shouldSendNotification = true;
+            let dataPayload: { [key: string]: string } = {
+                notificationType: String(notificationType),
+            };
 
             if (notificationType === "READING_INVITATION") {
                 const friendReadingAlarmEnabled = receiverData?.friendReadingAlarmEnabled;
@@ -56,7 +58,7 @@ export const sendFcmNotification = onDocumentCreated(
                     shouldSendNotification = false;
                 }
             } else if (notificationType === "FOLLOW" || notificationType === "FOLLOW_REQUEST") {
-                const followAlarmEnabled = receiverData?.followAlarmEnabled; // Use the field from User.kt
+                const followAlarmEnabled = receiverData?.followAlarmEnabled;
                 console.log(`User ${targetUserId} followAlarmEnabled: ${followAlarmEnabled}`);
                 if (followAlarmEnabled === false) {
                     console.log(`User ${targetUserId} has disabled follow alarms. Skipping notification.`);
@@ -69,7 +71,18 @@ export const sendFcmNotification = onDocumentCreated(
                     console.log(`User ${targetUserId} has disabled like alarms. Skipping notification.`);
                     shouldSendNotification = false;
                 }
+            } else if (notificationType === "CHAT_MESSAGE") {
+                const messageAlarmEnabled = receiverData?.messageAlarmEnabled;
+                console.log(`User ${targetUserId} messageAlarmEnabled: ${messageAlarmEnabled}`);
+                if (messageAlarmEnabled === false) {
+                    console.log(`User ${targetUserId} has disabled chat message alarms. Skipping notification.`);
+                    shouldSendNotification = false;
+                }
+                // Extract chat-specific data for payload
+                const { chatId, senderId, bookId } = requestData;
+                dataPayload = { ...dataPayload, chatId: String(chatId), senderId: String(senderId), bookId: String(bookId) };
             }
+            // Add other notification types here as needed
 
             if (!shouldSendNotification) {
                 await snapshot.ref.delete();
@@ -82,15 +95,12 @@ export const sendFcmNotification = onDocumentCreated(
                     title: title,
                     body: body,
                 },
-                data: { // Add data payload for custom handling on client
-                    notificationType: String(notificationType),
-                    // Add other relevant data if needed, e.g., senderId
-                },
+                data: dataPayload, // Use the constructed data payload
                 token: fcmToken,
             };
 
             // 5. FCM으로 메시지 전송
-            console.log(`Sending notification to token: ${fcmToken}`);
+            console.log(`Sending notification to token: ${fcmToken} for type: ${notificationType}`);
             await getMessaging().send(fcmMessage);
             console.log("Successfully sent message");
 
@@ -264,86 +274,5 @@ export const onLikeCreated = onDocumentUpdated(
     }
 );
 
-export const sendChatNotification = onDocumentCreated(
-    {
-        document: "chats/{chatId}/messages/{messageId}",
-        region: "asia-northeast3",
-    },
-    async (event) => {
-        const snapshot = event.data;
-        if (!snapshot) {
-            console.log("No data associated with the chat message event");
-            return;
-        }
 
-        const messageData = snapshot.data();
-        const chatId = event.params.chatId;
-        const senderId = messageData.senderId;
-        const messageText = messageData.message;
-
-        if (!chatId || !senderId || !messageText) {
-            console.error("Missing chat message fields", messageData);
-            return;
-        }
-
-        try {
-            const db = admin.firestore();
-
-            // 1. Get Chat Room participants
-            const chatDoc = await db.collection("chats").doc(chatId).get();
-            const chatData = chatDoc.data();
-            const participants: string[] = chatData?.participants || [];
-
-            // 2. Identify the receiver (the participant who is NOT the sender)
-            const receiverId = participants.find(uid => uid !== senderId);
-
-            if (!receiverId) {
-                console.log(`No receiver found for chat ${chatId}.`);
-                return;
-            }
-
-            // 3. Get Sender's info (for notification title)
-            const senderDoc = await db.collection("users").doc(senderId).get();
-            const senderData = senderDoc.data();
-            const senderName = senderData?.nickname || "알 수 없는 사용자";
-
-            // 4. Get Receiver's FCM token
-            const receiverDoc = await db.collection("users").doc(receiverId).get();
-            const receiverData = receiverDoc.data();
-            const fcmToken = receiverData?.fcmToken;
-            const messageAlarmEnabled = receiverData?.messageAlarmEnabled; // Reuse message alarm setting
-
-            if (!fcmToken) {
-                console.log(`No FCM token for receiver ${receiverId}`);
-                return;
-            }
-
-            if (messageAlarmEnabled === false) {
-                console.log(`User ${receiverId} has disabled message alarms. Skipping.`);
-                return;
-            }
-
-            // 5. Send Notification
-            const fcmMessage = {
-                notification: {
-                    title: senderName,
-                    body: messageText,
-                },
-                data: {
-                    notificationType: "CHAT_MESSAGE",
-                    chatId: chatId,
-                    senderId: senderId,
-                    bookId: chatData?.bookId || ""
-                },
-                token: fcmToken,
-            };
-
-            await getMessaging().send(fcmMessage);
-            console.log(`Sent chat notification to ${receiverId} from ${senderName}`);
-
-        } catch (error) {
-            console.error(`Error sending chat notification for chat ${chatId}:`, error);
-        }
-    }
-);
 

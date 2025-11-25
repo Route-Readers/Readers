@@ -106,6 +106,26 @@ class ChatViewModel : ViewModel() {
                     .set(chatRoomInfo, SetOptions.merge())
                     .await()
 
+                // 3. Create FCM request for chat notification
+                val senderUser = userRepository.getUser(senderId)
+                val senderNickname = senderUser?.nickname ?: "알 수 없는 사용자"
+
+                val fcmRequestData = mapOf(
+                    "targetUserId" to receiverId,
+                    "title" to senderNickname,
+                    "message" to message,
+                    "notificationType" to "CHAT_MESSAGE",
+                    "createdAt" to FieldValue.serverTimestamp(),
+                    // Include additional data for navigation if needed in the client
+                    "chatId" to chatId,
+                    "senderId" to senderId,
+                    "bookId" to bookId
+                )
+
+                db.collection("fcmRequests")
+                    .add(fcmRequestData)
+                    .await()
+
             } catch (e: Exception) {
                 e.printStackTrace()
             }
