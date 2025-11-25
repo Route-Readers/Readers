@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -62,13 +63,28 @@ class ChatViewModel : ViewModel() {
                     timestamp = java.util.Date(),
                     bookId = bookId
                 )
-                
+
+                // 1. Add message to subcollection
                 db.collection("chats")
                     .document(chatId)
                     .collection("messages")
                     .document(newMessage.id)
                     .set(newMessage)
                     .await()
+
+                // 2. Update parent document (Chat Room Info)
+                val chatRoomInfo = mapOf(
+                    "participants" to listOf(senderId, receiverId),
+                    "bookId" to bookId,
+                    "lastMessage" to message,
+                    "lastMessageTime" to newMessage.timestamp
+                )
+                
+                db.collection("chats")
+                    .document(chatId)
+                    .set(chatRoomInfo, SetOptions.merge())
+                    .await()
+
             } catch (e: Exception) {
                 e.printStackTrace()
             }
