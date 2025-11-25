@@ -7,6 +7,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.route.readers.data.model.User
 import com.route.readers.data.remote.UserRepository
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -40,64 +42,54 @@ class ChatListViewModel : ViewModel() {
     }
 
     private fun loadChatList() {
-        viewModelScope.launch {
-            val currentUserId = auth.currentUser?.uid ?: return@launch
+        val currentUserId = auth.currentUser?.uid ?: return
 
-            db.collection("chats")
-                .addSnapshotListener { snapshots, error ->
-                    if (error != null) {
-                        return@addSnapshotListener
-                    }
+        db.collection("chats")
+            .whereArrayContains("participants", currentUserId)
+            .addSnapshotListener { snapshots, error ->
+                if (error != null) return@addSnapshotListener
 
-                    snapshots?.let { querySnapshot ->
-                        val chatItems = mutableListOf<ChatListItem>()
-                        for (document in querySnapshot.documents) {
-                            val chatId = document.id
-                            val parts = chatId.split("_")
-                            if (parts.size >= 3) {
-                                val userId1 = parts[0]
-                                val userId2 = parts[1]
-                                val bookId = parts[2]
+                viewModelScope.launch {
+                    val deferredItems = snapshots?.documents?.map { doc ->
+                        async {
+                            val data = doc.data ?: return@async null
+                            val participants = data["participants"] as? List<String> ?: return@async null
+                            val bookId = data["bookId"] as? String ?: return@async null
+                            val lastMessage = data["lastMessage"] as? String ?: ""
+                            
+                            // Handle Timestamp or Date (it might be saved as either depending on how it was set)
+                            val timestampObj = data["lastMessageTime"]
+                            val timestamp = when (timestampObj) {
+                                is com.google.firebase.Timestamp -> timestampObj.toDate().time
+                                is java.util.Date -> timestampObj.time
+                                else -> 0L
+                            }
 
-                                if (userId1 == currentUserId || userId2 == currentUserId) {
-                                    val otherUserId = if (userId1 == currentUserId) userId2 else userId1
+                            val otherUserId = participants.firstOrNull { it != currentUserId } ?: return@async null
 
-                                    // Fetch last message
-                                    db.collection("chats").document(chatId).collection("messages")
-                                        .orderBy("timestamp", Query.Direction.DESCENDING)
-                                        .limit(1)
-                                        .get()
-                                        .addOnSuccessListener { messageSnapshot ->
-                                            val lastMessageDoc = messageSnapshot.documents.firstOrNull()
-                                            val lastMessage = lastMessageDoc?.toObject(ChatMessage::class.java)
+                            val otherUser = userRepository.getUser(otherUserId)
+                            val book = bookRepository.getBookDetail(bookId)
 
-                                            viewModelScope.launch {
-                                                val otherUser = userRepository.getUser(otherUserId)
-                                                val book = bookRepository.getBookDetail(bookId)
-                                                val bookTitle = book?.title
-
-                                                if (lastMessage != null && otherUser != null) {
-                                                    chatItems.add(
-                                                        ChatListItem(
-                                                            chatId = chatId,
-                                                            otherUserId = otherUserId,
-                                                            otherUserName = otherUser.nickname ?: "알 수 없음",
-                                                            otherUserProfileImageUrl = otherUser.profileImageUrl,
-                                                            lastMessage = lastMessage.message,
-                                                            timestamp = lastMessage.timestamp?.time ?: 0L,
-                                                            bookId = bookId,
-                                                            bookTitle = bookTitle
-                                                        )
-                                                    )
-                                                    _chatList.value = chatItems.sortedByDescending { it.timestamp }
-                                                }
-                                            }
-                                        }
-                                }
+                            if (otherUser != null) {
+                                ChatListItem(
+                                    chatId = doc.id,
+                                    otherUserId = otherUserId,
+                                    otherUserName = otherUser.nickname ?: "알 수 없음",
+                                    otherUserProfileImageUrl = otherUser.profileImageUrl,
+                                    lastMessage = lastMessage,
+                                    timestamp = timestamp,
+                                    bookId = bookId,
+                                    bookTitle = book?.title
+                                )
+                            } else {
+                                null
                             }
                         }
                     }
+
+                    val items = deferredItems?.awaitAll()?.filterNotNull() ?: emptyList()
+                    _chatList.value = items.sortedByDescending { it.timestamp }
                 }
-        }
+            }
     }
 }

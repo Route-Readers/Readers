@@ -25,6 +25,9 @@ import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.delay
 
 import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.LibraryBooks
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextOverflow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,8 +54,9 @@ fun UsedBookTradeScreen(
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
+                        shape = MaterialTheme.shapes.medium, // Use the new rounded shape
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), // Use surface for cards (white)
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp) // Add subtle shadow
                     ) {
                         Row(
                             modifier = Modifier
@@ -61,22 +65,22 @@ fun UsedBookTradeScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                Icons.Default.Send,
+                                Icons.Default.LibraryBooks, // Changed icon to LibraryBooks
                                 contentDescription = null,
-                                tint = Color(0xFFFF9800),
-                                modifier = Modifier.size(24.dp)
+                                tint = MaterialTheme.colorScheme.primary, // Use primary color
+                                modifier = Modifier.size(28.dp) // Slightly larger icon
                             )
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(16.dp)) // Increased spacing
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     "토큰으로 중고책 거래",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Medium
+                                    style = MaterialTheme.typography.titleMedium, // Use titleMedium
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     "친구들이 읽은 책을 토큰으로 구매해보세요!",
-                                    fontSize = 14.sp,
-                                    color = Color.Gray
+                                    style = MaterialTheme.typography.bodySmall, // Use bodySmall
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -192,64 +196,81 @@ fun UsedBookCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = MaterialTheme.shapes.medium, // Use the new rounded shape (16.dp)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), // Use surface for cards (white)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp), // Add subtle shadow
         onClick = onClick
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             AsyncImage(
                 model = book.bookCover,
                 contentDescription = null,
                 modifier = Modifier
-                    .width(60.dp)
-                    .height(80.dp),
+                    .width(72.dp) // Slightly larger book cover
+                    .height(108.dp) // Maintain aspect ratio
+                    .clip(MaterialTheme.shapes.small), // Apply small rounded corners to image
                 contentScale = ContentScale.Crop
             )
             
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(16.dp)) // Increased spacing
             
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = book.bookTitle,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2
+                    style = MaterialTheme.typography.titleMedium, // Use titleMedium
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis // Add ellipsis for long titles
                 )
                 Text(
                     text = book.bookAuthor,
-                    fontSize = 14.sp,
-                    color = Color.Gray
+                    style = MaterialTheme.typography.bodyMedium, // Use bodyMedium
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "판매자: ${book.sellerName}",
-                    fontSize = 12.sp,
-                    color = Color.Gray
-                )
-                Text(
-                    text = "상태: ${book.condition}",
-                    fontSize = 12.sp,
-                    color = Color.Gray
-                )
+                Spacer(modifier = Modifier.height(8.dp)) // Increased spacing
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "판매자: ${book.sellerName}",
+                        style = MaterialTheme.typography.labelSmall, // Use labelSmall
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "상태: ${book.condition}",
+                        style = MaterialTheme.typography.labelSmall, // Use labelSmall
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "${book.price} 토큰",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFFFA000)
+                    style = MaterialTheme.typography.titleMedium, // Use titleMedium for price
+                    color = Color(0xFFFFA000) // Orange color for price is good
                 )
             }
             if (isMyBook) {
-                Column {
-                    IconButton(onClick = onEditClick) {
-                        Icon(Icons.Default.Edit, contentDescription = "수정")
+                Column(
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    IconButton(onClick = onEditClick, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = "수정",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                    IconButton(onClick = onDeleteClick) {
-                        Icon(Icons.Default.Delete, contentDescription = "삭제")
+                    IconButton(onClick = onDeleteClick, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "삭제",
+                            tint = MaterialTheme.colorScheme.error
+                        )
                     }
                 }
             }
