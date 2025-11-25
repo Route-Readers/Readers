@@ -1479,7 +1479,8 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
                 id = book.isbn, title = book.title, author = book.author, cover = book.cover,
                 isbn = book.isbn, totalPages = totalPages, currentPage = 0,
                 isCompleted = false, addedDate = System.currentTimeMillis(),
-                lastReadDate = System.currentTimeMillis(), completedDate = null
+                lastReadDate = System.currentTimeMillis(), completedDate = null,
+                genre = book.genre
             )
             val success =
                 if (isInMyLibrary) myLibraryRepository.removeBookFromLibrary(book.isbn) else myLibraryRepository.addBookToLibrary(
