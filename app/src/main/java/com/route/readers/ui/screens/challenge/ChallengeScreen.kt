@@ -91,17 +91,6 @@ fun ChallengeContent(
                 )
             )
         },
-        floatingActionButton = {
-            if (uiState.userChallenge == null && !uiState.isLoading) {
-                FloatingActionButton(
-                    onClick = { viewModel.showCreateDialog() },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "챌린지 만들기")
-                }
-            }
-        },
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         when {
@@ -130,14 +119,7 @@ fun ChallengeContent(
         }
     }
 
-    if (uiState.showCreateDialog) {
-        CreateChallengeDialog(
-            onDismiss = { viewModel.hideCreateDialog() },
-            onCreate = { title, description, goal ->
-                viewModel.createChallenge(title, description, goal)
-            }
-        )
-    }
+
 }
 
 @Composable
