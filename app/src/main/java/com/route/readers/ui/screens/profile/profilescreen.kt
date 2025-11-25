@@ -1,6 +1,5 @@
 package com.route.readers.ui.screens.profile
 
-import com.route.readers.ui.screens.profile.Goal
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -99,10 +98,13 @@ import coil.request.ImageRequest
 import com.route.readers.R
 import com.route.readers.data.model.Book
 import com.route.readers.data.model.Challenge
+import com.route.readers.data.model.ChallengeType
 import com.route.readers.data.model.User
 import com.route.readers.ui.components.AdBanner
-import com.route.readers.ui.screens.feed.FeedCard
 import com.route.readers.ui.screens.feed.FeedItem
+import com.route.readers.ui.screens.profile.PostsSection
+import com.route.readers.ui.screens.profile.Goal
+import com.route.readers.ui.screens.profile.calculateLevelInfo
 import com.route.readers.ui.theme.DarkRed
 import kotlinx.coroutines.launch
 import kotlin.text.isNotEmpty
@@ -156,7 +158,7 @@ fun ProfileScreen(
     ) { paddingValues ->
         Box(
             modifier = Modifier
-                .fillMaxSize(),
+                .fillMaxSize().padding(paddingValues),
             contentAlignment = Alignment.Center
         ) {
             when (val state = uiState) {
@@ -235,6 +237,9 @@ fun ProfileContent(
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var feedToDelete by remember { mutableStateOf<String?>(null) }
+    
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
+    val tabs = listOf("피드", "관심도서", "업적", "챌린지")
 
     if (showDeleteDialog && feedToDelete != null) {
         AlertDialog(
@@ -308,7 +313,7 @@ fun ProfileContent(
                 PrivateProfileContent()
             }
         } else {
-            item {
+            stickyHeader {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -317,11 +322,135 @@ fun ProfileContent(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.padding(vertical = 8.dp)
+                    TabRow(
+                        selectedTabIndex = selectedTabIndex,
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = DarkRed,
+                        indicator = { tabPositions ->
+                            TabRowDefaults.Indicator(
+                                Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                                color = DarkRed
+                            )
+                        }
                     ) {
-                        Text("프로필 섹션 (개발 중)")
+                        tabs.forEachIndexed { index, title ->
+                            Tab(
+                                selected = selectedTabIndex == index,
+                                onClick = { selectedTabIndex = index },
+                                text = { Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.Medium) }
+                            )
+                        }
+                    }
+                }
+            }
 
+            // Contents of the tabs
+            when (selectedTabIndex) {
+                0 -> {
+                    val myPosts = state.myPosts.filterIsInstance<FeedItem.BookReview>()
+                    if (myPosts.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "작성한 게시물이 없습니다",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    } else {
+                        items(myPosts) { post ->
+                            PostItem(
+                                post = post,
+                                isMyPost = true,
+                                onDelete = {
+                                    feedToDelete = post.id
+                                    showDeleteDialog = true
+                                }
+                            )
+                        }
+                    }
+                }
+                1 -> item {
+                    FavoriteBooksSection(
+                        books = state.favoriteBooks,
+                        isSelectionMode = state.isSelectionMode,
+                        selectedBookIds = state.selectedBookIds,
+                        onToggleSelection = { viewModel.toggleBookSelection(it) },
+                        onStartSelectionMode = { viewModel.startSelectionMode(it) },
+                        onDeleteClick = { viewModel.deleteSelectedFavoriteBooks() },
+                        onBookClick = { /* Navigate to book details */ },
+                        onNavigateToSearch = onNavigateToSearch
+                    )
+                }
+                2 -> item {
+                    AchievementsSection(
+                        ongoingAchievements = state.ongoingAchievements,
+                        completedAchievements = state.completedAchievements,
+                        onAchievementClick = { /* Navigate to achievement details */ }
+                    )
+                }
+                3 -> item {
+                    ChallengesSection(
+                        ongoingChallenges = state.ongoingChallenges,
+                        completedChallenges = state.completedChallenges,
+                        onChallengeClick = { /* Navigate to challenge details */ },
+                        userId = state.user.uid
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PostItem(
+    post: FeedItem.BookReview,
+    isMyPost: Boolean,
+    onDelete: () -> Unit = {}
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = post.bookTitle,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            Text(
+                text = post.review,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 3
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "평점: ${post.rating}/5",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                if (isMyPost) {
+                    TextButton(onClick = onDelete) {
+                        Text("삭제")
                     }
                 }
             }
@@ -1085,7 +1214,8 @@ fun EmptyFavoriteBooks(onNavigateToSearch: () -> Unit) {
 fun ChallengesSection(
     ongoingChallenges: List<Challenge>,
     completedChallenges: List<Challenge>,
-    onChallengeClick: (Challenge) -> Unit
+    onChallengeClick: (Challenge) -> Unit,
+    userId: String
 ) {
     Column(
         modifier = Modifier
@@ -1096,12 +1226,14 @@ fun ChallengesSection(
         ChallengeCategory(
             title = "진행 중인 챌린지",
             challenges = ongoingChallenges,
-            onChallengeClick = onChallengeClick
+            onChallengeClick = onChallengeClick,
+            userId = userId
         )
         ChallengeCategory(
             title = "완료한 챌린지",
             challenges = completedChallenges,
-            onChallengeClick = onChallengeClick
+            onChallengeClick = onChallengeClick,
+            userId = userId
         )
     }
 }
@@ -1110,7 +1242,8 @@ fun ChallengesSection(
 fun ChallengeCategory(
     title: String,
     challenges: List<Challenge>,
-    onChallengeClick: (Challenge) -> Unit
+    onChallengeClick: (Challenge) -> Unit,
+    userId: String
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
@@ -1132,7 +1265,7 @@ fun ChallengeCategory(
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 challenges.forEach { challenge ->
-                    ChallengeItem(challenge = challenge, onClick = { onChallengeClick(challenge) })
+                    ChallengeItem(challenge = challenge, onClick = { onChallengeClick(challenge) }, userId = userId)
                 }
             }
         }
@@ -1140,7 +1273,7 @@ fun ChallengeCategory(
 }
 
 @Composable
-fun ChallengeItem(challenge: Challenge, onClick: () -> Unit) {
+fun ChallengeItem(challenge: Challenge, onClick: () -> Unit, userId: String) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -1165,13 +1298,50 @@ fun ChallengeItem(challenge: Challenge, onClick: () -> Unit) {
                         tint = Color(0xFF27AE60)
                     )
                 } else {
-                    Text(text = "${challenge.progress}%", color = DarkRed, fontWeight = FontWeight.Bold)
+                    val userProgress = (challenge.progress[userId] as? Number)?.toInt() ?: 0 // This is total pages read for the challenge.
+
+                    val (currentProgressValue, totalGoalValue, progressUnit) = when (challenge.type) {
+                        ChallengeType.DAILY_PAGES_READING -> {
+                            // Calculate how many days the daily goal has been met
+                            val dailyGoalMetDays = challenge.dailyProgress[userId]?.values?.count { pages ->
+                                (pages as? Number)?.toInt() ?: 0 >= challenge.goal
+                            } ?: 0
+                            Triple(dailyGoalMetDays, 7, "일") // X/7 일 완료
+                        }
+                        ChallengeType.CONSECUTIVE_READING, ChallengeType.CONSECUTIVE_READING_WITH_FRIEND -> {
+                            Triple(userProgress, 7, "일") // X/7 일 완료 (consecutive days)
+                        }
+                        else -> {
+                            Triple(userProgress, challenge.goal, "일") // Default for other types (e.g., total pages read for a book challenge)
+                        }
+                    }
+                    val overallProgressFraction = if (totalGoalValue > 0) currentProgressValue.toFloat() / totalGoalValue.toFloat() else 0f
+                    val progressPercent = (overallProgressFraction * 100).toInt().coerceAtMost(100)
+
+                    Text(text = "$progressPercent%", color = DarkRed, fontWeight = FontWeight.Bold)
                 }
             }
             Text(text = challenge.description, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
+            val userProgress = (challenge.progress[userId] as? Number)?.toInt() ?: 0 // Redundant, but needed for type inference
+            val (currentProgressValue, totalGoalValue, progressUnit) = when (challenge.type) {
+                ChallengeType.DAILY_PAGES_READING -> {
+                    val dailyGoalMetDays = challenge.dailyProgress[userId]?.values?.count { pages ->
+                        (pages as? Number)?.toInt() ?: 0 >= challenge.goal
+                    } ?: 0
+                    Triple(dailyGoalMetDays, 7, "일")
+                }
+                ChallengeType.CONSECUTIVE_READING, ChallengeType.CONSECUTIVE_READING_WITH_FRIEND -> {
+                    Triple(userProgress, 7, "일")
+                }
+                else -> {
+                    Triple(userProgress, challenge.goal, "일")
+                }
+            }
+            val progress = if (totalGoalValue > 0) currentProgressValue.toFloat() / totalGoalValue.toFloat() else 0f
+
             LinearProgressIndicator(
-                progress = { challenge.progress.toString().toFloat() / 100f },
+                progress = { progress },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(8.dp)

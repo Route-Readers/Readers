@@ -27,10 +27,15 @@ fun ChallengeCard(
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
     val isJoined = challenge.participants.contains(currentUserId)
 
-    val daysRemaining = challenge.endDate?.let {
-        val diff = it.time - System.currentTimeMillis()
-        TimeUnit.MILLISECONDS.toDays(diff).toInt()
-    } ?: 0
+    val daysDiff = challenge.endDate?.let {
+        it.time - System.currentTimeMillis()
+    } ?: 0L
+
+    val daysText = if (daysDiff <= 0) {
+        "종료됨"
+    } else {
+        "${TimeUnit.MILLISECONDS.toDays(daysDiff).toInt()}일 남음"
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -48,7 +53,7 @@ fun ChallengeCard(
                     modifier = Modifier.weight(1f)
                 )
                 Text(
-                    text = "${daysRemaining}일 남음",
+                    text = daysText,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -67,13 +72,13 @@ fun ChallengeCard(
             Spacer(modifier = Modifier.height(16.dp))
 
             if (isJoined) {
-                val userProgress = challenge.progress[currentUserId] ?: 0 // This is total pages read for the challenge.
+                val userProgress = (challenge.progress[currentUserId] as? Number)?.toInt() ?: 0 // This is total pages read for the challenge.
 
                 val (currentProgressValue, totalGoalValue, progressUnit) = when (challenge.type) {
                     ChallengeType.DAILY_PAGES_READING -> {
                         // Calculate how many days the daily goal has been met
                         val dailyGoalMetDays = challenge.dailyProgress[currentUserId]?.values?.count { pages ->
-                            pages >= challenge.goal
+                            (pages as? Number)?.toInt() ?: 0 >= challenge.goal
                         } ?: 0
                         Triple(dailyGoalMetDays, 7, "일") // X/7 일 완료
                     }
@@ -95,7 +100,7 @@ fun ChallengeCard(
                 when (challenge.type) {
                     ChallengeType.DAILY_PAGES_READING -> {
                         val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-                        val todayPages = (challenge.dailyProgress[currentUserId]?.get(todayStr) as? Int) ?: 0
+                        val todayPages = (challenge.dailyProgress[currentUserId]?.get(todayStr) as? Number)?.toInt() ?: 0
                         Text(text = "${currentProgressValue} / ${totalGoalValue}${progressUnit} 완료 (${(overallProgressFraction * 100).toInt()}%)")
                         Text(
                             text = "오늘 읽은 페이지: ${todayPages}/${challenge.goal}페이지",
