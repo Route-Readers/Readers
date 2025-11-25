@@ -143,9 +143,9 @@ class ChallengeRepository {
     }
 
     suspend fun updatePagesReadChallengeProgress(userId: String, pagesRead: Int) {
-        val challenge = getUserActiveChallenge(userId)
-        if (challenge != null && challenge.type == ChallengeType.DAILY_PAGES_READING) {
-            val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+        val challengesToUpdate = getUserActiveDailyPageChallenges(userId)
+        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+        challengesToUpdate.forEach { challenge ->
             updateDailyProgress(challenge.id, userId, today, pagesRead)
         }
     }
@@ -163,6 +163,34 @@ class ChallengeRepository {
                 .await()
                 .mapNotNull { it.toObject(Challenge::class.java) }
         } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun getUserChallenges(userId: String): List<Challenge> {
+        return try {
+            challengesCollection
+                .whereArrayContains("participants", userId)
+                .get()
+                .await()
+                .mapNotNull { it.toObject(Challenge::class.java) }
+        } catch (e: Exception) {
+            Log.e("ChallengeRepository", "Error getting user challenges", e)
+            emptyList()
+        }
+    }
+
+    suspend fun getUserActiveDailyPageChallenges(userId: String): List<Challenge> {
+        return try {
+            challengesCollection
+                .whereArrayContains("participants", userId)
+                .whereEqualTo("type", ChallengeType.DAILY_PAGES_READING)
+                .whereGreaterThanOrEqualTo("endDate", System.currentTimeMillis())
+                .get()
+                .await()
+                .mapNotNull { it.toObject(Challenge::class.java) }
+        } catch (e: Exception) {
+            Log.e("ChallengeRepository", "Error getting user active daily page challenges", e)
             emptyList()
         }
     }

@@ -68,10 +68,10 @@ fun PostsSection(
                         )
                     }
                 } else {
-                    LazyColumn(
+                    Column(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(myPosts) { post ->
+                        myPosts.forEach { post ->
                             PostItem(
                                 post = post,
                                 isMyPost = true,
@@ -97,10 +97,10 @@ fun PostsSection(
                         )
                     }
                 } else {
-                    LazyColumn(
+                    Column(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(savedPosts) { post ->
+                        savedPosts.forEach { post ->
                             PostItem(
                                 post = post,
                                 isMyPost = false,

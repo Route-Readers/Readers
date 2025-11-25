@@ -30,29 +30,28 @@ class ChallengeViewModel : ViewModel() {
     val uiState: StateFlow<ChallengeUiState> = _uiState.asStateFlow()
 
     private val repository = ChallengeRepository()
-    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-
-    init {
-        // Observe the active challenge from the repository's flow
-        currentUserId.let { userId ->
-            repository.userActiveChallenges
-                .mapNotNull { it[userId] }
-                .onEach { challenge ->
-                    _uiState.value = _uiState.value.copy(
-                        userChallenge = challenge,
-                        isLoading = false
-                    )
-                }
-                .launchIn(viewModelScope)
-
-            // Trigger initial refresh of active challenge in the repository
-            repository.refreshUserActiveChallenge(userId)
+            val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+    
+        init {
+            if (currentUserId.isNotBlank()) {
+                // Observe the active challenge from the repository's flow
+                repository.userActiveChallenges
+                    .mapNotNull { it[currentUserId] }
+                    .onEach { challenge ->
+                        _uiState.value = _uiState.value.copy(
+                            userChallenge = challenge,
+                            isLoading = false
+                        )
+                    }
+                    .launchIn(viewModelScope)
+    
+                // Trigger initial refresh of active challenge in the repository
+                repository.refreshUserActiveChallenge(currentUserId)
+            }
+            
+            loadAvailableChallenges()
+            initDefaultChallenges()
         }
-        
-        loadAvailableChallenges()
-        initDefaultChallenges()
-    }
-
     private fun loadAvailableChallenges() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)

@@ -17,6 +17,7 @@ import com.route.readers.data.remote.FirestoreRepository
 import com.route.readers.data.remote.FriendsRepository
 import com.route.readers.data.remote.MyLibraryRepository
 import com.route.readers.data.remote.WishlistRepository
+import com.route.readers.data.remote.ChallengeRepository
 import com.route.readers.ui.screens.attendance.AttendanceViewModel
 import com.route.readers.ui.screens.feed.FeedItem
 import com.route.readers.ui.screens.feed.toFeedItem
@@ -28,6 +29,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.util.Date
 import java.util.UUID
 
 open class ProfileViewModel(application: Application) : AndroidViewModel(application) {
@@ -39,6 +41,7 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
     private val myLibraryRepository = MyLibraryRepository()
     private val firestoreRepository = FirestoreRepository()
     private val friendsRepository = FriendsRepository()
+    private val challengeRepository = ChallengeRepository()
     private val attendanceViewModel = AttendanceViewModel()
     private val currentUserId = auth.currentUser?.uid
 
@@ -214,9 +217,13 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
 
                     
 
-                                    val userDocument = db.collection("users").document(targetUserId).get(com.google.firebase.firestore.Source.SERVER).await()
+                                                                        val userDocument = db.collection("users").document(targetUserId).get(com.google.firebase.firestore.Source.SERVER).await()
 
-                                    var user: User? = userDocument.toObject(User::class.java)
+                    
+
+                                                                        var user: User? = userDocument.toObject(User::class.java)
+
+                    
 
                                                                         Log.d("ProfileViewModel", "Fetched user ${user?.nickname}, isPrivate: ${user?.isPrivate}")
 
@@ -589,8 +596,8 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
                         val recommendedBooksDeferred = async { fetchRecommendedBooks(updatedUser.readingGenres) }
 
                         val myPostsDeferred = async { fetchMyPosts(targetUserId) }
-
     
+                        val allChallengesDeferred = async { challengeRepository.getUserChallenges(targetUserId) }
 
                         val wishlistBooksDeferred = async {
 
@@ -604,20 +611,34 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
 
                         }
 
-    
+                                                                                                val allChallenges = allChallengesDeferred.await()
 
+                                                                        
+
+                                                                                                val completedChallengesFiltered = allChallenges.filter { challenge ->
+
+                                                                                                    val userProgress = (challenge.progress[targetUserId] as? Number)?.toInt() ?: 0
+
+                                                                                                    userProgress >= challenge.goal
+
+                                                                                                }
+
+                                                                                                val ongoingChallengesFiltered = allChallenges.filter { challenge ->
+
+                                                                                                    val userProgress = (challenge.progress[targetUserId] as? Number)?.toInt() ?: 0
+
+                                                                                                    userProgress < challenge.goal && (challenge.endDate == null || challenge.endDate.after(Date()))
+
+                                                                                                }
+    
                         val savedPostsResult = async {
 
                             if (isMyProfile) fetchSavedPosts(targetUserId) else emptyList()
 
                         }.await()
-
     
-
                         val allPosts = (myPostsDeferred.await() + savedPostsResult).distinctBy { it.id }
-
     
-
                         val authorIds = allPosts.mapNotNull {
 
                             when (it) {
@@ -631,9 +652,7 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
                             }
 
                         }.distinct()
-
     
-
                         val userInfoMap = if (authorIds.isNotEmpty()) {
 
                             db.collection("users").whereIn("uid", authorIds).get().await()
@@ -651,9 +670,7 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
                         }
 
                         userInfoMap[updatedUser.uid] = updatedUser
-
     
-
                         val likedFeedIds = allPosts
 
                             .filterIsInstance<FeedItem.BookReview>()
@@ -663,9 +680,7 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
                             .map { it.id }
 
                             .toSet()
-
     
-
                         val bookmarkedFeedIds = allPosts
 
                             .filter { it.isBookmarked }
@@ -673,17 +688,13 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
                             .map { it.id }
 
                             .toSet()
-
     
-
                         val wishlist = wishlistRepository.getWishlist()
 
                         val myLibraryBooks = myLibraryRepository.getMyBooks()
 
                         val myLibraryIsbns = myLibraryBooks.map { it.isbn }
-
     
-
                         _uiState.value = ProfileUiState.Success(
 
                             user = updatedUser,
@@ -702,9 +713,9 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
 
                             achievements = allAchievements,
 
-                            ongoingChallenges = emptyList(),
+                            ongoingChallenges = ongoingChallengesFiltered,
 
-                            completedChallenges = emptyList(),
+                            completedChallenges = completedChallengesFiltered,
 
                             ongoingAchievements = ongoingAchievements,
 
