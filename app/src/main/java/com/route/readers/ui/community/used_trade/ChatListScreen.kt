@@ -102,52 +102,54 @@ fun ChatListItemComposable(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
             .clickable { onClick(chatItem.otherUserId, chatItem.bookId) },
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        shape = MaterialTheme.shapes.medium, // Use the new rounded shape
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), // Use surface for cards (white)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp) // Add subtle shadow
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(16.dp), // Increased inner padding
             verticalAlignment = Alignment.CenterVertically
         ) {
             AsyncImage(
                 model = chatItem.otherUserProfileImageUrl,
                 contentDescription = chatItem.otherUserName,
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(52.dp) // Slightly larger profile image
                     .clip(CircleShape),
                 contentScale = ContentScale.Crop
             )
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(16.dp)) // Increased spacing
 
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = chatItem.otherUserName,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
+                        style = MaterialTheme.typography.titleMedium, // Use titleMedium
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = timeString,
-                        color = Color.Gray,
-                        fontSize = 12.sp
+                        style = MaterialTheme.typography.labelSmall, // Use labelSmall
+                        color = MaterialTheme.colorScheme.onSurfaceVariant // Consistent color
                     )
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = chatItem.lastMessage,
-                    color = Color.DarkGray,
-                    fontSize = 14.sp,
+                    style = MaterialTheme.typography.bodyMedium, // Use bodyMedium
+                    color = MaterialTheme.colorScheme.onSurface, // Darker for message
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 chatItem.bookTitle?.let {
                     Text(
                         text = it,
-                        color = Color.Gray,
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.labelSmall, // Use labelSmall
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, // Consistent color
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )

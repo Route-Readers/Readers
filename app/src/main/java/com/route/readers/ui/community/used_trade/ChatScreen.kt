@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -136,6 +137,16 @@ fun ChatMessageItem(
     val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
     val timeString = message.timestamp?.let { timeFormat.format(it) } ?: ""
 
+    val bubbleShape = if (isMyMessage) {
+        RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 4.dp)
+    } else {
+        RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 4.dp, bottomEnd = 16.dp)
+    }
+
+    val bubbleColor = if (isMyMessage) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+    val textColor = if (isMyMessage) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+    val timestampColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (isMyMessage) Arrangement.End else Arrangement.Start,
@@ -146,39 +157,40 @@ fun ChatMessageItem(
                 model = sender?.profileImageUrl,
                 contentDescription = sender?.nickname,
                 modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(Color.Gray)
+                    .size(40.dp) // Slightly larger profile image
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
             )
             Spacer(modifier = Modifier.width(8.dp))
         }
 
         Column(
-            horizontalAlignment = if (isMyMessage) Alignment.End else Alignment.Start
+            horizontalAlignment = if (isMyMessage) Alignment.End else Alignment.Start,
+            modifier = Modifier.widthIn(max = 280.dp) // Limit bubble width
         ) {
             if (!isMyMessage) {
                 Text(
                     text = sender?.nickname ?: "",
-                    fontSize = 12.sp,
-                    color = Color.Gray,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
                 )
             }
             Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = if (isMyMessage) Color(0xFFFFA000) else Color(0xFFE0E0E0)
+                shape = bubbleShape,
+                color = bubbleColor
             ) {
                 Text(
                     text = message.message,
                     modifier = Modifier.padding(12.dp),
-                    color = if (isMyMessage) Color.White else Color.Black,
-                    fontSize = 14.sp
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = textColor
                 )
             }
             Text(
                 text = timeString,
-                fontSize = 10.sp,
-                color = Color.Gray,
+                style = MaterialTheme.typography.labelSmall,
+                color = timestampColor,
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
             )
         }
