@@ -371,7 +371,7 @@ class StatisticsViewModel : ViewModel() {
             val genreDurations = mutableMapOf<String, Int>()
             bookDurations.forEach { (bookId, duration) ->
                 val book = allBooks.find { it.isbn == bookId }
-                book?.genres?.forEach { genre ->
+                book?.genre?.let { genre ->
                     genreDurations[genre] = (genreDurations[genre] ?: 0) + duration
                 }
             }

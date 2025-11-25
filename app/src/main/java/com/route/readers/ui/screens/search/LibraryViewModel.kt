@@ -112,7 +112,8 @@ class LibraryViewModel(
                         totalPages = detailedBook.extractPageCount(),
                         currentPage = 0,
                         isCompleted = false,
-                        addedDate = System.currentTimeMillis()
+                        addedDate = System.currentTimeMillis(),
+                        genre = detailedBook.genre
                     )
 
                     val success = myLibraryRepository.addBookToLibrary(newMyBook)

@@ -71,6 +71,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.route.readers.data.UserPreferencesRepository
 import com.route.readers.ui.theme.DarkRed
+import com.route.readers.ui.screens.profile.PostsSection
+import com.route.readers.ui.screens.feed.FeedItem
 
 
 enum class MenuItemType {
@@ -286,7 +288,12 @@ fun AccountScreen(
                                         animationSpec = tween(300)
                                     )
                                 ) {
-                                    Text("게시물 섹션 (개발 중)")
+                                    PostsSection(
+                                        myPosts = state.myPosts.filterIsInstance<FeedItem.BookReview>(),
+                                        savedPosts = state.savedPosts.filterIsInstance<FeedItem.BookReview>(),
+                                        onDeletePost = { feedId: String -> viewModel.deleteFeed(feedId) },
+                                        onToggleSavePost = { feedItem: FeedItem.BookReview -> viewModel.toggleBookmark(feedItem.id, feedItem.id in state.bookmarkedFeedIds) }
+                                    )
                                 }
                             }
 

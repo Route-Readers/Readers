@@ -385,7 +385,8 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
                     isCompleted = false,
                     addedDate = System.currentTimeMillis(),
                     lastReadDate = System.currentTimeMillis(),
-                    completedDate = null
+                    completedDate = null,
+                    genre = detailedBook?.genre ?: "기타"
                 ))
             }
         }

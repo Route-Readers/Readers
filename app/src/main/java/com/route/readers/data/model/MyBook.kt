@@ -13,7 +13,8 @@ data class MyBook(
     val totalPages: Int = 0,
     var currentPage: Int = 0,
     val categoryName: String? = null,
-    val genres: List<String> = emptyList(), // 새로 추가된 필드
+    val genre: String = "기타", // 변경된 필드
+    // val genres: List<String> = emptyList(), // 삭제된 필드
 
     @get:PropertyName("isCompleted")
     var isCompleted: Boolean = false,
