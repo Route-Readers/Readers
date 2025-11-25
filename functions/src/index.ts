@@ -264,3 +264,86 @@ export const onLikeCreated = onDocumentUpdated(
     }
 );
 
+export const sendChatNotification = onDocumentCreated(
+    {
+        document: "chats/{chatId}/messages/{messageId}",
+        region: "asia-northeast3",
+    },
+    async (event) => {
+        const snapshot = event.data;
+        if (!snapshot) {
+            console.log("No data associated with the chat message event");
+            return;
+        }
+
+        const messageData = snapshot.data();
+        const chatId = event.params.chatId;
+        const senderId = messageData.senderId;
+        const messageText = messageData.message;
+
+        if (!chatId || !senderId || !messageText) {
+            console.error("Missing chat message fields", messageData);
+            return;
+        }
+
+        try {
+            const db = admin.firestore();
+
+            // 1. Get Chat Room participants
+            const chatDoc = await db.collection("chats").doc(chatId).get();
+            const chatData = chatDoc.data();
+            const participants: string[] = chatData?.participants || [];
+
+            // 2. Identify the receiver (the participant who is NOT the sender)
+            const receiverId = participants.find(uid => uid !== senderId);
+
+            if (!receiverId) {
+                console.log(`No receiver found for chat ${chatId}.`);
+                return;
+            }
+
+            // 3. Get Sender's info (for notification title)
+            const senderDoc = await db.collection("users").doc(senderId).get();
+            const senderData = senderDoc.data();
+            const senderName = senderData?.nickname || "알 수 없는 사용자";
+
+            // 4. Get Receiver's FCM token
+            const receiverDoc = await db.collection("users").doc(receiverId).get();
+            const receiverData = receiverDoc.data();
+            const fcmToken = receiverData?.fcmToken;
+            const messageAlarmEnabled = receiverData?.messageAlarmEnabled; // Reuse message alarm setting
+
+            if (!fcmToken) {
+                console.log(`No FCM token for receiver ${receiverId}`);
+                return;
+            }
+
+            if (messageAlarmEnabled === false) {
+                console.log(`User ${receiverId} has disabled message alarms. Skipping.`);
+                return;
+            }
+
+            // 5. Send Notification
+            const fcmMessage = {
+                notification: {
+                    title: senderName,
+                    body: messageText,
+                },
+                data: {
+                    notificationType: "CHAT_MESSAGE",
+                    chatId: chatId,
+                    senderId: senderId,
+                    bookId: chatData?.bookId || ""
+                },
+                token: fcmToken,
+            };
+
+            await getMessaging().send(fcmMessage);
+            console.log(`Sent chat notification to ${receiverId} from ${senderName}`);
+
+        } catch (error) {
+            console.error(`Error sending chat notification for chat ${chatId}:`, error);
+        }
+    }
+);
+

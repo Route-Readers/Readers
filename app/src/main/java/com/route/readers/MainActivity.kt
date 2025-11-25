@@ -597,7 +597,10 @@ fun RootAppNavigation(
                 ChatScreen(
                     bookId = bookId,
                     sellerId = otherUserId,
-                    onNavigateBack = { appNavController.popBackStack() }
+                    onNavigateBack = { appNavController.popBackStack() },
+                    onNavigateToDetail = { detailBookId ->
+                        appNavController.navigate("used_book_detail_route/$detailBookId")
+                    }
                 )
             }
         }
