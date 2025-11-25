@@ -27,6 +27,8 @@ import androidx.compose.ui.unit.sp
 import com.route.readers.data.model.Challenge
 import kotlinx.coroutines.delay
 import android.util.Log
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 enum class ChallengeCardState {
     INITIAL,      // 초기 "참여하세요" 카드
@@ -126,7 +128,7 @@ fun InitialChallengeCard(
 ) {
     var offsetX by remember { mutableStateOf(0f) }
     val rotation by animateFloatAsState(targetValue = if (offsetX == 0f) 5f else offsetX / 30f)
-    
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -139,7 +141,7 @@ fun InitialChallengeCard(
                             onSwipe()
                         }
                         offsetX = 0f
-                     },
+                    },
                     onHorizontalDrag = { _, dragAmount ->
                         offsetX += dragAmount
                     }
@@ -214,7 +216,7 @@ fun ChallengeSelectionCard(
                 color = Color.Black
             )
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             if (challenges.isEmpty()) {
                 Text(
                     "참여 가능한 챌린지를 불러오는 중...",
@@ -252,7 +254,7 @@ fun ChallengeOption(
         com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING -> Icons.Default.AutoStories
         else -> Icons.Default.EmojiEvents
     }
-    
+
     Card(
         onClick = onSelect,
         modifier = modifier.height(100.dp),
@@ -308,12 +310,14 @@ fun ActiveChallengeCard(
         }
     }
     val overallProgressFraction = if (totalGoalValue > 0) currentProgressValue.toFloat() / totalGoalValue.toFloat() else 0f
-    val daysRemaining = challenge.endDate?.let {
-        val diff = it.time - System.currentTimeMillis()
-        val days = java.util.concurrent.TimeUnit.MILLISECONDS.toDays(diff).toInt()
-        days.coerceAtLeast(0)
+
+    val daysRemaining = challenge.joinDate[currentUserId]?.let { joinDate ->
+        val joinTimestamp = joinDate.time
+        val elapsedMillis = System.currentTimeMillis() - joinTimestamp
+        val elapsedDays = java.util.concurrent.TimeUnit.MILLISECONDS.toDays(elapsedMillis).toInt()
+        (7 - elapsedDays).coerceAtLeast(0)
     } ?: 0
-    
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -359,26 +363,26 @@ fun ActiveChallengeCard(
                     }
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(12.dp))
-            
+
             Text(
                 challenge.title,
                 color = Color.White,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             Text(
                 "내 진행률",
                 color = Color.White.copy(alpha = 0.7f),
                 fontSize = 14.sp
             )
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             LinearProgressIndicator(
                 progress = { overallProgressFraction },
                 modifier = Modifier
@@ -388,9 +392,9 @@ fun ActiveChallengeCard(
                 color = Color(0xFF00FF88),
                 trackColor = Color.White.copy(alpha = 0.2f)
             )
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween

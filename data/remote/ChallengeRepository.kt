@@ -47,16 +47,19 @@ class ChallengeRepository {
         val docRef = challengesCollection.document(challengeId)
         db.runTransaction { transaction ->
             val snapshot = transaction.get(docRef)
-            val participants = snapshot.get("participants") as? List<*> ?: emptyList<String>()
-            val progress = snapshot.get("progress") as? Map<*, *> ?: emptyMap<String, Int>()
 
-            val updatedParticipants = participants + userId
-            val updatedProgress = progress + (userId to 0)
+            val participants = (snapshot.get("participants") as? List<String> ?: emptyList()).toMutableList()
+            if (!participants.contains(userId)) {
+                participants.add(userId)
+            }
 
-            transaction.update(docRef, mapOf(
-                "participants" to updatedParticipants,
-                "progress" to updatedProgress
-            ))
+            val progress = (snapshot.get("progress") as? Map<String, Int> ?: emptyMap()).toMutableMap()
+            progress[userId] = progress[userId] ?: 0
+
+            transaction.update(docRef, "participants", participants)
+            transaction.update(docRef, "progress", progress)
+            transaction.update(docRef, "joinDate.$userId", FieldValue.serverTimestamp())
+
         }.await()
         refreshUserActiveChallenge(userId)
     }

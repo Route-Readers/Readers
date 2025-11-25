@@ -683,9 +683,11 @@ fun ChallengeCardInCommunity(
     val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
     val isJoined = challenge.participants.contains(currentUserId)
 
-    val daysRemaining = challenge.endDate?.let {
-        val diff = it.time - System.currentTimeMillis()
-        java.util.concurrent.TimeUnit.MILLISECONDS.toDays(diff).toInt()
+    val daysRemaining = challenge.joinDate[currentUserId]?.let { joinDate ->
+        val joinTimestamp = joinDate.time
+        val elapsedMillis = System.currentTimeMillis() - joinTimestamp
+        val elapsedDays = java.util.concurrent.TimeUnit.MILLISECONDS.toDays(elapsedMillis).toInt()
+        (7 - elapsedDays).coerceAtLeast(0)
     } ?: 0
 
     Card(

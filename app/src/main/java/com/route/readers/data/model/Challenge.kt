@@ -25,5 +25,6 @@ data class Challenge(
     val endDate: Date? = null,
     val completed: Boolean = false,
     val reward: String = "", // 보상 (예: "경험치 100XP")
-    val weekNumber: Int = 0 // 주차 번호 (년도 + 주차로 구분)
+    val weekNumber: Int = 0, // 주차 번호 (년도 + 주차로 구분)
+    val joinDate: Map<String, java.util.Date> = emptyMap() // userId to join date
 )
