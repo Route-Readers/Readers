@@ -297,10 +297,8 @@ fun ActiveChallengeCard(
 ) {
     val (currentProgressValue, totalGoalValue, progressUnit) = when (challenge.type) {
         com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING -> {
-            val dailyGoalMetDays = challenge.dailyProgress[currentUserId]?.values?.count { pages ->
-                pages >= challenge.goal
-            } ?: 0
-            Triple(dailyGoalMetDays, 7, "일")
+            // Display raw pages read for consistency with ChallengeScreen
+            Triple(challenge.progress[currentUserId] ?: 0, challenge.goal.takeIf { it > 0 } ?: 1, "페이지")
         }
         com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING, com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING_WITH_FRIEND -> {
             Triple(challenge.progress[currentUserId] ?: 0, 7, "일")

@@ -1,8 +1,10 @@
 package com.route.readers.ui.screens.community
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
+import com.route.readers.Prefs
 import com.route.readers.data.model.BookClub
 import com.route.readers.data.model.Challenge
 import com.route.readers.data.model.User // Added User import
@@ -36,17 +38,29 @@ data class CommunityUiState(
     val hasMoreFriends: Boolean = friends.size > 5
 }
 
-class CommunityViewModel : ViewModel() {
+class CommunityViewModel(application: Application) : AndroidViewModel(application) {
     private val friendsRepository = FriendsRepository()
     private val bookClubRepository = BookClubRepository()
     private val notificationRepository = NotificationRepository(null)
     private val challengeRepository = ChallengeRepository()
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-    
+
+    private val sharedPreferences =
+        application.getSharedPreferences(Prefs.PREFS_NAME,
+            android.content.Context.MODE_PRIVATE
+        )
+
+
     private val _uiState = MutableStateFlow(CommunityUiState())
     val uiState: StateFlow<CommunityUiState> = _uiState.asStateFlow()
-    
+
     init {
+        val selectedChallengeId = sharedPreferences.getString(Prefs.KEY_SELECTED_CHALLENGE, null)
+        selectedChallengeId?.let {
+            loadSelectedChallenge(it)
+        }
+
+
         viewModelScope.launch {
             friendsRepository.friends.collect { friends ->
                 _uiState.value = _uiState.value.copy(friends = friends)
@@ -83,18 +97,33 @@ class CommunityViewModel : ViewModel() {
         loadFriends()
         refreshChallenges() // Load available challenges initially
     }
-    
+
+    private fun loadSelectedChallenge(challengeId: String) {
+        viewModelScope.launch {
+            try {
+                val challenge = challengeRepository.getChallenge(challengeId)
+                _uiState.value = _uiState.value.copy(
+                    userActiveChallenge = challenge,
+                    isChallengesLoading = false
+                )
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
+    }
+
+
     private fun loadFriends() {
         viewModelScope.launch {
             friendsRepository.loadFriends()
         }
     }
-    
+
     private fun getCurrentWeekNumber(): Int {
         val calendar = java.util.Calendar.getInstance()
         return calendar.get(java.util.Calendar.WEEK_OF_YEAR)
     }
-    
+
     fun refreshChallenges() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isChallengesLoading = true)
@@ -109,11 +138,11 @@ class CommunityViewModel : ViewModel() {
             }
         }
     }
-    
+
     fun sendReadingNotification() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isNotificationSending = true)
-            
+
             try {
                 notificationRepository.sendReadingNotificationToFriends()
                 _uiState.value = _uiState.value.copy(
@@ -128,11 +157,13 @@ class CommunityViewModel : ViewModel() {
             }
         }
     }
-    
+
     fun joinChallenge(challengeId: String) {
         viewModelScope.launch {
             try {
                 challengeRepository.joinChallenge(challengeId, currentUserId)
+                sharedPreferences.edit().putString(Prefs.KEY_SELECTED_CHALLENGE, challengeId).apply()
+
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     addFriendMessage = "챌린지 참여에 실패했습니다."
@@ -140,12 +171,13 @@ class CommunityViewModel : ViewModel() {
             }
         }
     }
-    
+
     fun resetChallenge() {
         viewModelScope.launch {
             try {
                 _uiState.value.userActiveChallenge?.let { challenge ->
                     challengeRepository.leaveChallenge(challenge.id, currentUserId)
+                    sharedPreferences.edit().remove(Prefs.KEY_SELECTED_CHALLENGE).apply()
                 }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -154,11 +186,11 @@ class CommunityViewModel : ViewModel() {
             }
         }
     }
-    
+
     fun showDeleteConfirmation(friend: User) { // Changed parameter to User
         _uiState.value = _uiState.value.copy(friendToDelete = friend)
     }
-    
+
     fun confirmDeleteFriend() {
         _uiState.value.friendToDelete?.let { userToDelete -> // Changed to userToDelete
             viewModelScope.launch {
@@ -167,15 +199,15 @@ class CommunityViewModel : ViewModel() {
         }
         _uiState.value = _uiState.value.copy(friendToDelete = null)
     }
-    
+
     fun cancelDeleteFriend() {
         _uiState.value = _uiState.value.copy(friendToDelete = null)
     }
-    
+
     fun clearAddFriendMessage() {
         _uiState.value = _uiState.value.copy(addFriendMessage = null)
     }
-    
+
     // 북클럽 관련 함수들
     fun createBookClub(name: String, description: String, bookTitle: String, author: String, meetingDate: String) {
         viewModelScope.launch {
@@ -194,25 +226,25 @@ class CommunityViewModel : ViewModel() {
             bookClubRepository.createBookClub(bookClub)
         }
     }
-    
+
     fun joinBookClub(bookClubId: String) {
         viewModelScope.launch {
             bookClubRepository.joinBookClub(bookClubId, currentUserId)
         }
     }
-    
+
     fun leaveBookClub(bookClubId: String) {
         viewModelScope.launch {
             bookClubRepository.leaveBookClub(bookClubId, currentUserId)
         }
     }
-    
+
     fun deleteBookClub(bookClubId: String) {
         viewModelScope.launch {
             bookClubRepository.deleteBookClub(bookClubId, currentUserId)
         }
     }
-    
+
     override fun onCleared() {
         super.onCleared()
         friendsRepository.stopListening()
