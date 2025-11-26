@@ -115,7 +115,7 @@ fun FeedTopAppBar(
                 )
             }
 
-            IconButton(onClick = onShowInterstitialAd) {
+            IconButton(onClick = { /* onShowInterstitialAd() */ }) {
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = "Show Ad",
