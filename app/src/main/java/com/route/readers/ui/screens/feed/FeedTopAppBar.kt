@@ -115,13 +115,13 @@ fun FeedTopAppBar(
                 )
             }
 
-            IconButton(onClick = { /* onShowInterstitialAd() */ }) {
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Show Ad",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+//            IconButton(onClick = { /* onShowInterstitialAd() */ }) {
+//                Icon(
+//                    imageVector = Icons.Default.PlayArrow,
+//                    contentDescription = "Show Ad",
+//                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+//                )
+//            }
 
             Box {
                 IconButton(onClick = { menuExpanded = true }) {
