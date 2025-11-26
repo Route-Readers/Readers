@@ -367,7 +367,7 @@ fun ProfileContent(
                         items(myPosts) { post ->
                             PostItem(
                                 post = post,
-                                isMyPost = true,
+                                isMyPost = state.isMyProfile,
                                 onDelete = {
                                     feedToDelete = post.id
                                     showDeleteDialog = true
