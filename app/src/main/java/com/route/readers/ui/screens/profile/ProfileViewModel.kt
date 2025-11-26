@@ -1249,14 +1249,20 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
     fun toggleLike(feedId: String, isCurrentlyLiked: Boolean) {
         val currentUserId = auth.currentUser?.uid ?: return
         viewModelScope.launch {
-            val feedRef = db.collection("feeds").document(feedId)
             try {
-                val operation = if (isCurrentlyLiked) {
-                    FieldValue.arrayRemove(currentUserId) to FieldValue.increment(-1)
-                } else {
-                    FieldValue.arrayUnion(currentUserId) to FieldValue.increment(1)
-                }
-                feedRef.update("likedBy", operation.first, "likeCount", operation.second).await()
+                val feedRef = db.collection("feeds").document(feedId)
+                db.runTransaction { transaction ->
+                    val snapshot = transaction.get(feedRef)
+                    val likedBy = snapshot.get("likedBy") as? List<String> ?: emptyList()
+                    val newLikedBy = if (isCurrentlyLiked) {
+                        likedBy - currentUserId
+                    } else {
+                        likedBy + currentUserId
+                    }
+                    transaction.update(feedRef, "likedBy", newLikedBy)
+                    transaction.update(feedRef, "likeCount", newLikedBy.size)
+                    null
+                }.await()
             } catch (e: Exception) {
                 Log.e("ProfileViewModel", "Error toggling like for feed $feedId", e)
             }

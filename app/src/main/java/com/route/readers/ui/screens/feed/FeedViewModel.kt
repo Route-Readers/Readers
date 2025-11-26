@@ -265,18 +265,18 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 val feedRef = db.collection("feeds").document(feedId)
-                val operation = if (isCurrentlyLiked) {
-                    FieldValue.arrayRemove(currentUserId)
-                } else {
-                    FieldValue.arrayUnion(currentUserId)
-                }
-                feedRef.update("likedBy", operation).await()
-
-                val document = feedRef.get().await()
-                val likedByList = document.get("likedBy") as? List<*>
-                val actualLikeCount = likedByList?.size ?: 0
-                feedRef.update("likeCount", actualLikeCount).await()
-
+                db.runTransaction { transaction ->
+                    val snapshot = transaction.get(feedRef)
+                    val likedBy = snapshot.get("likedBy") as? List<String> ?: emptyList()
+                    val newLikedBy = if (isCurrentlyLiked) {
+                        likedBy - currentUserId
+                    } else {
+                        likedBy + currentUserId
+                    }
+                    transaction.update(feedRef, "likedBy", newLikedBy)
+                    transaction.update(feedRef, "likeCount", newLikedBy.size)
+                    null
+                }.await()
             } catch (e: Exception) {
                 Log.e("FeedViewModel", "Error toggling like for feed $feedId. Reverting UI.", e)
                 loadFeeds(isRefresh = false)
