@@ -595,16 +595,11 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
     
 
 
+                        val userWishlistIsbns = wishlistRepository.getUserWishlist(targetUserId)
                         val wishlistBooksDeferred = async {
-
-                            val userWishlistIsbns = wishlistRepository.getWishlist()
-
                             userWishlistIsbns.mapNotNull { isbn ->
-
                                 bookRepository.getBookDetail(isbn)
-
                             }
-
                         }
 
                                                                                                 
@@ -667,7 +662,7 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
 
                             .toSet()
     
-                        val wishlist = wishlistRepository.getWishlist()
+                        val wishlist = userWishlistIsbns
 
                         val myLibraryBooks = myLibraryRepository.getMyBooks()
 

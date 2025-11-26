@@ -44,4 +44,13 @@ class WishlistRepository {
             emptyList()
         }
     }
+
+    suspend fun getUserWishlist(userId: String): List<String> {
+        return try {
+            val document = db.collection("users").document(userId).get().await()
+            document.get("wishlist") as? List<String> ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
 }
