@@ -239,7 +239,7 @@ fun ProfileContent(
     var feedToDelete by remember { mutableStateOf<String?>(null) }
     
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("피드", "관심도서", "업적", "챌린지")
+    val tabs = listOf("피드", "관심도서", "업적")
 
     if (showDeleteDialog && feedToDelete != null) {
         AlertDialog(
