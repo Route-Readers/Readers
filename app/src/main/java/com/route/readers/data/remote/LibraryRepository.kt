@@ -223,4 +223,52 @@ class LibraryRepository {
             return "11"
         }
     }
+
+    suspend fun getNearbyLibraries(
+        userLatitude: Double,
+        userLongitude: Double
+    ): List<LibrarySearchResult> = withContext(Dispatchers.IO) {
+        if (authKey.isBlank()) {
+            Log.e("LibraryRepository", "도서관 정보 나루 API 키가 비어있습니다.")
+            return@withContext emptyList()
+        }
+
+        try {
+            val response = libraryApiService.searchLibrariesByArea(
+                authKey = authKey,
+                latitude = userLatitude,
+                longitude = userLongitude
+            )
+
+            if (response.response.error != null) {
+                Log.w("LibraryRepository", "API 응답 에러: ${response.response.error}")
+                return@withContext emptyList()
+            }
+
+            val userLocation = Location("user").apply {
+                latitude = userLatitude
+                longitude = userLongitude
+            }
+
+            return@withContext response.response.libs.mapNotNull { libraryItem ->
+                val library = libraryItem.lib
+                val libLat = library.latitude?.toDoubleOrNull()
+                val libLon = library.longitude?.toDoubleOrNull()
+
+                if (libLat != null && libLon != null) {
+                    val libraryLocation = Location("library").apply {
+                        latitude = libLat
+                        longitude = libLon
+                    }
+                    val distance = userLocation.distanceTo(libraryLocation)
+                    LibrarySearchResult(library, false, distance)
+                } else {
+                    null
+                }
+            }.sortedBy { it.distance }
+        } catch (e: Exception) {
+            Log.e("LibraryRepository", "getNearbyLibraries 중 오류 발생", e)
+            return@withContext emptyList()
+        }
+    }
 }
