@@ -196,6 +196,24 @@ class FriendsRepository {
                     "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp()
                 )
             ).await()
+
+            // Create a follow notification feed item
+            val feedId = firestore.collection("feeds").document().id
+            val followNotification = mapOf(
+                "id" to feedId,
+                "type" to "FOLLOW_NOTIFICATION",
+                "authorId" to userId, // The user being followed
+                "userName" to currentUserNickname, // The nickname of the follower
+                "followerId" to currentId,
+                "receiverId" to userId,
+                "isFollowedBack" to false, // This can be updated later
+                "timestamp" to FieldValue.serverTimestamp(),
+                "likeCount" to 0,
+                "commentCount" to 0,
+                "likedBy" to emptyList<String>(),
+                "bookmarkedBy" to emptyList<String>()
+            )
+            firestore.collection("feeds").document(feedId).set(followNotification).await()
         }
     }
 
