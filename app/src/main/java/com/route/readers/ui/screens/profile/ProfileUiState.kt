@@ -30,8 +30,7 @@ sealed class ProfileUiState {
         val recommendedBooks: List<Book>,
         val favoriteBooks: List<Book>,
         val achievements: List<Achievement>,
-        val ongoingChallenges: List<Challenge>,
-        val completedChallenges: List<Challenge>,
+
         val ongoingAchievements: List<Achievement>,
         val completedAchievements: List<Achievement>,
         val myPosts: List<FeedItem>,

@@ -465,11 +465,7 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
 
     
 
-                                                    ongoingChallenges = emptyList(),
-
-    
-
-                                                    completedChallenges = emptyList(),
+                                                    
 
     
 
@@ -597,39 +593,16 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
 
                         val myPostsDeferred = async { fetchMyPosts(targetUserId) }
     
-                        val allChallengesDeferred = async { challengeRepository.getUserChallenges(targetUserId) }
 
+
+                        val userWishlistIsbns = wishlistRepository.getUserWishlist(targetUserId)
                         val wishlistBooksDeferred = async {
-
-                            val userWishlistIsbns = wishlistRepository.getWishlist()
-
                             userWishlistIsbns.mapNotNull { isbn ->
-
                                 bookRepository.getBookDetail(isbn)
-
                             }
-
                         }
 
-                                                                                                val allChallenges = allChallengesDeferred.await()
-
-                                                                        
-
-                                                                                                val completedChallengesFiltered = allChallenges.filter { challenge ->
-
-                                                                                                    val userProgress = (challenge.progress[targetUserId] as? Number)?.toInt() ?: 0
-
-                                                                                                    userProgress >= challenge.goal
-
-                                                                                                }
-
-                                                                                                val ongoingChallengesFiltered = allChallenges.filter { challenge ->
-
-                                                                                                    val userProgress = (challenge.progress[targetUserId] as? Number)?.toInt() ?: 0
-
-                                                                                                    userProgress < challenge.goal && (challenge.endDate == null || challenge.endDate.after(Date()))
-
-                                                                                                }
+                                                                                                
     
                         val savedPostsResult = async {
 
@@ -689,7 +662,7 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
 
                             .toSet()
     
-                        val wishlist = wishlistRepository.getWishlist()
+                        val wishlist = userWishlistIsbns
 
                         val myLibraryBooks = myLibraryRepository.getMyBooks()
 
@@ -713,9 +686,7 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
 
                             achievements = allAchievements,
 
-                            ongoingChallenges = ongoingChallengesFiltered,
 
-                            completedChallenges = completedChallengesFiltered,
 
                             ongoingAchievements = ongoingAchievements,
 
@@ -1278,14 +1249,20 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
     fun toggleLike(feedId: String, isCurrentlyLiked: Boolean) {
         val currentUserId = auth.currentUser?.uid ?: return
         viewModelScope.launch {
-            val feedRef = db.collection("feeds").document(feedId)
             try {
-                val operation = if (isCurrentlyLiked) {
-                    FieldValue.arrayRemove(currentUserId) to FieldValue.increment(-1)
-                } else {
-                    FieldValue.arrayUnion(currentUserId) to FieldValue.increment(1)
-                }
-                feedRef.update("likedBy", operation.first, "likeCount", operation.second).await()
+                val feedRef = db.collection("feeds").document(feedId)
+                db.runTransaction { transaction ->
+                    val snapshot = transaction.get(feedRef)
+                    val likedBy = snapshot.get("likedBy") as? List<String> ?: emptyList()
+                    val newLikedBy = if (isCurrentlyLiked) {
+                        likedBy - currentUserId
+                    } else {
+                        likedBy + currentUserId
+                    }
+                    transaction.update(feedRef, "likedBy", newLikedBy)
+                    transaction.update(feedRef, "likeCount", newLikedBy.size)
+                    null
+                }.await()
             } catch (e: Exception) {
                 Log.e("ProfileViewModel", "Error toggling like for feed $feedId", e)
             }

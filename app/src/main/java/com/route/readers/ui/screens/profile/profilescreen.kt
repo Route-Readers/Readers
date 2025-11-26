@@ -239,7 +239,7 @@ fun ProfileContent(
     var feedToDelete by remember { mutableStateOf<String?>(null) }
     
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("피드", "관심도서", "업적", "챌린지")
+    val tabs = listOf("피드", "관심도서", "업적")
 
     if (showDeleteDialog && feedToDelete != null) {
         AlertDialog(
@@ -367,7 +367,7 @@ fun ProfileContent(
                         items(myPosts) { post ->
                             PostItem(
                                 post = post,
-                                isMyPost = true,
+                                isMyPost = state.isMyProfile,
                                 onDelete = {
                                     feedToDelete = post.id
                                     showDeleteDialog = true
@@ -395,14 +395,14 @@ fun ProfileContent(
                         onAchievementClick = { /* Navigate to achievement details */ }
                     )
                 }
-                3 -> item {
-                    ChallengesSection(
-                        ongoingChallenges = state.ongoingChallenges,
-                        completedChallenges = state.completedChallenges,
-                        onChallengeClick = { /* Navigate to challenge details */ },
-                        userId = state.user.uid
-                    )
-                }
+//                3 -> item {
+//                    ChallengesSection(
+//                        ongoingChallenges = state.ongoingChallenges,
+//                        completedChallenges = state.completedChallenges,
+//                        onChallengeClick = { /* Navigate to challenge details */ },
+//                        userId = state.user.uid
+//                    )
+//                }
             }
         }
     }

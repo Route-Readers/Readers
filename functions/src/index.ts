@@ -240,36 +240,37 @@ export const onLikeCreated = onDocumentUpdated(
             return;
         }
 
-        const likerId = newLikes[0]; // Assuming only one new like at a time
         const feedOwnerId = afterData.authorId;
-        const feedTitle = afterData.title || afterData.reviewContent?.substring(0, 50) + "..."; // Get title or snippet
 
-        if (likerId === feedOwnerId) {
-            console.log("Liker is the feed owner. Skipping notification.");
-            return;
-        }
+        // Process each new like
+        for (const likerId of newLikes) {
+            if (likerId === feedOwnerId) {
+                console.log("Liker is the feed owner. Skipping notification for this user.");
+                continue; // Skip to the next liker
+            }
 
-        try {
-            const db = admin.firestore();
+            try {
+                const db = admin.firestore();
 
-            // Get liker's display name
-            const likerDoc = await db.collection("users").doc(likerId).get();
-            const likerData = likerDoc.data();
-            const likerDisplayName = likerData?.nickname || "Someone";
+                // Get liker's display name
+                const likerDoc = await db.collection("users").doc(likerId).get();
+                const likerData = likerDoc.data();
+                const likerDisplayName = likerData?.nickname || "Someone";
 
-            // Create a request in fcmRequests collection
-            await db.collection("fcmRequests").add({
-                targetUserId: feedOwnerId,
-                title: "새로운 좋아요!",
-                message: `${likerDisplayName}님이 회원님의 글을 좋아합니다. `,
-                notificationType: "LIKE",
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
+                // Create a request in fcmRequests collection
+                await db.collection("fcmRequests").add({
+                    targetUserId: feedOwnerId,
+                    title: "새로운 좋아요!",
+                    message: `${likerDisplayName}님이 회원님의 글을 좋아합니다. `,
+                    notificationType: "LIKE",
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
 
-            console.log(`FCM request created for new like on feed ${event.params.feedId}`);
+                console.log(`FCM request created for new like by ${likerId} on feed ${event.params.feedId}`);
 
-        } catch (error) {
-            console.error("Error processing like event:", error);
+            } catch (error) {
+                console.error(`Error processing like event for liker ${likerId}:`, error);
+            }
         }
     }
 );

@@ -405,10 +405,12 @@ fun BookSearchResultCard(
 @SuppressLint("MissingPermission")
 @Composable
 fun LibrarySearchTab(
-    libraryViewModel: LibraryViewModel
+    libraryViewModel: LibraryViewModel,
+    nearbyLibraryViewModel: NearbyLibraryViewModel = viewModel()
 ) {
     var searchText by remember { mutableStateOf("") }
     val libraryState by libraryViewModel.libraryState.collectAsState()
+    val nearbyLibraryState by nearbyLibraryViewModel.uiState.collectAsState()
 
     val context = LocalContext.current
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
@@ -416,10 +418,22 @@ fun LibrarySearchTab(
         permissions = listOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
     )
 
+    LaunchedEffect(Unit) {
+        if (permissionState.allPermissionsGranted) {
+            val cancellationTokenSource = CancellationTokenSource()
+            fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cancellationTokenSource.token)
+                .addOnSuccessListener { location: Location? ->
+                    if (location != null) {
+                        nearbyLibraryViewModel.fetchNearbyLibraries(location)
+                    }
+                }
+        } else {
+            permissionState.launchMultiplePermissionRequest()
+        }
+    }
+
     fun performSearch() {
         if (searchText.isBlank()) return
-
-        permissionState.launchMultiplePermissionRequest()
 
         if (permissionState.allPermissionsGranted) {
             val cancellationTokenSource = CancellationTokenSource()
@@ -467,85 +481,123 @@ fun LibrarySearchTab(
             }
         }
 
-        when (val currentLibraryState = libraryState) {
-            is LibraryUiState.Loading -> {
-                item {
-                    Box(modifier = Modifier.fillMaxWidth().padding(top = 32.dp), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                if (currentLibraryState.libraryCode == null) "'${currentLibraryState.query ?: searchText}' 소장 도서관을 검색중입니다..."
-                                else "대출 정보를 확인 중입니다...",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
+        if (searchText.isBlank()) {
+            item {
+                Text(
+                    text = "내 주변 도서관",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
-            is LibraryUiState.Success -> {
-                if (currentLibraryState.query.isNotEmpty()) {
+            when (val state = nearbyLibraryState) {
+                is NearbyLibraryUiState.Loading -> {
                     item {
-                        Column {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = "『${currentLibraryState.query}』 소장 도서관",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
+                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
                         }
                     }
                 }
-
-                if (currentLibraryState.libraries.isEmpty() && currentLibraryState.query.isNotEmpty()) {
-                    item {
-                        Text("주변에 해당 책을 소장한 도서관이 없습니다.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                } else {
-                    items(currentLibraryState.libraries, key = { it.libraryInfo.libCode }) { library ->
-                        val isSelected = currentLibraryState.selectedLibrary?.libraryInfo?.libCode == library.libraryInfo.libCode
+                is NearbyLibraryUiState.Success -> {
+                    items(state.libraries) { library ->
                         LibraryResultCard(
                             libraryName = library.libraryInfo.libName,
                             address = library.libraryInfo.address,
                             distance = library.distance,
-                            onClick = {
-                                if (!isSelected) {
-                                    libraryViewModel.checkBookAvailabilityInLibrary(library, currentLibraryState.books)
-                                } else {
-                                    libraryViewModel.resetState()
-                                }
-                            },
-                            isSelected = isSelected,
-                            availability = if (isSelected) currentLibraryState.availability else null,
-                            isLoading = (libraryState as? LibraryUiState.Loading)?.libraryCode == library.libraryInfo.libCode,
-                            books = currentLibraryState.books
+                            onClick = { /* Handle click */ },
+                            isSelected = false,
+                            availability = null,
+                            isLoading = false,
+                            books = emptyList()
                         )
                     }
                 }
+                is NearbyLibraryUiState.Error -> {
+                    item {
+                        Text(state.message, color = MaterialTheme.colorScheme.error)
+                    }
+                }
+                else -> {
+                    // Idle
+                }
             }
-            is LibraryUiState.Error -> {
-                item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(currentLibraryState.message, color = MaterialTheme.colorScheme.error)
-                        Button(onClick = { performSearch() }) {
-                            Text("다시 시도")
+        } else {
+            when (val currentLibraryState = libraryState) {
+                is LibraryUiState.Loading -> {
+                    item {
+                        Box(modifier = Modifier.fillMaxWidth().padding(top = 32.dp), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    if (currentLibraryState.libraryCode == null) "'${currentLibraryState.query ?: searchText}' 소장 도서관을 검색중입니다..."
+                                    else "대출 정보를 확인 중입니다...",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }
-            }
-            is LibraryUiState.Idle -> {
-                if (searchText.isBlank()) {
-                    item {
-                        Text("책 제목을 검색하면 소장하고 있는 주변 도서관 목록이 나타납니다.", modifier = Modifier.padding(top=32.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                is LibraryUiState.Success -> {
+                    if (currentLibraryState.query.isNotEmpty()) {
+                        item {
+                            Column {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = "『${currentLibraryState.query}』 소장 도서관",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                        }
                     }
+
+                    if (currentLibraryState.libraries.isEmpty() && currentLibraryState.query.isNotEmpty()) {
+                        item {
+                            Text("주변에 해당 책을 소장한 도서관이 없습니다.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    } else {
+                        items(currentLibraryState.libraries, key = { it.libraryInfo.libCode }) { library ->
+                            val isSelected = currentLibraryState.selectedLibrary?.libraryInfo?.libCode == library.libraryInfo.libCode
+                            LibraryResultCard(
+                                libraryName = library.libraryInfo.libName,
+                                address = library.libraryInfo.address,
+                                distance = library.distance,
+                                onClick = {
+                                    if (!isSelected) {
+                                        libraryViewModel.checkBookAvailabilityInLibrary(library, currentLibraryState.books)
+                                    } else {
+                                        libraryViewModel.resetState()
+                                    }
+                                },
+                                isSelected = isSelected,
+                                availability = if (isSelected) currentLibraryState.availability else null,
+                                isLoading = (libraryState as? LibraryUiState.Loading)?.libraryCode == library.libraryInfo.libCode,
+                                books = currentLibraryState.books
+                            )
+                        }
+                    }
+                }
+                is LibraryUiState.Error -> {
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(currentLibraryState.message, color = MaterialTheme.colorScheme.error)
+                            Button(onClick = { performSearch() }) {
+                                Text("다시 시도")
+                            }
+                        }
+                    }
+                }
+                is LibraryUiState.Idle -> {
+                    // Handled by the search text blank check
                 }
             }
         }
