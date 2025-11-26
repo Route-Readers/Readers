@@ -465,11 +465,7 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
 
     
 
-                                                    ongoingChallenges = emptyList(),
-
-    
-
-                                                    completedChallenges = emptyList(),
+                                                    
 
     
 
@@ -597,7 +593,7 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
 
                         val myPostsDeferred = async { fetchMyPosts(targetUserId) }
     
-                        val allChallengesDeferred = async { challengeRepository.getUserChallenges(targetUserId) }
+
 
                         val wishlistBooksDeferred = async {
 
@@ -611,25 +607,7 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
 
                         }
 
-                                                                                                val allChallenges = allChallengesDeferred.await()
-
-                                                                        
-
-                                                                                                val completedChallengesFiltered = allChallenges.filter { challenge ->
-
-                                                                                                    val userProgress = (challenge.progress[targetUserId] as? Number)?.toInt() ?: 0
-
-                                                                                                    userProgress >= challenge.goal
-
-                                                                                                }
-
-                                                                                                val ongoingChallengesFiltered = allChallenges.filter { challenge ->
-
-                                                                                                    val userProgress = (challenge.progress[targetUserId] as? Number)?.toInt() ?: 0
-
-                                                                                                    userProgress < challenge.goal && (challenge.endDate == null || challenge.endDate.after(Date()))
-
-                                                                                                }
+                                                                                                
     
                         val savedPostsResult = async {
 
@@ -713,9 +691,7 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
 
                             achievements = allAchievements,
 
-                            ongoingChallenges = ongoingChallengesFiltered,
 
-                            completedChallenges = completedChallengesFiltered,
 
                             ongoingAchievements = ongoingAchievements,
 

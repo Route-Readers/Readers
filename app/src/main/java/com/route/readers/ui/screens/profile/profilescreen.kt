@@ -395,14 +395,14 @@ fun ProfileContent(
                         onAchievementClick = { /* Navigate to achievement details */ }
                     )
                 }
-                3 -> item {
-                    ChallengesSection(
-                        ongoingChallenges = state.ongoingChallenges,
-                        completedChallenges = state.completedChallenges,
-                        onChallengeClick = { /* Navigate to challenge details */ },
-                        userId = state.user.uid
-                    )
-                }
+//                3 -> item {
+//                    ChallengesSection(
+//                        ongoingChallenges = state.ongoingChallenges,
+//                        completedChallenges = state.completedChallenges,
+//                        onChallengeClick = { /* Navigate to challenge details */ },
+//                        userId = state.user.uid
+//                    )
+//                }
             }
         }
     }
