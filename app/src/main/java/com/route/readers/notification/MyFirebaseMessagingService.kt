@@ -46,20 +46,19 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
 
-        message.notification?.let {
-            android.util.Log.d("FCM_SERVICE", "onMessageReceived: message.notification is present. Calling showNotification.")
-            // Pass message.data here
-            showNotification(it.title ?: "새 알림", it.body ?: "새로운 메시지가 도착했습니다.", message.data)
-        } ?: run {
-            android.util.Log.d("FCM_SERVICE", "onMessageReceived: message.notification is NULL. Not calling showNotification.")
-        }
+        val notificationTitle = message.notification?.title ?: message.data["title"] ?: "새 알림"
+        val notificationBody = message.notification?.body ?: message.data["message"] ?: "새로운 메시지가 도착했습니다."
+        val notificationData = message.data
+
+        android.util.Log.d("FCM_SERVICE", "onMessageReceived: Processing FCM message.")
+        showNotification(notificationTitle, notificationBody, notificationData)
     }
 
     private fun showNotification(title: String, message: String, data: Map<String, String>) {
-        android.util.Log.d("FCM_SERVICE", "Showing notification: Title='$title', Message='$message', Data='$data'")
-
+        android.util.Log.d("FCM_SERVICE", "showNotification called. Title='$title', Message='$message', Data='$data'")
         val channelId = "reading_notifications"
         val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        android.util.Log.d("FCM_SERVICE", "showNotification: NotificationManager obtained.")
 
         val intent = Intent(this, MainActivity::class.java)
         // Add data to the intent
@@ -68,6 +67,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         }
         // Set flags to clear activity stack and create a new task
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        android.util.Log.d("FCM_SERVICE", "showNotification: Intent created with data.")
 
         val pendingIntent = PendingIntent.getActivity(
             this,
@@ -75,6 +75,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
+        android.util.Log.d("FCM_SERVICE", "showNotification: PendingIntent created.")
 
         val notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle(title)
@@ -84,8 +85,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .build()
+        android.util.Log.d("FCM_SERVICE", "showNotification: Notification built.")
 
-        notificationManager.notify(System.currentTimeMillis().toInt(), notification)
-        android.util.Log.d("FCM_SERVICE", "Notification issued with ID: ${System.currentTimeMillis().toInt()}")
+        val notificationId = System.currentTimeMillis().toInt()
+        notificationManager.notify(notificationId, notification)
+        android.util.Log.d("FCM_SERVICE", "Notification issued with ID: $notificationId")
     }
 }
