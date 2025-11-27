@@ -2,6 +2,8 @@ import {onDocumentCreated, onDocumentUpdated} from "firebase-functions/v2/firest
 import * as admin from "firebase-admin";
 import {getMessaging} from "firebase-admin/messaging";
 
+// Dummy comment to force redeployment (2025-11-27 - second attempt)
+
 // Firebase Admin SDK 초기화
 admin.initializeApp();
 
@@ -12,20 +14,22 @@ export const sendFcmNotification = onDocumentCreated(
         region: "asia-northeast3",
     },
     async (event) => {
+        console.log(`[sendFcmNotification] Triggered for request ID: ${event.params.requestId}`);
         const snapshot = event.data;
         if (!snapshot) {
-            console.log("No data associated with the event");
+            console.log("[sendFcmNotification] No data associated with the event");
             return;
         }
 
         // 1. 요청 데이터 가져오기
         const requestData = snapshot.data();
+        console.log("[sendFcmNotification] Request data:", JSON.stringify(requestData, null, 2));
         const {targetUserId, title, message: body, notificationType} = requestData;
 
-        console.log(`New FCM request. Type: ${notificationType}`);
+        console.log(`[sendFcmNotification] New FCM request. Type: ${notificationType}`);
 
         if (!targetUserId || !title || !body) {
-            console.error("Request data is missing fields", requestData);
+            console.error("[sendFcmNotification] Request data is missing fields. Deleting request.", requestData);
             await snapshot.ref.delete(); // Delete request to prevent re-tries
             return;
         }
@@ -34,12 +38,15 @@ export const sendFcmNotification = onDocumentCreated(
             const db = admin.firestore();
 
             // 2. 받는 사람(Receiver)의 FCM 토큰 및 알림 설정 가져오기
+            console.log(`[sendFcmNotification] Fetching user data for targetUserId: ${targetUserId}`);
             const receiverDoc = await db.collection("users").doc(targetUserId).get();
             const receiverData = receiverDoc.data();
             const fcmToken = receiverData?.fcmToken;
+            console.log(`[sendFcmNotification] Receiver data:`, JSON.stringify(receiverData, null, 2));
+
 
             if (!fcmToken) {
-                console.log(`No FCM token for receiver ${targetUserId}. Deleting request.`);
+                console.log(`[sendFcmNotification] No FCM token for receiver ${targetUserId}. Deleting request.`);
                 await snapshot.ref.delete();
                 return;
             }
@@ -52,30 +59,30 @@ export const sendFcmNotification = onDocumentCreated(
 
             if (notificationType === "READING_INVITATION") {
                 const friendReadingAlarmEnabled = receiverData?.friendReadingAlarmEnabled;
-                console.log(`User ${targetUserId} friendReadingAlarmEnabled: ${friendReadingAlarmEnabled}`);
+                console.log(`[sendFcmNotification] User ${targetUserId} friendReadingAlarmEnabled: ${friendReadingAlarmEnabled}`);
                 if (friendReadingAlarmEnabled === false) {
-                    console.log(`User ${targetUserId} has disabled friend reading alarms. Skipping notification.`);
+                    console.log(`[sendFcmNotification] User ${targetUserId} has disabled friend reading alarms. Skipping notification.`);
                     shouldSendNotification = false;
                 }
             } else if (notificationType === "FOLLOW" || notificationType === "FOLLOW_REQUEST") {
                 const followAlarmEnabled = receiverData?.followAlarmEnabled;
-                console.log(`User ${targetUserId} followAlarmEnabled: ${followAlarmEnabled}`);
+                console.log(`[sendFcmNotification] User ${targetUserId} followAlarmEnabled: ${followAlarmEnabled}`);
                 if (followAlarmEnabled === false) {
-                    console.log(`User ${targetUserId} has disabled follow alarms. Skipping notification.`);
+                    console.log(`[sendFcmNotification] User ${targetUserId} has disabled follow alarms. Skipping notification.`);
                     shouldSendNotification = false;
                 }
             } else if (notificationType === "LIKE") {
                 const likeAlarmEnabled = receiverData?.likeAlarmEnabled;
-                console.log(`User ${targetUserId} likeAlarmEnabled: ${likeAlarmEnabled}`);
+                console.log(`[sendFcmNotification] User ${targetUserId} likeAlarmEnabled: ${likeAlarmEnabled}`);
                 if (likeAlarmEnabled === false) {
-                    console.log(`User ${targetUserId} has disabled like alarms. Skipping notification.`);
+                    console.log(`[sendFcmNotification] User ${targetUserId} has disabled like alarms. Skipping notification.`);
                     shouldSendNotification = false;
                 }
             } else if (notificationType === "CHAT_MESSAGE") {
                 const messageAlarmEnabled = receiverData?.messageAlarmEnabled;
-                console.log(`User ${targetUserId} messageAlarmEnabled: ${messageAlarmEnabled}`);
+                console.log(`[sendFcmNotification] User ${targetUserId} messageAlarmEnabled: ${messageAlarmEnabled}`);
                 if (messageAlarmEnabled === false) {
-                    console.log(`User ${targetUserId} has disabled chat message alarms. Skipping notification.`);
+                    console.log(`[sendFcmNotification] User ${targetUserId} has disabled chat message alarms. Skipping notification.`);
                     shouldSendNotification = false;
                 }
                 // Extract chat-specific data for payload
@@ -85,6 +92,7 @@ export const sendFcmNotification = onDocumentCreated(
             // Add other notification types here as needed
 
             if (!shouldSendNotification) {
+                console.log("[sendFcmNotification] shouldSendNotification is false. Deleting request.");
                 await snapshot.ref.delete();
                 return;
             }
@@ -100,20 +108,21 @@ export const sendFcmNotification = onDocumentCreated(
             };
 
             // 5. FCM으로 메시지 전송
-            console.log(`Sending notification to token: ${fcmToken} for type: ${notificationType}`);
+            console.log(`[sendFcmNotification] Sending FCM message to token: ${fcmToken}`);
             await getMessaging().send(fcmMessage);
-            console.log("Successfully sent message");
+            console.log("[sendFcmNotification] Successfully sent message.");
 
             // 6. 처리 완료된 요청 문서는 삭제
+            console.log(`[sendFcmNotification] Deleting request document: ${snapshot.ref.path}`);
             await snapshot.ref.delete();
 
         } catch (error) {
-            console.error("Error sending notification:", error);
+            console.error("[sendFcmNotification] Error sending notification:", error);
             // 오류가 발생해도 요청 문서는 삭제하여 재시도를 방지
             try {
                 await snapshot.ref.delete();
             } catch (deleteError) {
-                console.error("Error deleting request document after error:", deleteError);
+                console.error("[sendFcmNotification] Error deleting request document after error:", deleteError);
             }
         }
     });
@@ -219,13 +228,17 @@ export const onLikeCreated = onDocumentUpdated(
         region: "asia-northeast3",
     },
     async (event) => {
+        console.log(`[onLikeCreated] Triggered for feed ID: ${event.params.feedId}`);
         const beforeData = event.data?.before.data();
         const afterData = event.data?.after.data();
 
         if (!beforeData || !afterData) {
-            console.log("No data before or after for the event.");
+            console.log("[onLikeCreated] No data before or after for the event.");
             return;
         }
+
+        console.log("[onLikeCreated] Before data:", JSON.stringify(beforeData, null, 2));
+        console.log("[onLikeCreated] After data:", JSON.stringify(afterData, null, 2));
 
         const beforeLikedBy: string[] = beforeData.likedBy || [];
         const afterLikedBy: string[] = afterData.likedBy || [];
@@ -236,40 +249,56 @@ export const onLikeCreated = onDocumentUpdated(
         );
 
         if (newLikes.length === 0) {
-            console.log("No new likes detected.");
+            console.log("[onLikeCreated] No new likes detected.");
             return;
         }
+        console.log(`[onLikeCreated] Found new likes: ${newLikes.join(", ")}`);
 
         const feedOwnerId = afterData.authorId;
+        if (!feedOwnerId) {
+            console.error("[onLikeCreated] feedOwnerId is missing from afterData.");
+            return;
+        }
+        console.log(`[onLikeCreated] Feed owner ID: ${feedOwnerId}`);
+
 
         // Process each new like
         for (const likerId of newLikes) {
             if (likerId === feedOwnerId) {
-                console.log("Liker is the feed owner. Skipping notification for this user.");
+                console.log(`[onLikeCreated] Liker ${likerId} is the feed owner. Skipping.`);
                 continue; // Skip to the next liker
             }
 
             try {
                 const db = admin.firestore();
 
-                // Get liker's display name
+                console.log(`[onLikeCreated] Getting nickname for liker ID: ${likerId}`);
                 const likerDoc = await db.collection("users").doc(likerId).get();
                 const likerData = likerDoc.data();
                 const likerDisplayName = likerData?.nickname || "Someone";
+                console.log(`[onLikeCreated] Liker nickname: ${likerDisplayName}`);
 
-                // Create a request in fcmRequests collection
-                await db.collection("fcmRequests").add({
+
+                const feedRef = db.collection("feeds").doc(event.params.feedId);
+                const feedDoc = await feedRef.get();
+                const feedData = feedDoc.data();
+                const bookTitle = feedData?.book?.title || "어떤 글";
+
+                const fcmRequestPayload = {
                     targetUserId: feedOwnerId,
                     title: "새로운 좋아요!",
-                    message: `${likerDisplayName}님이 회원님의 글을 좋아합니다. `,
+                    message: `${likerDisplayName}님이 회원님의 "${bookTitle}" 글을 좋아합니다. `,
                     notificationType: "LIKE",
                     createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                });
+                };
+                
+                console.log("[onLikeCreated] Creating fcmRequest with payload:", JSON.stringify(fcmRequestPayload, null, 2));
+                await db.collection("fcmRequests").add(fcmRequestPayload);
 
-                console.log(`FCM request created for new like by ${likerId} on feed ${event.params.feedId}`);
+                console.log(`[onLikeCreated] FCM request created for new like by ${likerId} on feed ${event.params.feedId}`);
 
             } catch (error) {
-                console.error(`Error processing like event for liker ${likerId}:`, error);
+                console.error(`[onLikeCreated] Error processing like event for liker ${likerId}:`, error);
             }
         }
     }
