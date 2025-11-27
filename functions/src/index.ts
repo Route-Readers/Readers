@@ -279,15 +279,10 @@ export const onLikeCreated = onDocumentUpdated(
                 console.log(`[onLikeCreated] Liker nickname: ${likerDisplayName}`);
 
 
-                const feedRef = db.collection("feeds").doc(event.params.feedId);
-                const feedDoc = await feedRef.get();
-                const feedData = feedDoc.data();
-                const bookTitle = feedData?.book?.title || "어떤 글";
-
                 const fcmRequestPayload = {
                     targetUserId: feedOwnerId,
                     title: "새로운 좋아요!",
-                    message: `${likerDisplayName}님이 회원님의 "${bookTitle}" 글을 좋아합니다. `,
+                    message: `${likerDisplayName}님이 회원님의 글을 좋아합니다. `,
                     notificationType: "LIKE",
                     createdAt: admin.firestore.FieldValue.serverTimestamp(),
                 };
@@ -303,6 +298,3 @@ export const onLikeCreated = onDocumentUpdated(
         }
     }
 );
-
-
-
