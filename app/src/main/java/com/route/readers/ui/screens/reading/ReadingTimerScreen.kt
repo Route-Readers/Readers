@@ -2,6 +2,7 @@ package com.route.readers.ui.screens.reading
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -59,7 +61,7 @@ object TimerState {
 fun ReadingTimerScreen(
     book: MyBook,
     onNavigateBack: () -> Unit,
-    onFinishReading: (Int) -> Unit,
+    onFinishReading: (Int, Int) -> Unit,
     onDisposeReading: (Int) -> Unit,
     startNow: Boolean = false
 ) {
@@ -71,6 +73,8 @@ fun ReadingTimerScreen(
     var showFinishDialog by remember { mutableStateOf(false) }
     var showBackDialog by remember { mutableStateOf(false) }
     var sessionStartTime by remember { mutableStateOf<Date?>(null) }
+    var pagesReadInput by remember { mutableStateOf(book.currentPage.toString()) } // New state for pages read input
+    var lastPageRead by remember { mutableStateOf(book.currentPage) } // New state to hold the current page before input
 
     // 타이머 시작 시 세션 시작 시간 기록
     LaunchedEffect(isRunning) {
@@ -237,16 +241,36 @@ fun ReadingTimerScreen(
     }
 
     if (showFinishDialog) {
+        // Capture the current page when dialog is shown as the initial value for pagesReadInput
+        LaunchedEffect(Unit) {
+            lastPageRead = book.currentPage
+            pagesReadInput = book.currentPage.toString()
+        }
+        
         AlertDialog(
             onDismissRequest = { showFinishDialog = false },
             title = { Text("독서 완료") },
-            text = { Text("${minutes}분 ${remainingSeconds}초 동안 독서하셨습니다.\n독서를 완료하시겠습니까?") },
+            text = {
+                   Column {
+                       Text("${minutes}분 ${remainingSeconds}초 동안 독서하셨습니다.")
+                       Spacer(Modifier.height(8.dp))
+                       OutlinedTextField(
+                           value = pagesReadInput,
+                           onValueChange = { newValue ->
+                               pagesReadInput = newValue.filter { it.isDigit() }
+                           },
+                           label = { Text("현재까지 읽은 페이지 수") },
+                           keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                           modifier = Modifier.fillMaxWidth()
+                       )
+                   }
+            },
             confirmButton = {
                 Button(onClick = {
                     showFinishDialog = false
                     TimerState.setState(book.isbn, false, 0)
-                    
-                    onFinishReading(seconds)
+                    val actualPagesRead = pagesReadInput.toIntOrNull() ?: lastPageRead // Use lastPageRead if input is invalid
+                    onFinishReading(seconds, actualPagesRead) // Pass pagesRead
                 }) { Text("완료") }
             },
             dismissButton = {

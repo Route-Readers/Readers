@@ -400,16 +400,17 @@ fun MainScreen(
                         ReadingTimerScreen(
                             book = book,
                             onNavigateBack = { bottomNavController.popBackStack() },
-                            onFinishReading = { timeInSeconds ->
+                            onFinishReading = { timeInSeconds, pagesRead ->
                                 lastReadingSessionDuration = timeInSeconds
                                 showFinishReadingDialogBook = book
+                                readingViewModel.saveReadingSession(book, timeInSeconds, pagesRead)
                                 bottomNavController.navigate(BottomNavItem.MyLibrary.route) {
                                     popUpTo(bottomNavController.graph.findStartDestination().id)
                                     launchSingleTop = true
                                 }
                             },
                             onDisposeReading = { timeInSeconds ->
-                                readingViewModel.saveReadingSession(book, timeInSeconds)
+                                readingViewModel.saveReadingSession(book, timeInSeconds, book.currentPage)
                             },
                             startNow = startNow
                         )

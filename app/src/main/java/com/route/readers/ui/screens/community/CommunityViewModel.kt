@@ -83,6 +83,7 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
             challengeRepository.userActiveChallenges
                 .mapNotNull { it[userId] }
                 .onEach { challenge ->
+                    android.util.Log.d("CommunityVM", "userActiveChallenges flow emitted new challenge: ${challenge.id}, progress: ${challenge.progress[userId]}")
                     _uiState.value = _uiState.value.copy(
                         userActiveChallenge = challenge,
                         isChallengesLoading = false
@@ -92,6 +93,7 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
 
             // Trigger initial refresh of active challenge in the repository
             challengeRepository.refreshUserActiveChallenge(userId)
+            android.util.Log.d("CommunityVM", "Initial refresh of active challenge triggered for userId: $userId")
         }
 
         loadFriends()
