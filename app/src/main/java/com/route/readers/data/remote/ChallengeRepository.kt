@@ -1,6 +1,5 @@
 package com.route.readers.data.remote
 
-import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FieldValue
 import com.route.readers.data.model.Challenge
@@ -98,7 +97,7 @@ class ChallengeRepository {
     suspend fun getUserActiveChallenge(userId: String): Challenge? {
         return try {
             val currentWeek = getCurrentWeekNumber()
-            Log.d("ChallengeRepository", "getUserActiveChallenge - userId: $userId, weekNumber: $currentWeek")
+            android.util.Log.d("ChallengeRepository", "getUserActiveChallenge - userId: $userId, weekNumber: $currentWeek")
             val result = challengesCollection
                 .whereArrayContains("participants", userId)
                 .whereEqualTo("weekNumber", currentWeek)
@@ -106,19 +105,24 @@ class ChallengeRepository {
                 .get()
                 .await()
 
-            Log.d("ChallengeRepository", "Query result size: ${result.documents.size}")
+            android.util.Log.d("ChallengeRepository", "Query result size: ${result.documents.size}")
             result.documents.firstOrNull()?.toObject(Challenge::class.java)
         } catch (e: Exception) {
-            Log.e("ChallengeRepository", "Error getting user active challenge", e)
+            android.util.Log.e("ChallengeRepository", "Error getting user active challenge", e)
             null
         }
     }
 
     suspend fun updateDailyProgress(challengeId: String, userId: String, date: String, dailyAmount: Int) {
+        android.util.Log.d("ChallengeRepo", "updateDailyProgress called for challenge: $challengeId, user: $userId, date: $date, amount: $dailyAmount")
         val docRef = challengesCollection.document(challengeId)
         db.runTransaction { transaction ->
             val snapshot = transaction.get(docRef)
-            val challenge = snapshot.toObject(Challenge::class.java) ?: return@runTransaction
+            val challenge = snapshot.toObject(Challenge::class.java) ?: run {
+                android.util.Log.e("ChallengeRepo", "Challenge $challengeId not found for updateDailyProgress")
+                return@runTransaction
+            }
+            android.util.Log.d("ChallengeRepo", "Before update - Challenge $challengeId, user $userId progress: ${challenge.progress[userId]}, dailyProgress: ${challenge.dailyProgress[userId]?.get(date)}")
 
             val currentDailyProgress = challenge.dailyProgress[userId]?.toMutableMap() ?: mutableMapOf()
             currentDailyProgress[date] = (currentDailyProgress[date] ?: 0) + dailyAmount
@@ -128,7 +132,9 @@ class ChallengeRepository {
                     (currentDailyProgress[date] ?: 0)
                 }
                 ChallengeType.CONSECUTIVE_READING -> {
-                    challenge.progress[userId] ?: 0
+                    // For consecutive reading, progress is usually 1 (day counted) or 0.
+                    // This logic might need adjustment if it's meant to track a streak.
+                    (challenge.progress[userId] ?: 0) + 1 // Assuming progress here means days, not amount
                 }
                 else -> challenge.progress[userId] ?: 0
             }
@@ -138,14 +144,22 @@ class ChallengeRepository {
                 "dailyProgress.${userId}.${date}" to (currentDailyProgress[date] ?: 0),
                 "progress.${userId}" to newProgress
             ))
+            android.util.Log.d("ChallengeRepo", "After update - Challenge $challengeId, user $userId new progress: $newProgress, new dailyProgress: ${currentDailyProgress[date]}")
+
         }.await()
         refreshUserActiveChallenge(userId)
+        android.util.Log.d("ChallengeRepo", "updateDailyProgress transaction completed and refresh triggered for user: $userId")
     }
 
     suspend fun updatePagesReadChallengeProgress(userId: String, pagesRead: Int) {
+        android.util.Log.d("ChallengeRepo", "updatePagesReadChallengeProgress called for user: $userId, pagesRead: $pagesRead")
         val challengesToUpdate = getUserActiveDailyPageChallenges(userId)
+        if (challengesToUpdate.isEmpty()) {
+            android.util.Log.d("ChallengeRepo", "No active daily page challenges found for user: $userId")
+        }
         val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
         challengesToUpdate.forEach { challenge ->
+            android.util.Log.d("ChallengeRepo", "Updating daily progress for challenge: ${challenge.id}, type: ${challenge.type}")
             updateDailyProgress(challenge.id, userId, today, pagesRead)
         }
     }
@@ -175,7 +189,7 @@ class ChallengeRepository {
                 .await()
                 .mapNotNull { it.toObject(Challenge::class.java) }
         } catch (e: Exception) {
-            Log.e("ChallengeRepository", "Error getting user challenges", e)
+            android.util.Log.e("ChallengeRepository", "Error getting user challenges", e)
             emptyList()
         }
     }
@@ -190,7 +204,7 @@ class ChallengeRepository {
                 .await()
                 .mapNotNull { it.toObject(Challenge::class.java) }
         } catch (e: Exception) {
-            Log.e("ChallengeRepository", "Error getting user active daily page challenges", e)
+            android.util.Log.e("ChallengeRepository", "Error getting user active daily page challenges", e)
             emptyList()
         }
     }
@@ -204,7 +218,7 @@ class ChallengeRepository {
                 .await()
                 .mapNotNull { it.toObject(Challenge::class.java) }
         } catch (e: Exception) {
-            Log.e("ChallengeRepository", "Error getting active challenges", e)
+            android.util.Log.e("ChallengeRepository", "Error getting active challenges", e)
             emptyList()
         }
     }
