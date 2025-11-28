@@ -33,6 +33,7 @@ import com.route.readers.data.model.BookClub
 import com.route.readers.data.model.User
 import com.route.readers.ui.community.used_trade.UsedBookTradeScreen
 import com.route.readers.ui.components.BookClubCard
+import com.route.readers.ui.components.UserProfileImage
 import com.route.readers.ui.screens.bookclub.BookClubChatScreen
 import kotlinx.coroutines.delay
 
@@ -43,6 +44,7 @@ fun CommunityScreen(
     onNavigateToNotifications: () -> Unit = {},
     onNavigateToUsedBookDetail: (String) -> Unit = {},
     onNavigateToChatList: () -> Unit = {},
+    onNavigateToUserProfile: (String) -> Unit = {},
     isActive: Boolean = false
 ) {
     // CommunityScreen이 자체적으로 ViewModel을 생성합니다.
@@ -128,6 +130,7 @@ fun CommunityScreen(
                         onSendNotification = { viewModel.sendReadingNotification() },
                         onJoinChallenge = { challengeId -> viewModel.joinChallenge(challengeId) },
                         onResetChallenge = { viewModel.resetChallenge() },
+                        onNavigateToUserProfile = onNavigateToUserProfile,
                         currentUserId = viewModel.currentUserId
                     )
                 }
@@ -196,6 +199,7 @@ fun CommunityContent(
     onSendNotification: () -> Unit,
     onJoinChallenge: (String) -> Unit = {},
     onResetChallenge: () -> Unit = {},
+    onNavigateToUserProfile: (String) -> Unit,
     currentUserId: String = ""
 ) {
     LazyColumn(
@@ -246,7 +250,8 @@ fun CommunityContent(
         items(uiState.displayedFriends) { friend ->
             FriendItemWithDelete(
                 friend = friend,
-                onDeleteClick = { onRemoveFriend(friend) }
+                onDeleteClick = { onRemoveFriend(friend) },
+                onProfileClick = { onNavigateToUserProfile(friend.uid) }
             )
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -511,8 +516,8 @@ fun CreateBookClubDialog(
                                     .width(45.dp)
                                     .height(60.dp)
                                     .clip(RoundedCornerShape(4.dp)),
-                                contentScale = ContentScale.Fit
-                            )
+                                    contentScale = ContentScale.Fit
+                                )
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
@@ -560,26 +565,17 @@ fun CreateBookClubDialog(
 @Composable
 fun FriendItemWithDelete(
     friend: User,
-    onDeleteClick: () -> Unit
+    onDeleteClick: () -> Unit,
+    onProfileClick: () -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onProfileClick() }
+            .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center
-        ) {
-            // 프로필 이미지가 없다면 닉네임의 첫 글자를 보여줍니다.
-            Text(
-                friend.nickname.first().toString(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = FontWeight.Bold
-            )
-        }
+        UserProfileImage(user = friend, size = 48.dp)
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -601,3 +597,4 @@ fun FriendItemWithDelete(
         }
     }
 }
+

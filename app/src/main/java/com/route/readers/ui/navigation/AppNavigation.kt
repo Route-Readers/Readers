@@ -1,5 +1,6 @@
 package com.route.readers.ui.navigation
 
+import UsedBookDetailScreen
 import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,12 +21,10 @@ import androidx.navigation.navArgument
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.ui.community.used_trade.ChatScreen
-import com.route.readers.ui.community.used_trade.UsedBookDetailScreen
 import com.route.readers.ui.screens.MainScreen
 import com.route.readers.ui.screens.add_feed.AddFeedScreen
 import com.route.readers.ui.screens.attendance.AttendanceScreen
 import com.route.readers.ui.screens.attendance.AttendanceViewModel
-import com.route.readers.ui.screens.bookclub.BookClubScreen
 import com.route.readers.ui.screens.bookclub.BookClubChatScreen
 import com.route.readers.ui.screens.challenge.ChallengeScreen
 import com.route.readers.ui.screens.login.LoginScreen

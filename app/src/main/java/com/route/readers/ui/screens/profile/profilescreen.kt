@@ -110,6 +110,8 @@ import kotlinx.coroutines.launch
 import kotlin.text.isNotEmpty
 import kotlin.text.toFloat
 
+import androidx.compose.foundation.layout.WindowInsets
+
 @Composable
 fun ProfileScreen(
     userId: String,
@@ -155,6 +157,7 @@ fun ProfileScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { paddingValues ->
         Box(
             modifier = Modifier
@@ -264,7 +267,7 @@ fun ProfileContent(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(vertical = 8.dp)
+        contentPadding = PaddingValues(top = 8.dp, bottom = 0.dp)
     ) {
         item {
             ProfileInfoSection(

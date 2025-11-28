@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun FriendsListScreen(
     onBackClick: () -> Unit,
+    onUserClick: (String) -> Unit = {},
     viewModel: CommunityViewModel
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -68,7 +69,8 @@ fun FriendsListScreen(
                 items(uiState.friends) { friend ->
                     FriendItemWithDelete(
                         friend = friend,
-                        onDeleteClick = { viewModel.showDeleteConfirmation(friend) }
+                        onDeleteClick = { viewModel.showDeleteConfirmation(friend) },
+                        onProfileClick = { onUserClick(friend.uid) }
                     )
                 }
             }

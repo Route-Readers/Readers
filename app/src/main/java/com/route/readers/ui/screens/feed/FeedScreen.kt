@@ -493,6 +493,40 @@ fun FeedCard(
             when (item) {
                 is FeedItem.BookReview -> {
                     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        // Collapsible Header (Book Title)
+                        Surface(
+                            onClick = { isBookCardExpanded = !isBookCardExpanded },
+                            shape = MaterialTheme.shapes.small,
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), // Neutral gray/brown tint
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.MenuBook, // Changed to MenuBook icon
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = item.book?.title ?: item.bookTitle,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Icon(
+                                    imageVector = if (isBookCardExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
+                                    contentDescription = if (isBookCardExpanded) "접기" else "펼치기",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        
                         // Book Info (Collapsible)
                         AnimatedVisibility(
                             visible = isBookCardExpanded,
@@ -507,7 +541,7 @@ fun FeedCard(
                                     // Reading Progress
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.padding(bottom = 12.dp)
+                                        modifier = Modifier.padding(top = 12.dp, bottom = 12.dp) // Adjusted padding
                                     ) {
                                         val progressPercentage = item.progress
                                         val progressColor = if (progressPercentage == 100) MaterialTheme.colorScheme.primary else ReadingGreen
@@ -544,40 +578,6 @@ fun FeedCard(
                                     )
                                     Spacer(modifier = Modifier.height(16.dp))
                                 }
-                            }
-                        }
-
-                        // Collapsible Header (Book Title)
-                        Surface(
-                            onClick = { isBookCardExpanded = !isBookCardExpanded },
-                            shape = MaterialTheme.shapes.small,
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), // Neutral gray/brown tint
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.MenuBook, // Changed to MenuBook icon
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = item.book?.title ?: item.bookTitle,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                Icon(
-                                    imageVector = if (isBookCardExpanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                                    contentDescription = if (isBookCardExpanded) "접기" else "펼치기",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
                             }
                         }
 
