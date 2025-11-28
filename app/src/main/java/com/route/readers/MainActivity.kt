@@ -1,5 +1,6 @@
 package com.route.readers
 
+import UsedBookDetailScreen
 import android.Manifest
 import android.app.Application
 import android.app.NotificationChannel
@@ -49,7 +50,6 @@ import com.route.readers.notification.DailyNotificationScheduler
 import com.route.readers.ui.screens.bookclub.BookClubChatScreen// BookClubChatScreen import 추가
 import com.route.readers.ui.community.used_trade.ChatListScreen
 import com.route.readers.ui.community.used_trade.ChatScreen
-import com.route.readers.ui.community.used_trade.UsedBookDetailScreen
 import com.route.readers.ui.screens.MainScreen
 import com.route.readers.ui.screens.add_feed.AddFeedScreen
 import com.route.readers.ui.screens.attendance.AttendanceScreen
@@ -594,8 +594,8 @@ fun RootAppNavigation(
                 UsedBookDetailScreen(
                     bookId = bookId,
                     onNavigateBack = { appNavController.popBackStack() },
-                    onNavigateToChat = { sellerId, bookId ->
-                        appNavController.navigate("chat_route/$bookId/$sellerId")
+                    onNavigateToChat = { sellerId: String, bookIdForChat: String ->
+                        appNavController.navigate("chat_route/$bookIdForChat/$sellerId")
                     }
                 )
 
