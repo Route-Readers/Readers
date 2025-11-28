@@ -1,6 +1,11 @@
 package com.route.readers.ui.screens
 
 import android.app.Activity
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.Alignment
 import android.widget.Toast
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -50,6 +55,23 @@ import com.route.readers.ui.screens.search.SearchScreen
 import com.route.readers.utils.InterstitialAdManager
 import java.net.URLEncoder
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import com.route.readers.ui.components.AdBanner
+import com.route.readers.ui.theme.DarkRed
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
@@ -74,9 +96,96 @@ fun MainScreen(
     val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var showExitDialog by remember { mutableStateOf(false) }
     var bookToUpdateAfterReading by remember { mutableStateOf<MyBook?>(null) }
     var lastReadingSessionDuration by remember { mutableStateOf<Int?>(null) }
     var showFinishReadingDialogBook by remember { mutableStateOf<MyBook?>(null) }
+
+    BackHandler(enabled = true) {
+        if (currentRoute == BottomNavItem.Feed.route) {
+            showExitDialog = true
+        } else {
+            bottomNavController.navigate(BottomNavItem.Feed.route) {
+                popUpTo(bottomNavController.graph.findStartDestination().id) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+    }
+
+    if (showExitDialog) {
+        Dialog(onDismissRequest = { showExitDialog = false }) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF2C2C2C))
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Ad Area (White Background)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White)
+                            .padding(16.dp)
+                            .height(50.dp), // 광고 높이 50.dp 추가
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AdBanner()
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Message
+                    Text(
+                        text = "종료하시겠습니까?",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Buttons
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .padding(bottom = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Button(
+                            onClick = { showExitDialog = false },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(50.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF424242)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("취소", color = Color.White)
+                        }
+
+                        Button(
+                            onClick = {
+                                showExitDialog = false
+                                activity.finish()
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(50.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = DarkRed), // DarkRed로 변경
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("나가기", color = Color.White)
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     if (showLogoutDialog) {
         AlertDialog(
