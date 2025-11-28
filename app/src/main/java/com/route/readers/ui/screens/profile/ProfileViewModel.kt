@@ -68,10 +68,26 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
     private val _phoneVerificationState = MutableStateFlow<PhoneVerificationState>(PhoneVerificationState.Idle)
     val phoneVerificationState: StateFlow<PhoneVerificationState> = _phoneVerificationState.asStateFlow()
 
-    fun resetPhoneVerificationState() {
-        _phoneVerificationState.value = PhoneVerificationState.Idle
-        verificationId = null
-        resendToken = null
+    fun restoreVerificationState() {
+        val currentUser = auth.currentUser
+        val verifiedNum = currentUser?.phoneNumber
+
+        if (!verifiedNum.isNullOrBlank()) {
+            _phoneVerificationState.value = PhoneVerificationState.Verified
+        } else {
+            _phoneVerificationState.value = PhoneVerificationState.Idle
+            verificationId = null
+            resendToken = null
+        }
+    }
+
+    fun getVerifiedPhoneNumber(): String {
+        val raw = auth.currentUser?.phoneNumber ?: return ""
+        // Convert E.164 format (+8210...) to local format (010...)
+        if (raw.startsWith("+82")) {
+            return "0" + raw.substring(3)
+        }
+        return raw
     }
 
     fun sendVerificationCode(activity: Activity, phoneNumber: String) {

@@ -69,9 +69,13 @@ fun ProfileCustomizationScreen(
     val context = LocalContext.current
     val verificationState by viewModel.phoneVerificationState.collectAsState()
 
-    // Reset verification state when entering screen
+    // Restore verification state and pre-fill phone number if verified
     LaunchedEffect(Unit) {
-        viewModel.resetPhoneVerificationState()
+        viewModel.restoreVerificationState()
+        val savedNumber = viewModel.getVerifiedPhoneNumber()
+        if (savedNumber.isNotEmpty()) {
+            phoneNumber = savedNumber
+        }
     }
 
     val characters = listOf(
