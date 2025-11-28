@@ -220,6 +220,9 @@ fun MainScreen(
                     onNavigateToNotifications = { bottomNavController.navigate("notifications") },
                     onNavigateToUsedBookDetail = onNavigateToUsedBookDetail,
                     onNavigateToChatList = onNavigateToChatList,
+                    onNavigateToUserProfile = { userId ->
+                        bottomNavController.navigate("profile_route/$userId")
+                    },
                     isActive = currentRoute == BottomNavItem.Community.route
                 )
             }
