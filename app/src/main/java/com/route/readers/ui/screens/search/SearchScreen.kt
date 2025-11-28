@@ -408,11 +408,11 @@ fun LibrarySearchTab(
     libraryViewModel: LibraryViewModel,
     nearbyLibraryViewModel: NearbyLibraryViewModel = viewModel()
 ) {
+    val context = LocalContext.current // Re-added the context declaration
     var searchText by remember { mutableStateOf("") }
     val libraryState by libraryViewModel.libraryState.collectAsState()
     val nearbyLibraryState by nearbyLibraryViewModel.uiState.collectAsState()
 
-    val context = LocalContext.current
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     val permissionState = rememberMultiplePermissionsState(
         permissions = listOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
