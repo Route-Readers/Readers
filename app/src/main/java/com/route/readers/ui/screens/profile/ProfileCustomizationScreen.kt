@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -25,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -50,11 +52,12 @@ fun ProfileCustomizationScreen(
     currentCharacter: String?,
     currentBackgroundColor: String?,
     nickname: String,
-    onSave: (character: String?, backgroundColor: String?) -> Unit,
+    onSave: (character: String?, backgroundColor: String?, phoneNumber: String?) -> Unit,
     onBack: () -> Unit
 ) {
     var selectedCharacter by remember { mutableStateOf(currentCharacter) }
     var selectedBackgroundColor by remember { mutableStateOf(currentBackgroundColor ?: "#D32F2F") }
+    var phoneNumber by remember { mutableStateOf("") }
 
     val characters = listOf(
         CharacterOption("lion", R.drawable.lion, "사자"),
@@ -91,7 +94,7 @@ fun ProfileCustomizationScreen(
                 },
                 actions = {
                     TextButton(
-                        onClick = { onSave(selectedCharacter, selectedBackgroundColor) }
+                        onClick = { onSave(selectedCharacter, selectedBackgroundColor, phoneNumber) }
                     ) {
                         Text("저장", color = DarkRed)
                     }
@@ -174,6 +177,34 @@ fun ProfileCustomizationScreen(
                     }
                 }
             }
+
+            // Phone Number Registration
+            Text("전화번호 등록 (친구 찾기용)", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text(
+                "숫자만 입력해주세요. (예: 01012345678)",
+                fontSize = 12.sp,
+                color = Color.Gray
+            )
+
+            OutlinedTextField(
+                value = phoneNumber,
+                onValueChange = { input ->
+                    val filtered = input.filter { it.isDigit() }
+                    if (filtered.length <= 11) {
+                        phoneNumber = filtered
+                    }
+                },
+                label = { Text("전화번호 (하이픈 없이)") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth(),
+                isError = phoneNumber.isNotEmpty() && (phoneNumber.length < 10 || !phoneNumber.startsWith("010")),
+                supportingText = {
+                    if (phoneNumber.isNotEmpty() && (phoneNumber.length < 10 || !phoneNumber.startsWith("010"))) {
+                        Text("올바른 휴대폰 번호 형식이 아닙니다.")
+                    }
+                }
+            )
 
             // Background Color Selection
             Text("배경색 선택", fontSize = 18.sp, fontWeight = FontWeight.Bold)

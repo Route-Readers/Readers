@@ -21,6 +21,7 @@ import com.route.readers.data.remote.ChallengeRepository
 import com.route.readers.ui.screens.attendance.AttendanceViewModel
 import com.route.readers.ui.screens.feed.FeedItem
 import com.route.readers.ui.screens.feed.toFeedItem
+import com.route.readers.utils.PrivacyUtils
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -1077,6 +1078,10 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
     }
 
     fun updateProfileCharacter(character: String?, backgroundColor: String?) {
+        updateProfileCustomization(character, backgroundColor, null)
+    }
+
+    fun updateProfileCustomization(character: String?, backgroundColor: String?, phoneNumber: String?) {
         if (currentUserId == null) return
         val currentState = _uiState.value
         if (currentState !is ProfileUiState.Success || !currentState.isMyProfile) return
@@ -1088,18 +1093,24 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
                 if (character != null) {
                     updates["profileImageUrl"] = null
                 }
+                if (!phoneNumber.isNullOrBlank()) {
+                    updates["phoneHash"] = PrivacyUtils.hashPhoneNumber(phoneNumber)
+                }
+                
                 db.collection("users").document(currentUserId).update(updates).await()
+                
                 val updatedUser = currentState.user.copy(
                     profileCharacter = character,
                     profileBackgroundColor = backgroundColor,
-                    profileImageUrl = if (character != null) null else currentState.user.profileImageUrl
+                    profileImageUrl = if (character != null) null else currentState.user.profileImageUrl,
+                    phoneHash = if (!phoneNumber.isNullOrBlank()) PrivacyUtils.hashPhoneNumber(phoneNumber) else currentState.user.phoneHash
                 )
                 _uiState.value = currentState.copy(
                     user = updatedUser,
                     userInfoMap = currentState.userInfoMap + (updatedUser.uid to updatedUser)
                 )
             } catch (e: Exception) {
-                Log.e("ProfileViewModel", "Failed to update profile character", e)
+                Log.e("ProfileViewModel", "Failed to update profile customization", e)
             }
         }
     }

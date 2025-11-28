@@ -304,8 +304,8 @@ fun AppNavigation(navController: NavHostController) {
                     currentCharacter = currentState.user.profileCharacter,
                     currentBackgroundColor = currentState.user.profileBackgroundColor,
                     nickname = currentState.user.nickname,
-                    onSave = { character, backgroundColor ->
-                        profileViewModel.updateProfileCharacter(character, backgroundColor)
+                    onSave = { character, backgroundColor, phoneNumber ->
+                        profileViewModel.updateProfileCustomization(character, backgroundColor, phoneNumber)
                         navController.popBackStack()
                     },
                     onBack = { navController.popBackStack() }

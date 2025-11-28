@@ -8,6 +8,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.data.model.User
 import com.route.readers.data.remote.FriendsRepository
+import com.route.readers.utils.PrivacyUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -266,6 +267,50 @@ class FollowListViewModel(application: Application) : AndroidViewModel(applicati
 
             } catch (e: Exception) {
                 // Handle exception
+            }
+        }
+    }
+
+    fun syncContacts(contacts: List<String>) {
+        _uiState.value = FollowListUiState.Loading
+        viewModelScope.launch {
+            if (currentUserId == null) {
+                _uiState.value = FollowListUiState.Error("로그인이 필요합니다.")
+                return@launch
+            }
+
+            try {
+                // 1. Hash the contact numbers
+                val hashedContacts = contacts.map { PrivacyUtils.hashPhoneNumber(it) }.toSet()
+
+                if (hashedContacts.isEmpty()) {
+                    _uiState.value = FollowListUiState.Success(emptyList(), emptySet())
+                    return@launch
+                }
+
+                // 2. Query Firestore in chunks (due to 'in' query limit of 10/30)
+                val matchedUsers = mutableListOf<User>()
+                val chunks = hashedContacts.chunked(10) // Safer chunk size for 'in' query
+
+                for (chunk in chunks) {
+                    val query = db.collection("users")
+                        .whereIn("phoneHash", chunk)
+                        .get()
+                        .await()
+                    matchedUsers.addAll(query.toObjects(User::class.java))
+                }
+
+                // Filter out self
+                val finalUsers = matchedUsers.filter { it.uid != currentUserId }
+
+                // Get current user's following list to update state correctly
+                val currentUserDoc = db.collection("users").document(currentUserId).get().await()
+                val currentUserFollowingIds = (currentUserDoc.get("following") as? List<String>)?.toSet() ?: emptySet()
+
+                _uiState.value = FollowListUiState.Success(finalUsers, currentUserFollowingIds)
+
+            } catch (e: Exception) {
+                _uiState.value = FollowListUiState.Error("친구 찾기 중 오류가 발생했습니다: ${e.message}")
             }
         }
     }
