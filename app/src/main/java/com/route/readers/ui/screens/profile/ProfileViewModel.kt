@@ -17,10 +17,17 @@ import com.route.readers.data.remote.FirestoreRepository
 import com.route.readers.data.remote.FriendsRepository
 import com.route.readers.data.remote.MyLibraryRepository
 import com.route.readers.data.remote.WishlistRepository
+import android.app.Activity
+import com.google.firebase.auth.PhoneAuthCredential
+import com.google.firebase.auth.PhoneAuthOptions
+import com.google.firebase.auth.PhoneAuthProvider
+import com.google.firebase.auth.FirebaseUser
 import com.route.readers.data.remote.ChallengeRepository
+import java.util.concurrent.TimeUnit
 import com.route.readers.ui.screens.attendance.AttendanceViewModel
 import com.route.readers.ui.screens.feed.FeedItem
 import com.route.readers.ui.screens.feed.toFeedItem
+import com.route.readers.utils.PrivacyUtils
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -53,6 +60,124 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
 
     private val _blockedUsers = MutableStateFlow<List<User>>(emptyList())
     val blockedUsers: StateFlow<List<User>> = _blockedUsers.asStateFlow()
+
+    // Phone Auth States
+    private var verificationId: String? = null
+    private var resendToken: PhoneAuthProvider.ForceResendingToken? = null
+
+    private val _phoneVerificationState = MutableStateFlow<PhoneVerificationState>(PhoneVerificationState.Idle)
+    val phoneVerificationState: StateFlow<PhoneVerificationState> = _phoneVerificationState.asStateFlow()
+
+    fun restoreVerificationState() {
+        val currentUser = auth.currentUser
+        val verifiedNum = currentUser?.phoneNumber
+
+        if (!verifiedNum.isNullOrBlank()) {
+            _phoneVerificationState.value = PhoneVerificationState.Verified
+        } else {
+            _phoneVerificationState.value = PhoneVerificationState.Idle
+            verificationId = null
+            resendToken = null
+        }
+    }
+
+    fun getVerifiedPhoneNumber(): String {
+        val raw = auth.currentUser?.phoneNumber ?: return ""
+        // Convert E.164 format (+8210...) to local format (010...)
+        if (raw.startsWith("+82")) {
+            return "0" + raw.substring(3)
+        }
+        return raw
+    }
+
+    fun sendVerificationCode(activity: Activity, phoneNumber: String) {
+        if (phoneNumber.isBlank()) return
+        
+        // Convert 01012345678 -> +821012345678
+        val formattedPhoneNumber = if (phoneNumber.startsWith("010")) {
+            "+82${phoneNumber.substring(1)}"
+        } else {
+            phoneNumber // Or handle other cases
+        }
+
+        _phoneVerificationState.value = PhoneVerificationState.Loading
+        
+        val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+            override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                // Auto-retrieval or instant verification
+                // In some cases (instant verification), we might want to finalize immediately.
+                // For this flow, we'll treat it as "Code Sent" or verify it directly if possible.
+                // But typically on Android, we still wait for user action or handle this seamlessly.
+                // Let's just treat it as "Verified" for simplicity, or wait for explicit code input.
+                // verifyPhoneNumberWithCredential(credential) // Optional: Auto verify
+                 _phoneVerificationState.value = PhoneVerificationState.CodeSent // Treat as sent to let user confirm
+                 // Note: credential.smsCode might be null here if instant verification happened
+            }
+
+            override fun onVerificationFailed(e: com.google.firebase.FirebaseException) {
+                Log.e("ProfileViewModel", "Verification Failed", e)
+                _phoneVerificationState.value = PhoneVerificationState.Error("인증 실패: ${e.message}")
+            }
+
+            override fun onCodeSent(
+                vId: String,
+                token: PhoneAuthProvider.ForceResendingToken
+            ) {
+                Log.d("ProfileViewModel", "onCodeSent: $vId")
+                verificationId = vId
+                resendToken = token
+                _phoneVerificationState.value = PhoneVerificationState.CodeSent
+            }
+        }
+
+        val options = PhoneAuthOptions.newBuilder(auth)
+            .setPhoneNumber(formattedPhoneNumber)
+            .setTimeout(60L, TimeUnit.SECONDS)
+            .setActivity(activity)
+            .setCallbacks(callbacks)
+            .build()
+        PhoneAuthProvider.verifyPhoneNumber(options)
+    }
+
+    fun verifyPhoneNumberWithCode(code: String) {
+        val vid = verificationId
+        if (vid == null) {
+             _phoneVerificationState.value = PhoneVerificationState.Error("인증 ID가 없습니다. 다시 시도해주세요.")
+             return
+        }
+        
+        _phoneVerificationState.value = PhoneVerificationState.Loading
+        val credential = PhoneAuthProvider.getCredential(vid, code)
+        verifyPhoneNumberWithCredential(credential)
+    }
+
+    private fun verifyPhoneNumberWithCredential(credential: PhoneAuthCredential) {
+        val currentUser = auth.currentUser
+        if (currentUser == null) {
+             _phoneVerificationState.value = PhoneVerificationState.Error("로그인이 필요합니다.")
+             return
+        }
+
+        // We link the phone credential to the existing user account
+        currentUser.linkWithCredential(credential)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    _phoneVerificationState.value = PhoneVerificationState.Verified
+                } else {
+                    // If linking fails (e.g., phone number already used by another account),
+                    // we might just want to check if the credential is valid (signInWithCredential)
+                    // BUT for "Profile", usually linking is the correct path.
+                    // If the number is already used, it throws an exception.
+                    val exception = task.exception
+                    if (exception is com.google.firebase.auth.FirebaseAuthUserCollisionException) {
+                         _phoneVerificationState.value = PhoneVerificationState.Error("이미 다른 계정에 등록된 전화번호입니다.")
+                    } else {
+                        Log.e("ProfileViewModel", "Link Failed", exception)
+                        _phoneVerificationState.value = PhoneVerificationState.Error("인증 확인 실패: ${exception?.message}")
+                    }
+                }
+            }
+    }
 
     fun checkNicknameAvailability(nickname: String) {
         if (nickname.length !in 2..12) {
@@ -1077,6 +1202,10 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
     }
 
     fun updateProfileCharacter(character: String?, backgroundColor: String?) {
+        updateProfileCustomization(character, backgroundColor, null)
+    }
+
+    fun updateProfileCustomization(character: String?, backgroundColor: String?, phoneNumber: String?) {
         if (currentUserId == null) return
         val currentState = _uiState.value
         if (currentState !is ProfileUiState.Success || !currentState.isMyProfile) return
@@ -1088,18 +1217,24 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
                 if (character != null) {
                     updates["profileImageUrl"] = null
                 }
+                if (!phoneNumber.isNullOrBlank()) {
+                    updates["phoneHash"] = PrivacyUtils.hashPhoneNumber(phoneNumber)
+                }
+                
                 db.collection("users").document(currentUserId).update(updates).await()
+                
                 val updatedUser = currentState.user.copy(
                     profileCharacter = character,
                     profileBackgroundColor = backgroundColor,
-                    profileImageUrl = if (character != null) null else currentState.user.profileImageUrl
+                    profileImageUrl = if (character != null) null else currentState.user.profileImageUrl,
+                    phoneHash = if (!phoneNumber.isNullOrBlank()) PrivacyUtils.hashPhoneNumber(phoneNumber) else currentState.user.phoneHash
                 )
                 _uiState.value = currentState.copy(
                     user = updatedUser,
                     userInfoMap = currentState.userInfoMap + (updatedUser.uid to updatedUser)
                 )
             } catch (e: Exception) {
-                Log.e("ProfileViewModel", "Failed to update profile character", e)
+                Log.e("ProfileViewModel", "Failed to update profile customization", e)
             }
         }
     }

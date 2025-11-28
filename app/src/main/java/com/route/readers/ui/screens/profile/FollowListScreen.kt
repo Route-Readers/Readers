@@ -1,5 +1,12 @@
 package com.route.readers.ui.screens.profile
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.provider.ContactsContract
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +24,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Contacts
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
@@ -33,6 +41,7 @@ import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -46,11 +55,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.route.readers.data.model.User
@@ -79,6 +90,23 @@ fun FollowListScreen(
     val uiState by viewModel.uiState.collectAsState()
     val searchedUsers by viewModel.searchedUsers.collectAsState()
     val keyboardController = LocalSoftwareKeyboardController.current
+    val context = LocalContext.current
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+
+    val contactPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            val contacts = readContacts(context)
+            if (contacts.isNotEmpty()) {
+                viewModel.syncContacts(contacts)
+            } else {
+                Toast.makeText(context, "연락처를 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(context, "연락처 접근 권한이 필요합니다.", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     LaunchedEffect(key1 = userId, key2 = selectedTabIndex) {
         viewModel.loadListForTab(userId, selectedTabIndex)
@@ -144,6 +172,33 @@ fun FollowListScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            if (userId == currentUserId && selectedTabIndex != 2) { // Show only for own profile and not on "All Users" tab
+                 Button(
+                    onClick = {
+                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
+                             val contacts = readContacts(context)
+                             if (contacts.isNotEmpty()) {
+                                 viewModel.syncContacts(contacts)
+                             } else {
+                                 Toast.makeText(context, "연락처를 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
+                             }
+                        } else {
+                            contactPermissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.Contacts, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                    Text("연락처로 친구 찾기")
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { viewModel.onSearchQueryChanged(it) },
@@ -278,4 +333,25 @@ fun UserItem(
             }
         }
     }
+}
+
+private fun readContacts(context: Context): List<String> {
+    val contacts = mutableListOf<String>()
+    val cursor = context.contentResolver.query(
+        ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+        arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER),
+        null, null, null
+    )
+    cursor?.use {
+        val numberIndex = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+        if (numberIndex >= 0) {
+            while (it.moveToNext()) {
+                val number = it.getString(numberIndex)
+                if (!number.isNullOrBlank()) {
+                    contacts.add(number)
+                }
+            }
+        }
+    }
+    return contacts
 }

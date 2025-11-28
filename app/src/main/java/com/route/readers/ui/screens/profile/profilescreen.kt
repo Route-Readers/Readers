@@ -146,8 +146,8 @@ fun ProfileScreen(
             currentCharacter = currentState.user.profileCharacter,
             currentBackgroundColor = currentState.user.profileBackgroundColor,
             nickname = currentState.user.nickname,
-            onSave = { character, backgroundColor ->
-                viewModel.updateProfileCharacter(character, backgroundColor)
+            onSave = { character, backgroundColor, phoneNumber ->
+                viewModel.updateProfileCustomization(character, backgroundColor, phoneNumber)
                 showCustomization = false
             },
             onBack = { showCustomization = false }

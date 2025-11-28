@@ -53,5 +53,6 @@ data class User(@DocumentId @get:Exclude
                 val readingAlarmHour: Int = 20,
                 val readingAlarmMinute: Int = 0,
 
-                val fcmToken: String? = null
+                val fcmToken: String? = null,
+                val phoneHash: String? = null
 )
