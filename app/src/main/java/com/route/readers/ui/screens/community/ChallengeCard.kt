@@ -59,11 +59,9 @@ fun SwipeableChallengeCard(
                 // If real data has arrived, clear optimistic update.
                 optimisticChallenge = null
             }
-            Log.d("SwipeableChallengeCard", "Card state set to ACTIVE. ChallengeToShow: ${userChallenge?.id ?: optimisticChallenge?.id}")
         } else if (!isChallengesLoading) {
             // If no active challenge (real or optimistic) and not loading, go to initial.
             cardState = ChallengeCardState.INITIAL
-            Log.d("SwipeableChallengeCard", "Card state set to INITIAL.")
         }
         // If loading and no challenge, remain in current state (e.g., showing progress indicator).
     }
@@ -297,27 +295,19 @@ fun ActiveChallengeCard(
     currentUserId: String,
     onReset: () -> Unit
 ) {
-    Log.d("ActiveChallengeCard", "ActiveChallengeCard recomposed. Challenge ID: ${challenge.id}, User ID: $currentUserId, Progress: ${challenge.progress[currentUserId]}, Type: ${challenge.type}")
     val (currentProgressValue, totalGoalValue, progressUnit) = when (challenge.type) {
         com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING -> {
             // Display raw pages read for consistency with ChallengeScreen
-            val progress = challenge.progress[currentUserId] ?: 0
-            Log.d("ActiveChallengeCard", "DAILY_PAGES_READING - currentProgressValue: $progress, goal: ${challenge.goal}")
-            Triple(progress, challenge.goal.takeIf { it > 0 } ?: 1, "페이지")
+            Triple(challenge.progress[currentUserId] ?: 0, challenge.goal.takeIf { it > 0 } ?: 1, "페이지")
         }
         com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING, com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING_WITH_FRIEND -> {
-            val progress = challenge.progress[currentUserId] ?: 0
-            Log.d("ActiveChallengeCard", "CONSECUTIVE_READING - currentProgressValue: $progress")
-            Triple(progress, 7, "일")
+            Triple(challenge.progress[currentUserId] ?: 0, 7, "일")
         }
         else -> {
-            val progress = challenge.progress[currentUserId] ?: 0
-            Log.d("ActiveChallengeCard", "OTHER_TYPE - currentProgressValue: $progress")
-            Triple(progress, challenge.goal.takeIf { it > 0 } ?: 1, "일")
+            Triple(challenge.progress[currentUserId] ?: 0, challenge.goal.takeIf { it > 0 } ?: 1, "일")
         }
     }
     val overallProgressFraction = if (totalGoalValue > 0) currentProgressValue.toFloat() / totalGoalValue.toFloat() else 0f
-    Log.d("ActiveChallengeCard", "overallProgressFraction: $overallProgressFraction")
 
     val daysRemaining = challenge.joinDate[currentUserId]?.let { joinDate ->
         val joinTimestamp = joinDate.time
@@ -325,7 +315,6 @@ fun ActiveChallengeCard(
         val elapsedDays = java.util.concurrent.TimeUnit.MILLISECONDS.toDays(elapsedMillis).toInt()
         (7 - elapsedDays).coerceAtLeast(0)
     } ?: 0
-    Log.d("ActiveChallengeCard", "Days remaining: $daysRemaining")
 
     Card(
         modifier = Modifier
