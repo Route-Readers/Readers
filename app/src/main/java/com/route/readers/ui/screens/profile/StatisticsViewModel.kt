@@ -1,12 +1,17 @@
 package com.route.readers.ui.screens.profile
 
+import android.app.Application
+import android.content.Context
 import android.util.Log
 import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.AndroidViewModel // AndroidViewModel import 추가
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.yml.charts.common.model.Point
 import com.google.firebase.auth.FirebaseAuth
+import com.route.readers.Prefs
 import com.route.readers.data.model.ReadingSession
+import com.route.readers.data.remote.ChallengeRepository
 import com.route.readers.data.remote.FirestoreRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -83,9 +88,15 @@ data class StatisticsUiState(
     val isLoading: Boolean = true
 )
 
-class StatisticsViewModel : ViewModel() {
+class StatisticsViewModel(application: Application) : AndroidViewModel(application) {
     private val firestoreRepository = FirestoreRepository()
+    private val challengeRepository = ChallengeRepository()
     private val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+
+    private val sharedPreferences = application.getSharedPreferences(
+        Prefs.PREFS_NAME,
+        Context.MODE_PRIVATE
+    )
 
     private val _uiState = MutableStateFlow(StatisticsUiState())
     val uiState: StateFlow<StatisticsUiState> = _uiState.asStateFlow()
@@ -144,11 +155,28 @@ class StatisticsViewModel : ViewModel() {
                 }
     
                 when (_uiState.value.selectedTab) {
-                    "일" -> _uiState.value = _uiState.value.copy(
-                        dailyStats = calculateDailyStats(sessions, finishedBooksInPeriod, dailyReadings),
-                        chartData = calculateDailyChartData(sessions),
-                        genreStats = calculateGenreStats(sessions, allBooks)
-                    )
+                    "일" -> {
+                        val dailyStats = calculateDailyStats(sessions, finishedBooksInPeriod, dailyReadings)
+                        _uiState.value = _uiState.value.copy(
+                            dailyStats = dailyStats,
+                            chartData = calculateDailyChartData(sessions),
+                            genreStats = calculateGenreStats(sessions, allBooks)
+                        )
+                        // 활성화된 챌린지가 있다면 진행 상황 업데이트
+                        val selectedChallengeId = sharedPreferences.getString(Prefs.KEY_SELECTED_CHALLENGE, null)
+                        if (selectedChallengeId != null && currentUserId != null) {
+                            val selectedDateStr = _uiState.value.selectedDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                            val pagesReadToday = dailyReadings[selectedDateStr] ?: 0
+                            if (pagesReadToday > 0) {
+                                challengeRepository.updateDailyProgress(
+                                    challengeId = selectedChallengeId,
+                                    userId = currentUserId,
+                                    date = selectedDateStr,
+                                    dailyAmount = pagesReadToday
+                                )
+                            }
+                        }
+                    }
                     "주" -> _uiState.value = _uiState.value.copy(
                         weeklyStats = calculateWeeklyStats(sessions, finishedBooksInPeriod, dailyReadings),
                         chartData = calculateWeeklyChartData(sessions),
