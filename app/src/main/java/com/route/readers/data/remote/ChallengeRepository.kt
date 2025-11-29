@@ -121,7 +121,7 @@ class ChallengeRepository {
             val challenge = snapshot.toObject(Challenge::class.java) ?: return@runTransaction
 
             val currentDailyProgress = challenge.dailyProgress[userId]?.toMutableMap() ?: mutableMapOf()
-            currentDailyProgress[date] = (currentDailyProgress[date] ?: 0) + dailyAmount
+            currentDailyProgress[date] = dailyAmount
 
             val newProgress = when (challenge.type) {
                 ChallengeType.DAILY_PAGES_READING -> {
