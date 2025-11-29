@@ -121,16 +121,19 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
 
     private fun getCurrentWeekNumber(): Int {
         val calendar = java.util.Calendar.getInstance()
-        return calendar.get(java.util.Calendar.WEEK_OF_YEAR)
+        val year = calendar.get(java.util.Calendar.YEAR)
+        val week = calendar.get(java.util.Calendar.WEEK_OF_YEAR)
+        return year * 100 + week
     }
 
     fun refreshChallenges() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isChallengesLoading = true)
             try {
-                val availableChallenges = challengeRepository.getChallenges() // Still need to get available challenges
+                val currentWeekNumber = getCurrentWeekNumber()
+                val weeklyChallenges = challengeRepository.getChallengesForWeek(currentWeekNumber)
                 _uiState.value = _uiState.value.copy(
-                    availableChallenges = availableChallenges,
+                    availableChallenges = weeklyChallenges.filter { it.type != com.route.readers.data.model.ChallengeType.CUSTOM },
                     isChallengesLoading = false
                 )
             } catch (e: Exception) {
@@ -163,6 +166,7 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
             try {
                 challengeRepository.joinChallenge(challengeId, currentUserId)
                 sharedPreferences.edit().putString(Prefs.KEY_SELECTED_CHALLENGE, challengeId).apply()
+                challengeRepository.refreshUserActiveChallenge(currentUserId)
 
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -178,6 +182,7 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
                 _uiState.value.userActiveChallenge?.let { challenge ->
                     challengeRepository.leaveChallenge(challenge.id, currentUserId)
                     sharedPreferences.edit().remove(Prefs.KEY_SELECTED_CHALLENGE).apply()
+                    challengeRepository.refreshUserActiveChallenge(currentUserId)
                 }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
