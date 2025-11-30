@@ -11,6 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -247,7 +248,14 @@ fun BookSearchTab(
                 }
             }
 
-            items(books, key = { book -> book.isbn13 ?: book.isbn ?: book.title }) { book ->
+            itemsIndexed(
+                books,
+                key = { index, book ->
+                    val primary = book.isbn13?.takeIf { it.isNotBlank() }
+                        ?: book.isbn?.takeIf { it.isNotBlank() }
+                    primary ?: "${book.title.ifBlank { "untitled" }}-$index"
+                }
+            ) { _, book ->
                 BookSearchItem(
                     book = book,
                     libraryViewModel = libraryViewModel,

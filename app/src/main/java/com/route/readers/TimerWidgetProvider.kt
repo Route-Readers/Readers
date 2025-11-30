@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
 import android.widget.RemoteViews
+import androidx.core.content.ContextCompat
 import com.route.readers.TimerService
 
 class TimerWidgetProvider : AppWidgetProvider() {
@@ -100,7 +101,7 @@ class TimerWidgetProvider : AppWidgetProvider() {
                 action = TimerService.ACTION_UPDATE_BOOK_DATA
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
             }
-            context.startService(updateBookDataIntent)
+            ContextCompat.startForegroundService(context, updateBookDataIntent)
         }
     }
 
