@@ -15,6 +15,9 @@ import com.google.firebase.auth.FirebaseAuth
 import com.route.readers.data.model.Challenge
 import com.route.readers.data.model.ChallengeType
 import java.text.SimpleDateFormat
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -27,15 +30,22 @@ fun ChallengeCard(
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
     val isJoined = challenge.participants.contains(currentUserId)
 
-    val daysDiff = challenge.endDate?.let {
-        it.time - System.currentTimeMillis()
-    } ?: 0L
-
-    val daysText = if (daysDiff <= 0) {
-        "종료됨"
+    val daysRemaining = if (isJoined) {
+        challenge.joinDate[currentUserId]?.let { joinDate ->
+            val joinLocalDate = joinDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
+            val todayLocalDate = LocalDate.now(ZoneId.systemDefault())
+            val elapsedDays = ChronoUnit.DAYS.between(joinLocalDate, todayLocalDate).toInt()
+            (7 - elapsedDays).coerceAtLeast(0)
+        } ?: 0 // 참여했지만 joinDate가 없는 경우 0일로 표시
     } else {
-        "${TimeUnit.MILLISECONDS.toDays(daysDiff).toInt()}일 남음"
+        // 아직 참여하지 않은 챌린지의 남은 기간 계산 (endDate 기준)
+        challenge.endDate?.let {
+            val diff = it.time - System.currentTimeMillis()
+            if (diff > 0) TimeUnit.MILLISECONDS.toDays(diff).toInt() else 0
+        } ?: 7 // endDate가 없으면 기본 7일로 표시
     }
+
+    val daysText = if (daysRemaining <= 0) "종료됨" else "${daysRemaining}일 남음"
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -97,22 +107,14 @@ fun ChallengeCard(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 // 챌린지 타입에 따른 진행도 표시
-                when (challenge.type) {
-                    ChallengeType.DAILY_PAGES_READING -> {
-                        val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-                        val todayPages = (challenge.dailyProgress[currentUserId]?.get(todayStr) as? Number)?.toInt() ?: 0
-                        Text(text = "${currentProgressValue} / ${totalGoalValue}${progressUnit} 완료 (${(overallProgressFraction * 100).toInt()}%)")
-                        Text(
-                            text = "오늘 읽은 페이지: ${todayPages}/${challenge.goal}페이지",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (todayPages >= challenge.goal) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    else -> {
-                        Text(text = "${currentProgressValue} / ${totalGoalValue}${progressUnit} 완료 (${(overallProgressFraction * 100).toInt()}%)")
-                    }
+                val progressText = if (challenge.type == ChallengeType.DAILY_PAGES_READING) {
+                    val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                    val todayPages = (challenge.dailyProgress[currentUserId]?.get(todayStr) as? Number)?.toInt() ?: 0
+                    "${currentProgressValue}/${totalGoalValue}${progressUnit} 완료 (오늘: ${todayPages}/${challenge.goal}페이지) (${(overallProgressFraction * 100).toInt()}%)"
+                } else {
+                    "${currentProgressValue}/${totalGoalValue}${progressUnit} 완료 (${(overallProgressFraction * 100).toInt()}%)"
                 }
+                Text(text = progressText)
             } else {
                 Button(
                     onClick = onJoinClick,

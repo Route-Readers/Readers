@@ -27,6 +27,9 @@ import androidx.compose.ui.unit.sp
 import com.route.readers.data.model.Challenge
 import kotlinx.coroutines.delay
 import android.util.Log
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 
@@ -90,7 +93,11 @@ fun SwipeableChallengeCard(
                         challenges = availableChallenges,
                         onSelect = { challenge ->
                             onChallengeSelected(challenge)
-                            optimisticChallenge = challenge // Optimistically update the UI.
+                            // Create an optimistic challenge with the join date set to now
+                            val optimisticWithJoinDate = challenge.copy(
+                                joinDate = challenge.joinDate + (currentUserId to java.util.Date())
+                            )
+                            optimisticChallenge = optimisticWithJoinDate
                             cardState = ChallengeCardState.ACTIVE
                         }
                     )
@@ -297,8 +304,11 @@ fun ActiveChallengeCard(
 ) {
     val (currentProgressValue, totalGoalValue, progressUnit) = when (challenge.type) {
         com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING -> {
-            // Display raw pages read for consistency with ChallengeScreen
-            Triple(challenge.progress[currentUserId] ?: 0, challenge.goal.takeIf { it > 0 } ?: 1, "페이지")
+            // Calculate how many days the daily goal has been met
+            val dailyGoalMetDays = challenge.dailyProgress[currentUserId]?.values?.count { pages ->
+                (pages as? Number)?.toInt() ?: 0 >= challenge.goal
+            } ?: 0
+            Triple(dailyGoalMetDays, 7, "일") // X/7 일
         }
         com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING, com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING_WITH_FRIEND -> {
             Triple(challenge.progress[currentUserId] ?: 0, 7, "일")
@@ -310,9 +320,9 @@ fun ActiveChallengeCard(
     val overallProgressFraction = if (totalGoalValue > 0) currentProgressValue.toFloat() / totalGoalValue.toFloat() else 0f
 
     val daysRemaining = challenge.joinDate[currentUserId]?.let { joinDate ->
-        val joinTimestamp = joinDate.time
-        val elapsedMillis = System.currentTimeMillis() - joinTimestamp
-        val elapsedDays = java.util.concurrent.TimeUnit.MILLISECONDS.toDays(elapsedMillis).toInt()
+        val joinLocalDate = joinDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
+        val todayLocalDate = LocalDate.now(ZoneId.systemDefault())
+        val elapsedDays = ChronoUnit.DAYS.between(joinLocalDate, todayLocalDate).toInt()
         (7 - elapsedDays).coerceAtLeast(0)
     } ?: 0
 
@@ -397,8 +407,16 @@ fun ActiveChallengeCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                val progressText = if (challenge.type == com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING) {
+                    val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+                    val todayPages = (challenge.dailyProgress[currentUserId]?.get(todayStr) as? Number)?.toInt() ?: 0
+                    "${currentProgressValue}/${totalGoalValue}${progressUnit} (오늘: ${todayPages}/${challenge.goal}페이지)"
+                } else {
+                    "${currentProgressValue}/${totalGoalValue}${progressUnit}"
+                }
+
                 Text(
-                    "${currentProgressValue} / ${totalGoalValue}${progressUnit}",
+                    text = progressText,
                     color = Color.White,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
