@@ -407,8 +407,16 @@ fun ActiveChallengeCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                val progressText = if (challenge.type == com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING) {
+                    val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+                    val todayPages = (challenge.dailyProgress[currentUserId]?.get(todayStr) as? Number)?.toInt() ?: 0
+                    "${currentProgressValue}/${totalGoalValue}${progressUnit} (오늘: ${todayPages}/${challenge.goal}페이지)"
+                } else {
+                    "${currentProgressValue}/${totalGoalValue}${progressUnit}"
+                }
+
                 Text(
-                    "${currentProgressValue} / ${totalGoalValue}${progressUnit}",
+                    text = progressText,
                     color = Color.White,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
