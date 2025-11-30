@@ -171,6 +171,17 @@ class TimerService : Service() {
             handler.removeCallbacks(updateTimerTask)
             Log.d(TAG, "Timer stopped. appWidgetId: $appWidgetId")
             updateWidgetButton(false) // Update button to play
+
+            // 자동으로 페이지 입력 액티비티를 띄워 사용자가 읽은 분량을 저장하도록 유도
+            if (currentBook != null) {
+                val stopIntent = Intent(this, UpdatePageCountActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    putExtra(TimerWidgetProvider.EXTRA_BOOK_ISBN, currentBook?.isbn)
+                    putExtra(TimerWidgetProvider.EXTRA_CURRENT_PAGE, currentBook?.currentPage ?: 0)
+                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                }
+                startActivity(stopIntent)
+            }
         }
     }
 
@@ -338,7 +349,7 @@ class TimerService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        stopTimer() // Ensure timer is stopped when service is destroyed
+        if (timerRunning) stopTimer() // Ensure timer is stopped when service is destroyed
         serviceJob.cancel() // Cancel coroutine scope
         stopForeground(true)
         Log.d(TAG, "TimerService destroyed.")
