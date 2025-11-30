@@ -1,13 +1,16 @@
 package com.route.readers
 
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.app.Service
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
+import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -24,6 +27,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
+import androidx.core.app.NotificationCompat
 
 class TimerService : Service() {
 
@@ -66,10 +70,14 @@ class TimerService : Service() {
         const val ACTION_TOGGLE_TIMER = "com.route.readers.ACTION_TOGGLE_TIMER"
         const val ACTION_RESET_TIMER = "com.route.readers.ACTION_RESET_TIMER"
         const val ACTION_UPDATE_BOOK_DATA = "com.route.readers.ACTION_UPDATE_BOOK_DATA" // New action to refresh book data
+        private const val FOREGROUND_CHANNEL_ID = "timer_widget"
+        private const val FOREGROUND_NOTIFICATION_ID = 42
         private const val TAG = "TimerService"
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        ensureForegroundNotification()
+
         intent?.let {
             appWidgetId = it.getIntExtra(
                 AppWidgetManager.EXTRA_APPWIDGET_ID,
@@ -93,7 +101,14 @@ class TimerService : Service() {
                     resetTimer()
                 }
                 ACTION_UPDATE_BOOK_DATA -> {
-                    serviceScope.launch { fetchBookDataAndBitmap(updateImage = true) } // Fetch book data explicitly
+                    val targetIds = it.getIntArrayExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS)
+                        ?: intArrayOf(appWidgetId)
+                    serviceScope.launch {
+                        targetIds.forEach { id ->
+                            appWidgetId = id
+                            fetchBookDataAndBitmap(updateImage = true)
+                        }
+                    } // Fetch book data explicitly
                 }
                 else -> { // Added else to catch any unhandled actions
                 }
@@ -102,6 +117,42 @@ class TimerService : Service() {
         // Always try to fetch book data on service start or command
         serviceScope.launch { fetchBookDataAndBitmap(updateImage = true) }
         return START_STICKY // Service will be restarted if killed
+    }
+
+    @SuppressLint("ForegroundServiceType")
+    private fun ensureForegroundNotification() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = android.app.NotificationChannel(
+                FOREGROUND_CHANNEL_ID,
+                "Reading Timer",
+                android.app.NotificationManager.IMPORTANCE_LOW
+            )
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            manager.createNotificationChannel(channel)
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            Intent(this, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val notification = NotificationCompat.Builder(this, FOREGROUND_CHANNEL_ID)
+            .setContentTitle("독서 타이머 실행 중")
+            .setContentText("위젯을 눌러 진행 상황을 확인하세요.")
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentIntent(pendingIntent)
+            .setOngoing(true)
+            .build()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(FOREGROUND_NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        } else {
+            startForeground(FOREGROUND_NOTIFICATION_ID, notification)
+        }
     }
 
     private fun startTimer() {
@@ -120,6 +171,17 @@ class TimerService : Service() {
             handler.removeCallbacks(updateTimerTask)
             Log.d(TAG, "Timer stopped. appWidgetId: $appWidgetId")
             updateWidgetButton(false) // Update button to play
+
+            // 자동으로 페이지 입력 액티비티를 띄워 사용자가 읽은 분량을 저장하도록 유도
+            if (currentBook != null) {
+                val stopIntent = Intent(this, UpdatePageCountActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    putExtra(TimerWidgetProvider.EXTRA_BOOK_ISBN, currentBook?.isbn)
+                    putExtra(TimerWidgetProvider.EXTRA_CURRENT_PAGE, currentBook?.currentPage ?: 0)
+                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                }
+                startActivity(stopIntent)
+            }
         }
     }
 
@@ -287,8 +349,9 @@ class TimerService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        stopTimer() // Ensure timer is stopped when service is destroyed
+        if (timerRunning) stopTimer() // Ensure timer is stopped when service is destroyed
         serviceJob.cancel() // Cancel coroutine scope
+        stopForeground(true)
         Log.d(TAG, "TimerService destroyed.")
     }
 }

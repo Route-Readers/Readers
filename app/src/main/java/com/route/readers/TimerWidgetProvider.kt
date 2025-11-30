@@ -6,7 +6,9 @@ import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
 import android.widget.RemoteViews
+import androidx.core.content.ContextCompat
 import com.route.readers.TimerService
+import com.route.readers.TimerService.Companion.ACTION_STOP_TIMER
 
 class TimerWidgetProvider : AppWidgetProvider() {
 
@@ -64,20 +66,18 @@ class TimerWidgetProvider : AppWidgetProvider() {
                 )
                 setOnClickPendingIntent(R.id.reset_button, resetPendingIntent)
 
-                // PendingIntent for Stop button (launches UpdatePageCountActivity)
-                val stopTimerIntent = Intent(context, UpdatePageCountActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) // Needed to launch Activity from non-Activity context
-                    putExtra(EXTRA_BOOK_ISBN, bookIsbn)
-                    putExtra(EXTRA_CURRENT_PAGE, currentPage)
-                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId) // Pass widget ID back
+                // PendingIntent for Stop button: stop timer service first, then open page update flow
+                val stopTimerIntent = Intent(context, TimerService::class.java).apply {
+                    action = ACTION_STOP_TIMER
+                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
                 }
-                val stopPendingIntent: PendingIntent = PendingIntent.getActivity(
+                val stopTimerPendingIntent: PendingIntent = PendingIntent.getService(
                     context,
-                    appWidgetId + 2, // Use a different request code for stop
+                    appWidgetId + 2,
                     stopTimerIntent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
-                setOnClickPendingIntent(R.id.stop_button, stopPendingIntent) // Use R.id.stop_button
+                setOnClickPendingIntent(R.id.stop_button, stopTimerPendingIntent)
 
                 // PendingIntent for clicking the book info area
                 val bookSelectionIntent = Intent(context, BookSelectionActivity::class.java).apply {
@@ -100,7 +100,7 @@ class TimerWidgetProvider : AppWidgetProvider() {
                 action = TimerService.ACTION_UPDATE_BOOK_DATA
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
             }
-            context.startService(updateBookDataIntent)
+            ContextCompat.startForegroundService(context, updateBookDataIntent)
         }
     }
 

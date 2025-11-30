@@ -8,13 +8,16 @@ import android.content.Intent
 import android.widget.RemoteViews
 import com.route.readers.MainActivity
 import com.route.readers.R
-import com.route.readers.data.remote.MyLibraryRepository
+import com.route.readers.data.remote.FirestoreRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class ReadingProgressWidget : AppWidgetProvider() {
+
+    private val widgetScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onUpdate(
         context: Context,
@@ -51,11 +54,10 @@ class ReadingProgressWidget : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int
     ) {
-        CoroutineScope(Dispatchers.IO).launch {
+        widgetScope.launch {
             try {
-                val repository = MyLibraryRepository()
-                repository.syncWithFirestore()
-                val books = repository.myBooks.value
+                val repository = FirestoreRepository()
+                val books = repository.getMyBooks()
 
                 val currentBook = books
                     .filter { it.progressPercentage < 100 }

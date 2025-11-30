@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -16,6 +18,7 @@ import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,6 +66,8 @@ fun CommunityScreen(
     var showCreateBookClubDialog by remember { mutableStateOf(false) }
     var showChatScreen by remember { mutableStateOf<BookClub?>(null) }
     var selectedTab by remember { mutableStateOf(0) }
+    val communityListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
+    val usedTradeListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
 
     // 화면이 활성화될 때 데이터를 새로고침합니다.
     LaunchedEffect(isActive) {
@@ -77,6 +82,15 @@ fun CommunityScreen(
             .background(MaterialTheme.colorScheme.background)
     ) {
         Spacer(modifier = Modifier.height(16.dp))
+
+        if (uiState.isFriendsLoading || uiState.isBookClubsLoading) {
+            LinearProgressIndicator(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+        }
 
         // "커뮤니티" / "중고책 거래" 탭
         Row(
@@ -131,13 +145,15 @@ fun CommunityScreen(
                         onJoinChallenge = { challengeId -> viewModel.joinChallenge(challengeId) },
                         onResetChallenge = { viewModel.resetChallenge() },
                         onNavigateToUserProfile = onNavigateToUserProfile,
-                        currentUserId = viewModel.currentUserId
+                        currentUserId = viewModel.currentUserId,
+                        listState = communityListState
                     )
                 }
             }
             1 -> UsedBookTradeScreen(
                 onNavigateToDetail = onNavigateToUsedBookDetail,
-                onNavigateToChatList = onNavigateToChatList
+                onNavigateToChatList = onNavigateToChatList,
+                listState = usedTradeListState
             )
         }
     }
@@ -200,11 +216,13 @@ fun CommunityContent(
     onJoinChallenge: (String) -> Unit = {},
     onResetChallenge: () -> Unit = {},
     onNavigateToUserProfile: (String) -> Unit,
-    currentUserId: String = ""
+    currentUserId: String = "",
+    listState: LazyListState
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp)
+        contentPadding = PaddingValues(16.dp),
+        state = listState
     ) {
         item {
             SwipeableChallengeCard(
@@ -247,13 +265,20 @@ fun CommunityContent(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        items(uiState.displayedFriends) { friend ->
-            FriendItemWithDelete(
-                friend = friend,
-                onDeleteClick = { onRemoveFriend(friend) },
-                onProfileClick = { onNavigateToUserProfile(friend.uid) }
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+        if (uiState.isFriendsLoading) {
+            items(3) {
+                FriendPlaceholderRow()
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+        } else {
+            items(uiState.displayedFriends) { friend ->
+                FriendItemWithDelete(
+                    friend = friend,
+                    onDeleteClick = { onRemoveFriend(friend) },
+                    onProfileClick = { onNavigateToUserProfile(friend.uid) }
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
         }
 
         item {
@@ -279,13 +304,20 @@ fun CommunityContent(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        items(bookClubs) { bookClub ->
-            BookClubCard(
-                bookClub = bookClub,
-                onJoinClick = { onToggleBookClubMembership(bookClub.id, bookClub.isJoined) },
-                onChatClick = if (bookClub.isJoined) { { onJoinBookClub(bookClub) } } else null
-            )
-            Spacer(modifier = Modifier.height(12.dp))
+        if (uiState.isBookClubsLoading) {
+            items(3) {
+                BookClubPlaceholderCard()
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+        } else {
+            items(bookClubs) { bookClub ->
+                BookClubCard(
+                    bookClub = bookClub,
+                    onJoinClick = { onToggleBookClubMembership(bookClub.id, bookClub.isJoined) },
+                    onChatClick = if (bookClub.isJoined) { { onJoinBookClub(bookClub) } } else null
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
         }
 
         item {
@@ -594,6 +626,96 @@ fun FriendItemWithDelete(
                 contentDescription = "친구 삭제",
                 tint = MaterialTheme.colorScheme.error
             )
+        }
+    }
+}
+
+@Composable
+private fun FriendPlaceholderRow() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.6f)
+                    .height(16.dp)
+                    .clip(MaterialTheme.shapes.extraSmall)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.4f)
+                    .height(14.dp)
+                    .clip(MaterialTheme.shapes.extraSmall)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        )
+    }
+}
+
+@Composable
+private fun BookClubPlaceholderCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.5f)
+                    .height(18.dp)
+                    .clip(MaterialTheme.shapes.extraSmall)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(12.dp)
+                    .clip(MaterialTheme.shapes.extraSmall)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.7f)
+                    .height(12.dp)
+                    .clip(MaterialTheme.shapes.extraSmall)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                repeat(3) {
+                    Box(
+                        modifier = Modifier
+                            .height(10.dp)
+                            .weight(1f)
+                            .clip(MaterialTheme.shapes.extraSmall)
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                    )
+                }
+            }
         }
     }
 }
