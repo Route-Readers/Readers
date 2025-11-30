@@ -65,9 +65,15 @@ class ChallengeRepository {
                 this[userId] = 0
             }
 
+            val currentJoinDates = snapshot.get("joinDate") as? Map<String, java.util.Date> ?: emptyMap()
+            val updatedJoinDates = currentJoinDates.toMutableMap().apply {
+                this[userId] = java.util.Date() // Firestore will convert this to a ServerTimestamp when committed.
+            }
+
             transaction.update(docRef, mapOf(
                 "participants" to updatedParticipants,
-                "progress" to updatedProgress
+                "progress" to updatedProgress,
+                "joinDate" to updatedJoinDates
             ))
         }.await()
 

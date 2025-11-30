@@ -27,6 +27,9 @@ import androidx.compose.ui.unit.sp
 import com.route.readers.data.model.Challenge
 import kotlinx.coroutines.delay
 import android.util.Log
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 
@@ -90,7 +93,11 @@ fun SwipeableChallengeCard(
                         challenges = availableChallenges,
                         onSelect = { challenge ->
                             onChallengeSelected(challenge)
-                            optimisticChallenge = challenge // Optimistically update the UI.
+                            // Create an optimistic challenge with the join date set to now
+                            val optimisticWithJoinDate = challenge.copy(
+                                joinDate = challenge.joinDate + (currentUserId to java.util.Date())
+                            )
+                            optimisticChallenge = optimisticWithJoinDate
                             cardState = ChallengeCardState.ACTIVE
                         }
                     )
@@ -310,9 +317,9 @@ fun ActiveChallengeCard(
     val overallProgressFraction = if (totalGoalValue > 0) currentProgressValue.toFloat() / totalGoalValue.toFloat() else 0f
 
     val daysRemaining = challenge.joinDate[currentUserId]?.let { joinDate ->
-        val joinTimestamp = joinDate.time
-        val elapsedMillis = System.currentTimeMillis() - joinTimestamp
-        val elapsedDays = java.util.concurrent.TimeUnit.MILLISECONDS.toDays(elapsedMillis).toInt()
+        val joinLocalDate = joinDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
+        val todayLocalDate = LocalDate.now(ZoneId.systemDefault())
+        val elapsedDays = ChronoUnit.DAYS.between(joinLocalDate, todayLocalDate).toInt()
         (7 - elapsedDays).coerceAtLeast(0)
     } ?: 0
 
