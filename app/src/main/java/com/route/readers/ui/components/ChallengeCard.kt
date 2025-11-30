@@ -107,22 +107,7 @@ fun ChallengeCard(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 // 챌린지 타입에 따른 진행도 표시
-                when (challenge.type) {
-                    ChallengeType.DAILY_PAGES_READING -> {
-                        val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-                        val todayPages = (challenge.dailyProgress[currentUserId]?.get(todayStr) as? Number)?.toInt() ?: 0
-                        Text(text = "${currentProgressValue} / ${totalGoalValue}${progressUnit} 완료 (${(overallProgressFraction * 100).toInt()}%)")
-                        Text(
-                            text = "오늘 읽은 페이지: ${todayPages}/${challenge.goal}페이지",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (todayPages >= challenge.goal) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    else -> {
-                        Text(text = "${currentProgressValue} / ${totalGoalValue}${progressUnit} 완료 (${(overallProgressFraction * 100).toInt()}%)")
-                    }
-                }
+                Text(text = "${currentProgressValue} / ${totalGoalValue}${progressUnit} 완료 (${(overallProgressFraction * 100).toInt()}%)")
             } else {
                 Button(
                     onClick = onJoinClick,
