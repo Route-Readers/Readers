@@ -13,7 +13,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 data class UsedBookTradeUiState(
-    val books: List<UsedBook> = emptyList()
+    val books: List<UsedBook> = emptyList(),
+    val isLoading: Boolean = true
 )
 
 class UsedBookTradeViewModel : ViewModel() {
@@ -32,7 +33,10 @@ class UsedBookTradeViewModel : ViewModel() {
         viewModelScope.launch {
             repository.getUsedBooksFlow().collect { books ->
                 android.util.Log.d("UsedBookTrade", "Real-time update: ${books.size} books")
-                _uiState.value = _uiState.value.copy(books = books)
+                _uiState.value = _uiState.value.copy(
+                    books = books,
+                    isLoading = false
+                )
             }
         }
     }

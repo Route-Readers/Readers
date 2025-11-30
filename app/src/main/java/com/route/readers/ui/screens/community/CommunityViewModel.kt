@@ -27,6 +27,7 @@ data class CommunityUiState(
     val friends: List<User> = emptyList(), // Changed to List<User>
     val bookClubs: List<BookClub> = emptyList(),
     val isBookClubsLoading: Boolean = true,
+    val isFriendsLoading: Boolean = true,
     val isChallengesLoading: Boolean = true,
     val userActiveChallenge: Challenge? = null,
     val availableChallenges: List<Challenge> = emptyList(),
@@ -63,7 +64,10 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
 
         viewModelScope.launch {
             friendsRepository.friends.collect { friends ->
-                _uiState.value = _uiState.value.copy(friends = friends)
+                _uiState.value = _uiState.value.copy(
+                    friends = friends,
+                    isFriendsLoading = false
+                )
             }
         }
         viewModelScope.launch {
