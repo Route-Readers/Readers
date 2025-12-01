@@ -116,6 +116,21 @@ fun ChallengeCard(
                 }
                 Text(text = progressText)
             } else {
+                // 참여하지 않은 경우에도 DAILY_PAGES_READING 타입이면 오늘 진행률을 보여줌
+                if (challenge.type == ChallengeType.DAILY_PAGES_READING) {
+                    val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                    val todayPages = (challenge.dailyProgress[currentUserId]?.get(todayStr) as? Number)?.toInt() ?: 0
+                    val dailyGoal = challenge.goal
+                    val dailyProgressFraction = if (dailyGoal > 0) todayPages.toFloat() / dailyGoal.toFloat() else 0f
+
+                    LinearProgressIndicator(
+                        progress = { dailyProgressFraction },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(text = "오늘: ${todayPages}/${dailyGoal}페이지 (${(dailyProgressFraction * 100).toInt()}%)")
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
                 Button(
                     onClick = onJoinClick,
                     modifier = Modifier.fillMaxWidth()
