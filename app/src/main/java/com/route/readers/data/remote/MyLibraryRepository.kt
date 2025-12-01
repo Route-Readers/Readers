@@ -8,6 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import com.route.readers.data.remote.FirestoreRepository
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -74,15 +75,14 @@ class MyLibraryRepository {
     private suspend fun updateChallengeProgress() {
         try {
             val userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: return
-            val challengeRepository = ChallengeRepository()
+            val challengeRepository = ChallengeRepository(firestoreRepository)
             val currentWeekNumber = getCurrentWeekNumber()
             val weeklyChallenges = challengeRepository.getChallengesForWeek(currentWeekNumber)
             val userChallenge = weeklyChallenges.find { it.participants.contains(userId) } ?: return
 
-            val pagesReadToday = calculatePagesReadToday()
             val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
-            challengeRepository.updateDailyProgress(userChallenge.id, userId, today, pagesReadToday)
+            challengeRepository.updateDailyProgress(userChallenge.id, userId, today)
 
         } catch (e: Exception) {
             Log.e("MyLibraryRepository", "Error updating challenge progress: ${e.message}", e)

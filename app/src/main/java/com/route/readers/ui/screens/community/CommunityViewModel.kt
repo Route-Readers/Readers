@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.launchIn
 import java.util.concurrent.TimeUnit
+import com.route.readers.data.remote.FirestoreRepository
 
 // Friend data class removed, replaced by User
 
@@ -43,7 +44,8 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
     private val friendsRepository = FriendsRepository()
     private val bookClubRepository = BookClubRepository()
     private val notificationRepository = NotificationRepository(null)
-    private val challengeRepository = ChallengeRepository()
+    private val firestoreRepository = FirestoreRepository()
+    private val challengeRepository = ChallengeRepository(firestoreRepository)
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
     private val sharedPreferences =

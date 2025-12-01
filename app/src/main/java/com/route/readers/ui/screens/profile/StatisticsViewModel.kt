@@ -90,7 +90,7 @@ data class StatisticsUiState(
 
 class StatisticsViewModel(application: Application) : AndroidViewModel(application) {
     private val firestoreRepository = FirestoreRepository()
-    private val challengeRepository = ChallengeRepository()
+    private val challengeRepository = ChallengeRepository(firestoreRepository)
     private val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
 
     private val sharedPreferences = application.getSharedPreferences(
@@ -171,8 +171,7 @@ class StatisticsViewModel(application: Application) : AndroidViewModel(applicati
                                 challengeRepository.updateDailyProgress(
                                     challengeId = selectedChallengeId,
                                     userId = currentUserId,
-                                    date = selectedDateStr,
-                                    dailyAmount = pagesReadToday
+                                    date = selectedDateStr
                                 )
                             }
                         }

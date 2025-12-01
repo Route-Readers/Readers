@@ -15,7 +15,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
-class ChallengeRepository {
+class ChallengeRepository(
+    private val firestoreRepository: FirestoreRepository
+) {
     private val db = FirebaseFirestore.getInstance()
     private val challengesCollection = db.collection("challenges")
 
@@ -120,18 +122,22 @@ class ChallengeRepository {
         }
     }
 
-    suspend fun updateDailyProgress(challengeId: String, userId: String, date: String, dailyAmount: Int) {
+    suspend fun updateDailyProgress(challengeId: String, userId: String, date: String) {
         val docRef = challengesCollection.document(challengeId)
+
+        // Fetch the actual accumulated pages for the day from FirestoreRepository BEFORE the transaction
+        val accumulatedPagesToday = firestoreRepository.getPagesReadOnDate(userId, date)
+
         db.runTransaction { transaction ->
             val snapshot = transaction.get(docRef)
             val challenge = snapshot.toObject(Challenge::class.java) ?: return@runTransaction
 
             val currentDailyProgress = challenge.dailyProgress[userId]?.toMutableMap() ?: mutableMapOf()
-            currentDailyProgress[date] = dailyAmount
+            currentDailyProgress[date] = accumulatedPagesToday // Use the pre-fetched value
 
             val newProgress = when (challenge.type) {
                 ChallengeType.DAILY_PAGES_READING -> {
-                    (currentDailyProgress[date] ?: 0)
+                    accumulatedPagesToday // Use the pre-fetched value directly
                 }
                 ChallengeType.CONSECUTIVE_READING -> {
                     challenge.progress[userId] ?: 0
@@ -139,20 +145,19 @@ class ChallengeRepository {
                 else -> challenge.progress[userId] ?: 0
             }
 
-            // Corrected lines
             transaction.update(docRef, mapOf(
-                "dailyProgress.${userId}.${date}" to (currentDailyProgress[date] ?: 0),
+                "dailyProgress.${userId}.${date}" to accumulatedPagesToday,
                 "progress.${userId}" to newProgress
             ))
         }.await()
         refreshUserActiveChallenge(userId)
     }
 
-    suspend fun updatePagesReadChallengeProgress(userId: String, pagesRead: Int) {
+    suspend fun updatePagesReadChallengeProgress(userId: String) { // Removed pagesRead parameter
         val challengesToUpdate = getUserActiveDailyPageChallenges(userId)
         val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
         challengesToUpdate.forEach { challenge ->
-            updateDailyProgress(challenge.id, userId, today, pagesRead)
+            updateDailyProgress(challenge.id, userId, today) // Call without dailyAmount
         }
     }
 
