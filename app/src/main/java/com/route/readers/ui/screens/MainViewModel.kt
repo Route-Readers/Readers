@@ -10,6 +10,7 @@ import com.route.readers.data.model.User
 import com.route.readers.data.model.Challenge
 import com.route.readers.data.remote.MyLibraryRepository
 import com.route.readers.data.remote.ChallengeRepository
+import com.route.readers.data.remote.FirestoreRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,7 +31,8 @@ class MainViewModel : ViewModel() {
     private val auth = FirebaseAuth.getInstance()
     private val currentUserId = auth.currentUser?.uid
     private val myLibraryRepository = MyLibraryRepository()
-    private val challengeRepository = ChallengeRepository()
+    private val firestoreRepository = FirestoreRepository()
+    private val challengeRepository = ChallengeRepository(firestoreRepository)
 
     private val _consecutiveDays = MutableStateFlow(0)
     val consecutiveDays = _consecutiveDays.asStateFlow()
@@ -206,7 +208,7 @@ class MainViewModel : ViewModel() {
 
         // 3. 챌린지 진행도 업데이트
         if (pagesReadThisSession > 0) {
-            updateChallengeProgress(userId, pagesReadThisSession, startTime)
+            updateChallengeProgress(userId, startTime)
         }
 
         // 4. 피드 게시 다이얼로그를 위한 정보 반환
@@ -218,10 +220,10 @@ class MainViewModel : ViewModel() {
         return Pair(updatedBook, pagesReadThisSession)
     }
 
-    private fun updateChallengeProgress(userId: String, pagesRead: Int, readingDate: Date) {
+    private fun updateChallengeProgress(userId: String, readingDate: Date) {
         GlobalScope.launch {
             try {
-                Log.d("MainViewModel", "Updating challenge progress: userId=$userId, pagesRead=$pagesRead")
+                Log.d("MainViewModel", "Updating challenge progress: userId=$userId")
                 val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                 val dateStr = sdf.format(readingDate)
                 
@@ -236,8 +238,7 @@ class MainViewModel : ViewModel() {
                         challengeRepository.updateDailyProgress(
                             challengeId = challenge.id,
                             userId = userId,
-                            date = dateStr,
-                            dailyAmount = pagesRead
+                            date = dateStr
                         )
                     }
                 }

@@ -48,7 +48,7 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
     private val myLibraryRepository = MyLibraryRepository()
     private val firestoreRepository = FirestoreRepository()
     private val friendsRepository = FriendsRepository()
-    private val challengeRepository = ChallengeRepository()
+    private val challengeRepository = ChallengeRepository(firestoreRepository)
     private val attendanceViewModel = AttendanceViewModel()
     private val currentUserId = auth.currentUser?.uid
 

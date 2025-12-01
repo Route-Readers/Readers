@@ -19,7 +19,7 @@ class FirestoreRepository {
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
     private val bookRepository = BookRepository()
-    private val challengeRepository = ChallengeRepository()
+    private val challengeRepository = ChallengeRepository(this)
 
     private fun getUsersCollection() = firestore.collection("users")
 
@@ -63,6 +63,18 @@ class FirestoreRepository {
             doc.getLong("pagesRead")?.toInt() ?: 0
         } catch (e: Exception) {
             Log.e("FirestoreRepository", "Error getting pages read today", e)
+            0
+        }
+    }
+
+    suspend fun getPagesReadOnDate(userId: String, date: String): Int {
+        return try {
+            val doc = getUsersCollection().document(userId)
+                .collection("daily_reading").document(date)
+                .get().await()
+            doc.getLong("pagesRead")?.toInt() ?: 0
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error getting pages read on date $date: ${e.message}", e)
             0
         }
     }
@@ -160,7 +172,7 @@ class FirestoreRepository {
                     val userRef = getUsersCollection().document(userId)
                     userRef.update("totalPagesRead", FieldValue.increment(pagesReadThisSession.toLong())).await()
 
-                    challengeRepository.updatePagesReadChallengeProgress(userId, pagesReadThisSession)
+                    challengeRepository.updatePagesReadChallengeProgress(userId)
                 }
 
                 val updateData = mutableMapOf<String, Any>(

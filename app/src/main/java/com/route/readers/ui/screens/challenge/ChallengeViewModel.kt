@@ -6,6 +6,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.route.readers.data.model.Challenge
 import com.route.readers.data.model.ChallengeType
 import com.route.readers.data.remote.ChallengeRepository
+import com.route.readers.data.remote.FirestoreRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,7 +30,8 @@ class ChallengeViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(ChallengeUiState())
     val uiState: StateFlow<ChallengeUiState> = _uiState.asStateFlow()
 
-    private val repository = ChallengeRepository()
+    private val firestoreRepository = FirestoreRepository()
+    private val repository = ChallengeRepository(firestoreRepository)
             val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
     
         init {
@@ -198,18 +200,12 @@ class ChallengeViewModel : ViewModel() {
         }
     }
 
-    fun updateDailyProgress(challengeId: String, pagesRead: Int) {
-        viewModelScope.launch {
-            val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(java.util.Date())
-            repository.updateDailyProgress(challengeId, currentUserId, today, pagesRead)
-        }
-    }
-
     fun onPagesRead(pagesRead: Int) {
         viewModelScope.launch {
             val userChallenge = _uiState.value.userChallenge
             if (userChallenge != null && userChallenge.type == ChallengeType.DAILY_PAGES_READING) {
-                updateDailyProgress(userChallenge.id, pagesRead)
+                val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(java.util.Date())
+                repository.updateDailyProgress(userChallenge.id, currentUserId, today)
             }
         }
     }
