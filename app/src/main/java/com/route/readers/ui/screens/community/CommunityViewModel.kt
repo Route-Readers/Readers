@@ -86,8 +86,7 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
 
         // Observe the active challenge from the repository's flow
         currentUserId.let { userId ->
-            challengeRepository.userActiveChallenges
-                .mapNotNull { it[userId] }
+            challengeRepository.getActiveChallengeStream(userId)
                 .onEach { challenge ->
                     _uiState.value = _uiState.value.copy(
                         userActiveChallenge = challenge,
@@ -95,9 +94,6 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
                     )
                 }
                 .launchIn(viewModelScope)
-
-            // Trigger initial refresh of active challenge in the repository
-            challengeRepository.refreshUserActiveChallenge(userId)
         }
 
         loadFriends()
@@ -172,7 +168,7 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
             try {
                 challengeRepository.joinChallenge(challengeId, currentUserId)
                 sharedPreferences.edit().putString(Prefs.KEY_SELECTED_CHALLENGE, challengeId).apply()
-                challengeRepository.refreshUserActiveChallenge(currentUserId)
+    
 
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -188,7 +184,7 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
                 _uiState.value.userActiveChallenge?.let { challenge ->
                     challengeRepository.leaveChallenge(challenge.id, currentUserId)
                     sharedPreferences.edit().remove(Prefs.KEY_SELECTED_CHALLENGE).apply()
-                    challengeRepository.refreshUserActiveChallenge(currentUserId)
+        
                 }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(

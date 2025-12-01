@@ -36,9 +36,8 @@ class ChallengeViewModel : ViewModel() {
     
         init {
             if (currentUserId.isNotBlank()) {
-                // Observe the active challenge from the repository's flow
-                repository.userActiveChallenges
-                    .mapNotNull { it[currentUserId] }
+                // Observe the active challenge from the repository's new real-time stream
+                repository.getActiveChallengeStream(currentUserId)
                     .onEach { challenge ->
                         _uiState.value = _uiState.value.copy(
                             userChallenge = challenge,
@@ -46,9 +45,6 @@ class ChallengeViewModel : ViewModel() {
                         )
                     }
                     .launchIn(viewModelScope)
-    
-                // Trigger initial refresh of active challenge in the repository
-                repository.refreshUserActiveChallenge(currentUserId)
             }
             
             loadAvailableChallenges()
@@ -196,8 +192,7 @@ class ChallengeViewModel : ViewModel() {
     fun joinChallenge(challengeId: String) {
         viewModelScope.launch {
             repository.joinChallenge(challengeId, currentUserId)
-            repository.refreshUserActiveChallenge(currentUserId)
-        }
+                    }
     }
 
     fun onPagesRead(pagesRead: Int) {
