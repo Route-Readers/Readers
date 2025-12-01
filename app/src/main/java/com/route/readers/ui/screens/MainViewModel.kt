@@ -48,13 +48,9 @@ class MainViewModel : ViewModel() {
         loadUserTokens()
         // Initialize the active challenge from the repository's flow
         currentUserId?.let { userId ->
-            challengeRepository.userActiveChallenges
-                .mapNotNull { it[userId] } // Get the challenge for the current user
+            challengeRepository.getActiveChallengeStream(userId)
                 .onEach { _userActiveChallenge.value = it } // Update MainViewModel's flow
                 .launchIn(viewModelScope) // Collect within ViewModel's scope
-
-            // Explicitly refresh the active challenge in the repository when MainViewModel starts
-            challengeRepository.refreshUserActiveChallenge(userId)
         }
     }
 

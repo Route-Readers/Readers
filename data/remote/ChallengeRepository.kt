@@ -5,30 +5,46 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FieldValue
 import com.route.readers.data.model.Challenge
 import com.route.readers.data.model.ChallengeType
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.channels.awaitClose
 import java.util.Calendar
 
 class ChallengeRepository {
     private val db = FirebaseFirestore.getInstance()
     private val challengesCollection = db.collection("challenges")
 
-    private val _userActiveChallenges = MutableStateFlow<Map<String, Challenge?>>(emptyMap())
-    val userActiveChallenges: StateFlow<Map<String, Challenge?>> = _userActiveChallenges.asStateFlow()
-
     private val repositoryScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    fun refreshUserActiveChallenge(userId: String) {
-        repositoryScope.launch {
-            val activeChallenge = getUserActiveChallenge(userId)
-            _userActiveChallenges.value = _userActiveChallenges.value + (userId to activeChallenge)
-        }
+    fun getActiveChallengeStream(userId: String): kotlinx.coroutines.flow.Flow<Challenge?> {
+        val currentWeek = getCurrentWeekNumber()
+        Log.d("ChallengeRepository", "Setting up active challenge listener for userId: $userId, weekNumber: $currentWeek")
+
+        return kotlinx.coroutines.flow.callbackFlow {
+            val query = challengesCollection
+                .whereArrayContains("participants", userId)
+                .whereEqualTo("weekNumber", currentWeek)
+                .limit(1)
+
+            val listenerRegistration = query.addSnapshotListener { snapshot, e ->
+                    if (e != null) {
+                        Log.w("ChallengeRepository", "Listen failed.", e)
+                        close(e)
+                        return@addSnapshotListener
+                    }
+
+                    val challenge = snapshot?.documents?.firstOrNull()?.toObject(Challenge::class.java)
+                    trySend(challenge)
+                }
+
+            awaitClose { listenerRegistration.remove() }
+        }.flowOn(kotlinx.coroutines.Dispatchers.IO)
     }
 
     suspend fun getChallenges(): List<Challenge> {
@@ -61,7 +77,6 @@ class ChallengeRepository {
             transaction.update(docRef, "joinDate.$userId", FieldValue.serverTimestamp())
 
         }.await()
-        refreshUserActiveChallenge(userId)
     }
 
     suspend fun leaveChallenge(challengeId: String, userId: String) {
@@ -79,7 +94,6 @@ class ChallengeRepository {
                 "progress" to updatedProgress
             ))
         }.await()
-        refreshUserActiveChallenge(userId)
     }
 
     suspend fun getUserActiveChallenge(userId: String): Challenge? {
@@ -123,7 +137,6 @@ class ChallengeRepository {
             transaction.update(docRef, "dailyProgress.${userId}.$date", currentDailyProgress[date])
             transaction.update(docRef, "progress.$userId", newProgress)
         }.await()
-        refreshUserActiveChallenge(userId)
     }
 
     private fun getCurrentWeekNumber(): Int {
