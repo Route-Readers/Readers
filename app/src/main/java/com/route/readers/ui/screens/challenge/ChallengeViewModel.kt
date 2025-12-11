@@ -14,6 +14,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.launchIn
+import com.route.readers.data.remote.AttendanceRepository
+import com.route.readers.ui.screens.attendance.AttendanceData
+import java.time.LocalDate
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -22,7 +25,8 @@ data class ChallengeUiState(
     val isLoading: Boolean = true,
     val userChallenge: Challenge? = null,
     val availableChallenges: List<Challenge> = emptyList(),
-    val showCreateDialog: Boolean = false
+    val showCreateDialog: Boolean = false,
+    val consecutiveReadingDays: Int = 0
 )
 
 class ChallengeViewModel : ViewModel() {
@@ -32,24 +36,46 @@ class ChallengeViewModel : ViewModel() {
 
     private val firestoreRepository = FirestoreRepository()
     private val repository = ChallengeRepository(firestoreRepository)
-            val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
     
-        init {
-            if (currentUserId.isNotBlank()) {
-                // Observe the active challenge from the repository's new real-time stream
-                repository.getActiveChallengeStream(currentUserId)
-                    .onEach { challenge ->
-                        _uiState.value = _uiState.value.copy(
-                            userChallenge = challenge,
-                            isLoading = false
-                        )
+    private val attendanceRepository = AttendanceRepository()
+
+    init {
+        if (currentUserId.isNotBlank()) {
+            // Observe the active challenge from the repository's new real-time stream
+            repository.getActiveChallengeStream(currentUserId)
+                .onEach { challenge ->
+                    _uiState.value = _uiState.value.copy(
+                        userChallenge = challenge,
+                        isLoading = false
+                    )
+                    // When the challenge is loaded, if it's a consecutive reading one, update its progress
+                    if (challenge?.type == ChallengeType.CONSECUTIVE_READING) {
+                        updateConsecutiveReadingProgress()
                     }
-                    .launchIn(viewModelScope)
-            }
-            
-            loadAvailableChallenges()
-            initDefaultChallenges()
+                }
+                .launchIn(viewModelScope)
         }
+
+        loadAvailableChallenges()
+        initDefaultChallenges()
+    }
+
+    private fun updateConsecutiveReadingProgress() {
+        viewModelScope.launch {
+            val attendanceData = attendanceRepository.getAttendanceData()
+            val consecutiveReadingDays = attendanceRepository.calculateConsecutiveDays(attendanceData) { it.event != null }
+
+            // Update the UI state
+            _uiState.value = _uiState.value.copy(consecutiveReadingDays = consecutiveReadingDays)
+
+            // Update Firestore
+            val challenge = _uiState.value.userChallenge
+            if (challenge != null && (challenge.progress[currentUserId] ?: 0) != consecutiveReadingDays) {
+                repository.updateChallengeProgress(challenge.id, currentUserId, consecutiveReadingDays)
+            }
+        }
+    }
     private fun loadAvailableChallenges() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
