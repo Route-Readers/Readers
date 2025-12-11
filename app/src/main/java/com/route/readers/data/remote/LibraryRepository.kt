@@ -237,7 +237,8 @@ class LibraryRepository {
             val response = libraryApiService.searchLibrariesByArea(
                 authKey = authKey,
                 latitude = userLatitude,
-                longitude = userLongitude
+                longitude = userLongitude,
+                pageSize = 500
             )
 
             if (response.response.error != null) {
@@ -250,7 +251,7 @@ class LibraryRepository {
                 longitude = userLongitude
             }
 
-            return@withContext response.response.libs.mapNotNull { libraryItem ->
+            val results = response.response.libs.mapNotNull { libraryItem ->
                 val library = libraryItem.lib
                 val libLat = library.latitude?.toDoubleOrNull()
                 val libLon = library.longitude?.toDoubleOrNull()
@@ -265,7 +266,8 @@ class LibraryRepository {
                 } else {
                     null
                 }
-            }.sortedBy { it.distance }
+            }
+            return@withContext results.sortedBy { it.distance }
         } catch (e: Exception) {
             Log.e("LibraryRepository", "getNearbyLibraries 중 오류 발생", e)
             return@withContext emptyList()

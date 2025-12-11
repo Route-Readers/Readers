@@ -228,4 +228,14 @@ class ChallengeRepository(
             emptyList()
         }
     }
+
+    suspend fun updateChallengeProgress(challengeId: String, userId: String, progress: Int) {
+        val docRef = challengesCollection.document(challengeId)
+        try {
+            docRef.update("progress.$userId", progress).await()
+            Log.d("ChallengeRepository", "Updated progress for user $userId in challenge $challengeId to $progress")
+        } catch (e: Exception) {
+            Log.e("ChallengeRepository", "Error updating challenge progress", e)
+        }
+    }
 }

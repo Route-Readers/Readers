@@ -98,6 +98,7 @@ fun ChallengeContent(
                 ChallengeProgress(
                     challenge = uiState.userChallenge,
                     userId = viewModel.currentUserId,
+                    consecutiveReadingDays = uiState.consecutiveReadingDays,
                     modifier = Modifier.padding(paddingValues)
                 )
             }
@@ -152,9 +153,14 @@ fun ChallengeSelection(
 fun ChallengeProgress(
     challenge: Challenge,
     userId: String,
+    consecutiveReadingDays: Int,
     modifier: Modifier = Modifier
 ) {
-    val progress = challenge.progress[userId] ?: 0
+    val progress = if (challenge.type == com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING) {
+        consecutiveReadingDays
+    } else {
+        challenge.progress[userId] ?: 0
+    }
     val progressFraction = if (challenge.goal > 0) progress.toFloat() / challenge.goal.toFloat() else 0f
 
     Column(
