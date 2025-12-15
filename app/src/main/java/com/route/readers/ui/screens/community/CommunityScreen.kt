@@ -231,7 +231,8 @@ fun CommunityContent(
                 onChallengeSelected = { challenge -> onJoinChallenge(challenge.id) },
                 onChallengeReset = onResetChallenge,
                 currentUserId = currentUserId,
-                isChallengesLoading = uiState.isChallengesLoading
+                isChallengesLoading = uiState.isChallengesLoading,
+                consecutiveReadingDays = uiState.consecutiveReadingDays
             )
             Spacer(modifier = Modifier.height(24.dp))
         }

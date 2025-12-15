@@ -34,7 +34,8 @@ data class CommunityUiState(
     val availableChallenges: List<Challenge> = emptyList(),
     val addFriendMessage: String? = null,
     val friendToDelete: User? = null, // Changed to User?
-    val isNotificationSending: Boolean = false
+    val isNotificationSending: Boolean = false,
+    val consecutiveReadingDays: Int = 0
 ) {
     val displayedFriends: List<User> = friends.take(5) // Changed to List<User>
     val hasMoreFriends: Boolean = friends.size > 5
@@ -97,6 +98,7 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
         }
 
         loadFriends()
+        loadConsecutiveReadingDays()
         refreshChallenges() // Load available challenges initially
     }
 
@@ -118,6 +120,18 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
     private fun loadFriends() {
         viewModelScope.launch {
             friendsRepository.loadFriends()
+        }
+    }
+
+    private fun loadConsecutiveReadingDays() {
+        viewModelScope.launch {
+            try {
+                val user = firestoreRepository.getUserProfile(currentUserId)
+                val consecutiveDays = user?.consecutiveReadingDays ?: 0
+                _uiState.value = _uiState.value.copy(consecutiveReadingDays = consecutiveDays)
+            } catch (e: Exception) {
+                // Handle error silently
+            }
         }
     }
 
