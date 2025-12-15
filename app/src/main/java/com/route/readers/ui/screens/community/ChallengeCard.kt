@@ -46,7 +46,8 @@ fun SwipeableChallengeCard(
     onChallengeSelected: (Challenge) -> Unit,
     onChallengeReset: () -> Unit,
     currentUserId: String,
-    isChallengesLoading: Boolean
+    isChallengesLoading: Boolean,
+    consecutiveReadingDays: Int
 ) {
     var cardState by remember { mutableStateOf(ChallengeCardState.INITIAL) }
     var optimisticChallenge by remember { mutableStateOf<Challenge?>(null) }
@@ -109,6 +110,7 @@ fun SwipeableChallengeCard(
                         ActiveChallengeCard(
                             challenge = challengeToShow,
                             currentUserId = currentUserId,
+                            consecutiveReadingDays = consecutiveReadingDays,
                             onReset = {
                                 onChallengeReset()
                                 optimisticChallenge = null
@@ -300,6 +302,7 @@ fun ChallengeOption(
 fun ActiveChallengeCard(
     challenge: Challenge,
     currentUserId: String,
+    consecutiveReadingDays: Int,
     onReset: () -> Unit
 ) {
     val (currentProgressValue, totalGoalValue, progressUnit) = when (challenge.type) {
@@ -311,7 +314,8 @@ fun ActiveChallengeCard(
             Triple(dailyGoalMetDays, 7, "일") // X/7 일
         }
         com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING, com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING_WITH_FRIEND -> {
-            Triple(challenge.progress[currentUserId] ?: 0, 7, "일")
+            // Use actual consecutive reading days from attendance
+            Triple(consecutiveReadingDays, 7, "일")
         }
         else -> {
             Triple(challenge.progress[currentUserId] ?: 0, challenge.goal.takeIf { it > 0 } ?: 1, "일")
