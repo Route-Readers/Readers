@@ -94,6 +94,7 @@ class ChallengeViewModel : ViewModel() {
 
     fun refreshAvailableChallenges() {
         loadAvailableChallenges()
+        updateConsecutiveReadingProgress()
     }
 
     fun showCreateDialog() {
