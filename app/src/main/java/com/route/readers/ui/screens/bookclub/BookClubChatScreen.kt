@@ -1,6 +1,8 @@
 package com.route.readers.ui.screens.bookclub
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -11,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -46,6 +49,7 @@ fun BookClubChatScreen(
     
     LaunchedEffect(bookClubId) {
         viewModel.loadMessages(bookClubId)
+        focusRequester.requestFocus()
     }
     
     LaunchedEffect(uiState.messages.size) {
@@ -70,7 +74,8 @@ fun BookClubChatScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
-                )
+                ),
+                windowInsets = WindowInsets(0.dp)
             )
         },
         bottomBar = {
@@ -128,20 +133,30 @@ fun BookClubChatScreen(
                         
                         Spacer(modifier = Modifier.width(8.dp))
                         
-                        FloatingActionButton(
-                            onClick = {
-                                if (messageText.isNotBlank() && !uiState.isSending) {
-                                    val msg = messageText.trim()
-                                    messageText = ""
-                                    viewModel.sendMessage(bookClubId, msg)
-                                }
-                            },
-                            modifier = Modifier.size(48.dp),
-                            containerColor = if (messageText.isNotBlank() && !uiState.isSending) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.surfaceVariant
-                            }
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(
+                                    color = if (messageText.isNotBlank() && !uiState.isSending) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.surfaceVariant
+                                    },
+                                    shape = CircleShape
+                                )
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    if (messageText.isNotBlank() && !uiState.isSending) {
+                                        val msg = messageText.trim()
+                                        messageText = ""
+                                        viewModel.sendMessage(bookClubId, msg)
+                                        focusRequester.requestFocus()
+                                        keyboardController?.show()
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
                         ) {
                             if (uiState.isSending) {
                                 CircularProgressIndicator(
@@ -207,16 +222,41 @@ fun BookClubChatScreen(
                 }
             }
             else -> {
+                val koreaTimeZone = remember { TimeZone.getTimeZone("Asia/Seoul") }
+                val dateFormat = remember {
+                    SimpleDateFormat("yyyy년 M월 d일 EEEE", Locale.KOREA).apply {
+                        timeZone = koreaTimeZone
+                    }
+                }
+                val dayFormat = remember {
+                    SimpleDateFormat("yyyyMMdd", Locale.KOREA).apply {
+                        timeZone = koreaTimeZone
+                    }
+                }
+                
                 LazyColumn(
                     state = listState,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(paddingValues),
-                    contentPadding = PaddingValues(16.dp),
+                    contentPadding = PaddingValues(vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(uiState.messages) { message ->
-                        ChatMessageItem(message = message)
+                    uiState.messages.forEachIndexed { index, message ->
+                        val messageDate = dayFormat.format(Date(message.timestamp))
+                        val prevMessageDate = if (index > 0) {
+                            dayFormat.format(Date(uiState.messages[index - 1].timestamp))
+                        } else null
+                        
+                        // 첫 메시지이거나 날짜가 바뀌면 날짜 구분선 표시
+                        if (prevMessageDate != messageDate) {
+                            item(key = "date_$messageDate") {
+                                DateDivider(dateFormat.format(Date(message.timestamp)))
+                            }
+                        }
+                        item(key = "msg_${message.id}_$index") {
+                            ChatMessageItem(message = message)
+                        }
                     }
                 }
             }
@@ -225,25 +265,62 @@ fun BookClubChatScreen(
 }
 
 @Composable
+fun DateDivider(date: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = date,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
 fun ChatMessageItem(message: ChatMessage) {
     val isCurrentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid == message.senderId
-    val timeFormat = SimpleDateFormat("a h:mm", Locale.KOREAN).apply {
-        timeZone = TimeZone.getTimeZone("Asia/Seoul")
+    val timeFormat = remember {
+        SimpleDateFormat("a h:mm", Locale.KOREA).apply {
+            timeZone = TimeZone.getTimeZone("Asia/Seoul")
+        }
     }
     
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 8.dp, end = 12.dp),
         horizontalArrangement = if (isCurrentUser) Arrangement.End else Arrangement.Start
     ) {
+        // 상대방일 때만 프로필 이미지 표시
         if (!isCurrentUser) {
-            AsyncImage(
-                model = message.senderProfileImage.ifEmpty { "https://via.placeholder.com/40" },
-                contentDescription = null,
+            Box(
                 modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape),
-                contentScale = ContentScale.Crop
-            )
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                if (message.senderProfileImage.isNotEmpty()) {
+                    AsyncImage(
+                        model = message.senderProfileImage,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.Person,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
             Spacer(modifier = Modifier.width(8.dp))
         }
         
@@ -291,18 +368,6 @@ fun ChatMessageItem(message: ChatMessage) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 2.dp)
-            )
-        }
-        
-        if (isCurrentUser) {
-            Spacer(modifier = Modifier.width(8.dp))
-            AsyncImage(
-                model = message.senderProfileImage.ifEmpty { "https://via.placeholder.com/40" },
-                contentDescription = null,
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape),
-                contentScale = ContentScale.Crop
             )
         }
     }
