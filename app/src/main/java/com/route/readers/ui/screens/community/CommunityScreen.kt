@@ -171,8 +171,8 @@ fun CommunityScreen(
     if (showCreateBookClubDialog) {
         CreateBookClubDialog(
             onDismiss = { showCreateBookClubDialog = false },
-            onCreateBookClub = { name, description, currentBook, author, meetingDate ->
-                viewModel.createBookClub(name, description, currentBook, author, meetingDate)
+            onCreateBookClub = { name, description, currentBook, author, meetingDate, cover, genre, bookDesc ->
+                viewModel.createBookClub(name, description, currentBook, author, meetingDate, cover, genre, bookDesc)
                 showCreateBookClubDialog = false
             }
         )
@@ -401,7 +401,7 @@ fun CommunityContent(
 @Composable
 fun CreateBookClubDialog(
     onDismiss: () -> Unit,
-    onCreateBookClub: (String, String, String, String, String) -> Unit
+    onCreateBookClub: (String, String, String, String, String, String, String, String) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
@@ -591,7 +591,16 @@ fun CreateBookClubDialog(
                     Button(
                         onClick = {
                             if (name.isNotBlank() && selectedBook != null) {
-                                onCreateBookClub(name, description, selectedBook!!.title, selectedBook!!.author, "")
+                                onCreateBookClub(
+                                    name, 
+                                    description, 
+                                    selectedBook!!.title, 
+                                    selectedBook!!.author, 
+                                    "",
+                                    selectedBook!!.cover,
+                                    selectedBook!!.categoryName ?: "",
+                                    selectedBook!!.description
+                                )
                             }
                         },
                         enabled = name.isNotBlank() && selectedBook != null

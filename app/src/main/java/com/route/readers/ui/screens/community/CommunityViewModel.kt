@@ -230,13 +230,16 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     // 북클럽 관련 함수들
-    fun createBookClub(name: String, description: String, bookTitle: String, author: String, meetingDate: String) {
+    fun createBookClub(name: String, description: String, bookTitle: String, author: String, meetingDate: String, bookCover: String = "", bookGenre: String = "", bookDescription: String = "") {
         viewModelScope.launch {
             val bookClub = BookClub(
                 name = name,
                 description = description,
                 currentBook = bookTitle,
                 currentBookAuthor = author,
+                currentBookCover = bookCover,
+                currentBookGenre = bookGenre,
+                currentBookDescription = bookDescription,
                 nextMeetingDate = meetingDate,
                 memberCount = 1,
                 members = listOf(currentUserId),

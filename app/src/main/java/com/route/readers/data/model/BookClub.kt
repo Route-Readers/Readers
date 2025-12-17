@@ -6,13 +6,17 @@ data class BookClub(
     val description: String = "",
     val currentBook: String = "",
     val currentBookAuthor: String = "",
+    val currentBookCover: String = "",
+    val currentBookGenre: String = "",
+    val currentBookDescription: String = "",
     val nextMeetingDate: String = "",
     val memberCount: Int = 0,
     val members: List<String> = emptyList(),
     val createdBy: String = "",
     val createdAt: Long = System.currentTimeMillis(),
     val isJoined: Boolean = false,
-    val bookTitle: String = currentBook
+    val bookTitle: String = currentBook,
+    val bookHistory: Map<String, String> = emptyMap() // 날짜(yyyyMMdd) -> 책 표지 URL
 )
 
 data class ChatMessage(
