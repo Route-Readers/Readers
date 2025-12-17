@@ -16,7 +16,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -36,6 +41,8 @@ fun BookClubChatScreen(
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
     var messageText by remember { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
     
     LaunchedEffect(bookClubId) {
         viewModel.loadMessages(bookClubId)
@@ -50,18 +57,7 @@ fun BookClubChatScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { 
-                    Column {
-                        Text(bookClubName)
-                        if (uiState.messages.isNotEmpty()) {
-                            Text(
-                                "${uiState.messages.size}개의 메시지",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                },
+                title = { Text(bookClubName) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "뒤로가기")
@@ -120,11 +116,14 @@ fun BookClubChatScreen(
                         OutlinedTextField(
                             value = messageText,
                             onValueChange = { messageText = it },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .focusRequester(focusRequester),
                             placeholder = { Text("메시지를 입력하세요...") },
                             shape = RoundedCornerShape(24.dp),
                             maxLines = 3,
-                            enabled = !uiState.isSending
+                            enabled = !uiState.isSending,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.None)
                         )
                         
                         Spacer(modifier = Modifier.width(8.dp))
@@ -132,8 +131,9 @@ fun BookClubChatScreen(
                         FloatingActionButton(
                             onClick = {
                                 if (messageText.isNotBlank() && !uiState.isSending) {
-                                    viewModel.sendMessage(bookClubId, messageText.trim())
+                                    val msg = messageText.trim()
                                     messageText = ""
+                                    viewModel.sendMessage(bookClubId, msg)
                                 }
                             },
                             modifier = Modifier.size(48.dp),
@@ -227,7 +227,9 @@ fun BookClubChatScreen(
 @Composable
 fun ChatMessageItem(message: ChatMessage) {
     val isCurrentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid == message.senderId
-    val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+    val timeFormat = SimpleDateFormat("a h:mm", Locale.KOREAN).apply {
+        timeZone = TimeZone.getTimeZone("Asia/Seoul")
+    }
     
     Row(
         modifier = Modifier.fillMaxWidth(),

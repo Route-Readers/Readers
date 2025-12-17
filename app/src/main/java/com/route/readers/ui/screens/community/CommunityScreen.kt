@@ -81,38 +81,41 @@ fun CommunityScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        Spacer(modifier = Modifier.height(16.dp))
+        // 채팅방이 아닐 때만 상단 여백과 로딩 표시
+        if (showChatScreen == null) {
+            Spacer(modifier = Modifier.height(16.dp))
 
-        if (uiState.isFriendsLoading || uiState.isBookClubsLoading) {
-            LinearProgressIndicator(
+            if (uiState.isFriendsLoading || uiState.isBookClubsLoading) {
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // "커뮤니티" / "중고책 거래" 탭
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-        }
-
-        // "커뮤니티" / "중고책 거래" 탭
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-            Text(
-                "커뮤니티",
-                fontSize = 18.sp,
-                color = if (selectedTab == 0) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
-                modifier = Modifier.clickable { selectedTab = 0 }
-            )
-            Text(
-                "중고책 거래",
-                fontSize = 18.sp,
-                color = if (selectedTab == 1) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant,
-                fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
-                modifier = Modifier.clickable { selectedTab = 1 }
-            )
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                Text(
+                    "커뮤니티",
+                    fontSize = 18.sp,
+                    color = if (selectedTab == 0) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
+                    modifier = Modifier.clickable { selectedTab = 0 }
+                )
+                Text(
+                    "중고책 거래",
+                    fontSize = 18.sp,
+                    color = if (selectedTab == 1) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
+                    modifier = Modifier.clickable { selectedTab = 1 }
+                )
+            }
         }
 
         // 선택된 탭에 따라 다른 화면을 보여줍니다.
