@@ -48,7 +48,8 @@ fun CommunityScreen(
     onNavigateToUsedBookDetail: (String) -> Unit = {},
     onNavigateToChatList: () -> Unit = {},
     onNavigateToUserProfile: (String) -> Unit = {},
-    isActive: Boolean = false
+    isActive: Boolean = false,
+    onChatScreenChanged: (Boolean) -> Unit = {}
 ) {
     // CommunityScreen이 자체적으로 ViewModel을 생성합니다.
     // Application Context가 필요한 ViewModel이므로 Factory를 사용하여 생성합니다.
@@ -68,6 +69,11 @@ fun CommunityScreen(
     var selectedTab by remember { mutableStateOf(0) }
     val communityListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
     val usedTradeListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
+
+    // 채팅방 상태 변경 시 콜백 호출
+    LaunchedEffect(showChatScreen) {
+        onChatScreenChanged(showChatScreen != null)
+    }
 
     // 화면이 활성화될 때 데이터를 새로고침합니다.
     LaunchedEffect(isActive) {

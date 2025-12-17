@@ -100,6 +100,7 @@ fun MainScreen(
     var bookToUpdateAfterReading by remember { mutableStateOf<MyBook?>(null) }
     var lastReadingSessionDuration by remember { mutableStateOf<Int?>(null) }
     var showFinishReadingDialogBook by remember { mutableStateOf<MyBook?>(null) }
+    var isInChatScreen by remember { mutableStateOf(false) }
 
     BackHandler(enabled = true) {
         if (currentRoute == BottomNavItem.Feed.route) {
@@ -215,7 +216,7 @@ fun MainScreen(
                 BottomNavItem.Search.route,
                 BottomNavItem.Community.route,
                 "profile_route/{userId}"
-            )
+            ) && !isInChatScreen
             if (shouldShowTopBar) {
                 val consecutiveReadingDays by attendanceViewModel.consecutiveReadingDays.collectAsState()
                 val tokens by mainViewModel.tokens.collectAsState()
@@ -245,7 +246,7 @@ fun MainScreen(
                 BottomNavItem.Community.route,
                 "profile_route/{userId}"
             )
-            if (currentRoute in routesWithBottomBar) {
+            if (currentRoute in routesWithBottomBar && !isInChatScreen) {
                 BottomNavBar(
                     navController = bottomNavController,
                     onProfileClick = {
@@ -332,7 +333,8 @@ fun MainScreen(
                     onNavigateToUserProfile = { userId ->
                         bottomNavController.navigate("profile_route/$userId")
                     },
-                    isActive = currentRoute == BottomNavItem.Community.route
+                    isActive = currentRoute == BottomNavItem.Community.route,
+                    onChatScreenChanged = { isInChat -> isInChatScreen = isInChat }
                 )
             }
             composable("friends_list") {
