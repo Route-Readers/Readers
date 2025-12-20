@@ -54,24 +54,14 @@ fun SwipeableChallengeCard(
     var optimisticChallenge by remember { mutableStateOf<Challenge?>(null) }
     var isManuallySelecting by remember { mutableStateOf(false) }
 
-    // This effect synchronizes the card's state with data from the ViewModel.
-    LaunchedEffect(userChallenge, isChallengesLoading, optimisticChallenge, isManuallySelecting) {
-        Log.d("SwipeableChallengeCard", "LaunchedEffect triggered. userChallenge: $userChallenge, isChallengesLoading: $isChallengesLoading, optimisticChallenge: $optimisticChallenge")
-
-        if (userChallenge != null || optimisticChallenge != null) {
-            // If there's an active challenge (real or optimistic), show it.
-            if (!isManuallySelecting) {
-                cardState = ChallengeCardState.ACTIVE
-            }
-            if (userChallenge != null && optimisticChallenge != null) {
-                // If real data has arrived, clear optimistic update.
-                optimisticChallenge = null
-            }
-        } else if (!isChallengesLoading) {
-            // If no active challenge (real or optimistic) and not loading, go to initial.
+    // Simple state management - update immediately when challenge changes
+    LaunchedEffect(userChallenge, optimisticChallenge) {
+        if (!isManuallySelecting && (userChallenge != null || optimisticChallenge != null)) {
+            cardState = ChallengeCardState.ACTIVE
+        } else if (userChallenge == null && optimisticChallenge == null) {
             cardState = ChallengeCardState.INITIAL
+            isManuallySelecting = false
         }
-        // If loading and no challenge, remain in current state (e.g., showing progress indicator).
     }
 
 
