@@ -16,6 +16,7 @@ import com.route.readers.data.model.Challenge
 import com.route.readers.data.model.ChallengeType
 import com.route.readers.ui.screens.challenge.ChallengeViewModel
 import com.route.readers.ui.screens.community.CommunityViewModel
+import java.time.format.DateTimeFormatter
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
@@ -30,22 +31,40 @@ fun SharedChallengeCard(
     onReset: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    var actualDailyPages by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
+
+    // Load actual daily reading data for DAILY_PAGES_READING challenges
+    LaunchedEffect(challenge.type, currentUserId) {
+        if (challenge.type == ChallengeType.DAILY_PAGES_READING) {
+            val dailyPagesMap = mutableMapOf<String, Int>()
+            // Get last 7 days of reading data
+            for (i in 0..6) {
+                val date = java.time.LocalDate.now().minusDays(i.toLong())
+                val dateStr = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                // For now, use challenge.dailyProgress data or default to 0
+                val pagesRead = (challenge.dailyProgress[currentUserId]?.get(dateStr) as? Number)?.toInt() ?: 0
+                dailyPagesMap[dateStr] = pagesRead
+            }
+            actualDailyPages = dailyPagesMap
+        }
+    }
+
     val (currentProgressValue, totalGoalValue) = when {
         communityViewModel != null -> {
             try {
                 communityViewModel.getChallengeProgress(challenge)
             } catch (e: Exception) {
-                getDefaultProgress(challenge, currentUserId, consecutiveReadingDays)
+                getDefaultProgressWithActualData(challenge, currentUserId, consecutiveReadingDays, actualDailyPages)
             }
         }
         challengeViewModel != null -> {
             try {
                 challengeViewModel.getChallengeProgress(challenge)
             } catch (e: Exception) {
-                getDefaultProgress(challenge, currentUserId, consecutiveReadingDays)
+                getDefaultProgressWithActualData(challenge, currentUserId, consecutiveReadingDays, actualDailyPages)
             }
         }
-        else -> getDefaultProgress(challenge, currentUserId, consecutiveReadingDays)
+        else -> getDefaultProgressWithActualData(challenge, currentUserId, consecutiveReadingDays, actualDailyPages)
     }
     
     val progressUnit = "일"
@@ -154,10 +173,10 @@ fun SharedChallengeCard(
             ) {
                 val progressText = if (challenge.type == ChallengeType.DAILY_PAGES_READING) {
                     val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
-                    val todayPages = (challenge.dailyProgress[currentUserId]?.get(todayStr) as? Number)?.toInt() ?: 0
-                    "${currentProgressValue}/${totalGoalValue}${progressUnit} (오늘: ${todayPages}/${challenge.goal}페이지)"
+                    val todayPages = actualDailyPages[todayStr] ?: 0
+                    "${currentProgressValue}/${totalGoalValue}일 (오늘: ${todayPages}/${challenge.goal}페이지)"
                 } else {
-                    "${currentProgressValue}/${totalGoalValue}${progressUnit}"
+                    "${currentProgressValue}/${totalGoalValue}일"
                 }
 
                 Text(
@@ -173,6 +192,30 @@ fun SharedChallengeCard(
                     fontWeight = FontWeight.Bold
                 )
             }
+        }
+    }
+}
+
+private fun getDefaultProgressWithActualData(
+    challenge: Challenge,
+    currentUserId: String,
+    consecutiveReadingDays: Int,
+    actualDailyPages: Map<String, Int>
+): Pair<Int, Int> {
+    return when (challenge.type) {
+        ChallengeType.DAILY_PAGES_READING -> {
+            // Count how many days the user met the daily goal using actual reading data
+            val dailyGoalMetDays = actualDailyPages.values.count { pagesRead ->
+                pagesRead >= challenge.goal
+            }
+            Pair(dailyGoalMetDays, 7)
+        }
+        ChallengeType.CONSECUTIVE_READING, 
+        ChallengeType.CONSECUTIVE_READING_WITH_FRIEND -> {
+            Pair(consecutiveReadingDays, 7)
+        }
+        else -> {
+            Pair(challenge.progress[currentUserId] ?: 0, challenge.goal.takeIf { it > 0 } ?: 1)
         }
     }
 }

@@ -386,5 +386,17 @@ class FirestoreRepository {
             Log.e("FirestoreRepository", "Test connection failed: ${e.message}", e)
             false
         }
+
+    suspend fun getDailyPagesRead(userId: String, date: String): Int {
+        return try {
+            val dailyReadingRef = getUsersCollection().document(userId)
+                .collection("daily_reading").document(date)
+            val snapshot = dailyReadingRef.get().await()
+            snapshot.getLong("pagesRead")?.toInt() ?: 0
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error getting daily pages read: ${e.message}", e)
+            0
+        }
     }
+}
 }
