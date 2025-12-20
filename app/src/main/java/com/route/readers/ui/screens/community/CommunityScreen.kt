@@ -34,6 +34,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.route.readers.data.model.BookClub
 import com.route.readers.data.model.User
+import com.route.readers.ui.screens.community.CommunityViewModel
 import com.route.readers.ui.community.used_trade.UsedBookTradeScreen
 import com.route.readers.ui.components.BookClubCard
 import com.route.readers.ui.components.UserProfileImage
@@ -155,7 +156,8 @@ fun CommunityScreen(
                         onResetChallenge = { viewModel.resetChallenge() },
                         onNavigateToUserProfile = onNavigateToUserProfile,
                         currentUserId = viewModel.currentUserId,
-                        listState = communityListState
+                        listState = communityListState,
+                        communityViewModel = viewModel
                     )
                 }
             }
@@ -226,7 +228,8 @@ fun CommunityContent(
     onResetChallenge: () -> Unit = {},
     onNavigateToUserProfile: (String) -> Unit,
     currentUserId: String = "",
-    listState: LazyListState
+    listState: LazyListState,
+    communityViewModel: CommunityViewModel? = null
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -241,7 +244,8 @@ fun CommunityContent(
                 onChallengeReset = onResetChallenge,
                 currentUserId = currentUserId,
                 isChallengesLoading = uiState.isChallengesLoading,
-                consecutiveReadingDays = uiState.consecutiveReadingDays
+                consecutiveReadingDays = uiState.consecutiveReadingDays,
+                communityViewModel = communityViewModel
             )
             Spacer(modifier = Modifier.height(24.dp))
         }

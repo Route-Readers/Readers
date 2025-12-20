@@ -229,6 +229,33 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
         _uiState.value = _uiState.value.copy(addFriendMessage = null)
     }
 
+    fun getChallengeProgress(challenge: Challenge): Pair<Int, Int> {
+        return when (challenge.type) {
+            com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING -> {
+                val dailyGoalMetDays = challenge.dailyProgress[currentUserId]?.values?.count { pages ->
+                    (pages as? Number)?.toInt() ?: 0 >= challenge.goal
+                } ?: 0
+                Pair(dailyGoalMetDays, 7)
+            }
+            com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING,
+            com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING_WITH_FRIEND -> {
+                Pair(_uiState.value.consecutiveReadingDays, 7)
+            }
+            else -> {
+                Pair(challenge.progress[currentUserId] ?: 0, challenge.goal.takeIf { it > 0 } ?: 1)
+            }
+        }
+    }
+
+    fun getDaysRemaining(challenge: Challenge): Int {
+        return challenge.joinDate[currentUserId]?.let { joinDate ->
+            val joinLocalDate = joinDate.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+            val todayLocalDate = java.time.LocalDate.now(java.time.ZoneId.systemDefault())
+            val elapsedDays = java.time.temporal.ChronoUnit.DAYS.between(joinLocalDate, todayLocalDate).toInt()
+            (7 - elapsedDays).coerceAtLeast(0)
+        } ?: 0
+    }
+
     // 북클럽 관련 함수들
     fun createBookClub(name: String, description: String, bookTitle: String, author: String, meetingDate: String, bookCover: String = "", bookGenre: String = "", bookDescription: String = "") {
         viewModelScope.launch {

@@ -31,7 +31,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
+import kotlin.math.abs
 
 enum class ChallengeCardState {
     INITIAL,      // 초기 "참여하세요" 카드
@@ -47,7 +47,8 @@ fun SwipeableChallengeCard(
     onChallengeReset: () -> Unit,
     currentUserId: String,
     isChallengesLoading: Boolean,
-    consecutiveReadingDays: Int
+    consecutiveReadingDays: Int,
+    communityViewModel: CommunityViewModel? = null
 ) {
     var cardState by remember { mutableStateOf(ChallengeCardState.INITIAL) }
     var optimisticChallenge by remember { mutableStateOf<Challenge?>(null) }
@@ -107,7 +108,7 @@ fun SwipeableChallengeCard(
                     val challengeToShow = userChallenge ?: optimisticChallenge
 
                     if (challengeToShow != null) {
-                        ActiveChallengeCard(
+                        com.route.readers.ui.components.SharedChallengeCard(
                             challenge = challengeToShow,
                             currentUserId = currentUserId,
                             consecutiveReadingDays = consecutiveReadingDays,
@@ -146,7 +147,7 @@ fun InitialChallengeCard(
             .pointerInput(Unit) {
                 detectHorizontalDragGestures(
                     onDragEnd = {
-                        if (kotlin.math.abs(offsetX) > 50f) {
+                        if (abs(offsetX) > 50f) {
                             onSwipe()
                         }
                         offsetX = 0f
@@ -324,9 +325,9 @@ fun ActiveChallengeCard(
     val overallProgressFraction = if (totalGoalValue > 0) currentProgressValue.toFloat() / totalGoalValue.toFloat() else 0f
 
     val daysRemaining = challenge.joinDate[currentUserId]?.let { joinDate ->
-        val joinLocalDate = joinDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
-        val todayLocalDate = LocalDate.now(ZoneId.systemDefault())
-        val elapsedDays = ChronoUnit.DAYS.between(joinLocalDate, todayLocalDate).toInt()
+        val joinLocalDate = joinDate.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+        val todayLocalDate = java.time.LocalDate.now(java.time.ZoneId.systemDefault())
+        val elapsedDays = java.time.temporal.ChronoUnit.DAYS.between(joinLocalDate, todayLocalDate).toInt()
         (7 - elapsedDays).coerceAtLeast(0)
     } ?: 0
 

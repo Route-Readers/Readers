@@ -95,10 +95,11 @@ fun ChallengeContent(
                 }
             }
             uiState.userChallenge != null -> {
-                ChallengeProgress(
+                com.route.readers.ui.components.SharedChallengeCard(
                     challenge = uiState.userChallenge,
-                    userId = viewModel.currentUserId,
+                    currentUserId = viewModel.currentUserId,
                     consecutiveReadingDays = uiState.consecutiveReadingDays,
+                    challengeViewModel = viewModel,
                     modifier = Modifier.padding(paddingValues)
                 )
             }
@@ -111,8 +112,6 @@ fun ChallengeContent(
             }
         }
     }
-
-
 }
 
 @Composable
@@ -156,13 +155,16 @@ fun ChallengeProgress(
     consecutiveReadingDays: Int,
     modifier: Modifier = Modifier
 ) {
-    val progress = if (challenge.type == com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING) {
-        consecutiveReadingDays
-    } else {
-        challenge.progress[userId] ?: 0
+    val (progress, goal) = run {
+        val progressValue = if (challenge.type == com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING) {
+            consecutiveReadingDays
+        } else {
+            challenge.progress[userId] ?: 0
+        }
+        Pair(progressValue, challenge.goal)
     }
-    val progressFraction = if (challenge.goal > 0) progress.toFloat() / challenge.goal.toFloat() else 0f
-
+    
+    val progressFraction = if (goal > 0) progress.toFloat() / goal.toFloat() else 0f
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -190,7 +192,7 @@ fun ChallengeProgress(
         }
 
         Spacer(modifier = Modifier.height(24.dp))
-        Text("현재 진행도: $progress / ${challenge.goal}", style = MaterialTheme.typography.titleLarge)
+        Text("현재 진행도: $progress / $goal", style = MaterialTheme.typography.titleLarge)
         Spacer(modifier = Modifier.height(8.dp))
         Text("보상: ${challenge.reward}", style = MaterialTheme.typography.bodyMedium)
     }
