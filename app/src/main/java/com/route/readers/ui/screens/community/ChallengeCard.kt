@@ -52,14 +52,17 @@ fun SwipeableChallengeCard(
 ) {
     var cardState by remember { mutableStateOf(ChallengeCardState.INITIAL) }
     var optimisticChallenge by remember { mutableStateOf<Challenge?>(null) }
+    var isManuallySelecting by remember { mutableStateOf(false) }
 
     // This effect synchronizes the card's state with data from the ViewModel.
-    LaunchedEffect(userChallenge, isChallengesLoading, optimisticChallenge) {
+    LaunchedEffect(userChallenge, isChallengesLoading, optimisticChallenge, isManuallySelecting) {
         Log.d("SwipeableChallengeCard", "LaunchedEffect triggered. userChallenge: $userChallenge, isChallengesLoading: $isChallengesLoading, optimisticChallenge: $optimisticChallenge")
 
         if (userChallenge != null || optimisticChallenge != null) {
             // If there's an active challenge (real or optimistic), show it.
-            cardState = ChallengeCardState.ACTIVE
+            if (!isManuallySelecting) {
+                cardState = ChallengeCardState.ACTIVE
+            }
             if (userChallenge != null && optimisticChallenge != null) {
                 // If real data has arrived, clear optimistic update.
                 optimisticChallenge = null
@@ -100,6 +103,7 @@ fun SwipeableChallengeCard(
                                 joinDate = challenge.joinDate + (currentUserId to java.util.Date())
                             )
                             optimisticChallenge = optimisticWithJoinDate
+                            isManuallySelecting = false
                             cardState = ChallengeCardState.ACTIVE
                         }
                     )
@@ -115,6 +119,7 @@ fun SwipeableChallengeCard(
                             onReset = {
                                 onChallengeReset()
                                 optimisticChallenge = null
+                                isManuallySelecting = true
                                 cardState = ChallengeCardState.SELECTING
                             }
                         )
