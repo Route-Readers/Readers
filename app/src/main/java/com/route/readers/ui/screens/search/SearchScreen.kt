@@ -507,8 +507,9 @@ fun LibrarySearchTab(
                     }
                 }
                 is NearbyLibraryUiState.Success -> {
+                    val sortedLibraries = state.libraries.sortedBy { it.distance }
                     items(
-                        items = state.libraries,
+                        items = sortedLibraries,
                         key = { library -> library.libraryInfo.libCode }
                     ) { library ->
                         LibraryResultCard(

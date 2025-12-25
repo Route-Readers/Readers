@@ -1,6 +1,7 @@
 package com.route.readers.ui.screens.search
 
 import android.location.Location
+import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -28,7 +29,10 @@ class NearbyLibraryViewModel : ViewModel() {
             _uiState.value = NearbyLibraryUiState.Loading
             try {
                 val libraries = libraryRepository.getNearbyLibraries(location.latitude, location.longitude)
-                _uiState.value = NearbyLibraryUiState.Success(libraries)
+                // 강제로 거리순 정렬 (가장 가까운 순서대로)
+                val sortedLibraries = libraries.sortedWith(compareBy { it.distance })
+                Log.d("NearbyLibraryViewModel", "도서관 ${sortedLibraries.size}개 거리순 정렬 완료")
+                _uiState.value = NearbyLibraryUiState.Success(sortedLibraries)
             } catch (e: Exception) {
                 _uiState.value = NearbyLibraryUiState.Error("주변 도서관 정보를 불러오는 데 실패했습니다: ${e.message}")
             }
