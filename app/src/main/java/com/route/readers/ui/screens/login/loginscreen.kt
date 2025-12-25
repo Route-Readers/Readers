@@ -28,7 +28,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
+import com.google.firebase.auth.FirebaseAuth
 import com.route.readers.R
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 private const val PREFS_NAME = "com.route.readers.AppPrefs"
 private const val KEY_REMEMBERED_EMAIL = "remembered_email"
@@ -44,6 +47,7 @@ fun LoginScreen(
     loginViewModel: LoginViewModel = viewModel()
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val sharedPreferences = remember {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
@@ -51,6 +55,9 @@ fun LoginScreen(
     var email by remember { mutableStateOf(sharedPreferences.getString(KEY_REMEMBERED_EMAIL, "") ?: "") }
     var password by remember { mutableStateOf("") }
     var rememberId by remember { mutableStateOf(sharedPreferences.getBoolean(KEY_REMEMBER_ID, false)) }
+    var showResetDialog by remember { mutableStateOf(false) }
+    var resetEmail by remember { mutableStateOf("") }
+    var isResetLoading by remember { mutableStateOf(false) }
 
     val uiState by loginViewModel.uiState.collectAsState()
     val isLoading = uiState is LoginUiState.Loading || uiState is LoginUiState.GoogleLoading
@@ -97,6 +104,67 @@ fun LoginScreen(
             }
             else -> {}
         }
+    }
+
+    // 비밀번호 재설정 다이얼로그
+    if (showResetDialog) {
+        AlertDialog(
+            onDismissRequest = { if (!isResetLoading) showResetDialog = false },
+            title = { Text("비밀번호 재설정", fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    Text("가입한 이메일 주소를 입력하면\n비밀번호 재설정 링크를 보내드려요.", fontSize = 14.sp)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = resetEmail,
+                        onValueChange = { resetEmail = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("이메일") },
+                        shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                        singleLine = true,
+                        enabled = !isResetLoading
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (resetEmail.isBlank()) {
+                            Toast.makeText(context, "이메일을 입력해주세요.", Toast.LENGTH_SHORT).show()
+                            return@TextButton
+                        }
+                        isResetLoading = true
+                        scope.launch {
+                            try {
+                                FirebaseAuth.getInstance().sendPasswordResetEmail(resetEmail.trim()).await()
+                                Toast.makeText(context, "비밀번호 재설정 메일을 보냈어요!", Toast.LENGTH_LONG).show()
+                                showResetDialog = false
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "메일 발송 실패: ${e.message}", Toast.LENGTH_LONG).show()
+                            } finally {
+                                isResetLoading = false
+                            }
+                        }
+                    },
+                    enabled = !isResetLoading
+                ) {
+                    if (isResetLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text("보내기")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showResetDialog = false },
+                    enabled = !isResetLoading
+                ) {
+                    Text("취소")
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -175,7 +243,8 @@ fun LoginScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -187,6 +256,12 @@ fun LoginScreen(
                         colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary)
                     )
                     Text("아이디 저장", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                TextButton(onClick = { 
+                    resetEmail = email
+                    showResetDialog = true 
+                }) {
+                    Text("비밀번호 찾기", fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
                 }
             }
 
