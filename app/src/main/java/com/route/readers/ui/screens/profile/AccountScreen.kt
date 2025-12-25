@@ -186,7 +186,7 @@ fun AccountScreen(
             subtitle = "서비스 이용 약관 확인",
             icon = Icons.Default.Description,
             onClick = {
-                val url = "https://route-page.vercel.app/6"
+                val url = "https://www.notion.so/isaac8570/2d4cc1cddbdf803cacbfe9e7004b0434?source=copy_link"
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                 context.startActivity(intent)
             }
