@@ -238,7 +238,7 @@ class LibraryRepository {
                 authKey = authKey,
                 latitude = userLatitude,
                 longitude = userLongitude,
-                pageSize = 500
+                pageSize = 100 // 페이지 크기를 줄여서 안정성 향상
             )
 
             if (response.response.error != null) {
@@ -267,7 +267,7 @@ class LibraryRepository {
                     null
                 }
             }
-            return@withContext results.sortedBy { it.distance }
+            return@withContext results.sortedBy { it.distance }.take(50)
         } catch (e: Exception) {
             Log.e("LibraryRepository", "getNearbyLibraries 중 오류 발생", e)
             return@withContext emptyList()

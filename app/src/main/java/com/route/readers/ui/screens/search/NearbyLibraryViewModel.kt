@@ -30,7 +30,7 @@ class NearbyLibraryViewModel : ViewModel() {
                 val libraries = libraryRepository.getNearbyLibraries(location.latitude, location.longitude)
                 _uiState.value = NearbyLibraryUiState.Success(libraries)
             } catch (e: Exception) {
-                _uiState.value = NearbyLibraryUiState.Error("주변 도서관 정보를 불러오는 데 실패했습니다.")
+                _uiState.value = NearbyLibraryUiState.Error("주변 도서관 정보를 불러오는 데 실패했습니다: ${e.message}")
             }
         }
     }
