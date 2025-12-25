@@ -28,6 +28,7 @@ import com.route.readers.ui.theme.DarkRed
 
 import com.route.readers.ui.components.UserProfileImage
 import com.route.readers.data.model.User
+import com.route.readers.ui.community.used_trade.BuyResult
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,11 +39,21 @@ fun UsedBookDetailScreen(
 ) {
     val viewModel: UsedBookTradeViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsState()
+    val buyResult by viewModel.buyResult.collectAsState()
     val book = uiState.books.find { it.id == bookId }
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
     val isMyBook = book?.sellerId == currentUserId
     var showBuyDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showResultDialog by remember { mutableStateOf<BuyResult?>(null) }
+
+    // 구매 결과 처리
+    LaunchedEffect(buyResult) {
+        buyResult?.let {
+            showResultDialog = it
+            viewModel.clearBuyResult()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -305,7 +316,6 @@ fun UsedBookDetailScreen(
                             viewModel.buyBook(it.id, currentUserId)
                         }
                         showBuyDialog = false
-                        onNavigateBack()
                     }
                 ) {
                     Text("구매", color = DarkRed)
@@ -314,6 +324,34 @@ fun UsedBookDetailScreen(
             dismissButton = {
                 TextButton(onClick = { showBuyDialog = false }) {
                     Text("취소", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            titleContentColor = MaterialTheme.colorScheme.onSurface
+        )
+    }
+
+    // 구매 결과 다이얼로그
+    showResultDialog?.let { result ->
+        AlertDialog(
+            onDismissRequest = { showResultDialog = null },
+            title = { Text(when (result) {
+                is BuyResult.Success -> "구매 완료"
+                is BuyResult.InsufficientTokens -> "토큰 부족"
+                is BuyResult.Error -> "오류"
+            }) },
+            text = { Text(when (result) {
+                is BuyResult.Success -> "구매가 완료되었습니다!"
+                is BuyResult.InsufficientTokens -> "토큰이 부족합니다.\n현재: ${result.current}P / 필요: ${result.required}P"
+                is BuyResult.Error -> result.message
+            }) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showResultDialog = null
+                    if (result is BuyResult.Success) onNavigateBack()
+                }) {
+                    Text("확인", color = DarkRed)
                 }
             },
             containerColor = MaterialTheme.colorScheme.surface,
