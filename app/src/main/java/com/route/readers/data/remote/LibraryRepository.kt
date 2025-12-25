@@ -238,7 +238,7 @@ class LibraryRepository {
                 authKey = authKey,
                 latitude = userLatitude,
                 longitude = userLongitude,
-                pageSize = 500
+                pageSize = 1000
             )
 
             if (response.response.error != null) {
@@ -267,9 +267,113 @@ class LibraryRepository {
                     null
                 }
             }
-            return@withContext results.sortedBy { it.distance }
+            return@withContext results.sortedBy { it.distance }.take(50)
         } catch (e: Exception) {
             Log.e("LibraryRepository", "getNearbyLibraries 중 오류 발생", e)
+            return@withContext emptyList()
+        }
+    }
+
+    // 사용자 지역의 모든 도서관을 거리순으로 정렬
+    suspend fun getRegionLibrariesByDistance(
+        context: Context,
+        userLatitude: Double,
+        userLongitude: Double
+    ): List<LibrarySearchResult> = withContext(Dispatchers.IO) {
+        if (authKey.isBlank()) return@withContext emptyList()
+
+        try {
+            val userLocation = Location("user").apply {
+                latitude = userLatitude
+                longitude = userLongitude
+            }
+
+            // 사용자 위치 기준 지역 코드 가져오기
+            val regionCode = convertLocationToRegionCode(context, userLatitude, userLongitude)
+            
+            val response = libraryApiService.searchLibrariesWithBook(
+                authKey = authKey,
+                isbn = "", // 빈 ISBN으로 해당 지역 모든 도서관 조회
+                region = regionCode
+            )
+            
+            if (response.response.error != null) {
+                return@withContext emptyList()
+            }
+            
+            val results = response.response.libs.mapNotNull { libraryItem ->
+                val library = libraryItem.lib
+                val libLat = library.latitude?.toDoubleOrNull()
+                val libLon = library.longitude?.toDoubleOrNull()
+
+                if (libLat != null && libLon != null) {
+                    val libraryLocation = Location("library").apply {
+                        latitude = libLat
+                        longitude = libLon
+                    }
+                    val distance = userLocation.distanceTo(libraryLocation)
+                    LibrarySearchResult(library, false, distance)
+                } else null
+            }
+
+            return@withContext results.sortedBy { it.distance }
+                
+        } catch (e: Exception) {
+            return@withContext emptyList()
+        }
+    }
+    suspend fun getAllNearbyLibraries(
+        context: Context,
+        userLatitude: Double,
+        userLongitude: Double
+    ): List<LibrarySearchResult> = withContext(Dispatchers.IO) {
+        if (authKey.isBlank()) return@withContext emptyList()
+
+        try {
+            val userLocation = Location("user").apply {
+                latitude = userLatitude
+                longitude = userLongitude
+            }
+
+            val regionCodes = listOf("11", "41", "28", "26", "27", "29", "30", "42", "43", "44")
+            
+            val allLibraries = regionCodes.map { regionCode ->
+                async {
+                    try {
+                        val response = libraryApiService.searchLibrariesWithBook(
+                            authKey = authKey,
+                            isbn = "",
+                            region = regionCode
+                        )
+                        
+                        response.response.libs.mapNotNull { libraryItem ->
+                            val library = libraryItem.lib
+                            val libLat = library.latitude?.toDoubleOrNull()
+                            val libLon = library.longitude?.toDoubleOrNull()
+
+                            if (libLat != null && libLon != null) {
+                                val libraryLocation = Location("library").apply {
+                                    latitude = libLat
+                                    longitude = libLon
+                                }
+                                val distance = userLocation.distanceTo(libraryLocation)
+                                if (distance <= 50000) {
+                                    LibrarySearchResult(library, false, distance)
+                                } else null
+                            } else null
+                        }
+                    } catch (e: Exception) {
+                        emptyList()
+                    }
+                }
+            }.awaitAll().flatten()
+
+            return@withContext allLibraries
+                .distinctBy { it.libraryInfo.libCode }
+                .sortedBy { it.distance }
+                .take(100)
+                
+        } catch (e: Exception) {
             return@withContext emptyList()
         }
     }

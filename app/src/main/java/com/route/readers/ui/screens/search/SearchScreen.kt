@@ -507,7 +507,11 @@ fun LibrarySearchTab(
                     }
                 }
                 is NearbyLibraryUiState.Success -> {
-                    items(state.libraries) { library ->
+                    val sortedLibraries = state.libraries.sortedBy { it.distance }
+                    items(
+                        items = sortedLibraries,
+                        key = { library -> library.libraryInfo.libCode }
+                    ) { library ->
                         LibraryResultCard(
                             libraryName = library.libraryInfo.libName,
                             address = library.libraryInfo.address,
@@ -567,7 +571,10 @@ fun LibrarySearchTab(
                             Text("주변에 해당 책을 소장한 도서관이 없습니다.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     } else {
-                        items(currentLibraryState.libraries, key = { it.libraryInfo.libCode }) { library ->
+                        items(
+                            items = currentLibraryState.libraries,
+                            key = { library -> library.libraryInfo.libCode }
+                        ) { library ->
                             val isSelected = currentLibraryState.selectedLibrary?.libraryInfo?.libCode == library.libraryInfo.libCode
                             LibraryResultCard(
                                 libraryName = library.libraryInfo.libName,
