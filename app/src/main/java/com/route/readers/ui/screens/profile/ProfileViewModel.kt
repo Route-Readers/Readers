@@ -344,7 +344,11 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
 
                                                                         val userDocument = db.collection("users").document(targetUserId).get(com.google.firebase.firestore.Source.SERVER).await()
 
-                    
+                    // 삭제된 유저 체크
+                    if (!userDocument.exists()) {
+                        _uiState.value = ProfileUiState.Error("존재하지 않는 사용자입니다.")
+                        return@launch
+                    }
 
                                                                         var user: User? = userDocument.toObject(User::class.java)
 

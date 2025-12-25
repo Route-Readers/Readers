@@ -199,7 +199,16 @@ class FeedViewModel(application: Application) : AndroidViewModel(application) {
                     emptyMap()
                 }
 
-                val updatedFeeds = feeds.map { feed ->
+                // 삭제된 유저의 피드 필터링
+                val existingUserIds = followerInfoMap.keys
+                val validFeeds = feeds.filter { feed ->
+                    when (feed) {
+                        is FeedItem.BookReview -> feed.authorId in existingUserIds
+                        is FeedItem.FollowNotification -> feed.followerId in existingUserIds
+                    }
+                }
+
+                val updatedFeeds = validFeeds.map { feed ->
                     if (feed is FeedItem.FollowNotification) {
                         val followerName = followerInfoMap[feed.followerId]?.nickname ?: feed.userName
                         val isFollowedBack = followingList.contains(feed.followerId)
