@@ -38,11 +38,9 @@ class LoginViewModel : ViewModel() {
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     val user = auth.currentUser
-                    if (user != null && user.isEmailVerified) {
+                    if (user != null) {
+                        // 이메일 인증 체크 제거 - 전화번호 인증으로 대체
                         checkIfUserProfileExists(user.uid)
-                    } else if (user != null && !user.isEmailVerified) {
-                        _uiState.value = LoginUiState.Error("이메일 인증을 먼저 완료해주세요.")
-                        auth.signOut()
                     } else {
                         _uiState.value = LoginUiState.Error("로그인에 실패했습니다. 사용자 정보를 확인할 수 없습니다.")
                     }

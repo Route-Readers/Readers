@@ -1,4 +1,4 @@
-import {onDocumentCreated, onDocumentUpdated} from "firebase-functions/v2/firestore";
+import {onDocumentCreated, onDocumentUpdated, onDocumentDeleted} from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 import {getMessaging} from "firebase-admin/messaging";
 
@@ -295,6 +295,206 @@ export const onLikeCreated = onDocumentUpdated(
             } catch (error) {
                 console.error(`[onLikeCreated] Error processing like event for liker ${likerId}:`, error);
             }
+        }
+    }
+);
+
+// 유저 문서 삭제 시 관련 데이터 정리
+export const cleanupUserData = onDocumentDeleted(
+    {
+        document: "users/{uid}",
+        region: "asia-northeast3",
+    },
+    async (event) => {
+        const uid = event.params.uid;
+        console.log(`[cleanupUserData] User deleted: ${uid}`);
+
+        const db = admin.firestore();
+
+        try {
+            // 1. feeds에서 해당 유저의 게시글 삭제
+            const feedsSnapshot = await db.collection("feeds")
+                .where("authorId", "==", uid).get();
+            for (const doc of feedsSnapshot.docs) {
+                await doc.ref.delete();
+            }
+
+            // 2. usedBooks에서 해당 유저의 중고책 게시글 삭제
+            const usedBooksSnapshot = await db.collection("usedBooks")
+                .where("sellerId", "==", uid).get();
+            for (const doc of usedBooksSnapshot.docs) {
+                await doc.ref.delete();
+            }
+
+            // 3. 다른 유저들의 followers/following/friends 목록에서 제거
+            const usersWithFollower = await db.collection("users")
+                .where("followers", "array-contains", uid).get();
+            for (const doc of usersWithFollower.docs) {
+                await doc.ref.update({
+                    followers: admin.firestore.FieldValue.arrayRemove(uid),
+                    followerCount: admin.firestore.FieldValue.increment(-1)
+                });
+            }
+
+            const usersWithFollowing = await db.collection("users")
+                .where("following", "array-contains", uid).get();
+            for (const doc of usersWithFollowing.docs) {
+                await doc.ref.update({
+                    following: admin.firestore.FieldValue.arrayRemove(uid),
+                    followingCount: admin.firestore.FieldValue.increment(-1)
+                });
+            }
+
+            const usersWithFriend = await db.collection("users")
+                .where("friends", "array-contains", uid).get();
+            for (const doc of usersWithFriend.docs) {
+                await doc.ref.update({
+                    friends: admin.firestore.FieldValue.arrayRemove(uid)
+                });
+            }
+
+            // 4. 챌린지 참여자 목록에서 제거
+            const challengesWithUser = await db.collection("challenges")
+                .where("participants", "array-contains", uid).get();
+            for (const doc of challengesWithUser.docs) {
+                await doc.ref.update({
+                    participants: admin.firestore.FieldValue.arrayRemove(uid)
+                });
+            }
+
+            // 5. 피드의 likedBy에서 제거
+            const feedsLikedByUser = await db.collection("feeds")
+                .where("likedBy", "array-contains", uid).get();
+            for (const doc of feedsLikedByUser.docs) {
+                await doc.ref.update({
+                    likedBy: admin.firestore.FieldValue.arrayRemove(uid),
+                    likeCount: admin.firestore.FieldValue.increment(-1)
+                });
+            }
+
+            console.log(`[cleanupUserData] Successfully cleaned up data for user: ${uid}`);
+
+        } catch (error) {
+            console.error(`[cleanupUserData] Error cleaning up user data:`, error);
+        }
+    }
+);
+
+
+// 기존 유령 계정 정리 (HTTP 호출용 - 한 번만 실행)
+import {onRequest} from "firebase-functions/v2/https";
+import {getAuth} from "firebase-admin/auth";
+import {defineSecret} from "firebase-functions/params";
+
+const cleanupSecret = defineSecret("CLEANUP_SECRET");
+
+export const cleanupGhostUsers = onRequest(
+    { region: "asia-northeast3", secrets: [cleanupSecret] },
+    async (req, res) => {
+        const authHeader = req.headers.authorization;
+        if (authHeader !== `Bearer ${cleanupSecret.value()}`) {
+            res.status(403).send("Unauthorized");
+            return;
+        }
+
+        const db = admin.firestore();
+        const auth = getAuth();
+        
+        let deletedCount = 0;
+        let checkedCount = 0;
+        const deletedUids: string[] = [];
+
+        try {
+            const usersSnapshot = await db.collection("users").get();
+            
+            for (const doc of usersSnapshot.docs) {
+                checkedCount++;
+                const uid = doc.id;
+                
+                try {
+                    await auth.getUser(uid);
+                } catch (error: unknown) {
+                    if ((error as {code?: string}).code === "auth/user-not-found") {
+                        console.log(`Deleting ghost user: ${uid}`);
+                        deletedUids.push(uid);
+                        
+                        // 유저 문서 삭제
+                        await doc.ref.delete();
+                        
+                        // 피드 삭제
+                        const feeds = await db.collection("feeds").where("authorId", "==", uid).get();
+                        for (const f of feeds.docs) await f.ref.delete();
+                        
+                        // myLibrary 서브컬렉션 삭제
+                        const myLibrary = await db.collection("users").doc(uid).collection("myLibrary").get();
+                        for (const b of myLibrary.docs) await b.ref.delete();
+                        
+                        // 중고책 삭제
+                        const usedBooks = await db.collection("usedBooks").where("sellerId", "==", uid).get();
+                        for (const u of usedBooks.docs) await u.ref.delete();
+                        
+                        deletedCount++;
+                    }
+                }
+            }
+
+            // 삭제된 유저들을 다른 유저의 followers/following/friends에서 제거
+            for (const uid of deletedUids) {
+                const usersWithFollower = await db.collection("users")
+                    .where("followers", "array-contains", uid).get();
+                for (const doc of usersWithFollower.docs) {
+                    await doc.ref.update({
+                        followers: admin.firestore.FieldValue.arrayRemove(uid),
+                        followerCount: admin.firestore.FieldValue.increment(-1)
+                    });
+                }
+
+                const usersWithFollowing = await db.collection("users")
+                    .where("following", "array-contains", uid).get();
+                for (const doc of usersWithFollowing.docs) {
+                    await doc.ref.update({
+                        following: admin.firestore.FieldValue.arrayRemove(uid),
+                        followingCount: admin.firestore.FieldValue.increment(-1)
+                    });
+                }
+
+                const usersWithFriend = await db.collection("users")
+                    .where("friends", "array-contains", uid).get();
+                for (const doc of usersWithFriend.docs) {
+                    await doc.ref.update({
+                        friends: admin.firestore.FieldValue.arrayRemove(uid)
+                    });
+                }
+
+                // 챌린지에서 제거
+                const challenges = await db.collection("challenges")
+                    .where("participants", "array-contains", uid).get();
+                for (const doc of challenges.docs) {
+                    await doc.ref.update({
+                        participants: admin.firestore.FieldValue.arrayRemove(uid)
+                    });
+                }
+
+                // 피드 좋아요에서 제거
+                const likedFeeds = await db.collection("feeds")
+                    .where("likedBy", "array-contains", uid).get();
+                for (const doc of likedFeeds.docs) {
+                    await doc.ref.update({
+                        likedBy: admin.firestore.FieldValue.arrayRemove(uid),
+                        likeCount: admin.firestore.FieldValue.increment(-1)
+                    });
+                }
+            }
+            
+            res.status(200).json({
+                message: "Cleanup completed",
+                checked: checkedCount,
+                deleted: deletedCount,
+                deletedUids: deletedUids
+            });
+        } catch (error) {
+            console.error("Cleanup error:", error);
+            res.status(500).send("Error during cleanup");
         }
     }
 );

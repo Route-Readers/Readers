@@ -1,6 +1,8 @@
 package com.route.readers.ui.screens.community
 
 import android.app.Application
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -24,7 +26,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -39,6 +44,7 @@ import com.route.readers.ui.community.used_trade.UsedBookTradeScreen
 import com.route.readers.ui.components.BookClubCard
 import com.route.readers.ui.components.UserProfileImage
 import com.route.readers.ui.screens.bookclub.BookClubChatScreen
+import com.route.readers.ui.theme.PrimaryRed
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -102,27 +108,11 @@ fun CommunityScreen(
             }
 
             // "커뮤니티" / "중고책 거래" 탭
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(20.dp)
-            ) {
-                Text(
-                    "커뮤니티",
-                    fontSize = 18.sp,
-                    color = if (selectedTab == 0) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
-                    modifier = Modifier.clickable { selectedTab = 0 }
-                )
-                Text(
-                    "중고책 거래",
-                    fontSize = 18.sp,
-                    color = if (selectedTab == 1) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
-                    modifier = Modifier.clickable { selectedTab = 1 }
-                )
-            }
+            SlidingTabSelector(
+                selectedTab = selectedTab,
+                onTabSelected = { selectedTab = it },
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
         }
 
         // 선택된 탭에 따라 다른 화면을 보여줍니다.
@@ -695,6 +685,74 @@ private fun FriendPlaceholderRow() {
     }
 }
 
+@Composable
+private fun SlidingTabSelector(
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val tabs = listOf("커뮤니티", "중고책 거래")
+    val density = LocalDensity.current
+    var tabPositions by remember { mutableStateOf(List(tabs.size) { Pair(0f, 0f) }) }
+
+    val currentTabPosition = tabPositions.getOrElse(selectedTab) { Pair(0f, 0f) }
+    val indicatorOffset by animateDpAsState(
+        targetValue = with(density) { currentTabPosition.first.toDp() },
+        animationSpec = tween(300),
+        label = "indicatorOffset"
+    )
+    val indicatorWidth by animateDpAsState(
+        targetValue = with(density) { currentTabPosition.second.toDp() },
+        animationSpec = tween(300),
+        label = "indicatorWidth"
+    )
+
+    Box(modifier = modifier.height(36.dp)) {
+        // 슬라이딩 배경
+        if (indicatorWidth > 0.dp) {
+            Box(
+                modifier = Modifier
+                    .offset(x = indicatorOffset)
+                    .width(indicatorWidth)
+                    .fillMaxHeight()
+                    .clip(CircleShape)
+                    .background(PrimaryRed.copy(alpha = 0.15f))
+            )
+        }
+
+        // 탭 텍스트들
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            tabs.forEachIndexed { index, title ->
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable { onTabSelected(index) }
+                        .onGloballyPositioned { coordinates ->
+                            val offset = coordinates.positionInParent().x
+                            val width = coordinates.size.width.toFloat()
+                            if (tabPositions[index] != Pair(offset, width)) {
+                                tabPositions = tabPositions.toMutableList().also {
+                                    it[index] = Pair(offset, width)
+                                }
+                            }
+                        }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = title,
+                        fontSize = 16.sp,
+                        fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
+                        color = if (selectedTab == index) PrimaryRed else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
 @Composable
 private fun BookClubPlaceholderCard() {
     Card(
