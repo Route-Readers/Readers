@@ -320,7 +320,12 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
 
     
 
-        open fun fetchUserProfile(userId: String?) {
+    // 프로필 로드 재시도 함수
+    fun retryFetchProfile(userId: String? = null) {
+        fetchUserProfile(userId)
+    }
+
+    open fun fetchUserProfile(userId: String?) {
 
             val targetUserId = userId ?: currentUserId
 
@@ -855,7 +860,7 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
 
                 } catch (e: Exception) {
 
-                    _uiState.value = ProfileUiState.Error("프로필을 불러오는 중 오류가 발생했습니다: ${e.message}")
+                    _uiState.value = ProfileUiState.Error("네트워크 연결을 확인하고 잠시 후 다시 시도해주세요.")
 
                     Log.e("ProfileViewModel", "fetchUserProfile failed", e)
 
