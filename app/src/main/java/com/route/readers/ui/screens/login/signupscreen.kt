@@ -5,6 +5,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,8 +14,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -24,23 +23,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
-import com.google.firebase.auth.FirebaseAuthUserCollisionException
-import com.google.firebase.auth.FirebaseAuthWeakPasswordException
-import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.FirebaseException
+import com.google.firebase.auth.*
 import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.R
-import com.route.readers.ui.theme.ReadersTheme
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.util.concurrent.TimeUnit
+
+enum class SignUpStep { PHONE, CODE, ACCOUNT }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,36 +46,27 @@ fun SignUpScreen(
     onNavigateBack: () -> Unit,
     onNavigateToHome: () -> Unit
 ) {
+    val context = LocalContext.current
+    val activity = context as Activity
+    val auth = FirebaseAuth.getInstance()
+    val db = FirebaseFirestore.getInstance()
+    val scope = rememberCoroutineScope()
+
+    var currentStep by remember { mutableStateOf(SignUpStep.PHONE) }
+    var phoneNumber by remember { mutableStateOf("") }
+    var verificationCode by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordConfirm by remember { mutableStateOf("") }
 
-    val auth: FirebaseAuth = FirebaseAuth.getInstance()
-    val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
-
     var isLoading by remember { mutableStateOf(false) }
-    var isGoogleLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
 
-    var isVerificationEmailSent by remember { mutableStateOf(false) }
+    var verificationId by remember { mutableStateOf<String?>(null) }
+    var phoneCredential by remember { mutableStateOf<PhoneAuthCredential?>(null) }
 
-    LaunchedEffect(isVerificationEmailSent) {
-        if (isVerificationEmailSent) {
-            while (true) {
-                delay(3000)
-                val user = auth.currentUser
-                user?.reload()?.await()
-                if (user?.isEmailVerified == true) {
-                    Toast.makeText(context, "이메일 인증이 확인되었습니다.", Toast.LENGTH_SHORT).show()
-                    onSignUpSuccess()
-                    break
-                }
-            }
-        }
-    }
-
+    // Google Sign-In
+    var isGoogleLoading by remember { mutableStateOf(false) }
     val googleSignInClient = remember {
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken("725580725763-a6efs546tsd56hridug8ifsav9af0lav.apps.googleusercontent.com")
@@ -88,342 +75,397 @@ fun SignUpScreen(
         GoogleSignIn.getClient(context, gso)
     }
 
-    fun firebaseAuthWithGoogle(idToken: String) {
-        val credential = GoogleAuthProvider.getCredential(idToken, null)
-        isGoogleLoading = true
-        coroutineScope.launch {
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
             try {
-                val authResult = auth.signInWithCredential(credential).await()
-                val user = authResult.user
-                if (user != null) {
-                    Log.d("SignUpScreen", "Google signInWithCredential success. User: ${user.uid}")
-                    val userDoc = firestore.collection("users").document(user.uid).get().await()
-                    if (userDoc.exists() && userDoc.getString("nickname") != null) {
-                        Log.d("SignUpScreen", "User already has a profile. Navigating to home.")
-                        Toast.makeText(context, "로그인합니다.", Toast.LENGTH_SHORT).show()
-                        onNavigateToHome()
-                    } else {
-                        Log.d("SignUpScreen", "New user. Navigating to profile setup.")
-                        Toast.makeText(context, "Google 계정으로 가입되었습니다. 프로필을 설정해주세요.", Toast.LENGTH_SHORT).show()
-                        onSignUpSuccess()
+                val account = task.getResult(ApiException::class.java)!!
+                isGoogleLoading = true
+                scope.launch {
+                    try {
+                        val credential = GoogleAuthProvider.getCredential(account.idToken, null)
+                        val authResult = auth.signInWithCredential(credential).await()
+                        val user = authResult.user!!
+
+                        // 전화번호 연결
+                        phoneCredential?.let { phoneCred ->
+                            try {
+                                user.linkWithCredential(phoneCred).await()
+                                val phoneHash = java.security.MessageDigest.getInstance("SHA-256")
+                                    .digest(phoneNumber.toByteArray())
+                                    .joinToString("") { "%02x".format(it) }
+                                db.collection("users").document(user.uid)
+                                    .update("phoneHash", phoneHash).await()
+                            } catch (e: FirebaseAuthUserCollisionException) {
+                                // 이미 연결된 경우 무시
+                            }
+                        }
+
+                        val userDoc = db.collection("users").document(user.uid).get().await()
+                        if (userDoc.exists() && userDoc.getString("nickname") != null) {
+                            Toast.makeText(context, "로그인합니다.", Toast.LENGTH_SHORT).show()
+                            onNavigateToHome()
+                        } else {
+                            Toast.makeText(context, "프로필을 설정해주세요.", Toast.LENGTH_SHORT).show()
+                            onSignUpSuccess()
+                        }
+                    } catch (e: Exception) {
+                        errorMessage = "Google 로그인 실패: ${e.message}"
+                    } finally {
+                        isGoogleLoading = false
                     }
-                } else {
-                    throw IllegalStateException("Firebase user is null after sign in")
                 }
-            } catch (e: Exception) {
-                Log.w("SignUpScreen", "Google auth failed", e)
-                errorMessage = "Google 로그인에 실패했습니다. (${e.message})"
-            } finally {
-                isGoogleLoading = false
+            } catch (e: ApiException) {
+                errorMessage = "Google 로그인 실패"
             }
         }
     }
 
-    val googleSignInLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult(),
-        onResult = { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
-                val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-                try {
-                    val account = task.getResult(ApiException::class.java)!!
-                    Log.d("SignUpScreen", "Google Sign In successful, getting idToken")
-                    firebaseAuthWithGoogle(account.idToken!!)
-                } catch (e: ApiException) {
-                    Log.w("SignUpScreen", "Google sign in failed", e)
-                    errorMessage = "Google 로그인에 실패했습니다. (API Exception)"
+    // 전화번호 중복 체크
+    suspend fun checkPhoneDuplicate(phone: String): Boolean {
+        val phoneHash = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(phone.toByteArray())
+            .joinToString("") { "%02x".format(it) }
+        val docs = db.collection("users").whereEqualTo("phoneHash", phoneHash).get().await()
+        return docs.isEmpty
+    }
+
+    // SMS 발송
+    fun sendVerificationCode() {
+        if (phoneNumber.length != 11 || !phoneNumber.startsWith("010")) {
+            errorMessage = "올바른 전화번호를 입력해주세요."
+            return
+        }
+        isLoading = true
+        errorMessage = null
+
+        scope.launch {
+            if (!checkPhoneDuplicate(phoneNumber)) {
+                isLoading = false
+                errorMessage = "이미 가입된 전화번호입니다."
+                return@launch
+            }
+
+            val formattedPhone = "+82${phoneNumber.substring(1)}"
+            val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+                override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                    phoneCredential = credential
+                    isLoading = false
+                    currentStep = SignUpStep.ACCOUNT
                 }
-            } else {
-                Log.w("SignUpScreen", "Google sign in cancelled or failed. Result code: ${result.resultCode}")
+
+                override fun onVerificationFailed(e: FirebaseException) {
+                    isLoading = false
+                    errorMessage = "인증 실패: ${e.message}"
+                }
+
+                override fun onCodeSent(vId: String, token: PhoneAuthProvider.ForceResendingToken) {
+                    verificationId = vId
+                    isLoading = false
+                    currentStep = SignUpStep.CODE
+                }
+            }
+
+            PhoneAuthProvider.verifyPhoneNumber(
+                PhoneAuthOptions.newBuilder(auth)
+                    .setPhoneNumber(formattedPhone)
+                    .setTimeout(60L, TimeUnit.SECONDS)
+                    .setActivity(activity)
+                    .setCallbacks(callbacks)
+                    .build()
+            )
+        }
+    }
+
+    // 인증코드 확인
+    fun verifyCode() {
+        val vId = verificationId ?: return
+        isLoading = true
+        errorMessage = null
+        phoneCredential = PhoneAuthProvider.getCredential(vId, verificationCode)
+        isLoading = false
+        currentStep = SignUpStep.ACCOUNT
+    }
+
+    // 이메일 계정 생성
+    fun createAccount() {
+        if (email.isBlank() || password.isBlank()) {
+            errorMessage = "이메일과 비밀번호를 입력해주세요."
+            return
+        }
+        if (password != passwordConfirm) {
+            errorMessage = "비밀번호가 일치하지 않습니다."
+            return
+        }
+        if (password.length < 6) {
+            errorMessage = "비밀번호는 6자 이상이어야 합니다."
+            return
+        }
+
+        isLoading = true
+        errorMessage = null
+
+        scope.launch {
+            try {
+                val result = auth.createUserWithEmailAndPassword(email.trim(), password).await()
+                val user = result.user!!
+
+                // 전화번호 연결
+                phoneCredential?.let { cred ->
+                    user.linkWithCredential(cred).await()
+                }
+
+                // phoneHash 저장
+                val phoneHash = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(phoneNumber.toByteArray())
+                    .joinToString("") { "%02x".format(it) }
+                db.collection("users").document(user.uid).set(mapOf("phoneHash" to phoneHash)).await()
+
+                // 이메일 인증 발송
+                user.sendEmailVerification().await()
+                Toast.makeText(context, "인증 메일을 확인해주세요.", Toast.LENGTH_SHORT).show()
+                onSignUpSuccess()
+            } catch (e: FirebaseAuthUserCollisionException) {
+                errorMessage = "이미 사용 중인 이메일입니다."
+            } catch (e: FirebaseAuthInvalidCredentialsException) {
+                errorMessage = "이메일 형식이 올바르지 않습니다."
+            } catch (e: Exception) {
+                errorMessage = "가입 실패: ${e.message}"
+            } finally {
+                isLoading = false
             }
         }
-    )
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        text = "Readers",
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
+                title = {},
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack, enabled = !isVerificationEmailSent) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "뒤로 가기"
-                        )
+                    IconButton(onClick = {
+                        when (currentStep) {
+                            SignUpStep.PHONE -> onNavigateBack()
+                            SignUpStep.CODE -> currentStep = SignUpStep.PHONE
+                            SignUpStep.ACCOUNT -> currentStep = SignUpStep.CODE
+                        }
+                    }) {
+                        Icon(Icons.Default.ArrowBack, "뒤로")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.primary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         },
         containerColor = MaterialTheme.colorScheme.surface
-    ) { paddingValues ->
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 32.dp),
+                .padding(padding)
+                .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (isVerificationEmailSent) {
-                Spacer(modifier = Modifier.weight(1f))
-                Text(
-                    text = "이메일 인증",
-                    color = MaterialTheme.colorScheme.primary,
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "${email}으로 발송된\n인증 메일을 확인해주세요.",
-                    textAlign = TextAlign.Center,
-                    lineHeight = 24.sp,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "인증 완료 시 자동으로 넘어갑니다.",
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-                Spacer(modifier = Modifier.weight(1f))
-            } else {
-                Spacer(modifier = Modifier.weight(0.5f))
+            Spacer(modifier = Modifier.height(32.dp))
 
-                Text(
-                    text = "회원가입",
-                    color = MaterialTheme.colorScheme.primary,
-                    fontSize = 36.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+            // 헤더 문구
+            Text(
+                text = when (currentStep) {
+                    SignUpStep.PHONE -> "친구와 함께\n책을 읽어볼까요?"
+                    SignUpStep.CODE -> "인증번호를\n입력해주세요"
+                    SignUpStep.ACCOUNT -> "계정 정보를\n입력해주세요"
+                },
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                lineHeight = 36.sp
+            )
 
-                Text(
-                    text = "Readers에 오신 것을 환영합니다!",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 14.sp,
-                    textAlign = TextAlign.Center
-                )
+            Spacer(modifier = Modifier.height(8.dp))
 
-                Spacer(modifier = Modifier.height(48.dp))
+            Text(
+                text = when (currentStep) {
+                    SignUpStep.PHONE -> "전화번호로 본인 인증을 진행합니다"
+                    SignUpStep.CODE -> "$phoneNumber 로 발송된 코드를 입력하세요"
+                    SignUpStep.ACCOUNT -> "로그인에 사용할 이메일과 비밀번호를 설정하세요"
+                },
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it; errorMessage = null },
+            Spacer(modifier = Modifier.height(48.dp))
+
+            // Step별 입력 필드
+            AnimatedContent(targetState = currentStep, label = "step") { step ->
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("이메일") },
-                    shape = RoundedCornerShape(16.dp),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    isError = errorMessage?.contains("이메일") == true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                        focusedLabelColor = MaterialTheme.colorScheme.primary,
-                        cursorColor = MaterialTheme.colorScheme.primary
-                    )
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it; errorMessage = null },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("비밀번호") },
-                    shape = RoundedCornerShape(16.dp),
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    isError = errorMessage?.contains("비밀번호") == true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                        focusedLabelColor = MaterialTheme.colorScheme.primary,
-                        cursorColor = MaterialTheme.colorScheme.primary
-                    )
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-
-                OutlinedTextField(
-                    value = passwordConfirm,
-                    onValueChange = { passwordConfirm = it; errorMessage = null },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("비밀번호 확인") },
-                    shape = RoundedCornerShape(16.dp),
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    isError = errorMessage?.contains("일치하지 않습니다") == true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                        focusedLabelColor = MaterialTheme.colorScheme.primary,
-                        cursorColor = MaterialTheme.colorScheme.primary
-                    )
-                )
-
-                if (errorMessage != null) {
-                    Text(
-                        text = errorMessage!!,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier
-                            .padding(top = 8.dp)
-                            .fillMaxWidth(),
-                        textAlign = TextAlign.Center,
-                        fontSize = 12.sp
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Button(
-                    onClick = {
-                        if (email.isBlank() || password.isBlank()) {
-                            errorMessage = "이메일과 비밀번호를 모두 입력해주세요."
-                            return@Button
-                        }
-                        if (password != passwordConfirm) {
-                            errorMessage = "비밀번호가 일치하지 않습니다."
-                            return@Button
-                        }
-                        isLoading = true
-                        errorMessage = null
-                        auth.createUserWithEmailAndPassword(email.trim(), password)
-                            .addOnCompleteListener { task ->
-                                isLoading = false
-                                if (task.isSuccessful) {
-                                    Log.d("SignUpScreen", "createUserWithEmail:success")
-                                    val firebaseUser = auth.currentUser
-                                    firebaseUser?.sendEmailVerification()
-                                        ?.addOnCompleteListener { verificationTask ->
-                                            if (verificationTask.isSuccessful) {
-                                                Log.d("SignUpScreen", "Email verification sent.")
-                                                isVerificationEmailSent = true
-                                            } else {
-                                                Log.e("SignUpScreen", "sendEmailVerification failed", verificationTask.exception)
-                                                errorMessage = "인증 메일 발송에 실패했습니다."
-                                            }
-                                        }
-                                } else {
-                                    Log.w("SignUpScreen", "createUserWithEmail:failure", task.exception)
-                                    errorMessage = when (val exception = task.exception) {
-                                        is FirebaseAuthWeakPasswordException -> "비밀번호는 6자 이상이어야 합니다."
-                                        is FirebaseAuthInvalidCredentialsException -> "이메일 형식이 올바르지 않습니다."
-                                        is FirebaseAuthUserCollisionException -> "이미 사용 중인 이메일입니다."
-                                        else -> "회원가입에 실패했습니다. (${exception?.message ?: "알 수 없는 오류"})"
-                                    }
-                                }
-                            }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    enabled = !isLoading && !isGoogleLoading
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Text("가입하기", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimary)
+                    when (step) {
+                        SignUpStep.PHONE -> {
+                            OutlinedTextField(
+                                value = phoneNumber,
+                                onValueChange = { if (it.length <= 11 && it.all { c -> c.isDigit() }) phoneNumber = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text("전화번호") },
+                                placeholder = { Text("01012345678") },
+                                shape = RoundedCornerShape(12.dp),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                singleLine = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    cursorColor = MaterialTheme.colorScheme.primary
+                                )
+                            )
+                        }
+                        SignUpStep.CODE -> {
+                            OutlinedTextField(
+                                value = verificationCode,
+                                onValueChange = { if (it.length <= 6 && it.all { c -> c.isDigit() }) verificationCode = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text("인증번호 6자리") },
+                                shape = RoundedCornerShape(12.dp),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                singleLine = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    cursorColor = MaterialTheme.colorScheme.primary
+                                )
+                            )
+                        }
+                        SignUpStep.ACCOUNT -> {
+                            OutlinedTextField(
+                                value = email,
+                                onValueChange = { email = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text("이메일") },
+                                shape = RoundedCornerShape(12.dp),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                                singleLine = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    cursorColor = MaterialTheme.colorScheme.primary
+                                )
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            OutlinedTextField(
+                                value = password,
+                                onValueChange = { password = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text("비밀번호") },
+                                shape = RoundedCornerShape(12.dp),
+                                visualTransformation = PasswordVisualTransformation(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                singleLine = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    cursorColor = MaterialTheme.colorScheme.primary
+                                )
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            OutlinedTextField(
+                                value = passwordConfirm,
+                                onValueChange = { passwordConfirm = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text("비밀번호 확인") },
+                                shape = RoundedCornerShape(12.dp),
+                                visualTransformation = PasswordVisualTransformation(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                singleLine = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    cursorColor = MaterialTheme.colorScheme.primary
+                                )
+                            )
+                        }
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
+            }
 
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    Divider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outline)
-                    Text(" 또는 ", modifier = Modifier.padding(horizontal = 8.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Divider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outline)
+            // 에러 메시지
+            errorMessage?.let {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // 메인 버튼
+            Button(
+                onClick = {
+                    errorMessage = null
+                    when (currentStep) {
+                        SignUpStep.PHONE -> sendVerificationCode()
+                        SignUpStep.CODE -> verifyCode()
+                        SignUpStep.ACCOUNT -> createAccount()
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(12.dp),
+                enabled = !isLoading && !isGoogleLoading,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        when (currentStep) {
+                            SignUpStep.PHONE -> "인증번호 받기"
+                            SignUpStep.CODE -> "확인"
+                            SignUpStep.ACCOUNT -> "가입하기"
+                        },
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            // Google 로그인 (계정 단계에서만)
+            if (currentStep == SignUpStep.ACCOUNT) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    HorizontalDivider(modifier = Modifier.weight(1f))
+                    Text(" 또는 ", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+                    HorizontalDivider(modifier = Modifier.weight(1f))
                 }
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Button(
-                    onClick = {
-                        if (!isGoogleLoading && !isLoading) {
-                            errorMessage = null
-                            Log.d("SignUpScreen", "Launching Google Sign-In flow")
-                            googleSignInLauncher.launch(googleSignInClient.signInIntent)
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    enabled = !isLoading && !isGoogleLoading,
-                    contentPadding = PaddingValues(0.dp),
-                    border = null,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        disabledContainerColor = MaterialTheme.colorScheme.surface
-                    )
+                OutlinedButton(
+                    onClick = { googleSignInLauncher.launch(googleSignInClient.signInIntent) },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = !isLoading && !isGoogleLoading
                 ) {
                     if (isGoogleLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(32.dp),
-                            color = MaterialTheme.colorScheme.primary,
-                            strokeWidth = 3.dp
-                        )
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                     } else {
                         Image(
                             painter = painterResource(id = R.mipmap.signupgoogle),
-                            contentDescription = "Google 계정으로 계속하기",
-                            modifier = Modifier.fillMaxSize(),
+                            contentDescription = null,
+                            modifier = Modifier.height(24.dp),
                             contentScale = ContentScale.Fit
                         )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Google로 계속하기", color = MaterialTheme.colorScheme.onSurface)
                     }
                 }
-
-                TextButton(
-                    onClick = {
-                        if (!isLoading && !isGoogleLoading) {
-                            onNavigateToLogin()
-                        }
-                    },
-                    enabled = !isLoading && !isGoogleLoading
-                ) {
-                    Text("이미 계정이 있으신가요? 로그인", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                Spacer(modifier = Modifier.height(24.dp))
             }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            // 로그인 링크
+            TextButton(onClick = onNavigateToLogin) {
+                Text("이미 계정이 있으신가요? 로그인", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
-    }
-}
-
-@Preview(showBackground = true, name = "Light Mode")
-@Composable
-fun DefaultSignUpScreenPreview() {
-    ReadersTheme(darkTheme = false) {
-        SignUpScreen(
-            onSignUpSuccess = {},
-            onNavigateToLogin = {},
-            onNavigateBack = {},
-            onNavigateToHome = {}
-        )
-    }
-}
-
-@Preview(showBackground = true, name = "Dark Mode")
-@Composable
-fun DarkSignUpScreenPreview() {
-    ReadersTheme(darkTheme = true) {
-        SignUpScreen(
-            onSignUpSuccess = {},
-            onNavigateToLogin = {},
-            onNavigateBack = {},
-            onNavigateToHome = {}
-        )
     }
 }
