@@ -41,26 +41,23 @@ enum class ChallengeCardState {
 
 @Composable
 fun SwipeableChallengeCard(
-    userChallenge: Challenge?,
+    userChallenges: List<Challenge>,
     availableChallenges: List<Challenge>,
     onChallengeSelected: (Challenge) -> Unit,
-    onChallengeReset: () -> Unit,
+    onChallengeReset: (String) -> Unit, // Modified to accept challengeId for reset
     currentUserId: String,
     isChallengesLoading: Boolean,
     consecutiveReadingDays: Int,
     communityViewModel: CommunityViewModel? = null
 ) {
     var cardState by remember { mutableStateOf(ChallengeCardState.INITIAL) }
-    var optimisticChallenge by remember { mutableStateOf<Challenge?>(null) }
-    var isManuallySelecting by remember { mutableStateOf(false) }
 
     // Simple state management - update immediately when challenge changes
-    LaunchedEffect(userChallenge, optimisticChallenge) {
-        if (!isManuallySelecting && (userChallenge != null || optimisticChallenge != null)) {
+    LaunchedEffect(userChallenges) {
+        if (userChallenges.isNotEmpty()) {
             cardState = ChallengeCardState.ACTIVE
-        } else if (userChallenge == null && optimisticChallenge == null) {
+        } else {
             cardState = ChallengeCardState.INITIAL
-            isManuallySelecting = false
         }
     }
 
@@ -72,7 +69,7 @@ fun SwipeableChallengeCard(
         contentAlignment = Alignment.Center
     ) {
         // While loading, if we don't have a challenge to show, display a progress indicator.
-        if (isChallengesLoading && userChallenge == null && optimisticChallenge == null) {
+        if (isChallengesLoading && userChallenges.isEmpty()) {
             CircularProgressIndicator()
         } else {
             when (cardState) {
@@ -88,18 +85,12 @@ fun SwipeableChallengeCard(
                         challenges = availableChallenges,
                         onSelect = { challenge ->
                             onChallengeSelected(challenge)
-                            // Create an optimistic challenge with the join date set to now
-                            val optimisticWithJoinDate = challenge.copy(
-                                joinDate = challenge.joinDate + (currentUserId to java.util.Date())
-                            )
-                            optimisticChallenge = optimisticWithJoinDate
-                            isManuallySelecting = false
                             cardState = ChallengeCardState.ACTIVE
                         }
                     )
                 }
                 ChallengeCardState.ACTIVE -> {
-                    val challengeToShow = userChallenge ?: optimisticChallenge
+                    val challengeToShow = userChallenges.firstOrNull() // Get the first active challenge
 
                     if (challengeToShow != null) {
                         com.route.readers.ui.components.SharedChallengeCard(
@@ -107,15 +98,13 @@ fun SwipeableChallengeCard(
                             currentUserId = currentUserId,
                             consecutiveReadingDays = consecutiveReadingDays,
                             onReset = {
-                                onChallengeReset()
-                                optimisticChallenge = null
-                                isManuallySelecting = true
-                                cardState = ChallengeCardState.SELECTING
+                                onChallengeReset(challengeToShow.id) // Pass the ID of the challenge to reset
+                                cardState = ChallengeCardState.INITIAL // Immediately transition to INITIAL after reset
                             }
                         )
                     } else {
-                        // If for some reason we end up here with no challenge, go back to initial.
-                        // This can happen if the last challenge is left/reset.
+                        // This case should ideally not be reached if userChallenges is correctly managed by ViewModel
+                        // but as a fallback, go back to initial.
                         LaunchedEffect(Unit) {
                             cardState = ChallengeCardState.INITIAL
                         }
@@ -235,7 +224,7 @@ fun ChallengeSelectionCard(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(challenges) { challenge ->
+                    items(challenges, key = { it.id }) { challenge ->
                         ChallengeOption(
                             challenge = challenge,
                             onSelect = { onSelect(challenge) },

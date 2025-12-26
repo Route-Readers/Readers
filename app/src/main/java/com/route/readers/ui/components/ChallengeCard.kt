@@ -25,7 +25,8 @@ import java.util.concurrent.TimeUnit
 @Composable
 fun ChallengeCard(
     challenge: Challenge,
-    onJoinClick: () -> Unit
+    onJoinClick: () -> Unit,
+    onLeaveClick: () -> Unit // Added onLeaveClick parameter
 ) {
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
     val isJoined = challenge.participants.contains(currentUserId)
@@ -115,6 +116,13 @@ fun ChallengeCard(
                     "${currentProgressValue}/${totalGoalValue}${progressUnit} 완료 (${(overallProgressFraction * 100).toInt()}%)"
                 }
                 Text(text = progressText)
+                Spacer(modifier = Modifier.height(8.dp)) // Add space before button
+                Button(
+                    onClick = onLeaveClick, // Call onLeaveClick when joined
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = "챌린지 포기하기")
+                }
             } else {
                 // 참여하지 않은 경우에도 DAILY_PAGES_READING 타입이면 오늘 진행률을 보여줌
                 if (challenge.type == ChallengeType.DAILY_PAGES_READING) {

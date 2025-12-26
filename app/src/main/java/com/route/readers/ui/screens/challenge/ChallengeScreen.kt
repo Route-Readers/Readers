@@ -94,9 +94,9 @@ fun ChallengeContent(
                     CircularProgressIndicator()
                 }
             }
-            uiState.userChallenge != null -> {
-                com.route.readers.ui.components.SharedChallengeCard(
-                    challenge = uiState.userChallenge,
+            uiState.userChallenges.isNotEmpty() -> {
+                ActiveChallengeList(
+                    userChallenges = uiState.userChallenges,
                     currentUserId = viewModel.currentUserId,
                     consecutiveReadingDays = uiState.consecutiveReadingDays,
                     challengeViewModel = viewModel,
@@ -107,6 +107,7 @@ fun ChallengeContent(
                 ChallengeSelection(
                     challenges = uiState.availableChallenges,
                     onJoinChallenge = { viewModel.joinChallenge(it) },
+                    viewModel = viewModel, // Pass the viewModel here
                     modifier = Modifier.padding(paddingValues)
                 )
             }
@@ -118,6 +119,7 @@ fun ChallengeContent(
 fun ChallengeSelection(
     challenges: List<Challenge>,
     onJoinChallenge: (String) -> Unit,
+    viewModel: ChallengeViewModel, // Add this parameter
     modifier: Modifier = Modifier
 ) {
     if (challenges.isEmpty()) {
@@ -138,10 +140,11 @@ fun ChallengeSelection(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(challenges) { challenge ->
+            items(challenges, key = { it.id }) { challenge ->
                 ChallengeCard(
                     challenge = challenge,
-                    onJoinClick = { onJoinChallenge(challenge.id) }
+                    onJoinClick = { onJoinChallenge(challenge.id) },
+                    onLeaveClick = { viewModel.leaveChallenge(challenge.id) }
                 )
             }
         }
@@ -197,6 +200,33 @@ fun ChallengeProgress(
         Text("보상: ${challenge.reward}", style = MaterialTheme.typography.bodyMedium)
     }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ActiveChallengeList(
+    userChallenges: List<Challenge>,
+    currentUserId: String,
+    consecutiveReadingDays: Int,
+    challengeViewModel: ChallengeViewModel,
+    modifier: Modifier = Modifier
+) {
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(userChallenges, key = { it.id }) { challenge ->
+            com.route.readers.ui.components.SharedChallengeCard(
+                challenge = challenge,
+                currentUserId = currentUserId,
+                consecutiveReadingDays = consecutiveReadingDays,
+                challengeViewModel = challengeViewModel
+            )
+        }
+    }
+}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

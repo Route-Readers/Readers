@@ -163,16 +163,19 @@ class StatisticsViewModel(application: Application) : AndroidViewModel(applicati
                             genreStats = calculateGenreStats(sessions, allBooks)
                         )
                         // 활성화된 챌린지가 있다면 진행 상황 업데이트
-                        val selectedChallengeId = sharedPreferences.getString(Prefs.KEY_SELECTED_CHALLENGE, null)
-                        if (selectedChallengeId != null && currentUserId != null) {
+                        if (currentUserId != null) {
                             val selectedDateStr = _uiState.value.selectedDate.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
                             val pagesReadToday = dailyReadings[selectedDateStr] ?: 0
+
                             if (pagesReadToday > 0) {
-                                challengeRepository.updateDailyProgress(
-                                    challengeId = selectedChallengeId,
-                                    userId = currentUserId,
-                                    date = selectedDateStr
-                                )
+                                val activeDailyPageChallenges = challengeRepository.getUserActiveDailyPageChallenges(currentUserId)
+                                activeDailyPageChallenges.forEach { challenge ->
+                                    challengeRepository.updateDailyProgress(
+                                        challengeId = challenge.id,
+                                        userId = currentUserId,
+                                        date = selectedDateStr
+                                    )
+                                }
                             }
                         }
                     }

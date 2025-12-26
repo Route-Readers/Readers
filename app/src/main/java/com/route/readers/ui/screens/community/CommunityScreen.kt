@@ -143,7 +143,7 @@ fun CommunityScreen(
                         },
                         onSendNotification = { viewModel.sendReadingNotification() },
                         onJoinChallenge = { challengeId -> viewModel.joinChallenge(challengeId) },
-                        onResetChallenge = { viewModel.resetChallenge() },
+                        onResetChallenge = { challengeId -> viewModel.resetChallenge(challengeId) },
                         onNavigateToUserProfile = onNavigateToUserProfile,
                         currentUserId = viewModel.currentUserId,
                         listState = communityListState,
@@ -215,7 +215,7 @@ fun CommunityContent(
     onToggleBookClubMembership: (String, Boolean) -> Unit,
     onSendNotification: () -> Unit,
     onJoinChallenge: (String) -> Unit = {},
-    onResetChallenge: () -> Unit = {},
+    onResetChallenge: (String) -> Unit = {}, // Modified to accept String
     onNavigateToUserProfile: (String) -> Unit,
     currentUserId: String = "",
     listState: LazyListState,
@@ -228,7 +228,7 @@ fun CommunityContent(
     ) {
         item {
             SwipeableChallengeCard(
-                userChallenge = uiState.userActiveChallenge,
+                userChallenges = uiState.userActiveChallenges,
                 availableChallenges = uiState.availableChallenges,
                 onChallengeSelected = { challenge -> onJoinChallenge(challenge.id) },
                 onChallengeReset = onResetChallenge,

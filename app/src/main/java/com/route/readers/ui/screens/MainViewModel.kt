@@ -40,8 +40,8 @@ class MainViewModel : ViewModel() {
     private val _tokens = MutableStateFlow(0)
     val tokens = _tokens.asStateFlow()
 
-    private val _userActiveChallenge = MutableStateFlow<Challenge?>(null)
-    val userActiveChallenge: StateFlow<Challenge?> = _userActiveChallenge.asStateFlow()
+    private val _userActiveChallenge = MutableStateFlow<List<Challenge>>(emptyList())
+    val userActiveChallenge: StateFlow<List<Challenge>> = _userActiveChallenge.asStateFlow()
 
     init {
         checkAndUpdateAttendance()

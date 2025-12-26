@@ -32,7 +32,7 @@ data class CommunityUiState(
     val isBookClubsLoading: Boolean = true,
     val isFriendsLoading: Boolean = true,
     val isChallengesLoading: Boolean = true,
-    val userActiveChallenge: Challenge? = null,
+    val userActiveChallenges: List<Challenge> = emptyList(),
     val availableChallenges: List<Challenge> = emptyList(),
     val addFriendMessage: String? = null,
     val friendToDelete: User? = null, // Changed to User?
@@ -61,12 +61,6 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
     val uiState: StateFlow<CommunityUiState> = _uiState.asStateFlow()
 
     init {
-        val selectedChallengeId = sharedPreferences.getString(Prefs.KEY_SELECTED_CHALLENGE, null)
-        selectedChallengeId?.let {
-            loadSelectedChallenge(it)
-        }
-
-
         viewModelScope.launch {
             friendsRepository.friends.collect { friends ->
                 _uiState.value = _uiState.value.copy(
@@ -87,12 +81,12 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
             }
         }
 
-        // Observe the active challenge from the repository's flow
+        // Observe the active challenges from the repository's flow
         currentUserId.let { userId ->
             challengeRepository.getActiveChallengeStream(userId)
-                .onEach { challenge ->
+                .onEach { challenges ->
                     _uiState.value = _uiState.value.copy(
-                        userActiveChallenge = challenge,
+                        userActiveChallenges = challenges,
                         isChallengesLoading = false
                     )
                 }
@@ -102,20 +96,6 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
         loadFriends()
         loadConsecutiveReadingDays()
         refreshChallenges() // Load available challenges initially
-    }
-
-    private fun loadSelectedChallenge(challengeId: String) {
-        viewModelScope.launch {
-            try {
-                val challenge = challengeRepository.getChallenge(challengeId)
-                _uiState.value = _uiState.value.copy(
-                    userActiveChallenge = challenge,
-                    isChallengesLoading = false
-                )
-            } catch (e: Exception) {
-                // Handle error
-            }
-        }
     }
 
 
@@ -181,31 +161,90 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun joinChallenge(challengeId: String) {
         viewModelScope.launch {
-            try {
-                challengeRepository.joinChallenge(challengeId, currentUserId)
-                sharedPreferences.edit().putString(Prefs.KEY_SELECTED_CHALLENGE, challengeId).apply()
-    
+            val originalAvailableChallenges = _uiState.value.availableChallenges
+            val originalUserActiveChallenges = _uiState.value.userActiveChallenges
 
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    addFriendMessage = "챌린지 참여에 실패했습니다."
+            val challengeToJoin = originalAvailableChallenges.find { it.id == challengeId }
+
+            challengeToJoin?.let { challenge ->
+                val updatedParticipants = challenge.participants + currentUserId
+                val updatedProgress = challenge.progress.toMutableMap().apply { this[currentUserId] = 0 }
+                val updatedJoinDates = challenge.joinDate.toMutableMap().apply { this[currentUserId] = java.util.Date() }
+
+                val optimisticChallenge = challenge.copy(
+                    participants = updatedParticipants,
+                    progress = updatedProgress,
+                    joinDate = updatedJoinDates
                 )
+
+                // Optimistic UI Update
+                val newAvailableChallenges = originalAvailableChallenges.filter { it.id != challengeId }
+                val newUserActiveChallenges = originalUserActiveChallenges + optimisticChallenge
+
+                _uiState.value = _uiState.value.copy(
+                    availableChallenges = newAvailableChallenges,
+                    userActiveChallenges = newUserActiveChallenges
+                )
+
+                try {
+                    challengeRepository.joinChallenge(challengeId, currentUserId)
+                } catch (e: Exception) {
+                    // Revert optimistic update if backend call fails
+                    _uiState.value = _uiState.value.copy(
+                        availableChallenges = originalAvailableChallenges,
+                        userActiveChallenges = originalUserActiveChallenges,
+                        addFriendMessage = "챌린지 참여에 실패했습니다."
+                    )
+                }
             }
         }
     }
 
-    fun resetChallenge() {
+    fun resetChallenge(challengeId: String) {
         viewModelScope.launch {
-            try {
-                _uiState.value.userActiveChallenge?.let { challenge ->
-                    challengeRepository.leaveChallenge(challenge.id, currentUserId)
-                    sharedPreferences.edit().remove(Prefs.KEY_SELECTED_CHALLENGE).apply()
-        
-                }
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    addFriendMessage = "챌린지 초기화에 실패했습니다."
+            val originalAvailableChallenges = _uiState.value.availableChallenges
+            val originalUserActiveChallenges = _uiState.value.userActiveChallenges
+
+            val challengeToLeave = originalUserActiveChallenges.find { it.id == challengeId }
+
+            challengeToLeave?.let { challenge ->
+                val updatedParticipants = challenge.participants.filter { it != currentUserId }
+                val updatedProgress = challenge.progress.toMutableMap().also { it.remove(currentUserId) }
+                val updatedJoinDates = challenge.joinDate.toMutableMap().also { it.remove(currentUserId) }
+
+                val optimisticChallenge = challenge.copy(
+                    participants = updatedParticipants,
+                    progress = updatedProgress,
+                    joinDate = updatedJoinDates
                 )
+
+                // Optimistic UI Update
+                val newUserActiveChallenges = originalUserActiveChallenges.filter { it.id != challengeId }
+                val newAvailableChallenges = originalAvailableChallenges.toMutableList().apply {
+                    val index = indexOfFirst { it.id == optimisticChallenge.id }
+                    if (index != -1) {
+                        set(index, optimisticChallenge)
+                    } else {
+                        add(optimisticChallenge)
+                    }
+                }
+
+                _uiState.value = _uiState.value.copy(
+                    userActiveChallenges = newUserActiveChallenges,
+                    availableChallenges = newAvailableChallenges
+                )
+
+                try {
+                    challengeRepository.leaveChallenge(challengeId, currentUserId)
+                    refreshChallenges() // Force refresh after successful leave
+                } catch (e: Exception) {
+                    // Revert optimistic update if backend call fails
+                    _uiState.value = _uiState.value.copy(
+                        userActiveChallenges = originalUserActiveChallenges,
+                        availableChallenges = originalAvailableChallenges,
+                        addFriendMessage = "챌린지 초기화에 실패했습니다."
+                    )
+                }
             }
         }
     }

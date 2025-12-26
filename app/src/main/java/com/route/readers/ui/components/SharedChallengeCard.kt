@@ -28,7 +28,7 @@ fun SharedChallengeCard(
     consecutiveReadingDays: Int,
     communityViewModel: CommunityViewModel? = null,
     challengeViewModel: ChallengeViewModel? = null,
-    onReset: (() -> Unit)? = null,
+    onReset: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var actualDailyPages by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
@@ -140,7 +140,7 @@ fun SharedChallengeCard(
                     )
                     if (onReset != null) {
                         TextButton(
-                            onClick = onReset,
+                            onClick = { onReset(challenge.id) },
                             colors = ButtonDefaults.textButtonColors(
                                 contentColor = Color(0xFF00FF88)
                             ),

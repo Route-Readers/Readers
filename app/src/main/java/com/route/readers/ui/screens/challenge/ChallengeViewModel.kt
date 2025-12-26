@@ -23,7 +23,7 @@ import java.util.Locale
 
 data class ChallengeUiState(
     val isLoading: Boolean = true,
-    val userChallenge: Challenge? = null,
+    val userChallenges: List<Challenge> = emptyList(),
     val availableChallenges: List<Challenge> = emptyList(),
     val showCreateDialog: Boolean = false,
     val consecutiveReadingDays: Int = 0
@@ -44,13 +44,13 @@ class ChallengeViewModel : ViewModel() {
         if (currentUserId.isNotBlank()) {
             // Observe the active challenge from the repository's new real-time stream
             repository.getActiveChallengeStream(currentUserId)
-                .onEach { challenge ->
+                .onEach { challenges ->
                     _uiState.value = _uiState.value.copy(
-                        userChallenge = challenge,
+                        userChallenges = challenges,
                         isLoading = false
                     )
-                    // When the challenge is loaded, if it's a consecutive reading one, update its progress
-                    if (challenge?.type == ChallengeType.CONSECUTIVE_READING) {
+                    // When the challenges are loaded, if any are consecutive reading ones, update their progress
+                    if (challenges.any { it.type == ChallengeType.CONSECUTIVE_READING }) {
                         updateConsecutiveReadingProgress()
                     }
                 }
@@ -69,10 +69,12 @@ class ChallengeViewModel : ViewModel() {
             // Update the UI state
             _uiState.value = _uiState.value.copy(consecutiveReadingDays = consecutiveReadingDays)
 
-            // Update Firestore
-            val challenge = _uiState.value.userChallenge
-            if (challenge != null && (challenge.progress[currentUserId] ?: 0) != consecutiveReadingDays) {
-                repository.updateChallengeProgress(challenge.id, currentUserId, consecutiveReadingDays)
+            // Update Firestore for all consecutive reading challenges
+            val userChallenges = _uiState.value.userChallenges
+            userChallenges.filter { it.type == ChallengeType.CONSECUTIVE_READING }.forEach { challenge ->
+                if ((challenge.progress[currentUserId] ?: 0) != consecutiveReadingDays) {
+                    repository.updateChallengeProgress(challenge.id, currentUserId, consecutiveReadingDays)
+                }
             }
         }
     }
@@ -218,16 +220,100 @@ class ChallengeViewModel : ViewModel() {
 
     fun joinChallenge(challengeId: String) {
         viewModelScope.launch {
-            repository.joinChallenge(challengeId, currentUserId)
+            val originalAvailableChallenges = _uiState.value.availableChallenges
+            val originalUserChallenges = _uiState.value.userChallenges
+
+            val challengeToJoin = originalAvailableChallenges.find { it.id == challengeId }
+
+            challengeToJoin?.let { challenge ->
+                val updatedParticipants = challenge.participants + currentUserId
+                val updatedProgress = challenge.progress.toMutableMap().apply { this[currentUserId] = 0 }
+                val updatedJoinDates = challenge.joinDate.toMutableMap().apply { this[currentUserId] = java.util.Date() }
+
+                val optimisticChallenge = challenge.copy(
+                    participants = updatedParticipants,
+                    progress = updatedProgress,
+                    joinDate = updatedJoinDates
+                )
+
+                // Optimistic UI Update
+                val newAvailableChallenges = originalAvailableChallenges.filter { it.id != challengeId }
+                val newUserChallenges = originalUserChallenges + optimisticChallenge
+
+                _uiState.value = _uiState.value.copy(
+                    availableChallenges = newAvailableChallenges,
+                    userChallenges = newUserChallenges
+                )
+
+                try {
+                    repository.joinChallenge(challengeId, currentUserId)
+                } catch (e: Exception) {
+                    // Revert optimistic update if backend call fails
+                    _uiState.value = _uiState.value.copy(
+                        availableChallenges = originalAvailableChallenges,
+                        userChallenges = originalUserChallenges
+                    )
+                    // Optionally, show an error message to the user
+                }
+            }
+        }
+    }
+
+    fun leaveChallenge(challengeId: String) {
+        viewModelScope.launch {
+            val originalAvailableChallenges = _uiState.value.availableChallenges
+            val originalUserChallenges = _uiState.value.userChallenges
+
+            val challengeToLeave = originalUserChallenges.find { it.id == challengeId }
+
+            challengeToLeave?.let { challenge ->
+                val updatedParticipants = challenge.participants.filter { it != currentUserId }
+                val updatedProgress = challenge.progress.toMutableMap().also { it.remove(currentUserId) }
+                val updatedJoinDates = challenge.joinDate.toMutableMap().also { it.remove(currentUserId) }
+
+                val optimisticChallenge = challenge.copy(
+                    participants = updatedParticipants,
+                    progress = updatedProgress,
+                    joinDate = updatedJoinDates
+                )
+
+                // Optimistic UI Update
+                val newUserChallenges = originalUserChallenges.filter { it.id != challengeId }
+                val newAvailableChallenges = originalAvailableChallenges.toMutableList().apply {
+                    val index = indexOfFirst { it.id == optimisticChallenge.id }
+                    if (index != -1) {
+                        set(index, optimisticChallenge)
+                    } else {
+                        add(optimisticChallenge)
                     }
+                }
+
+                _uiState.value = _uiState.value.copy(
+                    userChallenges = newUserChallenges,
+                    availableChallenges = newAvailableChallenges
+                )
+
+                try {
+                    repository.leaveChallenge(challengeId, currentUserId)
+                    refreshAvailableChallenges() // Force refresh after successful leave
+                } catch (e: Exception) {
+                    // Revert optimistic update if backend call fails
+                    _uiState.value = _uiState.value.copy(
+                        userChallenges = originalUserChallenges,
+                        availableChallenges = originalAvailableChallenges
+                    )
+                    // Optionally, show an error message to the user
+                }
+            }
+        }
     }
 
     fun onPagesRead(pagesRead: Int) {
         viewModelScope.launch {
-            val userChallenge = _uiState.value.userChallenge
-            if (userChallenge != null && userChallenge.type == ChallengeType.DAILY_PAGES_READING) {
-                val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(java.util.Date())
-                repository.updateDailyProgress(userChallenge.id, currentUserId, today)
+            val userChallenges = _uiState.value.userChallenges
+            val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(java.util.Date())
+            userChallenges.filter { it.type == ChallengeType.DAILY_PAGES_READING }.forEach { challenge ->
+                repository.updateDailyProgress(challenge.id, currentUserId, today)
             }
         }
     }
