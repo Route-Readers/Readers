@@ -442,7 +442,8 @@ fun RootAppNavigation(
             AccountScreen(
                 onNavigateBack = { appNavController.popBackStack() },
                 onNavigateToStatistics = { appNavController.navigate("statistics_route") },
-                viewModel = accountViewModel
+                viewModel = accountViewModel,
+                navController = appNavController // Pass navController
             )
         }
 
