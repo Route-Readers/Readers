@@ -376,6 +376,9 @@ fun MainScreen(
                         },
                         onNavigateToGoal = {
                             navController.navigate("goal_route")
+                        },
+                        onNavigateToOtherUserProfile = { otherUserId ->
+                            navController.navigate("profile_route/$otherUserId")
                         }
                     )
                 }

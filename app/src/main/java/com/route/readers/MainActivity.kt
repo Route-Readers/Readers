@@ -491,6 +491,9 @@ fun RootAppNavigation(
                     },
                     onNavigateToGoal = {
                         appNavController.navigate("goal_route")
+                    },
+                    onNavigateToOtherUserProfile = { otherUserId ->
+                        appNavController.navigate("profile_route/$otherUserId")
                     }
                 )
             }
