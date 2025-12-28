@@ -17,7 +17,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.route.readers.data.model.Challenge
-import com.route.readers.ui.screens.community.SwipeableChallengeCard
+import com.route.readers.ui.components.ChallengeCard
+import com.route.readers.ui.components.SharedChallengeCard
 import com.route.readers.ui.screens.bookclub.BookClubScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -73,6 +74,8 @@ fun ChallengeContent(
     uiState: ChallengeUiState,
     viewModel: ChallengeViewModel
 ) {
+    val allChallenges = (uiState.userChallenges + uiState.availableChallenges).distinctBy { it.id }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -85,23 +88,59 @@ fun ChallengeContent(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            contentAlignment = Alignment.Center
-        ) {
-            SwipeableChallengeCard(
-                userChallenges = uiState.userChallenges,
-                availableChallenges = uiState.availableChallenges,
-                onChallengeSelected = { challenge -> viewModel.joinChallenge(challenge.id) },
-                onChallengeReset = { challengeId -> viewModel.leaveChallenge(challengeId) },
-                currentUserId = viewModel.currentUserId,
-                isChallengesLoading = uiState.isLoading,
-                consecutiveReadingDays = uiState.consecutiveReadingDays,
-                challengeViewModel = viewModel,
-                startInSelectionMode = true
-            )
+        when {
+            uiState.isLoading && allChallenges.isEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+            allChallenges.isEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "참여 가능한 챌린지가 없습니다.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            else -> {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(allChallenges, key = { it.id }) { challenge ->
+                        val isJoined = challenge.participants.contains(viewModel.currentUserId)
+                        if (isJoined) {
+                            SharedChallengeCard(
+                                challenge = challenge,
+                                currentUserId = viewModel.currentUserId,
+                                consecutiveReadingDays = uiState.consecutiveReadingDays,
+                                challengeViewModel = viewModel,
+                                onReset = { viewModel.leaveChallenge(challenge.id) }
+                            )
+                        } else {
+                            ChallengeCard(
+                                challenge = challenge,
+                                onJoinClick = { viewModel.joinChallenge(challenge.id) },
+                                onLeaveClick = { viewModel.leaveChallenge(challenge.id) }
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
