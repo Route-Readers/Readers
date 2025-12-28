@@ -17,7 +17,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.route.readers.data.model.Challenge
-import com.route.readers.ui.components.ChallengeCard
+import com.route.readers.ui.screens.community.SwipeableChallengeCard
 import com.route.readers.ui.screens.bookclub.BookClubScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -85,208 +85,25 @@ fun ChallengeContent(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
-        when {
-            uiState.isLoading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(paddingValues),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-            uiState.userChallenges.isNotEmpty() -> {
-                ActiveChallengeList(
-                    userChallenges = uiState.userChallenges,
-                    currentUserId = viewModel.currentUserId,
-                    consecutiveReadingDays = uiState.consecutiveReadingDays,
-                    challengeViewModel = viewModel,
-                    modifier = Modifier.padding(paddingValues)
-                )
-            }
-            else -> {
-                ChallengeSelection(
-                    challenges = uiState.availableChallenges,
-                    onJoinChallenge = { viewModel.joinChallenge(it) },
-                    viewModel = viewModel, // Pass the viewModel here
-                    modifier = Modifier.padding(paddingValues)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun ChallengeSelection(
-    challenges: List<Challenge>,
-    onJoinChallenge: (String) -> Unit,
-    viewModel: ChallengeViewModel, // Add this parameter
-    modifier: Modifier = Modifier
-) {
-    if (challenges.isEmpty()) {
         Box(
-            modifier = modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                "참여 가능한 챌린지가 없습니다.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    } else {
-        LazyColumn(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(challenges, key = { it.id }) { challenge ->
-                ChallengeCard(
-                    challenge = challenge,
-                    onJoinClick = { onJoinChallenge(challenge.id) },
-                    onLeaveClick = { viewModel.leaveChallenge(challenge.id) }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun ChallengeProgress(
-    challenge: Challenge,
-    userId: String,
-    consecutiveReadingDays: Int,
-    modifier: Modifier = Modifier
-) {
-    val (progress, goal) = run {
-        val progressValue = if (challenge.type == com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING) {
-            consecutiveReadingDays
-        } else {
-            challenge.progress[userId] ?: 0
-        }
-        Pair(progressValue, challenge.goal)
-    }
-    
-    val progressFraction = if (goal > 0) progress.toFloat() / goal.toFloat() else 0f
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(challenge.title, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(challenge.description, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Box(contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(
-                progress = { progressFraction },
-                modifier = Modifier.size(200.dp),
-                strokeWidth = 16.dp,
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-            )
-            Text(
-                text = "${(progressFraction * 100).toInt()}%",
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-        Text("현재 진행도: $progress / $goal", style = MaterialTheme.typography.titleLarge)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text("보상: ${challenge.reward}", style = MaterialTheme.typography.bodyMedium)
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ActiveChallengeList(
-    userChallenges: List<Challenge>,
-    currentUserId: String,
-    consecutiveReadingDays: Int,
-    challengeViewModel: ChallengeViewModel,
-    modifier: Modifier = Modifier
-) {
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        items(userChallenges, key = { it.id }) { challenge ->
-            com.route.readers.ui.components.SharedChallengeCard(
-                challenge = challenge,
-                currentUserId = currentUserId,
-                consecutiveReadingDays = consecutiveReadingDays,
-                challengeViewModel = challengeViewModel
+            SwipeableChallengeCard(
+                userChallenges = uiState.userChallenges,
+                availableChallenges = uiState.availableChallenges,
+                onChallengeSelected = { challenge -> viewModel.joinChallenge(challenge.id) },
+                onChallengeReset = { challengeId -> viewModel.leaveChallenge(challengeId) },
+                currentUserId = viewModel.currentUserId,
+                isChallengesLoading = uiState.isLoading,
+                consecutiveReadingDays = uiState.consecutiveReadingDays,
+                challengeViewModel = viewModel,
+                startInSelectionMode = true
             )
         }
     }
 }
 
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun CreateChallengeDialog(
-    onDismiss: () -> Unit,
-    onCreate: (String, String, Int) -> Unit
-) {
-    var title by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var goal by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("새 챌린지 만들기") },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    label = { Text("챌린지 제목") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    label = { Text("설명") },
-                    modifier = Modifier.fillMaxWidth(),
-                    maxLines = 3
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                OutlinedTextField(
-                    value = goal,
-                    onValueChange = { goal = it.filter { char -> char.isDigit() } },
-                    label = { Text("목표 (페이지 수)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    val goalValue = goal.toIntOrNull() ?: 0
-                    if (goalValue > 0) {
-                        onCreate(title, description, goalValue)
-                    }
-                },
-                enabled = title.isNotBlank() && (goal.toIntOrNull() ?: 0) > 0
-            ) {
-                Text("만들기")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("취소")
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.surface
-    )
-}
