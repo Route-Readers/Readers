@@ -251,6 +251,9 @@ fun AppNavigation(navController: NavHostController) {
                     },
                     onNavigateToGoal = {
                         navController.navigate("goal_route")
+                    },
+                    onNavigateToOtherUserProfile = { otherUserId ->
+                        navController.navigate("profile_route/$otherUserId")
                     }
                 )
             }

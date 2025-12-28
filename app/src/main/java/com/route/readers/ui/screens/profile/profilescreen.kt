@@ -101,7 +101,9 @@ import com.route.readers.data.model.Challenge
 import com.route.readers.data.model.ChallengeType
 import com.route.readers.data.model.User
 import com.route.readers.ui.components.AdBanner
+import com.route.readers.ui.screens.feed.FeedCard
 import com.route.readers.ui.screens.feed.FeedItem
+import com.route.readers.ui.screens.feed.FeedViewModel
 import com.route.readers.ui.screens.profile.PostsSection
 import com.route.readers.ui.screens.profile.Goal
 import com.route.readers.ui.screens.profile.calculateLevelInfo
@@ -121,6 +123,7 @@ fun ProfileScreen(
     onNavigateToLevel: () -> Unit,
     onNavigateToCustomization: () -> Unit = {},
     onNavigateToGoal: () -> Unit,
+    onNavigateToOtherUserProfile: (String) -> Unit,
     viewModel: ProfileViewModel = viewModel()
 ) {
     var showCustomization by remember { mutableStateOf(false) }
@@ -198,6 +201,7 @@ fun ProfileScreen(
                         onNavigateToMyBookList = onNavigateToMyBookList,
                         onNavigateToLevel = onNavigateToLevel,
                         onNavigateToGoal = onNavigateToGoal,
+                        onNavigateToOtherUserProfile = onNavigateToOtherUserProfile,
                         onBlockUser = { viewModel.blockUser(state.user.uid) },
                         onUnblockUser = { viewModel.unblockUser(state.user.uid) },
                         onBookmarkClick = { feedId, isBookmarked ->
@@ -233,7 +237,8 @@ fun ProfileContent(
     onNavigateToGoal: () -> Unit,
     onBlockUser: () -> Unit,
     onUnblockUser: () -> Unit,
-    onBookmarkClick: (String, Boolean) -> Unit
+    onBookmarkClick: (String, Boolean) -> Unit,
+    onNavigateToOtherUserProfile: (String) -> Unit
 ) {
     val user = state.user
     val isPrivateAndNotFollowing = user.isPrivate && !state.isMyProfile && !state.isFollowing
@@ -368,13 +373,28 @@ fun ProfileContent(
                         }
                     } else {
                         items(myPosts) { post ->
-                            PostItem(
-                                post = post,
-                                isMyPost = state.isMyProfile,
-                                onDelete = {
+                            FeedCard(
+                                item = post,
+                                isLiked = state.likedFeedIds.contains(post.id),
+                                isBookmarked = state.bookmarkedFeedIds.contains(post.id),
+                                onLikeClick = { viewModel.toggleLike(post.id, state.likedFeedIds.contains(post.id)) },
+                                onBookmarkClick = { viewModel.toggleBookmark(post.id, state.bookmarkedFeedIds.contains(post.id)) },
+                                onDeleteClick = {
                                     feedToDelete = post.id
                                     showDeleteDialog = true
-                                }
+                                },
+                                onUserClick = {
+                                    val userIdForProfile = (post as? FeedItem.BookReview)?.authorId
+                                    if (userIdForProfile != null && userIdForProfile != state.user.uid) {
+                                        onNavigateToOtherUserProfile(userIdForProfile)
+                                    }
+                                },
+                                onFollowBack = { /* Not applicable for book reviews */ },
+                                followerInfoMap = state.userInfoMap,
+                                wishlist = state.wishlist,
+                                myLibrary = state.myLibrary,
+                                onToggleWishlist = { book, isInWishlist -> viewModel.toggleWishlist(book, isInWishlist) },
+                                onToggleMyLibrary = { book, isInMyLibrary -> viewModel.toggleMyLibrary(book, isInMyLibrary) }
                             )
                         }
                     }
@@ -411,55 +431,7 @@ fun ProfileContent(
     }
 }
 
-@Composable
-fun PostItem(
-    post: FeedItem.BookReview,
-    isMyPost: Boolean,
-    onDelete: () -> Unit = {}
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = post.bookTitle,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            
-            Spacer(modifier = Modifier.height(4.dp))
-            
-            Text(
-                text = post.review,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 3
-            )
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "평점: ${post.rating}/5",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                
-                if (isMyPost) {
-                    TextButton(onClick = onDelete) {
-                        Text("삭제")
-                    }
-                }
-            }
-        }
-    }
-}
+
 @Composable
 fun AchievementsSection(
     ongoingAchievements: List<Achievement>,
