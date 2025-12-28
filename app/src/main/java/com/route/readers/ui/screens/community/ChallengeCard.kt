@@ -1,5 +1,6 @@
 package com.route.readers.ui.screens.community
 
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.animation.core.animateFloatAsState
@@ -41,26 +42,35 @@ enum class ChallengeCardState {
 
 @Composable
 fun SwipeableChallengeCard(
-    userChallenge: Challenge?,
+    userChallenges: List<Challenge>,
     availableChallenges: List<Challenge>,
     onChallengeSelected: (Challenge) -> Unit,
-    onChallengeReset: () -> Unit,
+    onChallengeReset: (String) -> Unit, // Modified to accept challengeId for reset
     currentUserId: String,
     isChallengesLoading: Boolean,
     consecutiveReadingDays: Int,
-    communityViewModel: CommunityViewModel? = null
+    communityViewModel: CommunityViewModel? = null,
+    challengeViewModel: com.route.readers.ui.screens.challenge.ChallengeViewModel? = null,
+    startInSelectionMode: Boolean = false
 ) {
     var cardState by remember { mutableStateOf(ChallengeCardState.INITIAL) }
-    var optimisticChallenge by remember { mutableStateOf<Challenge?>(null) }
-    var isManuallySelecting by remember { mutableStateOf(false) }
 
-    // Simple state management - update immediately when challenge changes
-    LaunchedEffect(userChallenge, optimisticChallenge) {
-        if (!isManuallySelecting && (userChallenge != null || optimisticChallenge != null)) {
+    // Revert to original logic: when challenges become empty, go to INITIAL state.
+    LaunchedEffect(userChallenges) {
+        if (userChallenges.isNotEmpty()) {
             cardState = ChallengeCardState.ACTIVE
-        } else if (userChallenge == null && optimisticChallenge == null) {
-            cardState = ChallengeCardState.INITIAL
-            isManuallySelecting = false
+        } else {
+            // This ensures that leaving a challenge returns to the initial swipe card.
+            if (cardState == ChallengeCardState.ACTIVE) {
+                cardState = ChallengeCardState.INITIAL
+            }
+        }
+    }
+
+    // New effect to handle starting directly in selection mode for the trophy tab
+    LaunchedEffect(startInSelectionMode, userChallenges) {
+        if (startInSelectionMode && userChallenges.isEmpty()) {
+            cardState = ChallengeCardState.SELECTING
         }
     }
 
@@ -72,11 +82,17 @@ fun SwipeableChallengeCard(
         contentAlignment = Alignment.Center
     ) {
         // While loading, if we don't have a challenge to show, display a progress indicator.
-        if (isChallengesLoading && userChallenge == null && optimisticChallenge == null) {
+        if (isChallengesLoading && userChallenges.isEmpty()) {
             CircularProgressIndicator()
         } else {
             when (cardState) {
                 ChallengeCardState.INITIAL -> {
+                    // For the trophy tab, if it accidentally gets here, auto-swipe.
+                    if (startInSelectionMode) {
+                        LaunchedEffect(Unit) {
+                            cardState = ChallengeCardState.SELECTING
+                        }
+                    }
                     InitialChallengeCard(
                         onSwipe = {
                             cardState = ChallengeCardState.SELECTING
@@ -88,34 +104,34 @@ fun SwipeableChallengeCard(
                         challenges = availableChallenges,
                         onSelect = { challenge ->
                             onChallengeSelected(challenge)
-                            // Create an optimistic challenge with the join date set to now
-                            val optimisticWithJoinDate = challenge.copy(
-                                joinDate = challenge.joinDate + (currentUserId to java.util.Date())
-                            )
-                            optimisticChallenge = optimisticWithJoinDate
-                            isManuallySelecting = false
                             cardState = ChallengeCardState.ACTIVE
                         }
                     )
                 }
                 ChallengeCardState.ACTIVE -> {
-                    val challengeToShow = userChallenge ?: optimisticChallenge
-
-                    if (challengeToShow != null) {
-                        com.route.readers.ui.components.SharedChallengeCard(
-                            challenge = challengeToShow,
-                            currentUserId = currentUserId,
-                            consecutiveReadingDays = consecutiveReadingDays,
-                            onReset = {
-                                onChallengeReset()
-                                optimisticChallenge = null
-                                isManuallySelecting = true
-                                cardState = ChallengeCardState.SELECTING
+                    if (userChallenges.isNotEmpty()) {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(userChallenges, key = { it.id }) { challenge ->
+                                com.route.readers.ui.components.SharedChallengeCard(
+                                    challenge = challenge,
+                                    currentUserId = currentUserId,
+                                    consecutiveReadingDays = consecutiveReadingDays,
+                                    onReset = {
+                                        onChallengeReset(challenge.id)
+                                        cardState = ChallengeCardState.INITIAL
+                                    },
+                                    communityViewModel = communityViewModel,
+                                    challengeViewModel = challengeViewModel
+                                )
                             }
-                        )
+                        }
                     } else {
-                        // If for some reason we end up here with no challenge, go back to initial.
-                        // This can happen if the last challenge is left/reset.
+                        // This case should ideally not be reached if userChallenges is correctly managed by ViewModel
+                        // but as a fallback, go back to initial.
                         LaunchedEffect(Unit) {
                             cardState = ChallengeCardState.INITIAL
                         }
@@ -235,7 +251,7 @@ fun ChallengeSelectionCard(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(challenges) { challenge ->
+                    items(challenges, key = { it.id }) { challenge ->
                         ChallengeOption(
                             challenge = challenge,
                             onSelect = { onSelect(challenge) },

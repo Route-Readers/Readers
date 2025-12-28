@@ -25,7 +25,7 @@ class ChallengeRepository(
 
     private val repositoryScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    fun getActiveChallengeStream(userId: String): kotlinx.coroutines.flow.Flow<Challenge?> {
+    fun getActiveChallengeStream(userId: String): kotlinx.coroutines.flow.Flow<List<Challenge>> {
         val currentWeek = getCurrentWeekNumber()
         Log.d("ChallengeRepository", "Setting up active challenge listener for userId: $userId, weekNumber: $currentWeek")
 
@@ -33,7 +33,6 @@ class ChallengeRepository(
             val query = challengesCollection
                 .whereArrayContains("participants", userId)
                 .whereEqualTo("weekNumber", currentWeek)
-                .limit(1)
 
             val listenerRegistration = query.addSnapshotListener { snapshot, e ->
                     if (e != null) {
@@ -42,8 +41,8 @@ class ChallengeRepository(
                         return@addSnapshotListener
                     }
 
-                    val challenge = snapshot?.documents?.firstOrNull()?.toObject(Challenge::class.java)
-                    trySend(challenge)
+                    val challenges = snapshot?.documents?.mapNotNull { it.toObject(Challenge::class.java) } ?: emptyList()
+                    trySend(challenges)
                 }
 
             awaitClose { listenerRegistration.remove() }
@@ -109,27 +108,27 @@ class ChallengeRepository(
 
             transaction.update(docRef, mapOf(
                 "participants" to updatedParticipants,
-                "progress" to updatedProgress
+                "progress" to updatedProgress,
+                "joinDate.${userId}" to FieldValue.delete()
             ))
         }.await()
     }
 
-    suspend fun getUserActiveChallenge(userId: String): Challenge? {
+    suspend fun getUserActiveChallenge(userId: String): List<Challenge> {
         return try {
             val currentWeek = getCurrentWeekNumber()
             Log.d("ChallengeRepository", "getUserActiveChallenge - userId: $userId, weekNumber: $currentWeek")
             val result = challengesCollection
                 .whereArrayContains("participants", userId)
                 .whereEqualTo("weekNumber", currentWeek)
-                .limit(1)
                 .get()
                 .await()
 
             Log.d("ChallengeRepository", "Query result size: ${result.documents.size}")
-            result.documents.firstOrNull()?.toObject(Challenge::class.java)
+            result.documents.mapNotNull { it.toObject(Challenge::class.java) }
         } catch (e: Exception) {
             Log.e("ChallengeRepository", "Error getting user active challenge", e)
-            null
+            emptyList()
         }
     }
 

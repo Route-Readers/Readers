@@ -78,11 +78,13 @@ class MyLibraryRepository {
             val challengeRepository = ChallengeRepository(firestoreRepository)
             val currentWeekNumber = getCurrentWeekNumber()
             val weeklyChallenges = challengeRepository.getChallengesForWeek(currentWeekNumber)
-            val userChallenge = weeklyChallenges.find { it.participants.contains(userId) } ?: return
 
             val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
-            challengeRepository.updateDailyProgress(userChallenge.id, userId, today)
+            weeklyChallenges.filter { it.participants.contains(userId) && it.type == com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING }
+                .forEach { challenge ->
+                    challengeRepository.updateDailyProgress(challenge.id, userId, today)
+                }
 
         } catch (e: Exception) {
             Log.e("MyLibraryRepository", "Error updating challenge progress: ${e.message}", e)

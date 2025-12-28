@@ -220,7 +220,8 @@ fun MainScreen(
             if (shouldShowTopBar) {
                 val consecutiveReadingDays by attendanceViewModel.consecutiveReadingDays.collectAsState()
                 val tokens by mainViewModel.tokens.collectAsState()
-                val userActiveChallenge by mainViewModel.userActiveChallenge.collectAsState()
+                val userActiveChallenges by mainViewModel.userActiveChallenge.collectAsState()
+                val userActiveChallenge = userActiveChallenges.firstOrNull()
 
                 FeedTopAppBar(
                     consecutiveReadingDays = consecutiveReadingDays,
