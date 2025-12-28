@@ -14,6 +14,9 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import com.google.firebase.auth.AuthCredential
 
 class AccountViewModel(
     application: Application,
@@ -64,6 +67,68 @@ class AccountViewModel(
     fun updateDarkModeSetting(isDark: Boolean) {
         viewModelScope.launch {
             userPreferencesRepository.updateDarkMode(isDark)
+        }
+    }
+
+    sealed class DeleteAccountResult {
+        data object Success : DeleteAccountResult()
+        data class Failure(val message: String) : DeleteAccountResult()
+        data object ReauthenticationRequired : DeleteAccountResult()
+    }
+
+    // Function to delete user account
+    fun deleteAccount() {
+        val user = auth.currentUser
+        if (user == null) {
+            _deleteAccountResult.value = DeleteAccountResult.Failure("인증된 사용자가 없습니다.")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                // 1. Delete user data from Firestore (simplified)
+                db.collection("users").document(user.uid).delete().await()
+                Log.d("AccountViewModel", "User document deleted from Firestore.")
+
+                // 2. Delete user from Firebase Authentication
+                user.delete().await()
+                Log.d("AccountViewModel", "Firebase Auth user deleted.")
+
+                // 3. Sign out the user
+                auth.signOut()
+                _deleteAccountResult.value = DeleteAccountResult.Success
+
+            } catch (e: Exception) {
+                Log.e("AccountViewModel", "Error deleting account", e)
+                if (e is com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException) {
+                    _deleteAccountResult.value = DeleteAccountResult.ReauthenticationRequired
+                } else {
+                    _deleteAccountResult.value = DeleteAccountResult.Failure("계정 삭제에 실패했습니다: ${e.message}")
+                }
+            }
+        }
+    }
+
+    private val _deleteAccountResult = MutableStateFlow<DeleteAccountResult?>(null)
+    val deleteAccountResult: StateFlow<DeleteAccountResult?> = _deleteAccountResult.asStateFlow()
+
+    fun reauthenticateAndThenDelete(credential: com.google.firebase.auth.AuthCredential) {
+        val user = auth.currentUser
+        if (user == null) {
+            _deleteAccountResult.value = DeleteAccountResult.Failure("인증된 사용자가 없습니다.")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                user.reauthenticate(credential).await()
+                Log.d("AccountViewModel", "User reauthenticated successfully.")
+                // If reauthentication is successful, retry deletion
+                deleteAccount()
+            } catch (e: Exception) {
+                Log.e("AccountViewModel", "Reauthentication failed", e)
+                _deleteAccountResult.value = DeleteAccountResult.Failure("재인증 실패: ${e.message}")
+            }
         }
     }
 }

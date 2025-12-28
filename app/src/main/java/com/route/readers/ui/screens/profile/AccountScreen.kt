@@ -2,6 +2,7 @@ package com.route.readers.ui.screens.profile
 
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -49,6 +50,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -73,6 +76,10 @@ import com.route.readers.data.UserPreferencesRepository
 import com.route.readers.ui.theme.DarkRed
 import com.route.readers.ui.screens.profile.PostsSection
 import com.route.readers.ui.screens.feed.FeedItem
+import com.google.firebase.auth.FirebaseAuth
+import androidx.navigation.NavHostController
+import androidx.compose.runtime.LaunchedEffect
+import com.route.readers.ui.screens.profile.AccountViewModel.DeleteAccountResult
 
 
 enum class MenuItemType {
@@ -82,7 +89,8 @@ enum class MenuItemType {
     DISPLAY,
     NOTIFICATIONS,
     TERMS,
-    CONTACT
+    CONTACT,
+    DELETE_ACCOUNT
 }
 
 data class AccountMenuItem(
@@ -94,11 +102,16 @@ data class AccountMenuItem(
 )
 
 
+
+
+// ... (other imports) ...
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountScreen(
     onNavigateBack: () -> Unit,
     onNavigateToStatistics: () -> Unit,
+    navController: NavHostController, // Add navController here
     viewModel: AccountViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -107,9 +120,33 @@ fun AccountScreen(
     var isStatisticsMenuExpanded by remember { mutableStateOf(false) }
     var isDisplayMenuExpanded by remember { mutableStateOf(false) }
     var isNotificationsMenuExpanded by remember { mutableStateOf(false) }
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
+    var showReauthDialog by remember { mutableStateOf(false) }
+    var passwordInput by remember { mutableStateOf("") }
 
     val uiState by viewModel.uiState.collectAsState()
     val isDarkMode by viewModel.isDarkMode.collectAsState()
+    val deleteAccountResult by viewModel.deleteAccountResult.collectAsState()
+
+    LaunchedEffect(deleteAccountResult) {
+        when (deleteAccountResult) {
+            DeleteAccountResult.Success -> {
+                Toast.makeText(context, "계정이 성공적으로 삭제되었습니다.", Toast.LENGTH_LONG).show()
+                navController.navigate("onboarding_route") {
+                    popUpTo(navController.graph.id) { inclusive = true }
+                }
+            }
+            is DeleteAccountResult.Failure -> {
+                Toast.makeText(context, (deleteAccountResult as DeleteAccountResult.Failure).message, Toast.LENGTH_LONG).show()
+                showDeleteAccountDialog = false // Dismiss initial dialog
+            }
+            DeleteAccountResult.ReauthenticationRequired -> {
+                showDeleteAccountDialog = false // Dismiss initial dialog
+                showReauthDialog = true // Show reauthentication dialog
+            }
+            null -> { /* Do nothing for initial null state */ }
+        }
+    }
     val onDarkModeChange: (Boolean) -> Unit = { newDarkModeState ->
         viewModel.updateDarkModeSetting(newDarkModeState)
     }
@@ -208,6 +245,13 @@ fun AccountScreen(
                     // No email app found
                 }
             }
+        ),
+        AccountMenuItem( // New item for account deletion
+            type = MenuItemType.DELETE_ACCOUNT, // New MenuItemType will be needed
+            title = "회원 탈퇴",
+            subtitle = "계정 및 모든 데이터 삭제",
+            icon = Icons.Default.Remove, // Using a generic 'Remove' icon for now
+            onClick = { showDeleteAccountDialog = true }
         )
     )
 
@@ -346,6 +390,76 @@ fun AccountScreen(
                             }
                         }
                     }
+
+
+                }
+
+                if (showDeleteAccountDialog) {
+                    androidx.compose.material3.AlertDialog(
+                        onDismissRequest = { showDeleteAccountDialog = false },
+                        title = { Text("회원 탈퇴") },
+                        text = { Text("정말로 계정을 삭제하시겠습니까? 모든 데이터가 영구적으로 삭제되며 복구할 수 없습니다.") },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    showDeleteAccountDialog = false
+                                    viewModel.deleteAccount()
+                                },
+                                colors = ButtonDefaults.textButtonColors(contentColor = DarkRed)
+                            ) {
+                                Text("탈퇴")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showDeleteAccountDialog = false }) {
+                                Text("취소")
+                            }
+                        }
+                    )
+                }
+
+                if (showReauthDialog) {
+                    androidx.compose.material3.AlertDialog(
+                        onDismissRequest = { showReauthDialog = false },
+                        title = { Text("재인증 필요") },
+                        text = {
+                            Column {
+                                Text("보안을 위해 계정을 삭제하기 전에 다시 로그인해야 합니다.")
+                                Spacer(modifier = Modifier.height(16.dp))
+                                androidx.compose.material3.OutlinedTextField(
+                                    value = passwordInput,
+                                    onValueChange = { passwordInput = it },
+                                    label = { Text("비밀번호") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    showReauthDialog = false
+                                    // Assuming email/password authentication is used for reauth
+                                    val email = FirebaseAuth.getInstance().currentUser?.email
+                                    if (email != null) {
+                                        val credential = com.google.firebase.auth.EmailAuthProvider.getCredential(email, passwordInput)
+                                        viewModel.reauthenticateAndThenDelete(credential)
+                                        passwordInput = "" // Clear password field
+                                    } else {
+                                        Toast.makeText(context, "이메일 정보를 찾을 수 없습니다. 다시 로그인 해주세요.", Toast.LENGTH_LONG).show()
+                                    }
+                                },
+                                colors = ButtonDefaults.textButtonColors(contentColor = DarkRed)
+                            ) {
+                                Text("확인")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showReauthDialog = false }) {
+                                Text("취소")
+                            }
+                        }
+                    )
                 }
             }
         }
