@@ -16,6 +16,7 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.AuthCredential
 
 class AccountViewModel(
@@ -74,6 +75,7 @@ class AccountViewModel(
         data object Success : DeleteAccountResult()
         data class Failure(val message: String) : DeleteAccountResult()
         data object ReauthenticationRequired : DeleteAccountResult()
+        data object GoogleReauthenticationRequired : DeleteAccountResult()
     }
 
     // Function to delete user account
@@ -90,18 +92,34 @@ class AccountViewModel(
                 db.collection("users").document(user.uid).delete().await()
                 Log.d("AccountViewModel", "User document deleted from Firestore.")
 
-                // 2. Delete user from Firebase Authentication
+                // 2. Attempt to delete user from Firebase Authentication
                 user.delete().await()
-                Log.d("AccountViewModel", "Firebase Auth user deleted.")
+                Log.d("AccountViewModel", "Firebase Auth user deleted successfully.")
 
                 // 3. Sign out the user
                 auth.signOut()
-                _deleteAccountResult.value = DeleteAccountResult.Success
+
+                // Final check to ensure the user is indeed null after deletion and sign-out
+                if (auth.currentUser == null) {
+                    _deleteAccountResult.value = DeleteAccountResult.Success
+                } else {
+                    Log.e("AccountViewModel", "Firebase Auth user deletion reported success, but current user is not null.")
+                    _deleteAccountResult.value = DeleteAccountResult.Failure("계정 삭제 후 사용자 정보가 남아있습니다. 다시 시도해주세요.")
+                }
 
             } catch (e: Exception) {
                 Log.e("AccountViewModel", "Error deleting account", e)
+                val isGoogleUser = user.providerData.any { it.providerId == GoogleAuthProvider.PROVIDER_ID }
+
                 if (e is com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException) {
-                    _deleteAccountResult.value = DeleteAccountResult.ReauthenticationRequired
+                    if (isGoogleUser) {
+                        // For Google users, reauthentication with password is not applicable.
+                        // We need to trigger a Google reauthentication flow in the UI.
+                        _deleteAccountResult.value = DeleteAccountResult.GoogleReauthenticationRequired
+                    } else {
+                        // For non-Google users (e.g., email/password), reauthentication with password is required.
+                        _deleteAccountResult.value = DeleteAccountResult.ReauthenticationRequired
+                    }
                 } else {
                     _deleteAccountResult.value = DeleteAccountResult.Failure("계정 삭제에 실패했습니다: ${e.message}")
                 }
@@ -130,5 +148,30 @@ class AccountViewModel(
                 _deleteAccountResult.value = DeleteAccountResult.Failure("재인증 실패: ${e.message}")
             }
         }
+    }
+    
+    // New function to handle Google reauthentication
+    fun reauthenticateWithGoogleAndThenDelete(credential: AuthCredential) {
+        val user = auth.currentUser
+        if (user == null) {
+            _deleteAccountResult.value = DeleteAccountResult.Failure("인증된 사용자가 없습니다.")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                user.reauthenticate(credential).await()
+                Log.d("AccountViewModel", "User reauthenticated with Google successfully.")
+                // If reauthentication is successful, retry deletion
+                deleteAccount()
+            } catch (e: Exception) {
+                Log.e("AccountViewModel", "Google reauthentication failed", e)
+                _deleteAccountResult.value = DeleteAccountResult.Failure("Google 재인증 실패: ${e.message}")
+            }
+        }
+    }
+
+    fun setDeleteAccountResult(result: DeleteAccountResult?) {
+        _deleteAccountResult.value = result
     }
 }

@@ -3,6 +3,8 @@ package com.route.readers.ui.screens.profile
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -29,9 +31,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Brightness4
-import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.HelpOutline
@@ -46,15 +48,16 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -69,18 +72,19 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.route.readers.data.UserPreferencesRepository
-import com.route.readers.ui.theme.DarkRed
-import com.route.readers.ui.screens.profile.PostsSection
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.google.firebase.auth.EmailAuthProvider
+import com.route.readers.R
 import com.route.readers.ui.screens.feed.FeedItem
-import com.google.firebase.auth.FirebaseAuth
-import androidx.navigation.NavHostController
-import androidx.compose.runtime.LaunchedEffect
+import com.google.firebase.auth.GoogleAuthProvider
 import com.route.readers.ui.screens.profile.AccountViewModel.DeleteAccountResult
-
+import com.route.readers.ui.theme.DarkRed
+import androidx.navigation.NavHostController
+import com.google.firebase.auth.FirebaseAuth
 
 enum class MenuItemType {
     PRIVACY,
@@ -102,16 +106,12 @@ data class AccountMenuItem(
 )
 
 
-
-
-// ... (other imports) ...
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountScreen(
     onNavigateBack: () -> Unit,
     onNavigateToStatistics: () -> Unit,
-    navController: NavHostController, // Add navController here
+    navController: NavHostController,
     viewModel: AccountViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -122,7 +122,39 @@ fun AccountScreen(
     var isNotificationsMenuExpanded by remember { mutableStateOf(false) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
     var showReauthDialog by remember { mutableStateOf(false) }
+    var showGoogleReauthDialog by remember { mutableStateOf(false) } // New state for Google reauth
     var passwordInput by remember { mutableStateOf("") }
+
+    // Google Sign-In setup for reauthentication
+    val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+        .requestIdToken(context.getString(R.string.default_web_client_id) as String) // Make sure default_web_client_id is available
+        .requestEmail()
+        .build()
+    val googleSignInClient = remember { GoogleSignIn.getClient(context, gso) }
+
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            val idToken = account.idToken
+            if (idToken != null) {
+                val credential = GoogleAuthProvider.getCredential(idToken, null)
+                viewModel.reauthenticateWithGoogleAndThenDelete(credential)
+            } else {
+                Toast.makeText(context, "Google ID Token is null. Reauthentication failed.", Toast.LENGTH_LONG).show()
+                viewModel.setDeleteAccountResult(DeleteAccountResult.Failure("Google 재인증 실패: ID 토큰을 얻을 수 없습니다."))
+            }
+        } catch (e: ApiException) {
+            Toast.makeText(context, "Google reauthentication failed: ${e.statusCode}", Toast.LENGTH_LONG).show()
+            viewModel.setDeleteAccountResult(DeleteAccountResult.Failure("Google 재인증 실패: ${e.statusCode}"))
+        } catch (e: Exception) {
+            Toast.makeText(context, "Google reauthentication failed: ${e.message}", Toast.LENGTH_LONG).show()
+            viewModel.setDeleteAccountResult(DeleteAccountResult.Failure("Google 재인증 실패: ${e.message}"))
+        }
+        showGoogleReauthDialog = false
+    }
 
     val uiState by viewModel.uiState.collectAsState()
     val isDarkMode by viewModel.isDarkMode.collectAsState()
@@ -133,16 +165,25 @@ fun AccountScreen(
             DeleteAccountResult.Success -> {
                 Toast.makeText(context, "계정이 성공적으로 삭제되었습니다.", Toast.LENGTH_LONG).show()
                 navController.navigate("onboarding_route") {
-                    popUpTo(navController.graph.id) { inclusive = true }
+                    popUpTo(navController.graph.startDestinationId) { inclusive = true }
                 }
             }
             is DeleteAccountResult.Failure -> {
                 Toast.makeText(context, (deleteAccountResult as DeleteAccountResult.Failure).message, Toast.LENGTH_LONG).show()
                 showDeleteAccountDialog = false // Dismiss initial dialog
+                showReauthDialog = false // Ensure reauth dialog is dismissed
+                showGoogleReauthDialog = false // Ensure Google reauth dialog is dismissed
+                viewModel.setDeleteAccountResult(null) // Reset the state
             }
             DeleteAccountResult.ReauthenticationRequired -> {
                 showDeleteAccountDialog = false // Dismiss initial dialog
                 showReauthDialog = true // Show reauthentication dialog
+                showGoogleReauthDialog = false // Ensure Google reauth dialog is dismissed
+            }
+            DeleteAccountResult.GoogleReauthenticationRequired -> { // Handle new state
+                showDeleteAccountDialog = false
+                showReauthDialog = false // Ensure email/password reauth dialog is dismissed
+                showGoogleReauthDialog = true // Show Google reauthentication dialog
             }
             null -> { /* Do nothing for initial null state */ }
         }
@@ -442,7 +483,7 @@ fun AccountScreen(
                                     // Assuming email/password authentication is used for reauth
                                     val email = FirebaseAuth.getInstance().currentUser?.email
                                     if (email != null) {
-                                        val credential = com.google.firebase.auth.EmailAuthProvider.getCredential(email, passwordInput)
+                                        val credential = EmailAuthProvider.getCredential(email, passwordInput)
                                         viewModel.reauthenticateAndThenDelete(credential)
                                         passwordInput = "" // Clear password field
                                     } else {
@@ -456,6 +497,31 @@ fun AccountScreen(
                         },
                         dismissButton = {
                             TextButton(onClick = { showReauthDialog = false }) {
+                                Text("취소")
+                            }
+                        }
+                    )
+                }
+
+                if (showGoogleReauthDialog) { // New AlertDialog for Google reauthentication
+                    androidx.compose.material3.AlertDialog(
+                        onDismissRequest = { showGoogleReauthDialog = false },
+                        title = { Text("Google 재인증 필요") },
+                        text = {
+                            Text("계정 삭제를 위해 Google 계정으로 다시 인증해야 합니다. 'Google로 재인증' 버튼을 눌러주세요.")
+                        },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    googleSignInLauncher.launch(googleSignInClient.signInIntent)
+                                },
+                                colors = ButtonDefaults.textButtonColors(contentColor = DarkRed)
+                            ) {
+                                Text("Google로 재인증")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showGoogleReauthDialog = false }) {
                                 Text("취소")
                             }
                         }
