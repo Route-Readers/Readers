@@ -584,7 +584,7 @@ fun RootAppNavigation(
                         profileViewModel.updateProfileCustomization(character, backgroundColor, phoneNumber)
                         appNavController.popBackStack()
                     },
-                    onBack = { appNavController.popBackStack() }
+                    onBack = { appNavController.navigate("signup_route") }
                 )
             }
         }
