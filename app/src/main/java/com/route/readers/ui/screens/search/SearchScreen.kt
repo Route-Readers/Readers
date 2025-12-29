@@ -5,6 +5,8 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.location.Location
 import android.widget.Toast
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -31,7 +34,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -47,6 +53,7 @@ import com.google.android.gms.tasks.CancellationTokenSource
 import com.route.readers.R
 import com.route.readers.data.model.Book
 import com.route.readers.data.remote.MyLibraryRepository
+import com.route.readers.ui.theme.PrimaryRed
 import com.route.readers.ui.theme.ReadingGreen
 import com.route.readers.ui.theme.TransparentPrimary
 import kotlinx.coroutines.launch
@@ -56,7 +63,8 @@ import kotlinx.coroutines.launch
 fun SearchScreen(
     bookViewModel: BookViewModel = viewModel(),
     libraryViewModel: LibraryViewModel = viewModel()
-) {
+)
+{
     var selectedTab by remember { mutableStateOf(0) }
 
     Column(
@@ -64,28 +72,12 @@ fun SearchScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        TabRow(
-            selectedTabIndex = selectedTab,
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary
-        ) {
-            Tab(
-                selected = selectedTab == 0,
-                onClick = {
-                    selectedTab = 0
-                    libraryViewModel.resetState()
-                },
-                text = { Text("도서검색") }
-            )
-            Tab(
-                selected = selectedTab == 1,
-                onClick = {
-                    selectedTab = 1
-                    libraryViewModel.resetState()
-                },
-                text = { Text("도서관검색") }
-            )
-        }
+        SlidingTabSelector(
+            selectedTab = selectedTab,
+            onTabSelected = { selectedTab = it },
+            tabs = listOf("도서 검색", "도서관 검색"),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)
+        )
 
         when (selectedTab) {
             0 -> BookSearchTab(bookViewModel, libraryViewModel)
@@ -99,7 +91,8 @@ fun SearchScreen(
 fun BookSearchTab(
     bookViewModel: BookViewModel,
     libraryViewModel: LibraryViewModel
-) {
+)
+{
     val currentQuery by bookViewModel.currentQuery.collectAsState()
     var searchText by remember { mutableStateOf(currentQuery) }
     val books by bookViewModel.books.collectAsState()
@@ -251,9 +244,9 @@ fun BookSearchTab(
             itemsIndexed(
                 books,
                 key = { index, book ->
-                    val primary = book.isbn13?.takeIf { it.isNotBlank() }
+                    val primary = book.isbn13?.takeIf { it.isNotBlank() } 
                         ?: book.isbn?.takeIf { it.isNotBlank() }
-                    primary ?: "${book.title.ifBlank { "untitled" }}-$index"
+                    primary ?: "${book.title.ifBlank { "untitled" }}"
                 }
             ) { _, book ->
                 BookSearchItem(
@@ -296,7 +289,8 @@ private fun BookSearchItem(
     book: Book,
     libraryViewModel: LibraryViewModel,
     bookViewModel: BookViewModel
-) {
+)
+{
     val myLibraryRepository = remember { MyLibraryRepository() }
     val coroutineScope = rememberCoroutineScope()
 
@@ -326,7 +320,8 @@ fun BookSearchResultCard(
     isInLibrary: Boolean,
     onAddToLibrary: (Book) -> Unit,
     onToggleFavorite: (Book) -> Unit
-) {
+)
+{
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -415,7 +410,8 @@ fun BookSearchResultCard(
 fun LibrarySearchTab(
     libraryViewModel: LibraryViewModel,
     nearbyLibraryViewModel: NearbyLibraryViewModel = viewModel()
-) {
+)
+{
     val context = LocalContext.current // Re-added the context declaration
     var searchText by remember { mutableStateOf("") }
     val libraryState by libraryViewModel.libraryState.collectAsState()
@@ -529,8 +525,7 @@ fun LibrarySearchTab(
                         Text(state.message, color = MaterialTheme.colorScheme.error)
                     }
                 }
-                else -> {
-                    // Idle
+                else -> { // Idle
                 }
             }
         } else {
@@ -611,8 +606,7 @@ fun LibrarySearchTab(
                         }
                     }
                 }
-                is LibraryUiState.Idle -> {
-                    // Handled by the search text blank check
+                is LibraryUiState.Idle -> { // Handled by the search text blank check
                 }
             }
         }
@@ -629,7 +623,8 @@ fun LibraryResultCard(
     availability: Map<String, Boolean>?,
     isLoading: Boolean,
     books: List<Book>
-) {
+)
+{
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -697,6 +692,76 @@ fun LibraryResultCard(
                     }
                 } else {
                     Text("검색된 책을 소장하고 있지 않습니다.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SlidingTabSelector(
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit,
+    tabs: List<String>,
+    modifier: Modifier = Modifier,
+)
+{
+    val density = LocalDensity.current
+    var tabPositions by remember { mutableStateOf(List(tabs.size) { Pair(0f, 0f) }) }
+
+    val currentTabPosition = tabPositions.getOrElse(selectedTab) { Pair(0f, 0f) }
+    val indicatorOffset by animateDpAsState(
+        targetValue = with(density) { currentTabPosition.first.toDp() },
+        animationSpec = tween(300),
+        label = "indicatorOffset"
+    )
+    val indicatorWidth by animateDpAsState(
+        targetValue = with(density) { currentTabPosition.second.toDp() },
+        animationSpec = tween(300),
+        label = "indicatorWidth"
+    )
+
+    Box(modifier = modifier.height(36.dp)) {
+        // 슬라이딩 배경
+        if (indicatorWidth > 0.dp) {
+            Box(
+                modifier = Modifier
+                    .offset(x = indicatorOffset)
+                    .width(indicatorWidth)
+                    .fillMaxHeight()
+                    .clip(CircleShape)
+                    .background(PrimaryRed.copy(alpha = 0.15f))
+            )
+        }
+
+        // 탭 텍스트들
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            tabs.forEachIndexed { index, title ->
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable { onTabSelected(index) }
+                        .onGloballyPositioned { coordinates ->
+                            val offset = coordinates.positionInParent().x
+                            val width = coordinates.size.width.toFloat()
+                            if (tabPositions[index] != Pair(offset, width)) {
+                                tabPositions = tabPositions.toMutableList().also {
+                                    it[index] = Pair(offset, width)
+                                }
+                            }
+                        }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = title,
+                        fontSize = 16.sp,
+                        fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
+                        color = if (selectedTab == index) PrimaryRed else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }
