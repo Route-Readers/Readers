@@ -84,7 +84,9 @@ import com.google.firebase.auth.GoogleAuthProvider
 import com.route.readers.ui.screens.profile.AccountViewModel.DeleteAccountResult
 import com.route.readers.ui.theme.DarkRed
 import androidx.navigation.NavHostController
+import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.tasks.await
 
 enum class MenuItemType {
     PRIVACY,
@@ -164,6 +166,15 @@ fun AccountScreen(
         when (deleteAccountResult) {
             DeleteAccountResult.Success -> {
                 Toast.makeText(context, "계정이 성공적으로 삭제되었습니다.", Toast.LENGTH_LONG).show()
+                // Sign out from Google to allow re-authentication
+                try {
+                    googleSignInClient.signOut().await()
+                    // Optional: revoke access for complete removal
+                    googleSignInClient.revokeAccess().await()
+                } catch (e: Exception) {
+                    Log.w("AccountScreen", "Failed to sign out or revoke Google access.", e)
+                }
+
                 navController.navigate("onboarding_route") {
                     popUpTo(navController.graph.startDestinationId) { inclusive = true }
                 }

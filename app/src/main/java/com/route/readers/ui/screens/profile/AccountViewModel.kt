@@ -86,6 +86,21 @@ class AccountViewModel(
             return
         }
 
+        // Proactively ask for reauthentication for this sensitive operation.
+        val isGoogleUser = user.providerData.any { it.providerId == GoogleAuthProvider.PROVIDER_ID }
+        if (isGoogleUser) {
+            _deleteAccountResult.value = DeleteAccountResult.GoogleReauthenticationRequired
+        } else {
+            _deleteAccountResult.value = DeleteAccountResult.ReauthenticationRequired
+        }
+    }
+
+    private fun performDelete() {
+        val user = auth.currentUser
+        if (user == null) {
+            _deleteAccountResult.value = DeleteAccountResult.Failure("삭제 중 사용자를 찾을 수 없습니다.")
+            return
+        }
         viewModelScope.launch {
             try {
                 // 1. Delete user data from Firestore (simplified)
@@ -108,24 +123,12 @@ class AccountViewModel(
                 }
 
             } catch (e: Exception) {
-                Log.e("AccountViewModel", "Error deleting account", e)
-                val isGoogleUser = user.providerData.any { it.providerId == GoogleAuthProvider.PROVIDER_ID }
-
-                if (e is com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException) {
-                    if (isGoogleUser) {
-                        // For Google users, reauthentication with password is not applicable.
-                        // We need to trigger a Google reauthentication flow in the UI.
-                        _deleteAccountResult.value = DeleteAccountResult.GoogleReauthenticationRequired
-                    } else {
-                        // For non-Google users (e.g., email/password), reauthentication with password is required.
-                        _deleteAccountResult.value = DeleteAccountResult.ReauthenticationRequired
-                    }
-                } else {
-                    _deleteAccountResult.value = DeleteAccountResult.Failure("계정 삭제에 실패했습니다: ${e.message}")
-                }
+                Log.e("AccountViewModel", "Error during final deletion", e)
+                _deleteAccountResult.value = DeleteAccountResult.Failure("계정 삭제에 실패했습니다: ${e.message}")
             }
         }
     }
+
 
     private val _deleteAccountResult = MutableStateFlow<DeleteAccountResult?>(null)
     val deleteAccountResult: StateFlow<DeleteAccountResult?> = _deleteAccountResult.asStateFlow()
@@ -142,7 +145,7 @@ class AccountViewModel(
                 user.reauthenticate(credential).await()
                 Log.d("AccountViewModel", "User reauthenticated successfully.")
                 // If reauthentication is successful, retry deletion
-                deleteAccount()
+                performDelete()
             } catch (e: Exception) {
                 Log.e("AccountViewModel", "Reauthentication failed", e)
                 _deleteAccountResult.value = DeleteAccountResult.Failure("재인증 실패: ${e.message}")
@@ -163,7 +166,7 @@ class AccountViewModel(
                 user.reauthenticate(credential).await()
                 Log.d("AccountViewModel", "User reauthenticated with Google successfully.")
                 // If reauthentication is successful, retry deletion
-                deleteAccount()
+                performDelete()
             } catch (e: Exception) {
                 Log.e("AccountViewModel", "Google reauthentication failed", e)
                 _deleteAccountResult.value = DeleteAccountResult.Failure("Google 재인증 실패: ${e.message}")
