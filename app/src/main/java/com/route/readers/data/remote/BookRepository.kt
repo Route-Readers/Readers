@@ -34,20 +34,28 @@ class BookRepository {
         retrofit.create(BookService::class.java)
     }
 
-    suspend fun getBookSearch(query: String, page: Int = 1, maxResults: Int = 10): List<Book> = withContext(Dispatchers.IO) {
+    suspend fun getBookSearch(
+        query: String,
+        page: Int = 1,
+        maxResults: Int = 10,
+        categoryId: String? = null, // Add this parameter
+        sort: String = "Accuracy" // 정렬 파라미터 추가
+    ): List<Book> = withContext(Dispatchers.IO) {
         try {
             if (TTBKEY.isBlank()) {
                 Log.w("BookRepository", "알라딘 TTBKEY가 비어있습니다.")
                 return@withContext emptyList()
             }
 
-            Log.d("BookRepository", "API 호출 시작: query='$query', page=$page, maxResults=$maxResults")
+            Log.d("BookRepository", "API 호출 시작: query='$query', page=$page, maxResults=$maxResults, categoryId='$categoryId', sort='$sort'")
 
             val response = bookService.getBookSearch(
                 ttbKey = TTBKEY,
                 query = query,
                 maxResults = maxResults,
-                start = page
+                start = page,
+                categoryId = categoryId, // Pass the categoryId
+                sort = sort // Pass the sort parameter
             )
 
             val foundBooksCount = response.books?.size ?: 0

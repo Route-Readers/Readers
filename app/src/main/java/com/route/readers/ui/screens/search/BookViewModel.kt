@@ -38,6 +38,62 @@ class BookViewModel : ViewModel() {
     private val _hasMoreResults = MutableStateFlow(false)
     val hasMoreResults: StateFlow<Boolean> = _hasMoreResults.asStateFlow()
 
+    private val _selectedGenres = MutableStateFlow<List<String>>(emptyList())
+    val selectedGenres: StateFlow<List<String>> = _selectedGenres.asStateFlow()
+
+    private val _selectedSort = MutableStateFlow("정확도순")
+    val selectedSort: StateFlow<String> = _selectedSort.asStateFlow()
+
+
+    val availableGenres = listOf(
+        "소설", "국내소설", "외국소설", // Added more granular novel categories
+        "시/에세이", "인문", "사회", "역사", "과학", "기술", "예술", "자기계발", "종교", "여행", "어린이", "청소년", "만화"
+    )
+
+    val availableSorts = listOf("정확도순", "출간일순", "고객평점순")
+
+    private val aladinSortValues = mapOf(
+        "정확도순" to "Accuracy",
+        "출간일순" to "PublishTime",
+        "고객평점순" to "CustomerRating"
+    )
+
+
+    private val aladinGenreCategoryIds = mapOf(
+        "소설" to "1100", // General Novel - might need to be removed or mapped to a combination of sub-genres
+        "국내소설" to "1101", // Placeholder ID for Korean Novel
+        "외국소설" to "1102", // Placeholder ID for Foreign Novel
+        "시/에세이" to "1700",
+        "인문" to "1200",
+        "사회" to "798",
+        "역사" to "1600",
+        "과학" to "987",
+        "기술" to "2300",
+        "예술" to "517",
+        "자기계발" to "1380",
+        "종교" to "1800",
+        "여행" to "1900",
+        "어린이" to "74",
+        "청소년" to "76",
+        "만화" to "2550"
+    )
+
+    fun onGenreSelected(genre: String) {
+        val currentSelection = _selectedGenres.value.toMutableList()
+        if (currentSelection.contains(genre)) {
+            currentSelection.remove(genre)
+        } else {
+            currentSelection.add(genre)
+        }
+        _selectedGenres.value = currentSelection
+        performSearch(_currentQuery.value, selectedGenres = _selectedGenres.value, sort = _selectedSort.value, isNewSearch = true)
+    }
+
+    fun onSortSelected(sort: String) {
+        _selectedSort.value = sort
+        performSearch(_currentQuery.value, selectedGenres = _selectedGenres.value, sort = _selectedSort.value, isNewSearch = true)
+    }
+
     private var currentPage = 1
     private val pageSize = 10
 
@@ -48,7 +104,7 @@ class BookViewModel : ViewModel() {
                 .filter { it.isNotBlank() }
                 .distinctUntilChanged()
                 .collect { query ->
-                    performSearch(query, isNewSearch = true)
+                    performSearch(query, selectedGenres = _selectedGenres.value, sort = _selectedSort.value, isNewSearch = true)
                 }
         }
     }
@@ -64,8 +120,10 @@ class BookViewModel : ViewModel() {
         _currentQuery.value = query
     }
 
-    fun performSearch(query: String, isNewSearch: Boolean = true) {
-        if (query.isBlank()) {
+    fun performSearch(query: String, selectedGenres: List<String> = emptyList(), sort: String = "정확도순", isNewSearch: Boolean = true) {
+        // If both query and selectedGenres are empty, and it's NOT an initial search (i.e., user cleared everything)
+        // then we can clear the books. For an initial search (isNewSearch = true), we want to show default "책"
+        if (query.isBlank() && selectedGenres.isEmpty() && !isNewSearch) {
             _books.value = emptyList()
             return
         }
@@ -84,16 +142,45 @@ class BookViewModel : ViewModel() {
             _errorMessage.value = null
 
             try {
-                val result = bookRepository.getBookSearch(query.trim(), currentPage, pageSize)
-                val newBooks = applyFavoriteStatusToBooks(result)
-
-                if (isNewSearch) {
-                    _books.value = newBooks
+                // Determine the actual query to send to the API
+                val apiQuery = if (query.isBlank()) {
+                    // If the user's query is blank, use a broad default term to get results from search API
+                    // This addresses the user's request to apply filters to "all books" (or a broad set)
+                    // and not just "new books", when no specific search term is provided.
+                    "책" // A very general term to fetch a broad range of books from the search API
                 } else {
-                    _books.value = _books.value + newBooks
+                    query.trim()
                 }
 
-                _hasMoreResults.value = result.size >= pageSize
+                // Get Aladin Category IDs from selected genres
+                val categoryIds = selectedGenres.mapNotNull { genre ->
+                    aladinGenreCategoryIds[genre]
+                }.joinToString(",")
+
+                val sortValue = aladinSortValues[sort] ?: "Accuracy"
+
+
+                val apiResult = bookRepository.getBookSearch(
+                    query = apiQuery,
+                    page = currentPage,
+                    maxResults = pageSize,
+                    categoryId = if (categoryIds.isNotBlank()) categoryIds else null, // Pass null if no categories selected
+                    sort = sortValue
+                )
+                val newBooks = applyFavoriteStatusToBooks(apiResult)
+
+                // *** REMOVE CLIENT-SIDE GENRE FILTERING ***
+                // Since categoryId is passed to the API, the results should already be filtered by genre.
+                // No need for a separate 'filteredBooks' variable and its logic.
+                val finalBooks = newBooks
+
+                if (isNewSearch) {
+                    _books.value = finalBooks
+                } else {
+                    _books.value = _books.value + finalBooks
+                }
+                
+                _hasMoreResults.value = apiResult.size >= pageSize
 
             } catch (e: Exception) {
                 _errorMessage.value = "검색 중 오류가 발생했습니다: ${e.message}"
@@ -111,30 +198,7 @@ class BookViewModel : ViewModel() {
         if (_isLoadingMore.value || !_hasMoreResults.value) return
 
         currentPage++
-        performSearch(_currentQuery.value, false)
-    }
-
-    fun getNewBooks() {
-        _currentQuery.value = ""
-        currentPage = 1
-
-        viewModelScope.launch {
-            _isLoading.value = true
-            _errorMessage.value = null
-            try {
-                val result = bookRepository.getBookList()
-                _books.value = applyFavoriteStatusToBooks(result)
-                _hasMoreResults.value = false
-                if (result.isEmpty()) {
-                    _errorMessage.value = "신간 도서를 불러올 수 없습니다"
-                }
-            } catch (e: Exception) {
-                _errorMessage.value = "신간 도서 불러오기 중 오류: ${e.message}"
-                _books.value = emptyList()
-            } finally {
-                _isLoading.value = false
-            }
-        }
+        performSearch(_currentQuery.value, selectedGenres = _selectedGenres.value, sort = _selectedSort.value, isNewSearch = false)
     }
 
     fun onToggleFavorite(book: Book) {
