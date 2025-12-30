@@ -41,10 +41,23 @@ class BookViewModel : ViewModel() {
     private val _selectedGenres = MutableStateFlow<List<String>>(emptyList())
     val selectedGenres: StateFlow<List<String>> = _selectedGenres.asStateFlow()
 
+    private val _selectedSort = MutableStateFlow("정확도순")
+    val selectedSort: StateFlow<String> = _selectedSort.asStateFlow()
+
+
     val availableGenres = listOf(
         "소설", "국내소설", "외국소설", // Added more granular novel categories
         "시/에세이", "인문", "사회", "역사", "과학", "기술", "예술", "자기계발", "종교", "여행", "어린이", "청소년", "만화"
     )
+
+    val availableSorts = listOf("정확도순", "출간일순", "고객평점순")
+
+    private val aladinSortValues = mapOf(
+        "정확도순" to "Accuracy",
+        "출간일순" to "PublishTime",
+        "고객평점순" to "CustomerRating"
+    )
+
 
     private val aladinGenreCategoryIds = mapOf(
         "소설" to "1100", // General Novel - might need to be removed or mapped to a combination of sub-genres
@@ -73,7 +86,12 @@ class BookViewModel : ViewModel() {
             currentSelection.add(genre)
         }
         _selectedGenres.value = currentSelection
-        performSearch(_currentQuery.value, selectedGenres = _selectedGenres.value, isNewSearch = true)
+        performSearch(_currentQuery.value, selectedGenres = _selectedGenres.value, sort = _selectedSort.value, isNewSearch = true)
+    }
+
+    fun onSortSelected(sort: String) {
+        _selectedSort.value = sort
+        performSearch(_currentQuery.value, selectedGenres = _selectedGenres.value, sort = _selectedSort.value, isNewSearch = true)
     }
 
     private var currentPage = 1
@@ -86,7 +104,7 @@ class BookViewModel : ViewModel() {
                 .filter { it.isNotBlank() }
                 .distinctUntilChanged()
                 .collect { query ->
-                    performSearch(query, selectedGenres = _selectedGenres.value, isNewSearch = true)
+                    performSearch(query, selectedGenres = _selectedGenres.value, sort = _selectedSort.value, isNewSearch = true)
                 }
         }
     }
@@ -102,7 +120,7 @@ class BookViewModel : ViewModel() {
         _currentQuery.value = query
     }
 
-    fun performSearch(query: String, selectedGenres: List<String> = emptyList(), isNewSearch: Boolean = true) {
+    fun performSearch(query: String, selectedGenres: List<String> = emptyList(), sort: String = "정확도순", isNewSearch: Boolean = true) {
         // If both query and selectedGenres are empty, and it's NOT an initial search (i.e., user cleared everything)
         // then we can clear the books. For an initial search (isNewSearch = true), we want to show default "책"
         if (query.isBlank() && selectedGenres.isEmpty() && !isNewSearch) {
@@ -139,11 +157,15 @@ class BookViewModel : ViewModel() {
                     aladinGenreCategoryIds[genre]
                 }.joinToString(",")
 
+                val sortValue = aladinSortValues[sort] ?: "Accuracy"
+
+
                 val apiResult = bookRepository.getBookSearch(
-                    apiQuery,
-                    currentPage,
-                    pageSize,
-                    if (categoryIds.isNotBlank()) categoryIds else null // Pass null if no categories selected
+                    query = apiQuery,
+                    page = currentPage,
+                    maxResults = pageSize,
+                    categoryId = if (categoryIds.isNotBlank()) categoryIds else null, // Pass null if no categories selected
+                    sort = sortValue
                 )
                 val newBooks = applyFavoriteStatusToBooks(apiResult)
 
@@ -176,7 +198,7 @@ class BookViewModel : ViewModel() {
         if (_isLoadingMore.value || !_hasMoreResults.value) return
 
         currentPage++
-        performSearch(_currentQuery.value, selectedGenres = _selectedGenres.value, false)
+        performSearch(_currentQuery.value, selectedGenres = _selectedGenres.value, sort = _selectedSort.value, isNewSearch = false)
     }
 
     fun onToggleFavorite(book: Book) {

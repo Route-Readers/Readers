@@ -191,16 +191,51 @@ fun BookSearchTab(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                                    FlowRow(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp)                    ) {
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         availableGenres.forEach { genre ->
                             FilterChip(
                                 selected = selectedGenres.contains(genre),
                                 onClick = { bookViewModel.onGenreSelected(genre) },
                                 label = { Text(genre) },
                                 leadingIcon = if (selectedGenres.contains(genre)) {
+                                    {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "선택됨",
+                                            modifier = Modifier.size(FilterChipDefaults.IconSize)
+                                        )
+                                    }
+                                } else {
+                                    null
+                                }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp)) // 섹션 간 간격
+
+                    Text(
+                        text = "정렬 기준",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    val selectedSort by bookViewModel.selectedSort.collectAsState()
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        bookViewModel.availableSorts.forEach { sort ->
+                            FilterChip(
+                                selected = selectedSort == sort,
+                                onClick = { bookViewModel.onSortSelected(sort) },
+                                label = { Text(sort) },
+                                leadingIcon = if (selectedSort == sort) {
                                     {
                                         Icon(
                                             imageVector = Icons.Default.Check,

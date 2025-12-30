@@ -38,7 +38,8 @@ class BookRepository {
         query: String,
         page: Int = 1,
         maxResults: Int = 10,
-        categoryId: String? = null // Add this parameter
+        categoryId: String? = null, // Add this parameter
+        sort: String = "Accuracy" // 정렬 파라미터 추가
     ): List<Book> = withContext(Dispatchers.IO) {
         try {
             if (TTBKEY.isBlank()) {
@@ -46,14 +47,15 @@ class BookRepository {
                 return@withContext emptyList()
             }
 
-            Log.d("BookRepository", "API 호출 시작: query='$query', page=$page, maxResults=$maxResults, categoryId='$categoryId'")
+            Log.d("BookRepository", "API 호출 시작: query='$query', page=$page, maxResults=$maxResults, categoryId='$categoryId', sort='$sort'")
 
             val response = bookService.getBookSearch(
                 ttbKey = TTBKEY,
                 query = query,
                 maxResults = maxResults,
                 start = page,
-                categoryId = categoryId // Pass the categoryId
+                categoryId = categoryId, // Pass the categoryId
+                sort = sort // Pass the sort parameter
             )
 
             val foundBooksCount = response.books?.size ?: 0
