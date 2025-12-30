@@ -38,6 +38,24 @@ class BookViewModel : ViewModel() {
     private val _hasMoreResults = MutableStateFlow(false)
     val hasMoreResults: StateFlow<Boolean> = _hasMoreResults.asStateFlow()
 
+    private val _selectedGenres = MutableStateFlow<List<String>>(emptyList())
+    val selectedGenres: StateFlow<List<String>> = _selectedGenres.asStateFlow()
+
+    val availableGenres = listOf(
+        "소설", "시/에세이", "인문", "사회", "역사", "과학", "기술", "예술", "자기계발", "종교", "여행", "어린이", "청소년", "만화"
+    )
+
+    fun onGenreSelected(genre: String) {
+        val currentSelection = _selectedGenres.value.toMutableList()
+        if (currentSelection.contains(genre)) {
+            currentSelection.remove(genre)
+        } else {
+            currentSelection.add(genre)
+        }
+        _selectedGenres.value = currentSelection
+        performSearch(_currentQuery.value, selectedGenres = _selectedGenres.value, isNewSearch = true)
+    }
+
     private var currentPage = 1
     private val pageSize = 10
 
@@ -48,7 +66,7 @@ class BookViewModel : ViewModel() {
                 .filter { it.isNotBlank() }
                 .distinctUntilChanged()
                 .collect { query ->
-                    performSearch(query, isNewSearch = true)
+                    performSearch(query, selectedGenres = _selectedGenres.value, isNewSearch = true)
                 }
         }
     }
@@ -64,8 +82,8 @@ class BookViewModel : ViewModel() {
         _currentQuery.value = query
     }
 
-    fun performSearch(query: String, isNewSearch: Boolean = true) {
-        if (query.isBlank()) {
+    fun performSearch(query: String, selectedGenres: List<String> = emptyList(), isNewSearch: Boolean = true) {
+        if (query.isBlank() && selectedGenres.isEmpty()) {
             _books.value = emptyList()
             return
         }
@@ -84,16 +102,44 @@ class BookViewModel : ViewModel() {
             _errorMessage.value = null
 
             try {
-                val result = bookRepository.getBookSearch(query.trim(), currentPage, pageSize)
-                val newBooks = applyFavoriteStatusToBooks(result)
-
-                if (isNewSearch) {
-                    _books.value = newBooks
+                // Determine whether to use getBookSearch (with query) or getBookList (for new books)
+                val apiResult = if (query.isBlank() && selectedGenres.isNotEmpty()) {
+                    // If no query but genres are selected, fetch new books and filter
+                    bookRepository.getBookList()
                 } else {
-                    _books.value = _books.value + newBooks
+                    // If there's a query, use book search API
+                    bookRepository.getBookSearch(query.trim(), currentPage, pageSize)
                 }
 
-                _hasMoreResults.value = result.size >= pageSize
+                val newBooks = applyFavoriteStatusToBooks(apiResult)
+
+                val filteredBooks = if (selectedGenres.isNotEmpty()) {
+                    newBooks.filter { book ->
+                        val fullCategoryName = book.categoryName ?: ""
+                        selectedGenres.any { genre ->
+                            fullCategoryName.contains(genre, ignoreCase = true) ||
+                            fullCategoryName.split(">", ",").any { part ->
+                                part.trim().contains(genre, ignoreCase = true)
+                            }
+                        }
+                    }
+                } else {
+                    newBooks
+                }
+
+                if (isNewSearch) {
+                    _books.value = filteredBooks
+                } else {
+                    _books.value = _books.value + filteredBooks
+                }
+
+                // _hasMoreResults logic needs adjustment if getBookList is used, as it doesn't support pagination.
+                // For getBookList, we assume no more results for now.
+                _hasMoreResults.value = if (query.isBlank() && selectedGenres.isNotEmpty()) {
+                    false // getBookList doesn't paginate, so no more results
+                } else {
+                    apiResult.size >= pageSize
+                }
 
             } catch (e: Exception) {
                 _errorMessage.value = "검색 중 오류가 발생했습니다: ${e.message}"
@@ -111,7 +157,7 @@ class BookViewModel : ViewModel() {
         if (_isLoadingMore.value || !_hasMoreResults.value) return
 
         currentPage++
-        performSearch(_currentQuery.value, false)
+        performSearch(_currentQuery.value, selectedGenres = _selectedGenres.value, false)
     }
 
     fun getNewBooks() {
@@ -123,9 +169,19 @@ class BookViewModel : ViewModel() {
             _errorMessage.value = null
             try {
                 val result = bookRepository.getBookList()
-                _books.value = applyFavoriteStatusToBooks(result)
+                val newBooks = applyFavoriteStatusToBooks(result)
+
+                val filteredBooks = if (_selectedGenres.value.isNotEmpty()) {
+                    newBooks.filter { book ->
+                        _selectedGenres.value.any { genre -> book.categoryName?.contains(genre) ?: false }
+                    }
+                } else {
+                    newBooks
+                }
+
+                _books.value = filteredBooks
                 _hasMoreResults.value = false
-                if (result.isEmpty()) {
+                if (filteredBooks.isEmpty()) {
                     _errorMessage.value = "신간 도서를 불러올 수 없습니다"
                 }
             } catch (e: Exception) {
