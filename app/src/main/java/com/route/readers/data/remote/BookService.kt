@@ -13,10 +13,11 @@ interface BookService {
         @Query("MaxResults") maxResults: Int, // 기본값 제거
         @Query("Start") start: Int,          // 기본값 제거
         @Query("SearchTarget") searchTarget: String = "Book",
-        @Query("Sort") sort: String = "Accuracy",
+        @Query("Sort") sort: String = "SalesPoint",
         @Query("output") output: String = "js",
         @Query("Version") version: String = "20131101",
         @Query("Cover") cover: String = "Big",
+        @Query("CategoryId") categoryId: String? = null, // Add this line
         @Query("OptResult") optResult: String = "ebookBlazing,usedList,reviewList,subInfo"
     ): BookListDTO // Response<T> -> T 로 변경
 

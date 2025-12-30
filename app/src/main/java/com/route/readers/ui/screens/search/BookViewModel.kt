@@ -42,24 +42,27 @@ class BookViewModel : ViewModel() {
     val selectedGenres: StateFlow<List<String>> = _selectedGenres.asStateFlow()
 
     val availableGenres = listOf(
-        "소설", "시/에세이", "인문", "사회", "역사", "과학", "기술", "예술", "자기계발", "종교", "여행", "어린이", "청소년", "만화"
+        "소설", "국내소설", "외국소설", // Added more granular novel categories
+        "시/에세이", "인문", "사회", "역사", "과학", "기술", "예술", "자기계발", "종교", "여행", "어린이", "청소년", "만화"
     )
 
-    private val genreCategoryMap = mapOf(
-        "소설" to listOf("소설", "장르소설"),
-        "시/에세이" to listOf("시", "에세이"),
-        "인문" to listOf("인문학", "인문"),
-        "사회" to listOf("사회과학", "사회"),
-        "역사" to listOf("역사"),
-        "과학" to listOf("과학"),
-        "기술" to listOf("컴퓨터", "IT", "기술"), // Broader terms for "기술"
-        "예술" to listOf("예술", "대중문화"),
-        "자기계발" to listOf("자기계발"),
-        "종교" to listOf("종교"),
-        "여행" to listOf("여행"),
-        "어린이" to listOf("어린이", "유아", "아동"),
-        "청소년" to listOf("청소년"),
-        "만화" to listOf("만화", "코믹")
+    private val aladinGenreCategoryIds = mapOf(
+        "소설" to "1100", // General Novel - might need to be removed or mapped to a combination of sub-genres
+        "국내소설" to "1101", // Placeholder ID for Korean Novel
+        "외국소설" to "1102", // Placeholder ID for Foreign Novel
+        "시/에세이" to "1700",
+        "인문" to "1200",
+        "사회" to "798",
+        "역사" to "1600",
+        "과학" to "987",
+        "기술" to "2300",
+        "예술" to "517",
+        "자기계발" to "1380",
+        "종교" to "1800",
+        "여행" to "1900",
+        "어린이" to "74",
+        "청소년" to "76",
+        "만화" to "2550"
     )
 
     fun onGenreSelected(genre: String) {
@@ -131,38 +134,30 @@ class BookViewModel : ViewModel() {
                     query.trim()
                 }
 
-                val apiResult = bookRepository.getBookSearch(apiQuery, currentPage, pageSize)
+                // Get Aladin Category IDs from selected genres
+                val categoryIds = selectedGenres.mapNotNull { genre ->
+                    aladinGenreCategoryIds[genre]
+                }.joinToString(",")
+
+                val apiResult = bookRepository.getBookSearch(
+                    apiQuery,
+                    currentPage,
+                    pageSize,
+                    if (categoryIds.isNotBlank()) categoryIds else null // Pass null if no categories selected
+                )
                 val newBooks = applyFavoriteStatusToBooks(apiResult)
 
-                val filteredBooks = if (selectedGenres.isNotEmpty()) {
-                    newBooks.filter { book ->
-                        val fullCategoryName = book.categoryName ?: ""
-                        val fullCategoryNameLower = fullCategoryName.lowercase()
-                        val categoryPartsLower = fullCategoryName.split(">", ",").map { it.trim().lowercase() }
-
-                        selectedGenres.any { genre ->
-                            val targetAladinCategories = genreCategoryMap[genre] ?: listOf(genre) // Get mapped categories or use genre itself
-
-                            targetAladinCategories.any { targetCategory ->
-                                val targetCategoryLower = targetCategory.lowercase()
-                                // Check if full category name contains the target category
-                                fullCategoryNameLower.contains(targetCategoryLower) ||
-                                // Check if any part of the split category name contains the target category
-                                categoryPartsLower.any { part -> part.contains(targetCategoryLower) }
-                            }
-                        }
-                    }
-                } else {
-                    newBooks
-                }
+                // *** REMOVE CLIENT-SIDE GENRE FILTERING ***
+                // Since categoryId is passed to the API, the results should already be filtered by genre.
+                // No need for a separate 'filteredBooks' variable and its logic.
+                val finalBooks = newBooks
 
                 if (isNewSearch) {
-                    _books.value = filteredBooks
+                    _books.value = finalBooks
                 } else {
-                    _books.value = _books.value + filteredBooks
+                    _books.value = _books.value + finalBooks
                 }
                 
-                // _hasMoreResults should be based on the actual API result size, regardless of API query
                 _hasMoreResults.value = apiResult.size >= pageSize
 
             } catch (e: Exception) {
