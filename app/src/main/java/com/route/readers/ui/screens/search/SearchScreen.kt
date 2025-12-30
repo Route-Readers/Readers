@@ -128,8 +128,9 @@ fun BookSearchTab(
         }
     
         LaunchedEffect(Unit) {
-            if (books.isEmpty() && currentQuery.isEmpty()) {
-                bookViewModel.getNewBooks()
+            // Initial load: fetch books if the list is empty (performSearch will use "책" as default query)
+            if (books.isEmpty()) { // No need to check currentQuery.isEmpty() as performSearch handles it
+                bookViewModel.performSearch("", isNewSearch = true)
             }
         }
     
