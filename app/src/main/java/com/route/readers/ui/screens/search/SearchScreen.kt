@@ -83,7 +83,8 @@ import androidx.compose.foundation.layout.Arrangement
 fun SearchScreen(
     bookViewModel: BookViewModel = viewModel(),
     libraryViewModel: LibraryViewModel = viewModel()
-) {
+)
+{
     var selectedTab by remember { mutableStateOf(0) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true) // Material 3 sheet state
     val scope = rememberCoroutineScope()
@@ -197,13 +198,13 @@ fun BookSearchTab(
     }
 
     // `selectedGenresState`와 `selectedSortState`의 변경을 감지하여 검색을 다시 수행하도록 수정
-    LaunchedEffect(selectedGenresState, selectedSortState) {
+    LaunchedEffect(searchText, selectedGenresState, selectedSortState) {
         // 초기 로드 또는 필터 변경 시 검색을 수행
         // books.isEmpty() 조건은 앱 시작 시 한 번만 검색하도록 합니다.
         // searchText.isNotBlank()는 검색창에 텍스트가 있을 때만 검색이 되도록 합니다.
         // selectedGenresState.isNotEmpty()는 장르가 선택되었을 때 검색이 되도록 합니다.
-        // 이 로직은 앱의 초기 로딩 동작을 정의합니다.
-        if (books.isEmpty() || searchText.isNotBlank() || selectedGenresState.isNotEmpty()) {
+        // selectedSortState != "정확도순"은 정렬 기준이 기본값이 아닐 때 검색이 되도록 합니다.
+        if (books.isEmpty() || searchText.isNotBlank() || selectedGenresState.isNotEmpty() || selectedSortState != "정확도순") {
             bookViewModel.performSearch(
                 query = searchText, // 현재 검색창의 텍스트를 사용
                 selectedGenres = selectedGenresState,
@@ -303,25 +304,27 @@ fun BookSearchTab(
         }
 
         if (books.isNotEmpty()) {
-            if (currentQuery.isNotEmpty()) {
-                item {
+            item {
+                Column {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    val headerText = when {
+                        searchText.isNotBlank() -> "\"$searchText\" 검색 결과 (${books.size}권)"
+                        selectedGenresState.isNotEmpty() && selectedSortState != "정확도순" ->
+                            "${selectedGenresState.joinToString(", ")} 장르, ${selectedSortState} 도서"
+                        selectedGenresState.isNotEmpty() ->
+                            "${selectedGenresState.joinToString(", ")} 장르 도서"
+                        selectedSortState != "정확도순" ->
+                            "${selectedSortState} 도서"
+                        else ->
+                            "따끈따끈한 신간 도서"
+                    }
                     Text(
-                        "\"$currentQuery\" 검색 결과 (${books.size}권)",
-                        fontSize = 18.sp,
+                        headerText,
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
-                }
-            } else {
-                item {
-                    Column {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            "따끈따끈한 신간 도서",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                    if (headerText == "따끈따끈한 신간 도서") {
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             "지금 서점에서 가장 인기 있는 책들을 만나보세요!",
