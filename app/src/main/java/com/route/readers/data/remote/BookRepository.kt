@@ -69,30 +69,43 @@ class BookRepository {
         }
     }
 
-    suspend fun getBookList(): List<Book> = withContext(Dispatchers.IO) {
+    suspend fun getBookList(
+        queryType: String = "ItemNewAll", // 기본값을 "ItemNewAll"로 설정
+        page: Int = 1,
+        maxResults: Int = 10
+    ): List<Book> = withContext(Dispatchers.IO) {
         try {
             if (TTBKEY.isBlank()) {
                 Log.w("BookRepository", "알라딘 TTBKEY가 비어있습니다.")
                 return@withContext emptyList()
             }
 
-            Log.d("BookRepository", "신간 도서 목록 API 호출 시작")
+            Log.d("BookRepository", "API 호출 시작: queryType='$queryType', page=$page, maxResults=$maxResults")
 
             val response = bookService.getBookList(
                 ttbKey = TTBKEY,
-                queryType = "ItemNewAll",
+                queryType = queryType,
+                maxResults = maxResults,
+                start = page,
                 searchTarget = "Book",
                 output = OUTPUT
             )
 
             val foundBooksCount = response.books?.size ?: 0
-            Log.i("BookRepository", "신간 도서 API 응답 성공. 찾은 책 개수: $foundBooksCount")
+            Log.i("BookRepository", "API 응답 성공. 찾은 책 개수: $foundBooksCount")
 
             return@withContext (response.books ?: emptyList()).filter { it.isbn.isNotBlank() }
         } catch (e: Exception) {
-            Log.e("BookRepository", "신간 도서 API 호출 중 오류 발생", e)
+            Log.e("BookRepository", "API 호출 중 심각한 오류 발생", e)
             return@withContext emptyList()
         }
+    }
+
+    suspend fun getBestsellerList(
+        page: Int = 1,
+        maxResults: Int = 10
+    ): List<Book> = withContext(Dispatchers.IO) {
+        return@withContext getBookList(queryType = "Bestseller", page = page, maxResults = maxResults)
     }
 
     suspend fun getBookDetail(isbn: String): Book? = withContext(Dispatchers.IO) {

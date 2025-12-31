@@ -25,8 +25,10 @@ interface BookService {
     suspend fun getBookList(
         @Query("TTBKey") ttbKey: String,
         @Query("QueryType") queryType: String,
-        @Query("SearchTarget") searchTarget: String,
-        @Query("output") output: String,
+        @Query("MaxResults") maxResults: Int, // 추가
+        @Query("Start") start: Int,          // 추가
+        @Query("SearchTarget") searchTarget: String = "Book",
+        @Query("output") output: String = "js",
         @Query("Version") version: String = "20131101",
         @Query("Cover") cover: String = "Big",
         @Query("OptResult") optResult: String = "ebookBlazing,usedList,reviewList,subInfo"
