@@ -27,7 +27,21 @@ data class Book(
     val isFavorite: Boolean = false
 ) {
     val genre: String
-        get() = categoryName?.split(">")?.firstOrNull()?.trim() ?: "기타"
+        get() {
+            val categories = categoryName?.split(">")?.map { it.trim() }?.filter { it.isNotEmpty() }
+            if (categories.isNullOrEmpty()) {
+                return "기타"
+            }
+
+            val relevantCategories = if (categories.firstOrNull() == "국내도서") {
+                categories.drop(1)
+            } else {
+                categories
+            }
+
+            val genreString = relevantCategories.take(2).joinToString(" > ")
+            return if (genreString.isBlank()) "기타" else genreString
+        }
 
     fun extractPageCount(): Int {
         return subInfo?.itemPage ?: itemPage ?: 0

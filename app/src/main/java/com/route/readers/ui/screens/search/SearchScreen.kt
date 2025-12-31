@@ -552,7 +552,7 @@ fun BookSearchResultCard(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = book.author,
+                    text = "${book.author} · ${book.genre}",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
