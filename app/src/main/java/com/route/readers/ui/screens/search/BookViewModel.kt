@@ -45,10 +45,11 @@ class BookViewModel : ViewModel() {
     val selectedSort: StateFlow<String> = _selectedSort.asStateFlow()
 
 
-    val availableGenres = listOf(
-        "소설", "한국소설", "영미소설", "일본소설", "과학소설(SF)", "추리/미스터리", "판타지/무협", "로맨스",
-        "시/에세이", "인문", "사회", "역사", "과학", "기술", "경제/경영", "자기계발",
-        "예술", "종교", "여행", "어린이", "청소년", "만화"
+    val availableGenres: Map<String, List<String>> = linkedMapOf(
+        "소설" to listOf("소설", "한국소설", "영미소설", "일본소설", "과학소설(SF)", "추리/미스터리", "판타지/무협", "로맨스"),
+        "교양" to listOf("시/에세이", "인문", "사회", "역사"),
+        "실용" to listOf("과학", "기술", "경제/경영", "자기계발"),
+        "기타" to listOf("예술", "종교", "여행", "어린이", "청소년", "만화")
     )
 
     val availableSorts = listOf("정확도순", "출간일순", "고객평점순")
