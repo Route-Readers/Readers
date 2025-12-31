@@ -45,32 +45,43 @@ class BookViewModel : ViewModel() {
     val selectedSort: StateFlow<String> = _selectedSort.asStateFlow()
 
 
-    val availableGenres = listOf(
-        "소설", "국내소설", "외국소설", // Added more granular novel categories
-        "시/에세이", "인문", "사회", "역사", "과학", "기술", "예술", "자기계발", "종교", "여행", "어린이", "청소년", "만화"
+    val availableGenres: Map<String, List<String>> = linkedMapOf(
+        "소설" to listOf("소설", "한국소설", "영미소설", "일본소설", "과학소설(SF)", "추리/미스터리", "판타지/무협", "로맨스"),
+        "교양" to listOf("시/에세이", "인문", "사회", "역사"),
+        "실용" to listOf("과학", "기술", "경제/경영", "자기계발"),
+        "기타" to listOf("예술", "종교", "여행", "어린이", "청소년", "만화")
     )
 
-    val availableSorts = listOf("정확도순", "출간일순", "고객평점순")
+    val availableSorts = listOf("정확도순", "출간일순", "고객평점순", "베스트셀러")
 
     private val aladinSortValues = mapOf(
         "정확도순" to "Accuracy",
         "출간일순" to "PublishTime",
-        "고객평점순" to "CustomerRating"
+        "고객평점순" to "CustomerRating",
+        "베스트셀러" to "BestsellerQueryType" // "베스트셀러"는 QueryType으로 사용될 것이므로 다른 값으로 매핑
     )
 
 
     private val aladinGenreCategoryIds = mapOf(
-        "소설" to "1100", // General Novel - might need to be removed or mapped to a combination of sub-genres
-        "국내소설" to "1101", // Placeholder ID for Korean Novel
-        "외국소설" to "1102", // Placeholder ID for Foreign Novel
+        // 소설 (세부 장르)
+        "소설" to "1", // 소설/시/희곡의 최상위 ID, 더 구체적인 ID를 사용할 것을 권장
+        "한국소설" to "50973", // 확인된 ID
+        "영미소설" to "50978", // 추정 ID
+        "일본소설" to "50998", // 확인된 ID
+        "과학소설(SF)" to "50992", // 확인된 ID
+        "추리/미스터리" to "50982", // 추정 ID
+        "판타지/무협" to "50988", // 추정 ID
+        "로맨스" to "50976", // 확인된 ID
+
         "시/에세이" to "1700",
         "인문" to "1200",
         "사회" to "798",
         "역사" to "1600",
         "과학" to "987",
         "기술" to "2300",
-        "예술" to "517",
+        "경제/경영" to "656", // 경제경영 최상위 ID
         "자기계발" to "1380",
+        "예술" to "517",
         "종교" to "1800",
         "여행" to "1900",
         "어린이" to "74",
@@ -116,6 +127,17 @@ class BookViewModel : ViewModel() {
         }
     }
 
+    private fun matchesGenre(categoryName: String?, filterGenre: String): Boolean {
+        if (categoryName == null) return false
+        val cleanedCategoryName = if (categoryName.startsWith("국내도서>")) {
+            categoryName.substringAfter("국내도서>")
+        } else {
+            categoryName
+        }
+        // Check for exact match or starts with the genre followed by '>'
+        return cleanedCategoryName == filterGenre || cleanedCategoryName.startsWith("$filterGenre>")
+    }
+
     fun searchBooks(query: String) {
         _currentQuery.value = query
     }
@@ -142,37 +164,67 @@ class BookViewModel : ViewModel() {
             _errorMessage.value = null
 
             try {
-                // Determine the actual query to send to the API
-                val apiQuery = if (query.isBlank()) {
-                    // If the user's query is blank, use a broad default term to get results from search API
-                    // This addresses the user's request to apply filters to "all books" (or a broad set)
-                    // and not just "new books", when no specific search term is provided.
-                    "책" // A very general term to fetch a broad range of books from the search API
-                } else {
-                    query.trim()
-                }
-
-                // Get Aladin Category IDs from selected genres
-                val categoryIds = selectedGenres.mapNotNull { genre ->
-                    aladinGenreCategoryIds[genre]
-                }.joinToString(",")
-
                 val sortValue = aladinSortValues[sort] ?: "Accuracy"
+                var clientFilterGenres: List<String> = emptyList()
+                var apiGenres: List<String> = selectedGenres
+                var apiQuery: String = query.trim()
 
+                val apiResult: List<Book> = if (sortValue == "BestsellerQueryType") {
+                    // "베스트셀러" 정렬 시 쿼리 대신 ItemList API 호출
+                    // _currentQuery.value를 빈 문자열로 설정하여 키워드 검색을 비활성화
+                    _currentQuery.value = ""
+                    // 베스트셀러는 장르 필터링을 적용하지 않으므로 clientFilterGenres와 apiGenres를 비워둡니다.
+                    clientFilterGenres = emptyList()
+                    apiGenres = emptyList()
+                    bookRepository.getBestsellerList(page = currentPage, maxResults = pageSize)
+                } else {
+                    // 기존 ItemSearch API 호출
+                    apiQuery = if (query.isBlank()) {
+                        if (selectedGenres.size == 1) {
+                            selectedGenres.first().trim()
+                        } else {
+                            "책"
+                        }
+                    } else {
+                        query.trim()
+                    }
 
-                val apiResult = bookRepository.getBookSearch(
-                    query = apiQuery,
-                    page = currentPage,
-                    maxResults = pageSize,
-                    categoryId = if (categoryIds.isNotBlank()) categoryIds else null, // Pass null if no categories selected
-                    sort = sortValue
-                )
+                    // If a genre has an Aladin ID, it should be filtered by the API first.
+                    // Only use client-side filtering for genres that do NOT have a direct Aladin category ID.
+                    val (clientFiltered, apiFiltered) = selectedGenres.partition { genre: String ->
+                        !aladinGenreCategoryIds.containsKey(genre)
+                    }
+                    clientFilterGenres = clientFiltered
+                    apiGenres = apiFiltered
+
+                    // Get Aladin Category IDs from selected genres that have 'certain' IDs
+                    val apiCategoryIds = apiGenres.mapNotNull { genre: String ->
+                        aladinGenreCategoryIds[genre]
+                    }.joinToString(",")
+
+                    bookRepository.getBookSearch(
+                        query = apiQuery,
+                        page = currentPage,
+                        maxResults = pageSize,
+                        categoryId = if (apiCategoryIds.isNotBlank()) apiCategoryIds else null,
+                        sort = sortValue
+                    )
+                }
+                
                 val newBooks = applyFavoriteStatusToBooks(apiResult)
 
-                // *** REMOVE CLIENT-SIDE GENRE FILTERING ***
-                // Since categoryId is passed to the API, the results should already be filtered by genre.
-                // No need for a separate 'filteredBooks' variable and its logic.
-                val finalBooks = newBooks
+                // Apply client-side filtering for the 'uncertain' genres
+                val filteredBooks = if (clientFilterGenres.isNotEmpty()) {
+                    newBooks.filter { book ->
+                        clientFilterGenres.any { genre ->
+                            matchesGenre(book.categoryName, genre)
+                        }
+                    }
+                } else {
+                    newBooks
+                }
+
+                val finalBooks = filteredBooks
 
                 if (isNewSearch) {
                     _books.value = finalBooks
