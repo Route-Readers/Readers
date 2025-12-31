@@ -163,7 +163,7 @@ class BookViewModel : ViewModel() {
                 }
 
                 // 'Uncertain' genres will be used for client-side filtering
-                val uncertainGenres = setOf("소설", "영미소설", "추리/미스터리", "판타지/무협")
+                val uncertainGenres = setOf("소설", "영미소설", "추리/미스터리", "판타지/무협", "로맨스", "어린이")
                 val (clientFilterGenres, apiGenres) = selectedGenres.partition { it in uncertainGenres }
 
                 // Get Aladin Category IDs from selected genres that have 'certain' IDs
