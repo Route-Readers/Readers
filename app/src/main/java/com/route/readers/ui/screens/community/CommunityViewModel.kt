@@ -140,6 +140,48 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    fun checkFriendReadingStatus(friendId: String): Boolean {
+        // 친구의 오늘 독서 상태 확인
+        // 실제 구현에서는 Firestore에서 친구의 오늘 독서 기록을 확인
+        // 오늘 날짜 확인
+        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+        
+        // 실제 구현에서는 Firestore에서 친구의 오늘 독서 기록을 확인
+        // 예시: 친구의 lastReadDate가 오늘인지 확인
+        return false // 임시로 false 반환, 실제로는 Firestore 쿼리 필요
+    }
+
+    fun sendReadingNotificationToFriend(friendId: String) {
+        viewModelScope.launch {
+            try {
+                // FCM을 통해 특정 친구에게 독서 알림 전송
+                val currentUser = firestoreRepository.getUserProfile(currentUserId)
+                val friendUser = firestoreRepository.getUserProfile(friendId)
+                
+                if (currentUser != null && friendUser != null && friendUser.fcmToken != null) {
+                    // Firebase Functions를 통해 FCM 메시지 전송
+                    val firestore = FirebaseFirestore.getInstance()
+                    val notificationData = mapOf(
+                        "type" to "reading_reminder",
+                        "fromUserId" to currentUserId,
+                        "fromUserName" to currentUser.nickname,
+                        "toUserId" to friendId,
+                        "fcmToken" to friendUser.fcmToken,
+                        "title" to "독서 알림",
+                        "body" to "${currentUser.nickname}님이 독서 알림을 보냈습니다! 📚",
+                        "timestamp" to System.currentTimeMillis()
+                    )
+                    
+                    firestore.collection("fcm_messages")
+                        .add(notificationData)
+                        .await()
+                }
+            } catch (e: Exception) {
+                // 에러 처리
+            }
+        }
+    }
+
     fun sendReadingNotification() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isNotificationSending = true)

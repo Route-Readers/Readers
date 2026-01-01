@@ -14,9 +14,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
@@ -25,10 +29,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -60,8 +64,8 @@ fun CommunityScreen(
 ) {
     // CommunityScreen이 자체적으로 ViewModel을 생성합니다.
     // Application Context가 필요한 ViewModel이므로 Factory를 사용하여 생성합니다.
-    val context = LocalContext.current
-    val application = context.applicationContext as Application
+    val localContext = LocalContext.current
+    val application = localContext.applicationContext as Application
     val viewModel: CommunityViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -142,6 +146,7 @@ fun CommunityScreen(
                             }
                         },
                         onSendNotification = { viewModel.sendReadingNotification() },
+                        onSendNotificationToFriend = { friendId -> viewModel.sendReadingNotificationToFriend(friendId) },
                         onJoinChallenge = { challengeId -> viewModel.joinChallenge(challengeId) },
                         onResetChallenge = { challengeId -> viewModel.resetChallenge(challengeId) },
                         onNavigateToUserProfile = onNavigateToUserProfile,
@@ -214,6 +219,7 @@ fun CommunityContent(
     onJoinBookClub: (BookClub) -> Unit,
     onToggleBookClubMembership: (String, Boolean) -> Unit,
     onSendNotification: () -> Unit,
+    onSendNotificationToFriend: (String) -> Unit,
     onJoinChallenge: (String) -> Unit = {},
     onResetChallenge: (String) -> Unit = {}, // Modified to accept String
     onNavigateToUserProfile: (String) -> Unit,
@@ -276,10 +282,14 @@ fun CommunityContent(
             }
         } else {
             items(uiState.displayedFriends) { friend ->
-                FriendItemWithDelete(
+                SwipeableFriendItem(
                     friend = friend,
+                    onNotifyClick = { 
+                        onSendNotificationToFriend(friend.uid)
+                    },
                     onDeleteClick = { onRemoveFriend(friend) },
-                    onProfileClick = { onNavigateToUserProfile(friend.uid) }
+                    onProfileClick = { onNavigateToUserProfile(friend.uid) },
+                    hasReadToday = false // TODO: 실제 독서 상태 확인
                 )
                 Spacer(modifier = Modifier.height(16.dp))
             }
@@ -362,6 +372,7 @@ fun CommunityContent(
                         )
                         Text(
                             "함께 읽을 친구를 초대해보세요!",
+                            
                             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
                             fontSize = 14.sp
                         )
@@ -388,6 +399,34 @@ fun CommunityContent(
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+fun BookClubPlaceholderCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.5f)
+                    .height(18.dp)
+                    .clip(MaterialTheme.shapes.extraSmall)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(12.dp)
+                    .clip(MaterialTheme.shapes.extraSmall)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+            )
         }
     }
 }
@@ -606,13 +645,15 @@ fun CreateBookClubDialog(
         }
     }
 }
-
 @Composable
-fun FriendItemWithDelete(
+fun SwipeableFriendItem(
     friend: User,
+    onNotifyClick: () -> Unit,
     onDeleteClick: () -> Unit,
-    onProfileClick: () -> Unit
+    onProfileClick: () -> Unit,
+    hasReadToday: Boolean = false
 ) {
+    
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -630,6 +671,32 @@ fun FriendItemWithDelete(
                 color = MaterialTheme.colorScheme.onBackground
             )
         }
+        
+        if (hasReadToday) {
+            Icon(
+                Icons.Default.CheckCircle,
+                contentDescription = "오늘 독서 완료",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
+            )
+        } else {
+            IconButton(
+                onClick = {
+                    onNotifyClick()
+                    onNotifyClick()
+                },
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    Icons.Default.Notifications,
+                    contentDescription = "독서 알림 보내기",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.width(8.dp))
+        
         IconButton(
             onClick = onDeleteClick,
             modifier = Modifier.size(24.dp)
@@ -692,112 +759,36 @@ private fun SlidingTabSelector(
     modifier: Modifier = Modifier
 ) {
     val tabs = listOf("커뮤니티", "중고책 거래")
-    val density = LocalDensity.current
-    var tabPositions by remember { mutableStateOf(List(tabs.size) { Pair(0f, 0f) }) }
-
-    val currentTabPosition = tabPositions.getOrElse(selectedTab) { Pair(0f, 0f) }
-    val indicatorOffset by animateDpAsState(
-        targetValue = with(density) { currentTabPosition.first.toDp() },
-        animationSpec = tween(300),
-        label = "indicatorOffset"
-    )
-    val indicatorWidth by animateDpAsState(
-        targetValue = with(density) { currentTabPosition.second.toDp() },
-        animationSpec = tween(300),
-        label = "indicatorWidth"
-    )
-
-    Box(modifier = modifier.height(36.dp)) {
-        // 슬라이딩 배경
-        if (indicatorWidth > 0.dp) {
-            Box(
-                modifier = Modifier
-                    .offset(x = indicatorOffset)
-                    .width(indicatorWidth)
-                    .fillMaxHeight()
-                    .clip(CircleShape)
-                    .background(PrimaryRed.copy(alpha = 0.15f))
-            )
-        }
-
-        // 탭 텍스트들
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            tabs.forEachIndexed { index, title ->
-                Box(
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .clickable { onTabSelected(index) }
-                        .onGloballyPositioned { coordinates ->
-                            val offset = coordinates.positionInParent().x
-                            val width = coordinates.size.width.toFloat()
-                            if (tabPositions[index] != Pair(offset, width)) {
-                                tabPositions = tabPositions.toMutableList().also {
-                                    it[index] = Pair(offset, width)
-                                }
-                            }
-                        }
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = title,
-                        fontSize = 16.sp,
-                        fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
-                        color = if (selectedTab == index) PrimaryRed else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-    }
-}
-@Composable
-private fun BookClubPlaceholderCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        tabs.forEachIndexed { index, title ->
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(0.5f)
-                    .height(18.dp)
-                    .clip(MaterialTheme.shapes.extraSmall)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(12.dp)
-                    .clip(MaterialTheme.shapes.extraSmall)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.7f)
-                    .height(12.dp)
-                    .clip(MaterialTheme.shapes.extraSmall)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
-            )
-            Spacer(modifier = Modifier.height(14.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                repeat(3) {
-                    Box(
-                        modifier = Modifier
-                            .height(10.dp)
-                            .weight(1f)
-                            .clip(MaterialTheme.shapes.extraSmall)
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                    .weight(1f)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(
+                        if (selectedTab == index) 
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                        else 
+                            Color.Transparent
                     )
-                }
+                    .clickable { onTabSelected(index) }
+                    .padding(vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = title,
+                    fontSize = 16.sp,
+                    fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
+                    color = if (selectedTab == index) 
+                        MaterialTheme.colorScheme.primary 
+                    else 
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
 }
-

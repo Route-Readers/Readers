@@ -7,6 +7,59 @@ import {getMessaging} from "firebase-admin/messaging";
 // Firebase Admin SDK 초기화
 admin.initializeApp();
 
+// "fcm_messages" 컬렉션에 새 문서가 생성될 때마다 이 함수가 실행됨 (독서 알림용)
+export const sendReadingReminderNotification = onDocumentCreated(
+    {
+        document: "fcm_messages/{messageId}",
+        region: "asia-northeast3",
+    },
+    async (event) => {
+        console.log(`[sendReadingReminderNotification] Triggered for message ID: ${event.params.messageId}`);
+        const snapshot = event.data;
+        if (!snapshot) {
+            console.log("[sendReadingReminderNotification] No data associated with the event");
+            return;
+        }
+
+        const messageData = snapshot.data();
+        console.log("[sendReadingReminderNotification] Message data:", JSON.stringify(messageData, null, 2));
+        
+        const {type, fromUserName, fcmToken, title, body} = messageData;
+
+        if (type !== "reading_reminder" || !fcmToken || !title || !body) {
+            console.log("[sendReadingReminderNotification] Invalid message data, deleting document");
+            await snapshot.ref.delete();
+            return;
+        }
+
+        try {
+            // FCM 메시지 구성
+            const fcmMessage = {
+                notification: {
+                    title: title,
+                    body: body,
+                },
+                data: {
+                    type: "reading_reminder",
+                    fromUserName: fromUserName || "",
+                },
+                token: fcmToken,
+            };
+
+            // FCM으로 메시지 전송
+            console.log(`[sendReadingReminderNotification] Sending FCM message to token: ${fcmToken}`);
+            await getMessaging().send(fcmMessage);
+            console.log("[sendReadingReminderNotification] Successfully sent reading reminder.");
+
+            // 처리 완료된 문서 삭제
+            await snapshot.ref.delete();
+
+        } catch (error) {
+            console.error("[sendReadingReminderNotification] Error sending notification:", error);
+            await snapshot.ref.delete();
+        }
+    });
+
 // "fcmRequests" 컬렉션에 새 문서가 생성될 때마다 이 함수가 실행됨
 export const sendFcmNotification = onDocumentCreated(
     {

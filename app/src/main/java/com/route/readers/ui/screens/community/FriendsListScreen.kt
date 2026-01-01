@@ -11,6 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,10 +69,12 @@ fun FriendsListScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(uiState.friends) { friend ->
-                    FriendItemWithDelete(
+                    SwipeableFriendItem(
                         friend = friend,
+                        onNotifyClick = { viewModel.sendReadingNotificationToFriend(friend.uid) },
                         onDeleteClick = { viewModel.showDeleteConfirmation(friend) },
-                        onProfileClick = { onUserClick(friend.uid) }
+                        onProfileClick = { onUserClick(friend.uid) },
+                        hasReadToday = viewModel.checkFriendReadingStatus(friend.uid)
                     )
                 }
             }
