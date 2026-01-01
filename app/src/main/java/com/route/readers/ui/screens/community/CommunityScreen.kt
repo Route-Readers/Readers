@@ -16,6 +16,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Delete
@@ -289,7 +291,7 @@ fun CommunityContent(
                     },
                     onDeleteClick = { onRemoveFriend(friend) },
                     onProfileClick = { onNavigateToUserProfile(friend.uid) },
-                    hasReadToday = false // TODO: 실제 독서 상태 확인
+                    hasReadToday = (0..1).random() == 1 // 임시 랜덤 값
                 )
                 Spacer(modifier = Modifier.height(16.dp))
             }
@@ -359,7 +361,7 @@ fun CommunityContent(
                     Icon(
                         Icons.Default.Send,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
@@ -674,9 +676,9 @@ fun SwipeableFriendItem(
         
         if (hasReadToday) {
             Icon(
-                Icons.Default.CheckCircle,
+                Icons.Default.MenuBook,
                 contentDescription = "오늘 독서 완료",
-                tint = MaterialTheme.colorScheme.primary,
+                tint = MaterialTheme.colorScheme.error,
                 modifier = Modifier.size(24.dp)
             )
         } else {

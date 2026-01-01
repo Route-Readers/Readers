@@ -74,7 +74,7 @@ fun FriendsListScreen(
                         onNotifyClick = { viewModel.sendReadingNotificationToFriend(friend.uid) },
                         onDeleteClick = { viewModel.showDeleteConfirmation(friend) },
                         onProfileClick = { onUserClick(friend.uid) },
-                        hasReadToday = viewModel.checkFriendReadingStatus(friend.uid)
+                        hasReadToday = uiState.friendsReadingStatus[friend.uid] ?: false
                     )
                 }
             }
