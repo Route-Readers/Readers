@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.FavoriteBorder
 // Material 3 imports
@@ -594,20 +595,33 @@ fun BookSearchResultCard(
                             Text("서재 추가", fontSize = 12.sp)
                         }
                     }
+                    
+                    
+                    // 관심 도서 하트 아이콘
+                    IconButton(
+                        onClick = { onToggleFavorite(book) },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (book.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                            contentDescription = "관심 도서",
+                            tint = if (book.isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 
-            IconButton(onClick = { onToggleFavorite(book) }) {
+            // 책 펼친 아이콘 (오른쪽 끝)
+            IconButton(onClick = { /* TODO: 추후 기능 추가 */ }) {
                 Icon(
-                    imageVector = if (book.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                    contentDescription = "관심 도서",
+                    imageVector = Icons.Default.MenuBook,
+                    contentDescription = "책 보기",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
     }
 }
-
 
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @SuppressLint("MissingPermission")
