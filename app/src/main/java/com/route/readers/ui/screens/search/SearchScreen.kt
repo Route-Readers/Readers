@@ -83,7 +83,8 @@ import androidx.compose.foundation.layout.Arrangement
 @Composable
 fun SearchScreen(
     bookViewModel: BookViewModel = viewModel(),
-    libraryViewModel: LibraryViewModel = viewModel()
+    libraryViewModel: LibraryViewModel = viewModel(),
+    onStartReading: (Book) -> Unit = {}
 )
 {
     var selectedTab by remember { mutableStateOf(0) }
@@ -120,7 +121,7 @@ fun SearchScreen(
         }
 
         when (selectedTab) {
-            0 -> BookSearchTab(bookViewModel, libraryViewModel)
+            0 -> BookSearchTab(bookViewModel, libraryViewModel, onStartReading)
             1 -> LibrarySearchTab(libraryViewModel = libraryViewModel)
         }
     }
@@ -162,7 +163,8 @@ fun SearchScreen(
 @Composable
 fun BookSearchTab(
     bookViewModel: BookViewModel,
-    libraryViewModel: LibraryViewModel
+    libraryViewModel: LibraryViewModel,
+    onStartReading: (Book) -> Unit
 )
 {
     val currentQuery by bookViewModel.currentQuery.collectAsState()
@@ -345,7 +347,8 @@ fun BookSearchTab(
                 BookSearchItem(
                     book = book,
                     libraryViewModel = libraryViewModel,
-                    bookViewModel = bookViewModel
+                    bookViewModel = bookViewModel,
+                    onStartReading = onStartReading
                 )
             }
         }
@@ -494,7 +497,8 @@ fun FilterBottomSheetContent(bookViewModel: BookViewModel, onClose: () -> Unit) 
 private fun BookSearchItem(
     book: Book,
     libraryViewModel: LibraryViewModel,
-    bookViewModel: BookViewModel
+    bookViewModel: BookViewModel,
+    onStartReading: (Book) -> Unit
 )
 {
     val myLibraryRepository = remember { MyLibraryRepository() }
@@ -516,7 +520,8 @@ private fun BookSearchItem(
                 libraryViewModel.addBookToLibrary(it)
             }
         },
-        onToggleFavorite = { bookViewModel.onToggleFavorite(it) }
+        onToggleFavorite = { bookViewModel.onToggleFavorite(it) },
+        onStartReading = onStartReading
     )
 }
 
@@ -525,7 +530,8 @@ fun BookSearchResultCard(
     book: Book,
     isInLibrary: Boolean,
     onAddToLibrary: (Book) -> Unit,
-    onToggleFavorite: (Book) -> Unit
+    onToggleFavorite: (Book) -> Unit,
+    onStartReading: (Book) -> Unit
 )
 {
     Card(
@@ -611,12 +617,15 @@ fun BookSearchResultCard(
                 }
             }
 
-            // 책 펼친 아이콘 (오른쪽 끝)
-            IconButton(onClick = { /* TODO: 추후 기능 추가 */ }) {
+            // 바로읽기 아이콘 (오른쪽 끝) - 서재에 추가하고 읽기 시작
+            IconButton(onClick = { 
+                onAddToLibrary(book)
+                onStartReading(book) 
+            }) {
                 Icon(
                     imageVector = Icons.Default.MenuBook,
-                    contentDescription = "책 보기",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    contentDescription = "바로읽기",
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
         }
