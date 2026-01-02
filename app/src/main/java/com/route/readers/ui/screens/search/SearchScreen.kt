@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.FavoriteBorder
 // Material 3 imports
@@ -82,7 +83,8 @@ import androidx.compose.foundation.layout.Arrangement
 @Composable
 fun SearchScreen(
     bookViewModel: BookViewModel = viewModel(),
-    libraryViewModel: LibraryViewModel = viewModel()
+    libraryViewModel: LibraryViewModel = viewModel(),
+    onStartReading: (Book) -> Unit = {}
 )
 {
     var selectedTab by remember { mutableStateOf(0) }
@@ -119,7 +121,7 @@ fun SearchScreen(
         }
 
         when (selectedTab) {
-            0 -> BookSearchTab(bookViewModel, libraryViewModel)
+            0 -> BookSearchTab(bookViewModel, libraryViewModel, onStartReading)
             1 -> LibrarySearchTab(libraryViewModel = libraryViewModel)
         }
     }
@@ -161,7 +163,8 @@ fun SearchScreen(
 @Composable
 fun BookSearchTab(
     bookViewModel: BookViewModel,
-    libraryViewModel: LibraryViewModel
+    libraryViewModel: LibraryViewModel,
+    onStartReading: (Book) -> Unit
 )
 {
     val currentQuery by bookViewModel.currentQuery.collectAsState()
@@ -344,7 +347,8 @@ fun BookSearchTab(
                 BookSearchItem(
                     book = book,
                     libraryViewModel = libraryViewModel,
-                    bookViewModel = bookViewModel
+                    bookViewModel = bookViewModel,
+                    onStartReading = onStartReading
                 )
             }
         }
@@ -493,7 +497,8 @@ fun FilterBottomSheetContent(bookViewModel: BookViewModel, onClose: () -> Unit) 
 private fun BookSearchItem(
     book: Book,
     libraryViewModel: LibraryViewModel,
-    bookViewModel: BookViewModel
+    bookViewModel: BookViewModel,
+    onStartReading: (Book) -> Unit
 )
 {
     val myLibraryRepository = remember { MyLibraryRepository() }
@@ -515,7 +520,8 @@ private fun BookSearchItem(
                 libraryViewModel.addBookToLibrary(it)
             }
         },
-        onToggleFavorite = { bookViewModel.onToggleFavorite(it) }
+        onToggleFavorite = { bookViewModel.onToggleFavorite(it) },
+        onStartReading = onStartReading
     )
 }
 
@@ -524,7 +530,8 @@ fun BookSearchResultCard(
     book: Book,
     isInLibrary: Boolean,
     onAddToLibrary: (Book) -> Unit,
-    onToggleFavorite: (Book) -> Unit
+    onToggleFavorite: (Book) -> Unit,
+    onStartReading: (Book) -> Unit
 )
 {
     Card(
@@ -594,20 +601,36 @@ fun BookSearchResultCard(
                             Text("서재 추가", fontSize = 12.sp)
                         }
                     }
+                    
+                    
+                    // 관심 도서 하트 아이콘
+                    IconButton(
+                        onClick = { onToggleFavorite(book) },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (book.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                            contentDescription = "관심 도서",
+                            tint = if (book.isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 
-            IconButton(onClick = { onToggleFavorite(book) }) {
+            // 바로읽기 아이콘 (오른쪽 끝) - 서재에 추가하고 읽기 시작
+            IconButton(onClick = { 
+                onAddToLibrary(book)
+                onStartReading(book) 
+            }) {
                 Icon(
-                    imageVector = if (book.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                    contentDescription = "관심 도서",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    imageVector = Icons.Default.MenuBook,
+                    contentDescription = "바로읽기",
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
         }
     }
 }
-
 
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @SuppressLint("MissingPermission")

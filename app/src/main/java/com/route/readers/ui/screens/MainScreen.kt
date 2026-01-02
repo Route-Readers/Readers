@@ -319,8 +319,21 @@ fun MainScreen(
                 )
             }
             composable(BottomNavItem.Search.route) {
-                selectedBook = null
-                SearchScreen()
+                SearchScreen(
+                    onStartReading = { book ->
+                        val isbn = book.isbn13?.takeIf { it.isNotBlank() } ?: book.isbn ?: ""
+                        if (isbn.isNotBlank()) {
+                            selectedBook = MyBook(
+                                isbn = isbn,
+                                title = book.title,
+                                author = book.author,
+                                cover = book.cover,
+                                totalPages = book.subInfo?.itemPage ?: 0
+                            )
+                            bottomNavController.navigate("reading_timer/$isbn?startNow=true")
+                        }
+                    }
+                )
             }
             composable(BottomNavItem.Community.route) {
                 selectedBook = null
@@ -402,7 +415,7 @@ fun MainScreen(
                 val bookIsbn = backStackEntry.arguments?.getString("bookIsbn")
                 val startNow = backStackEntry.arguments?.getBoolean("startNow") ?: false
                 selectedBook?.let { book ->
-                    if (book.isbn == bookIsbn) {
+                    // isbn 체크 제거 - selectedBook이 있으면 바로 표시
                         ReadingTimerScreen(
                             book = book,
                             onNavigateBack = { bottomNavController.popBackStack() },
@@ -419,7 +432,6 @@ fun MainScreen(
                             },
                             startNow = startNow
                         )
-                    }
                 }
             }
         }

@@ -11,6 +11,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import androidx.compose.ui.Alignment
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,32 +79,32 @@ fun FriendsListScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(uiState.friends) { friend ->
-                    FriendItemWithDelete(
-                        friend = friend,
-                        onDeleteClick = { viewModel.showDeleteConfirmation(friend) },
-                        onProfileClick = { onUserClick(friend.uid) }
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onUserClick(friend.uid) }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = friend.nickname,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        IconButton(
+                            onClick = { viewModel.showDeleteConfirmation(friend) }
+                        ) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = "친구 삭제",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
                 }
             }
-        }
-
-        // 친구 삭제 확인 다이얼로그
-        uiState.friendToDelete?.let { user ->
-            AlertDialog(
-                onDismissRequest = { viewModel.cancelDeleteFriend() },
-                title = { Text("친구 삭제") },
-                text = { Text("${user.nickname}님을 친구에서 삭제하시겠습니까?") },
-                confirmButton = {
-                    TextButton(onClick = { viewModel.confirmDeleteFriend() }) {
-                        Text("삭제", color = MaterialTheme.colorScheme.error)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { viewModel.cancelDeleteFriend() }) {
-                        Text("취소")
-                    }
-                }
-            )
         }
     }
 }

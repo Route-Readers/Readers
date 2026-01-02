@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.launchIn
@@ -28,6 +29,7 @@ import com.route.readers.data.remote.FirestoreRepository
 
 data class CommunityUiState(
     val friends: List<User> = emptyList(), // Changed to List<User>
+    val friendsReadingStatus: Map<String, Boolean> = emptyMap(), // 친구 ID -> 오늘 독서 여부
     val bookClubs: List<BookClub> = emptyList(),
     val isBookClubsLoading: Boolean = true,
     val isFriendsLoading: Boolean = true,
@@ -102,9 +104,26 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
     private fun loadFriends() {
         viewModelScope.launch {
             friendsRepository.loadFriends()
+
+            // 친구들의 독서 상태도 함께 로드
+            loadFriendsReadingStatus()
         }
     }
-
+    private fun loadFriendsReadingStatus() {
+        viewModelScope.launch {
+            val currentFriends = _uiState.value.friends
+            val readingStatusMap = mutableMapOf<String, Boolean>()
+            
+            currentFriends.forEach { friend ->
+                val hasReadToday = checkFriendReadingStatusAsync(friend.uid)
+                readingStatusMap[friend.uid] = hasReadToday
+            }
+            
+            _uiState.value = _uiState.value.copy(
+                friendsReadingStatus = readingStatusMap
+            )
+        }
+    }
     private fun loadConsecutiveReadingDays() {
         viewModelScope.launch {
             try {
@@ -136,6 +155,62 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(isChallengesLoading = false)
+            }
+        }
+    }
+
+    suspend fun checkFriendReadingStatusAsync(friendId: String): Boolean {
+        return try {
+            val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+            val todayTimestamp = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).parse(today)?.time ?: 0L
+            
+            // Firestore에서 친구의 오늘 독서 기록 확인
+            val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            val myBooksQuery = firestore.collection("myBooks")
+                .whereEqualTo("userId", friendId)
+                .whereGreaterThanOrEqualTo("lastReadDate", todayTimestamp)
+                .whereLessThan("lastReadDate", todayTimestamp + 24 * 60 * 60 * 1000) // 오늘 하루
+                .limit(1)
+            
+            val result = myBooksQuery.get().await()
+            !result.isEmpty
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    fun checkFriendReadingStatus(friendId: String): Boolean {
+        // UI에서는 State로 관리해야 하므로 별도 처리 필요
+        return false // 기본값
+    }
+
+    fun sendReadingNotificationToFriend(friendId: String) {
+        viewModelScope.launch {
+            try {
+                // FCM을 통해 특정 친구에게 독서 알림 전송
+                val currentUser = firestoreRepository.getUserProfile(currentUserId)
+                val friendUser = firestoreRepository.getUserProfile(friendId)
+                
+                if (currentUser != null && friendUser != null && friendUser.fcmToken != null) {
+                    // Firebase Functions를 통해 FCM 메시지 전송
+                    val firestore = FirebaseFirestore.getInstance()
+                    val notificationData = mapOf(
+                        "type" to "reading_reminder",
+                        "fromUserId" to currentUserId,
+                        "fromUserName" to currentUser.nickname,
+                        "toUserId" to friendId,
+                        "fcmToken" to friendUser.fcmToken,
+                        "title" to "독서 알림",
+                        "body" to "${currentUser.nickname}님이 독서 알림을 보냈습니다! 📚",
+                        "timestamp" to System.currentTimeMillis()
+                    )
+                    
+                    firestore.collection("fcm_messages")
+                        .add(notificationData)
+                        .await()
+                }
+            } catch (e: Exception) {
+                // 에러 처리
             }
         }
     }
