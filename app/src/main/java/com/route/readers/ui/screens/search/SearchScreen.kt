@@ -453,39 +453,30 @@ fun FilterBottomSheetContent(bookViewModel: BookViewModel, onClose: () -> Unit) 
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        availableGenres.forEach { (category, genres) ->
-            item {
-                Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                    Text(
-                        text = category,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        genres.forEach { genre ->
-                            FilterChip(
-                                selected = selectedGenres.contains(genre),
-                                onClick = { bookViewModel.onGenreSelected(genre) },
-                                label = { Text(genre) },
-                                leadingIcon = if (selectedGenres.contains(genre)) {
-                                    {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = "선택됨",
-                                            modifier = Modifier.size(FilterChipDefaults.IconSize)
-                                        )
-                                    }
-                                } else {
-                                    null
+        item {
+            Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    availableGenres.forEach { genre ->
+                        FilterChip(
+                            selected = selectedGenres.contains(genre),
+                            onClick = { bookViewModel.onGenreSelected(genre) },
+                            label = { Text(genre) },
+                            leadingIcon = if (selectedGenres.contains(genre)) {
+                                {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "선택됨",
+                                        modifier = Modifier.size(FilterChipDefaults.IconSize)
+                                    )
                                 }
-                            )
-                        }
+                            } else {
+                                null
+                            }
+                        )
                     }
                 }
             }

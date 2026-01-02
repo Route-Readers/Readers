@@ -45,12 +45,7 @@ class BookViewModel : ViewModel() {
     val selectedSort: StateFlow<String> = _selectedSort.asStateFlow()
 
 
-    val availableGenres: Map<String, List<String>> = linkedMapOf(
-        "소설" to listOf("소설", "한국소설", "영미소설", "일본소설", "과학소설(SF)", "추리/미스터리", "판타지/무협", "로맨스"),
-        "교양" to listOf("시/에세이", "인문", "사회", "역사"),
-        "실용" to listOf("과학", "기술", "경제/경영", "자기계발"),
-        "기타" to listOf("예술", "종교", "여행", "어린이", "청소년", "만화")
-    )
+    val availableGenres: List<String> = listOf("소설", "일본소설", "사회", "과학", "경제/경영", "예술", "역사", "청소년")
 
     val availableSorts = listOf("정확도순", "출간일순", "고객평점순", "베스트셀러")
 
@@ -65,28 +60,14 @@ class BookViewModel : ViewModel() {
     private val aladinGenreCategoryIds = mapOf(
         // 소설 (세부 장르)
         "소설" to "1", // 소설/시/희곡의 최상위 ID, 더 구체적인 ID를 사용할 것을 권장
-        "한국소설" to "50973", // 확인된 ID
-        "영미소설" to "50978", // 추정 ID
         "일본소설" to "50998", // 확인된 ID
-        "과학소설(SF)" to "50992", // 확인된 ID
-        "추리/미스터리" to "50982", // 추정 ID
-        "판타지/무협" to "50988", // 추정 ID
-        "로맨스" to "50976", // 확인된 ID
 
-        "시/에세이" to "1700",
-        "인문" to "1200",
         "사회" to "798",
-        "역사" to "1600",
         "과학" to "987",
-        "기술" to "2300",
         "경제/경영" to "656", // 경제경영 최상위 ID
-        "자기계발" to "1380",
         "예술" to "517",
-        "종교" to "1800",
-        "여행" to "1900",
-        "어린이" to "74",
-        "청소년" to "76",
-        "만화" to "2550"
+        "역사" to "74",
+        "청소년" to "76"
     )
 
     fun onGenreSelected(genre: String) {
