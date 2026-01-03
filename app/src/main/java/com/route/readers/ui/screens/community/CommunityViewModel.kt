@@ -31,6 +31,7 @@ data class CommunityUiState(
     val friends: List<User> = emptyList(), // Changed to List<User>
     val friendsReadingStatus: Map<String, Boolean> = emptyMap(), // 친구 ID -> 오늘 독서 여부
     val bookClubs: List<BookClub> = emptyList(),
+    val bookClubOwnerProfiles: Map<String, User> = emptyMap(), // 방장 ID -> User
     val isBookClubsLoading: Boolean = true,
     val isFriendsLoading: Boolean = true,
     val isChallengesLoading: Boolean = true,
@@ -434,6 +435,20 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
                 bookTitle = bookTitle
             )
             bookClubRepository.createBookClub(bookClub)
+        }
+    }
+
+    fun loadBookClubOwnerProfile(ownerId: String) {
+        if (_uiState.value.bookClubOwnerProfiles.containsKey(ownerId)) return
+        viewModelScope.launch {
+            try {
+                val user = firestoreRepository.getUserProfile(ownerId)
+                if (user != null) {
+                    _uiState.value = _uiState.value.copy(
+                        bookClubOwnerProfiles = _uiState.value.bookClubOwnerProfiles + (ownerId to user)
+                    )
+                }
+            } catch (e: Exception) { }
         }
     }
 

@@ -12,8 +12,8 @@ import kotlinx.coroutines.tasks.await
 
 class BookClubRepository {
     private val firestore = FirebaseFirestore.getInstance()
+    private val firestoreRepository = FirestoreRepository()
 
-    // 실시간 북클럽 목록 가져오기
     fun getAllBookClubsFlow(): Flow<List<BookClub>> = callbackFlow {
         val listener = firestore.collection("bookClubs")
             .orderBy("createdAt", Query.Direction.DESCENDING)
@@ -68,7 +68,6 @@ class BookClubRepository {
 
     suspend fun joinBookClub(bookClubId: String, userId: String): Result<Unit> {
         return try {
-            // 먼저 현재 북클럽 정보 확인
             val bookClubDoc = firestore.collection("bookClubs").document(bookClubId).get().await()
             val bookClub = bookClubDoc.toObject(BookClub::class.java)
             
@@ -78,29 +77,83 @@ class BookClubRepository {
                         "members", FieldValue.arrayUnion(userId),
                         "memberCount", FieldValue.increment(1)
                     ).await()
+                
+                // 참여 시스템 메시지 전송
+                sendJoinMessage(bookClubId, userId)
             }
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
+    
+    private suspend fun sendJoinMessage(bookClubId: String, userId: String) {
+        try {
+            val user = firestoreRepository.getUserProfile(userId)
+            val nickname = user?.nickname ?: "알 수 없음"
+            
+            val systemMessage = ChatMessage(
+                bookClubId = bookClubId,
+                senderId = "system",
+                senderName = "시스템",
+                senderProfileImage = "",
+                message = "${nickname}님이 북클럽에 참여했습니다.",
+                timestamp = System.currentTimeMillis()
+            )
+            
+            firestore.collection("bookClubs")
+                .document(bookClubId)
+                .collection("messages")
+                .add(systemMessage)
+                .await()
+        } catch (e: Exception) {
+            // 시스템 메시지 실패해도 참여는 성공
+        }
+    }
 
     suspend fun leaveBookClub(bookClubId: String, userId: String): Result<Unit> {
         return try {
-            // 먼저 현재 북클럽 정보 확인
             val bookClubDoc = firestore.collection("bookClubs").document(bookClubId).get().await()
             val bookClub = bookClubDoc.toObject(BookClub::class.java)
             
             if (bookClub != null && bookClub.members.contains(userId)) {
+                // 나가기 시스템 메시지 먼저 전송
+                sendLeaveMessage(bookClubId, userId)
+                
                 firestore.collection("bookClubs").document(bookClubId)
                     .update(
                         "members", FieldValue.arrayRemove(userId),
+                        "viceOwners", FieldValue.arrayRemove(userId),
                         "memberCount", FieldValue.increment(-1)
                     ).await()
             }
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+    
+    private suspend fun sendLeaveMessage(bookClubId: String, userId: String) {
+        try {
+            val user = firestoreRepository.getUserProfile(userId)
+            val nickname = user?.nickname ?: "알 수 없음"
+            
+            val systemMessage = ChatMessage(
+                bookClubId = bookClubId,
+                senderId = "system",
+                senderName = "시스템",
+                senderProfileImage = "",
+                message = "${nickname}님이 북클럽을 나갔습니다.",
+                timestamp = System.currentTimeMillis()
+            )
+            
+            firestore.collection("bookClubs")
+                .document(bookClubId)
+                .collection("messages")
+                .add(systemMessage)
+                .await()
+        } catch (e: Exception) {
+            // 시스템 메시지 실패해도 나가기는 성공
         }
     }
 
@@ -110,7 +163,6 @@ class BookClubRepository {
             val bookClub = bookClubDoc.toObject(BookClub::class.java)
             
             if (bookClub?.createdBy == userId) {
-                // 채팅 메시지들도 함께 삭제
                 val messagesSnapshot = firestore.collection("bookClubs")
                     .document(bookClubId)
                     .collection("messages")
@@ -120,7 +172,6 @@ class BookClubRepository {
                     messageDoc.reference.delete()
                 }
                 
-                // 북클럽 삭제
                 firestore.collection("bookClubs").document(bookClubId).delete().await()
             }
             Result.success(Unit)
