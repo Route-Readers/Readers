@@ -1,8 +1,13 @@
 package com.route.readers.ui.screens.bookclub
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -23,6 +28,9 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,6 +41,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
@@ -40,18 +50,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.route.readers.data.model.BookClub
+import com.route.readers.data.model.BookClubRole
 import com.route.readers.data.model.ChatMessage
+import com.route.readers.data.model.User
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun BookClubChatScreen(
     bookClubId: String,
     bookClubName: String,
     onBackClick: () -> Unit,
+    onNavigateToProfile: (String) -> Unit = {},
     viewModel: BookClubChatViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -69,6 +83,14 @@ fun BookClubChatScreen(
     
     // 책 정보 다이얼로그 상태
     var showBookInfoDialog by remember { mutableStateOf(false) }
+    
+    // 더보기 메뉴 상태
+    var showMoreMenu by remember { mutableStateOf(false) }
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    var showLeaveConfirmDialog by remember { mutableStateOf(false) }
+    
+    // 멤버 목록 다이얼로그 상태
+    var showMemberListDialog by remember { mutableStateOf(false) }
     
     val koreaTimeZone = remember { TimeZone.getTimeZone("Asia/Seoul") }
     val dayFormat = remember {
@@ -95,6 +117,11 @@ fun BookClubChatScreen(
     
     val scope = rememberCoroutineScope()
     
+    // 권한 체크
+    val isOwner = uiState.userRole == BookClubRole.OWNER
+    val isViceOwner = uiState.userRole == BookClubRole.VICE_OWNER
+    val canManage = isOwner || isViceOwner
+    
     LaunchedEffect(uiState.messages.size) {
         if (uiState.messages.isNotEmpty()) {
             listState.animateScrollToItem(uiState.messages.size - 1)
@@ -106,6 +133,7 @@ fun BookClubChatScreen(
         BookCalendarDialog(
             bookClub = uiState.bookClub,
             messages = uiState.messages,
+            canEditSchedule = canManage,
             onDismiss = { showDatePicker = false },
             onDateSelected = { date ->
                 val index = uiState.messages.indexOfFirst { 
@@ -137,6 +165,7 @@ fun BookClubChatScreen(
             bookClub = uiState.bookClub,
             searchResults = uiState.searchResults,
             isSearching = uiState.isSearchingBooks,
+            canChangeBook = canManage,
             onDismiss = { 
                 showBookInfoDialog = false
                 viewModel.clearSearchResults()
@@ -149,21 +178,82 @@ fun BookClubChatScreen(
         )
     }
     
-    Scaffold(
-        topBar = {
-            if (isSearchMode) {
-                // 검색 모드 TopAppBar
-                TopAppBar(
-                    title = {
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            placeholder = { Text("채팅 내용 검색...") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                            )
+    // 멤버 목록 다이얼로그
+    if (showMemberListDialog) {
+        MemberListDialog(
+            bookClub = uiState.bookClub,
+            memberProfiles = uiState.memberProfiles,
+            currentUserRole = uiState.userRole,
+            onDismiss = { showMemberListDialog = false },
+            onProfileClick = { userId ->
+                showMemberListDialog = false
+                onNavigateToProfile(userId)
+            },
+            onKickMember = { memberId -> viewModel.kickMember(bookClubId, memberId) },
+            onSetViceOwner = { memberId, isVice -> viewModel.setViceOwner(bookClubId, memberId, isVice) },
+            getMemberRole = { viewModel.getMemberRole(it) }
+        )
+    }
+    
+    // 북클럽 삭제 확인 다이얼로그 (방장용)
+    if (showDeleteConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmDialog = false },
+            title = { Text("북클럽 삭제") },
+            text = { Text("정말로 이 북클럽을 삭제하시겠습니까?\n모든 채팅 기록이 삭제됩니다.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteBookClub(bookClubId) { onBackClick() }
+                        showDeleteConfirmDialog = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) { Text("삭제") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmDialog = false }) { Text("취소") }
+            }
+        )
+    }
+    
+    // 북클럽 나가기 확인 다이얼로그 (멤버용)
+    if (showLeaveConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showLeaveConfirmDialog = false },
+            title = { Text("북클럽 나가기") },
+            text = { Text("정말로 이 북클럽을 나가시겠습니까?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.leaveBookClub(bookClubId) { onBackClick() }
+                        showLeaveConfirmDialog = false
+                    }
+                ) { Text("나가기") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLeaveConfirmDialog = false }) { Text("취소") }
+            }
+        )
+    }
+    
+    val screenWidth = LocalConfiguration.current.screenWidthDp.dp
+    
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                if (isSearchMode) {
+                    // 검색 모드 TopAppBar
+                    TopAppBar(
+                        title = {
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                placeholder = { Text("채팅 내용 검색...") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                                )
                         )
                     },
                     navigationIcon = {
@@ -215,8 +305,8 @@ fun BookClubChatScreen(
                         IconButton(onClick = { showDatePicker = true }) {
                             Icon(Icons.Default.DateRange, contentDescription = "날짜 선택")
                         }
-                        IconButton(onClick = { viewModel.retryLoadMessages(bookClubId) }) {
-                            Icon(Icons.Default.Refresh, contentDescription = "새로고침")
+                        IconButton(onClick = { showMoreMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "더보기")
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -416,7 +506,196 @@ fun BookClubChatScreen(
                                 }
                             }
                             item(key = "msg_${message.id}_$index") {
-                                ChatMessageItem(message = message, highlightText = if (isSearchMode) searchQuery else null)
+                                ChatMessageItem(
+                                    message = message,
+                                    highlightText = if (isSearchMode) searchQuery else null,
+                                    onProfileClick = onNavigateToProfile
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        }
+        
+        // 사이드 시트 (더보기 메뉴)
+        AnimatedVisibility(
+            visible = showMoreMenu,
+            enter = slideInHorizontally(initialOffsetX = { it }),
+            exit = slideOutHorizontally(targetOffsetX = { it })
+        ) {
+            Row(modifier = Modifier.fillMaxSize()) {
+                // 왼쪽 빈 공간 (클릭하면 닫힘)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .background(Color.Black.copy(alpha = 0.3f))
+                        .clickable { showMoreMenu = false }
+                )
+                // 오른쪽 사이드 시트 (2/3 차지)
+                Surface(
+                    modifier = Modifier
+                        .width(screenWidth * 2 / 3)
+                        .fillMaxHeight(),
+                    color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = 8.dp
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp)
+                    ) {
+                        // 책 표지
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(180.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .clickable { 
+                                    showMoreMenu = false
+                                    showBookInfoDialog = true 
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (uiState.bookClub?.currentBookCover?.isNotEmpty() == true) {
+                                AsyncImage(
+                                    model = uiState.bookClub?.currentBookCover,
+                                    contentDescription = "책 표지",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Text("책 표지 없음", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        // 방 제목
+                        Text(
+                            text = bookClubName,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        
+                        Spacer(modifier = Modifier.height(4.dp))
+                        
+                        Text(
+                            text = uiState.bookClub?.currentBook ?: "",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        HorizontalDivider()
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        // 멤버 목록 헤더 (중복 제거: 방장 + 부방장 + 일반멤버)
+                        val club = uiState.bookClub
+                        val totalMembers = if (club != null) {
+                            val allMembers = (listOf(club.createdBy) + club.members).distinct()
+                            allMembers.size
+                        } else 0
+                        Text(
+                            text = "참여 멤버 (${totalMembers}명)",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        // 멤버 목록
+                        LazyColumn(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            uiState.bookClub?.let { club ->
+                                // 방장
+                                item {
+                                    SideSheetMemberItem(
+                                        user = uiState.memberProfiles[club.createdBy],
+                                        role = BookClubRole.OWNER,
+                                        isOwner = isOwner,
+                                        canManage = false,
+                                        onClick = {
+                                            showMoreMenu = false
+                                            onNavigateToProfile(club.createdBy)
+                                        }
+                                    )
+                                }
+                                // 부방장들
+                                items(club.viceOwners.size) { index ->
+                                    val memberId = club.viceOwners[index]
+                                    SideSheetMemberItem(
+                                        user = uiState.memberProfiles[memberId],
+                                        role = BookClubRole.VICE_OWNER,
+                                        isOwner = isOwner,
+                                        canManage = isOwner,
+                                        onClick = {
+                                            showMoreMenu = false
+                                            onNavigateToProfile(memberId)
+                                        },
+                                        onRemoveViceOwner = { viewModel.setViceOwner(bookClubId, memberId, false) },
+                                        onKick = { viewModel.kickMember(bookClubId, memberId) }
+                                    )
+                                }
+                                // 일반 멤버들
+                                items(club.members.size) { index ->
+                                    val memberId = club.members[index]
+                                    if (!club.viceOwners.contains(memberId) && memberId != club.createdBy) {
+                                        SideSheetMemberItem(
+                                            user = uiState.memberProfiles[memberId],
+                                            role = BookClubRole.MEMBER,
+                                            isOwner = isOwner,
+                                            canManage = canManage,
+                                            onClick = {
+                                                showMoreMenu = false
+                                                onNavigateToProfile(memberId)
+                                            },
+                                            onSetViceOwner = { viewModel.setViceOwner(bookClubId, memberId, true) },
+                                            onKick = { viewModel.kickMember(bookClubId, memberId) }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // 나가기/삭제 아이콘
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            if (isOwner) {
+                                IconButton(
+                                    onClick = {
+                                        showMoreMenu = false
+                                        showDeleteConfirmDialog = true
+                                    }
+                                ) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = "북클럽 삭제",
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            } else {
+                                IconButton(
+                                    onClick = {
+                                        showMoreMenu = false
+                                        showLeaveConfirmDialog = true
+                                    }
+                                ) {
+                                    Icon(
+                                        Icons.Default.ExitToApp,
+                                        contentDescription = "북클럽 나가기",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
                     }
@@ -444,7 +723,34 @@ fun DateDivider(date: String) {
 }
 
 @Composable
-fun ChatMessageItem(message: ChatMessage, highlightText: String? = null) {
+fun ChatMessageItem(
+    message: ChatMessage,
+    highlightText: String? = null,
+    onProfileClick: (String) -> Unit = {}
+) {
+    // 시스템 메시지 처리
+    if (message.senderId == "system") {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            ) {
+                Text(
+                    text = message.message,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        return
+    }
+    
     val isCurrentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid == message.senderId
     val timeFormat = remember {
         SimpleDateFormat("a h:mm", Locale.KOREA).apply {
@@ -464,7 +770,8 @@ fun ChatMessageItem(message: ChatMessage, highlightText: String? = null) {
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .clickable { onProfileClick(message.senderId) },
                 contentAlignment = Alignment.Center
             ) {
                 if (message.senderProfileImage.isNotEmpty()) {
@@ -540,6 +847,7 @@ fun BookInfoDialog(
     bookClub: com.route.readers.data.model.BookClub?,
     searchResults: List<com.route.readers.data.model.Book>,
     isSearching: Boolean,
+    canChangeBook: Boolean = false,
     onDismiss: () -> Unit,
     onSearch: (String) -> Unit,
     onBookSelected: (com.route.readers.data.model.Book) -> Unit
@@ -712,7 +1020,7 @@ fun BookInfoDialog(
         },
         confirmButton = {
             Row {
-                if (!isEditMode) {
+                if (!isEditMode && canChangeBook) {
                     TextButton(onClick = { isEditMode = true }) {
                         Text("책 변경하기")
                     }
@@ -729,6 +1037,7 @@ fun BookInfoDialog(
 fun BookCalendarDialog(
     bookClub: com.route.readers.data.model.BookClub?,
     messages: List<ChatMessage>,
+    canEditSchedule: Boolean = false,
     onDismiss: () -> Unit,
     onDateSelected: (String) -> Unit,
     onSaveBookHistory: (List<String>) -> Unit,
@@ -843,7 +1152,7 @@ fun BookCalendarDialog(
         onDismissRequest = onDismiss,
         title = { 
             Column {
-                // 탭 선택
+                // 탭 선택 (일정표는 방장만)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -854,12 +1163,14 @@ fun BookCalendarDialog(
                         fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
                         modifier = Modifier.clickable { selectedTab = 0 }
                     )
-                    Text(
-                        "일정표",
-                        color = if (selectedTab == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
-                        modifier = Modifier.clickable { selectedTab = 1 }
-                    )
+                    if (canEditSchedule) {
+                        Text(
+                            "일정표",
+                            color = if (selectedTab == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
+                            modifier = Modifier.clickable { selectedTab = 1 }
+                        )
+                    }
                 }
                 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -1170,4 +1481,317 @@ fun BookCalendarDialog(
             }
         }
     )
+}
+
+
+@Composable
+fun MemberListDialog(
+    bookClub: BookClub?,
+    memberProfiles: Map<String, User>,
+    currentUserRole: BookClubRole?,
+    onDismiss: () -> Unit,
+    onProfileClick: (String) -> Unit,
+    onKickMember: (String) -> Unit,
+    onSetViceOwner: (String, Boolean) -> Unit,
+    getMemberRole: (String) -> BookClubRole?
+) {
+    val isOwner = currentUserRole == BookClubRole.OWNER
+    val canKick = currentUserRole == BookClubRole.OWNER || currentUserRole == BookClubRole.VICE_OWNER
+    
+    var kickTargetId by remember { mutableStateOf<String?>(null) }
+    
+    // 강퇴 확인 다이얼로그
+    kickTargetId?.let { targetId ->
+        val targetName = memberProfiles[targetId]?.nickname ?: "멤버"
+        AlertDialog(
+            onDismissRequest = { kickTargetId = null },
+            title = { Text("멤버 강퇴") },
+            text = { Text("${targetName}님을 강퇴하시겠습니까?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onKickMember(targetId)
+                        kickTargetId = null
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) { Text("강퇴") }
+            },
+            dismissButton = {
+                TextButton(onClick = { kickTargetId = null }) { Text("취소") }
+            }
+        )
+    }
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("멤버 목록 (${(bookClub?.members?.size ?: 0) + 1 + (bookClub?.viceOwners?.size ?: 0)}명)") },
+        text = {
+            LazyColumn(
+                modifier = Modifier.heightIn(max = 400.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                bookClub?.let { club ->
+                    // 방장
+                    item {
+                        MemberItem(
+                            user = memberProfiles[club.createdBy],
+                            role = BookClubRole.OWNER,
+                            isOwner = isOwner,
+                            canKick = false,
+                            onProfileClick = { onProfileClick(club.createdBy) },
+                            onKickClick = {},
+                            onViceOwnerToggle = {}
+                        )
+                    }
+                    // 부방장들
+                    items(club.viceOwners.size) { index ->
+                        val memberId = club.viceOwners[index]
+                        MemberItem(
+                            user = memberProfiles[memberId],
+                            role = BookClubRole.VICE_OWNER,
+                            isOwner = isOwner,
+                            canKick = isOwner,
+                            onProfileClick = { onProfileClick(memberId) },
+                            onKickClick = { kickTargetId = memberId },
+                            onViceOwnerToggle = { onSetViceOwner(memberId, false) }
+                        )
+                    }
+                    // 일반 멤버들
+                    items(club.members.size) { index ->
+                        val memberId = club.members[index]
+                        if (!club.viceOwners.contains(memberId) && memberId != club.createdBy) {
+                            MemberItem(
+                                user = memberProfiles[memberId],
+                                role = BookClubRole.MEMBER,
+                                isOwner = isOwner,
+                                canKick = canKick,
+                                onProfileClick = { onProfileClick(memberId) },
+                                onKickClick = { kickTargetId = memberId },
+                                onViceOwnerToggle = { onSetViceOwner(memberId, true) }
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("닫기") }
+        }
+    )
+}
+
+@Composable
+private fun MemberItem(
+    user: User?,
+    role: BookClubRole,
+    isOwner: Boolean,
+    canKick: Boolean,
+    onProfileClick: () -> Unit,
+    onKickClick: () -> Unit,
+    onViceOwnerToggle: () -> Unit
+) {
+    var showMenu by remember { mutableStateOf(false) }
+    
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onProfileClick() }
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            if (user?.profileImageUrl?.isNotEmpty() == true) {
+                AsyncImage(
+                    model = user.profileImageUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(24.dp))
+            }
+        }
+        
+        Spacer(modifier = Modifier.width(12.dp))
+        
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = user?.nickname ?: "알 수 없음",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = when (role) {
+                    BookClubRole.OWNER -> "방장"
+                    BookClubRole.VICE_OWNER -> "부방장"
+                    BookClubRole.MEMBER -> "멤버"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = when (role) {
+                    BookClubRole.OWNER -> MaterialTheme.colorScheme.primary
+                    BookClubRole.VICE_OWNER -> MaterialTheme.colorScheme.tertiary
+                    BookClubRole.MEMBER -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
+            )
+        }
+        
+        // 방장만 관리 메뉴 표시 (자기 자신 제외)
+        if ((isOwner && role != BookClubRole.OWNER) || (canKick && role == BookClubRole.MEMBER)) {
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "관리", modifier = Modifier.size(20.dp))
+                }
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    if (isOwner) {
+                        if (role == BookClubRole.MEMBER) {
+                            DropdownMenuItem(
+                                text = { Text("부방장 임명") },
+                                onClick = {
+                                    onViceOwnerToggle()
+                                    showMenu = false
+                                }
+                            )
+                        } else if (role == BookClubRole.VICE_OWNER) {
+                            DropdownMenuItem(
+                                text = { Text("부방장 해제") },
+                                onClick = {
+                                    onViceOwnerToggle()
+                                    showMenu = false
+                                }
+                            )
+                        }
+                    }
+                    if (canKick) {
+                        DropdownMenuItem(
+                            text = { Text("강퇴", color = MaterialTheme.colorScheme.error) },
+                            onClick = {
+                                showMenu = false
+                                onKickClick()
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun SideSheetMemberItem(
+    user: User?,
+    role: BookClubRole,
+    isOwner: Boolean = false,
+    canManage: Boolean = false,
+    onClick: () -> Unit,
+    onSetViceOwner: () -> Unit = {},
+    onRemoveViceOwner: () -> Unit = {},
+    onKick: () -> Unit = {}
+) {
+    var showMenu by remember { mutableStateOf(false) }
+    
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = { onClick() },
+                onLongClick = { if (canManage && role != BookClubRole.OWNER) showMenu = true }
+            )
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            if (user?.profileImageUrl?.isNotEmpty() == true) {
+                AsyncImage(
+                    model = user.profileImageUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(20.dp))
+            }
+        }
+        
+        Spacer(modifier = Modifier.width(12.dp))
+        
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = user?.nickname ?: "알 수 없음",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        
+        // 역할 뱃지
+        Surface(
+            shape = RoundedCornerShape(4.dp),
+            color = when (role) {
+                BookClubRole.OWNER -> MaterialTheme.colorScheme.primary
+                BookClubRole.VICE_OWNER -> MaterialTheme.colorScheme.tertiary
+                BookClubRole.MEMBER -> MaterialTheme.colorScheme.surfaceVariant
+            }
+        ) {
+            Text(
+                text = when (role) {
+                    BookClubRole.OWNER -> "방장"
+                    BookClubRole.VICE_OWNER -> "부방장"
+                    BookClubRole.MEMBER -> "멤버"
+                },
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                style = MaterialTheme.typography.labelSmall,
+                color = when (role) {
+                    BookClubRole.OWNER -> MaterialTheme.colorScheme.onPrimary
+                    BookClubRole.VICE_OWNER -> MaterialTheme.colorScheme.onTertiary
+                    BookClubRole.MEMBER -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
+            )
+        }
+        
+        // 관리 메뉴
+        DropdownMenu(
+            expanded = showMenu,
+            onDismissRequest = { showMenu = false }
+        ) {
+            if (isOwner && role == BookClubRole.MEMBER) {
+                DropdownMenuItem(
+                    text = { Text("부방장 임명") },
+                    onClick = {
+                        showMenu = false
+                        onSetViceOwner()
+                    }
+                )
+            }
+            if (isOwner && role == BookClubRole.VICE_OWNER) {
+                DropdownMenuItem(
+                    text = { Text("부방장 해제") },
+                    onClick = {
+                        showMenu = false
+                        onRemoveViceOwner()
+                    }
+                )
+            }
+            if (canManage && role != BookClubRole.OWNER && !(role == BookClubRole.VICE_OWNER && !isOwner)) {
+                DropdownMenuItem(
+                    text = { Text("강퇴", color = MaterialTheme.colorScheme.error) },
+                    onClick = {
+                        showMenu = false
+                        onKick()
+                    }
+                )
+            }
+        }
+    }
 }

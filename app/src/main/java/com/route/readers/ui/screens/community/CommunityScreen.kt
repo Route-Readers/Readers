@@ -51,6 +51,7 @@ import com.route.readers.ui.community.used_trade.UsedBookTradeScreen
 import com.route.readers.ui.components.BookClubCard
 import com.route.readers.ui.components.UserProfileImage
 import com.route.readers.ui.screens.bookclub.BookClubChatScreen
+import com.route.readers.ui.screens.bookclub.BookClubDetailScreen
 import com.route.readers.ui.theme.PrimaryRed
 import kotlinx.coroutines.delay
 
@@ -78,10 +79,11 @@ fun CommunityScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showCreateBookClubDialog by remember { mutableStateOf(false) }
     var showChatScreen by remember { mutableStateOf<BookClub?>(null) }
+    var showDetailScreen by remember { mutableStateOf<BookClub?>(null) }
     val communityListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
 
-    LaunchedEffect(showChatScreen) {
-        onChatScreenChanged(showChatScreen != null)
+    LaunchedEffect(showChatScreen, showDetailScreen) {
+        onChatScreenChanged(showChatScreen != null || showDetailScreen != null)
     }
 
     LaunchedEffect(isActive) {
@@ -108,38 +110,65 @@ fun CommunityScreen(
             }
         }
 
-        if (showChatScreen != null) {
-            showChatScreen?.let { bookClub ->
-                BookClubChatScreen(
-                    bookClubId = bookClub.id,
-                    bookClubName = bookClub.name,
-                    onBackClick = { showChatScreen = null }
+        when {
+            showChatScreen != null -> {
+                showChatScreen?.let { bookClub ->
+                    BookClubChatScreen(
+                        bookClubId = bookClub.id,
+                        bookClubName = bookClub.name,
+                        onBackClick = { showChatScreen = null },
+                        onNavigateToProfile = onNavigateToUserProfile
+                    )
+                }
+            }
+            showDetailScreen != null -> {
+                showDetailScreen?.let { bookClub ->
+                    BookClubDetailScreen(
+                        bookClub = bookClub,
+                        ownerProfile = uiState.bookClubOwnerProfiles[bookClub.createdBy],
+                        onBackClick = { showDetailScreen = null },
+                        onJoinClick = {
+                            viewModel.joinBookClub(bookClub.id)
+                            showDetailScreen = null
+                            // 참여 후 채팅방으로 이동
+                            showChatScreen = bookClub.copy(isJoined = true)
+                        },
+                        onEnterChat = {
+                            showDetailScreen = null
+                            showChatScreen = bookClub
+                        },
+                        onOwnerProfileClick = { onNavigateToUserProfile(bookClub.createdBy) }
+                    )
+                }
+            }
+            else -> {
+                CommunityContent(
+                    uiState = uiState,
+                    bookClubs = uiState.bookClubs,
+                    onNavigateToFriendsList = onNavigateToFriendsList,
+                    onRemoveFriend = { user -> viewModel.showDeleteConfirmation(user) },
+                    onShowCreateBookClubDialog = { showCreateBookClubDialog = true },
+                    onBookClubClick = { bookClub -> 
+                        if (bookClub.isJoined) {
+                            // 참여중이면 바로 채팅방으로
+                            showChatScreen = bookClub
+                        } else {
+                            // 미참여면 상세 페이지로
+                            viewModel.loadBookClubOwnerProfile(bookClub.createdBy)
+                            showDetailScreen = bookClub
+                        }
+                    },
+                    onJoinBookClub = { bookClub -> showChatScreen = bookClub },
+                    onSendNotification = { viewModel.sendReadingNotification() },
+                    onSendNotificationToFriend = { friendId -> viewModel.sendReadingNotificationToFriend(friendId) },
+                    onJoinChallenge = { challengeId -> viewModel.joinChallenge(challengeId) },
+                    onResetChallenge = { challengeId -> viewModel.resetChallenge(challengeId) },
+                    onNavigateToUserProfile = onNavigateToUserProfile,
+                    currentUserId = viewModel.currentUserId,
+                    listState = communityListState,
+                    communityViewModel = viewModel
                 )
             }
-        } else {
-            CommunityContent(
-                uiState = uiState,
-                bookClubs = uiState.bookClubs,
-                onNavigateToFriendsList = onNavigateToFriendsList,
-                onRemoveFriend = { user -> viewModel.showDeleteConfirmation(user) },
-                onShowCreateBookClubDialog = { showCreateBookClubDialog = true },
-                onJoinBookClub = { bookClub -> showChatScreen = bookClub },
-                onToggleBookClubMembership = { bookClubId, isJoined ->
-                    if (isJoined) {
-                        viewModel.leaveBookClub(bookClubId)
-                    } else {
-                        viewModel.joinBookClub(bookClubId)
-                    }
-                },
-                onSendNotification = { viewModel.sendReadingNotification() },
-                onSendNotificationToFriend = { friendId -> viewModel.sendReadingNotificationToFriend(friendId) },
-                onJoinChallenge = { challengeId -> viewModel.joinChallenge(challengeId) },
-                onResetChallenge = { challengeId -> viewModel.resetChallenge(challengeId) },
-                onNavigateToUserProfile = onNavigateToUserProfile,
-                currentUserId = viewModel.currentUserId,
-                listState = communityListState,
-                communityViewModel = viewModel
-            )
         }
     }
 
@@ -180,8 +209,8 @@ fun CommunityContent(
     onNavigateToFriendsList: () -> Unit,
     onRemoveFriend: (User) -> Unit,
     onShowCreateBookClubDialog: () -> Unit,
+    onBookClubClick: (BookClub) -> Unit,
     onJoinBookClub: (BookClub) -> Unit,
-    onToggleBookClubMembership: (String, Boolean) -> Unit,
     onSendNotification: () -> Unit,
     onSendNotificationToFriend: (String) -> Unit,
     onJoinChallenge: (String) -> Unit = {},
@@ -290,8 +319,7 @@ fun CommunityContent(
             items(bookClubs) { bookClub ->
                 BookClubCard(
                     bookClub = bookClub,
-                    onJoinClick = { onToggleBookClubMembership(bookClub.id, bookClub.isJoined) },
-                    onChatClick = if (bookClub.isJoined) { { onJoinBookClub(bookClub) } } else null
+                    onClick = { onBookClubClick(bookClub) }
                 )
                 Spacer(modifier = Modifier.height(12.dp))
             }

@@ -131,16 +131,11 @@ fun BookClubScreen(
                     items(uiState.bookClubs) { bookClub ->
                         BookClubCard(
                             bookClub = bookClub,
-                            onJoinClick = { 
+                            onClick = { 
                                 if (bookClub.isJoined) {
-                                    viewModel.leaveBookClub(bookClub.id)
-                                } else {
-                                    viewModel.joinBookClub(bookClub.id)
+                                    onNavigateToChat(bookClub.id, bookClub.name)
                                 }
-                            },
-                            onChatClick = if (bookClub.isJoined) {
-                                { onNavigateToChat(bookClub.id, bookClub.name) }
-                            } else null
+                            }
                         )
                     }
                 }
