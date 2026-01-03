@@ -53,6 +53,8 @@ import com.route.readers.ui.screens.reading.ReadingTimerScreen
 import com.route.readers.ui.screens.reading.ReadingViewModel
 import com.route.readers.ui.screens.search.SearchScreen
 import com.route.readers.utils.InterstitialAdManager
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import java.net.URLEncoder
 
 import androidx.activity.compose.BackHandler
@@ -319,18 +321,15 @@ fun MainScreen(
                 )
             }
             composable(BottomNavItem.Search.route) {
+                val scope = rememberCoroutineScope()
                 SearchScreen(
                     onStartReading = { book ->
-                        val isbn = book.isbn13?.takeIf { it.isNotBlank() } ?: book.isbn ?: ""
-                        if (isbn.isNotBlank()) {
-                            selectedBook = MyBook(
-                                isbn = isbn,
-                                title = book.title,
-                                author = book.author,
-                                cover = book.cover,
-                                totalPages = book.subInfo?.itemPage ?: 0
-                            )
-                            bottomNavController.navigate("reading_timer/$isbn?startNow=true")
+                        scope.launch {
+                            val detailedBook = mainViewModel.startReadingBook(book)
+                            if (detailedBook != null) {
+                                selectedBook = detailedBook
+                                bottomNavController.navigate("reading_timer/${detailedBook.isbn}?startNow=true")
+                            }
                         }
                     }
                 )

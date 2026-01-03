@@ -267,4 +267,25 @@ class BookViewModel : ViewModel() {
         _hasMoreResults.value = false
         currentPage = 1
     }
+
+    fun fetchBookDescription(isbn: String) {
+        viewModelScope.launch {
+            try {
+                val detailedBook = bookRepository.getBookDetail(isbn)
+                if (detailedBook != null) {
+                    val currentBooks = _books.value
+                    val updatedBooks = currentBooks.map { book ->
+                        if (book.isbn == isbn || book.isbn13 == isbn) {
+                            book.copy(description = detailedBook.description)
+                        } else {
+                            book
+                        }
+                    }
+                    _books.value = updatedBooks
+                }
+            } catch (e: Exception) {
+                // Log error or handle it
+            }
+        }
+    }
 }

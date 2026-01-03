@@ -512,7 +512,13 @@ private fun BookSearchItem(
             }
         },
         onToggleFavorite = { bookViewModel.onToggleFavorite(it) },
-        onStartReading = onStartReading
+        onStartReading = onStartReading,
+        onExpand = {
+            val isbn = book.isbn13?.takeIf { it.isNotBlank() } ?: book.isbn
+            if (isbn.isNotBlank()) {
+                bookViewModel.fetchBookDescription(isbn)
+            }
+        }
     )
 }
 
@@ -522,102 +528,136 @@ fun BookSearchResultCard(
     isInLibrary: Boolean,
     onAddToLibrary: (Book) -> Unit,
     onToggleFavorite: (Book) -> Unit,
-    onStartReading: (Book) -> Unit
+    onStartReading: (Book) -> Unit,
+    onExpand: () -> Unit
 )
 {
+    var isExpanded by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(12.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.Top
+        Column(
+            modifier = Modifier
+                .clickable {
+                    isExpanded = !isExpanded
+                    if (isExpanded && book.description.isBlank()) {
+                        onExpand()
+                    }
+                }
+                .padding(16.dp)
         ) {
-            AsyncImage(
-                model = book.cover.ifEmpty { R.mipmap.readerslogo },
-                contentDescription = "책 표지",
-                modifier = Modifier
-                    .size(80.dp, 120.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainer),
-                contentScale = ContentScale.Crop,
-                error = painterResource(R.mipmap.readerslogo)
-            )
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = book.title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "${book.author} · ${book.genre}",
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+            Row(
+                verticalAlignment = Alignment.Top
+            ) {
+                AsyncImage(
+                    model = book.cover.ifEmpty { R.mipmap.readerslogo },
+                    contentDescription = "책 표지",
+                    modifier = Modifier
+                        .size(80.dp, 120.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainer),
+                    contentScale = ContentScale.Crop,
+                    error = painterResource(R.mipmap.readerslogo)
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.width(16.dp))
 
-                Row(
-                    modifier = Modifier.wrapContentWidth(align = Alignment.Start),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (isInLibrary) {
-                        Button(
-                            onClick = { },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                            ),
-                            modifier = Modifier.height(32.dp),
-                            enabled = false,
-                            contentPadding = PaddingValues(horizontal = 12.dp)
-                        ) {
-                            Text("서재에 있음", fontSize = 12.sp)
-                        }
-                    } else {
-                        Button(
-                            onClick = { onAddToLibrary(book) },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                            modifier = Modifier.height(32.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp)
-                        ) {
-                            Text("서재 추가", fontSize = 12.sp)
-                        }
-                    }
-                    
-                    
-                    // 관심 도서 하트 아이콘
-                    IconButton(
-                        onClick = { onToggleFavorite(book) },
-                        modifier = Modifier.size(32.dp)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = book.title,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "${book.author} · ${book.genre}",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.wrapContentWidth(align = Alignment.Start),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = if (book.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                            contentDescription = "관심 도서",
-                            tint = if (book.isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        if (isInLibrary) {
+                            Button(
+                                onClick = { },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                ),
+                                modifier = Modifier.height(32.dp),
+                                enabled = false,
+                                contentPadding = PaddingValues(horizontal = 12.dp)
+                            ) {
+                                Text("서재에 있음", fontSize = 12.sp)
+                            }
+                        } else {
+                            Button(
+                                onClick = { onAddToLibrary(book) },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                modifier = Modifier.height(32.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp)
+                            ) {
+                                Text("서재 추가", fontSize = 12.sp)
+                            }
+                        }
+
+
+                        // 관심 도서 하트 아이콘
+                        IconButton(
+                            onClick = { onToggleFavorite(book) },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (book.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                                contentDescription = "관심 도서",
+                                tint = if (book.isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
+                }
+
+                // 바로읽기 아이콘 (오른쪽 끝) - 서재에 추가하고 읽기 시작
+                IconButton(onClick = {
+                    onAddToLibrary(book)
+                    onStartReading(book)
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.MenuBook,
+                        contentDescription = "바로읽기",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
 
-            // 바로읽기 아이콘 (오른쪽 끝) - 서재에 추가하고 읽기 시작
-            IconButton(onClick = { 
-                onAddToLibrary(book)
-                onStartReading(book) 
-            }) {
-                Icon(
-                    imageVector = Icons.Default.MenuBook,
-                    contentDescription = "바로읽기",
-                    tint = MaterialTheme.colorScheme.primary
-                )
+            androidx.compose.animation.AnimatedVisibility(visible = isExpanded) {
+                Column {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    if (book.description.isNotBlank()) {
+                        Text(
+                            text = book.description,
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    } else {
+                        // Optional: Show a loading indicator while fetching the description
+                        Box(modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        }
+                    }
+                }
             }
         }
     }

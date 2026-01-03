@@ -8,23 +8,24 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.route.readers.data.model.ReadingSession
 import com.route.readers.data.model.User
 import com.route.readers.data.model.Challenge
-import com.route.readers.data.remote.MyLibraryRepository
+import com.route.readers.data.model.Book
+import com.route.readers.data.model.MyBook
+import com.route.readers.data.remote.BookRepository
 import com.route.readers.data.remote.ChallengeRepository
 import com.route.readers.data.remote.FirestoreRepository
+import com.route.readers.data.remote.MyLibraryRepository
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.mapNotNull
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 
 class MainViewModel : ViewModel() {
     private val db = FirebaseFirestore.getInstance()
@@ -33,6 +34,7 @@ class MainViewModel : ViewModel() {
     private val myLibraryRepository = MyLibraryRepository()
     private val firestoreRepository = FirestoreRepository()
     private val challengeRepository = ChallengeRepository(firestoreRepository)
+    private val bookRepository = BookRepository()
 
     private val _consecutiveDays = MutableStateFlow(0)
     val consecutiveDays = _consecutiveDays.asStateFlow()
@@ -217,16 +219,16 @@ class MainViewModel : ViewModel() {
     }
 
     private fun updateChallengeProgress(userId: String, readingDate: Date) {
-        GlobalScope.launch {
+        viewModelScope.launch {
             try {
                 Log.d("MainViewModel", "Updating challenge progress: userId=$userId")
                 val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                 val dateStr = sdf.format(readingDate)
-                
+
                 // 활성화된 일일 페이지 챌린지들을 가져와서 업데이트
                 val activeChallenges = challengeRepository.getActiveChallenges(userId)
                 Log.d("MainViewModel", "Found ${activeChallenges.size} active challenges")
-                
+
                 activeChallenges.forEach { challenge: Challenge ->
                     Log.d("MainViewModel", "Challenge: ${challenge.title}, type: ${challenge.type}")
                     if (challenge.type == com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING) {
@@ -242,6 +244,52 @@ class MainViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Failed to update challenge progress", e)
             }
+        }
+    }
+
+    suspend fun startReadingBook(book: Book): MyBook? {
+        val isbn = book.isbn13?.takeIf { it.isNotBlank() } ?: book.isbn.takeIf { it.isNotBlank() }
+        if (isbn == null) {
+            Log.e("MainViewModel", "Cannot start reading book without ISBN.")
+            return null
+        }
+
+        return try {
+            val detailedBook = bookRepository.getBookDetail(isbn)
+            if (detailedBook != null) {
+                MyBook(
+                    id = detailedBook.isbn,
+                    title = detailedBook.title,
+                    author = detailedBook.author,
+                    isbn = detailedBook.isbn,
+                    cover = detailedBook.cover,
+                    totalPages = detailedBook.extractPageCount(),
+                    genre = detailedBook.genre
+                )
+            } else {
+                // Fallback to the book from search results if detail fetch fails
+                MyBook(
+                    id = book.isbn,
+                    title = book.title,
+                    author = book.author,
+                    isbn = book.isbn,
+                    cover = book.cover,
+                    totalPages = book.extractPageCount(),
+                    genre = book.genre
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("MainViewModel", "Error fetching book details for starting reading", e)
+            // Return a MyBook object with potentially missing page info on error
+            MyBook(
+                id = book.isbn,
+                title = book.title,
+                author = book.author,
+                isbn = book.isbn,
+                cover = book.cover,
+                totalPages = book.extractPageCount(),
+                genre = book.genre
+            )
         }
     }
 }
