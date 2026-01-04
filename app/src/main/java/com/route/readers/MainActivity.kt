@@ -74,6 +74,10 @@ import com.route.readers.ui.screens.profile.ProfileSetupScreen
 import com.route.readers.ui.screens.profile.ProfileViewModel
 import com.route.readers.ui.screens.profile.StatisticsScreen
 import com.route.readers.ui.screens.token.TokenShopScreen
+import com.route.readers.ui.screens.admin.AdminDashboardScreen
+import com.route.readers.ui.screens.admin.BannedUserScreen
+import com.route.readers.data.remote.AdminRepository
+import com.route.readers.data.remote.BanStatus
 import com.route.readers.ui.theme.ReadersTheme
 import com.route.readers.widget.WidgetUpdateHelper
 import java.net.URLDecoder
@@ -282,8 +286,6 @@ fun RootAppNavigation(
             val firestore = FirebaseFirestore.getInstance()
             val context = LocalContext.current
 
-            // decision_route는 로그인/프로필 상태 확인 후 적절한 화면으로 보내주는 역할만 함
-            // 알림 처리는 LaunchedEffect가 담당하므로 여기서 별도 처리는 불필요
             LaunchedEffect(Unit) {
                 val currentUser = auth.currentUser
                 if (currentUser == null) {
@@ -297,6 +299,15 @@ fun RootAppNavigation(
                         popUpTo("decision_route") { inclusive = true }
                     }
                 } else {
+                    // 정지 상태 확인
+                    val banStatus = AdminRepository().checkBanStatus(currentUser.uid)
+                    if (banStatus is BanStatus.Banned) {
+                        appNavController.navigate("banned_route/${banStatus.reason}/${banStatus.expiry ?: -1}") {
+                            popUpTo("decision_route") { inclusive = true }
+                        }
+                        return@LaunchedEffect
+                    }
+
                     firestore.collection("users").document(currentUser.uid).get()
                         .addOnSuccessListener { document ->
                             val destination =
@@ -305,7 +316,6 @@ fun RootAppNavigation(
                                 } else {
                                     "profile_setup_route"
                                 }
-                            // 알림으로 인한 초기 탐색이 아닐 경우에만 기본 로직 실행
                             if (initialNotificationType == null) {
                                 appNavController.navigate(destination) {
                                     popUpTo("decision_route") { inclusive = true }
@@ -451,8 +461,9 @@ fun RootAppNavigation(
             AccountScreen(
                 onNavigateBack = { appNavController.popBackStack() },
                 onNavigateToStatistics = { appNavController.navigate("statistics_route") },
+                onNavigateToAdmin = { appNavController.navigate("admin_dashboard_route") },
                 viewModel = accountViewModel,
-                navController = appNavController // Pass navController
+                navController = appNavController
             )
         }
 
@@ -573,6 +584,32 @@ fun RootAppNavigation(
                 onNavigateBack = { appNavController.popBackStack() },
                 rewardedAdManager = rewardedAdManager,
                 onTokenEarned = { }
+            )
+        }
+
+        composable("admin_dashboard_route") {
+            AdminDashboardScreen(
+                onNavigateBack = { appNavController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = "banned_route/{reason}/{expiry}",
+            arguments = listOf(
+                navArgument("reason") { type = NavType.StringType },
+                navArgument("expiry") { type = NavType.LongType }
+            )
+        ) { backStackEntry ->
+            val reason = backStackEntry.arguments?.getString("reason") ?: "정책 위반"
+            val expiry = backStackEntry.arguments?.getLong("expiry")?.let { if (it == -1L) null else it }
+            BannedUserScreen(
+                reason = reason,
+                expiry = expiry,
+                onLogout = {
+                    appNavController.navigate("onboarding_route") {
+                        popUpTo(appNavController.graph.id) { inclusive = true }
+                    }
+                }
             )
         }
 

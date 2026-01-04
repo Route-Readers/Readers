@@ -33,6 +33,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Brightness4
 import androidx.compose.material.icons.filled.Check
@@ -91,6 +92,7 @@ import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.tasks.await
 
 enum class MenuItemType {
+    ADMIN,
     PRIVACY,
     ACTIVITY,
     STATISTICS,
@@ -115,6 +117,7 @@ data class AccountMenuItem(
 fun AccountScreen(
     onNavigateBack: () -> Unit,
     onNavigateToStatistics: () -> Unit,
+    onNavigateToAdmin: () -> Unit = {},
     navController: NavHostController,
     viewModel: AccountViewModel = viewModel()
 ) {
@@ -126,8 +129,14 @@ fun AccountScreen(
     var isNotificationsMenuExpanded by remember { mutableStateOf(false) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
     var showReauthDialog by remember { mutableStateOf(false) }
-    var showGoogleReauthDialog by remember { mutableStateOf(false) } // New state for Google reauth
+    var showGoogleReauthDialog by remember { mutableStateOf(false) }
     var passwordInput by remember { mutableStateOf("") }
+    var isAdmin by remember { mutableStateOf(false) }
+
+    // 관리자 여부 확인
+    LaunchedEffect(Unit) {
+        isAdmin = com.route.readers.data.remote.AdminRepository().isAdmin()
+    }
 
     // Google Sign-In setup for reauthentication
     val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -309,6 +318,21 @@ fun AccountScreen(
         )
     )
 
+    // 관리자 메뉴 (관리자일 때만 표시)
+    val adminMenuItem = if (isAdmin) {
+        AccountMenuItem(
+            type = MenuItemType.ADMIN,
+            title = "관리자 대시보드",
+            subtitle = "신고 관리 및 유저 관리",
+            icon = Icons.Default.AdminPanelSettings,
+            onClick = onNavigateToAdmin
+        )
+    } else null
+
+    val finalMenuItems = if (adminMenuItem != null) {
+        listOf(adminMenuItem) + menuItems
+    } else menuItems
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -352,7 +376,7 @@ fun AccountScreen(
                     contentPadding = PaddingValues(vertical = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(menuItems) { item ->
+                    items(finalMenuItems) { item ->
                         Column {
                             AccountMenuItemCard(
                                 item = item,
