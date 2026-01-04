@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -66,6 +67,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -352,7 +354,17 @@ fun AccountScreen(
                 ) {
                     items(menuItems) { item ->
                         Column {
-                            AccountMenuItemCard(item = item)
+                            AccountMenuItemCard(
+                                item = item,
+                                isExpanded = when (item.type) {
+                                    MenuItemType.PRIVACY -> isPrivacyMenuExpanded
+                                    MenuItemType.ACTIVITY -> isActivityMenuExpanded
+                                    MenuItemType.STATISTICS -> isStatisticsMenuExpanded
+                                    MenuItemType.DISPLAY -> isDisplayMenuExpanded
+                                    MenuItemType.NOTIFICATIONS -> isNotificationsMenuExpanded
+                                    else -> false
+                                }
+                            )
 
                             if (item.type == MenuItemType.PRIVACY) {
                                 AnimatedVisibility(
@@ -544,7 +556,15 @@ fun AccountScreen(
 }
 
 @Composable
-fun AccountMenuItemCard(item: AccountMenuItem) {
+fun AccountMenuItemCard(
+    item: AccountMenuItem,
+    isExpanded: Boolean = false
+) {
+    val rotationAngle by animateFloatAsState(
+        targetValue = if (isExpanded) 90f else 0f,
+        animationSpec = tween(300),
+        label = "arrow_rotation"
+    )
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -586,7 +606,9 @@ fun AccountMenuItemCard(item: AccountMenuItem) {
             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-            modifier = Modifier.size(28.dp)
+            modifier = Modifier
+                .size(28.dp)
+                .rotate(rotationAngle)
         )
     }
 }

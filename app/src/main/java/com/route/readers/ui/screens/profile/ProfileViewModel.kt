@@ -1034,12 +1034,25 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
         val currentUserId = this.currentUserId ?: return
 
         viewModelScope.launch {
+            // 즉시 로컬 상태 업데이트
+            val currentState = _uiState.value
+            if (currentState is ProfileUiState.Success) {
+                val updatedUser = when (settingName) {
+                    "readingTimeAlarmEnabled" -> currentState.user.copy(readingTimeAlarmEnabled = isEnabled)
+                    "friendReadingAlarmEnabled" -> currentState.user.copy(friendReadingAlarmEnabled = isEnabled)
+                    "messageAlarmEnabled" -> currentState.user.copy(messageAlarmEnabled = isEnabled)
+                    "friendRequestAlarmEnabled" -> currentState.user.copy(friendRequestAlarmEnabled = isEnabled)
+                    "followAlarmEnabled" -> currentState.user.copy(followAlarmEnabled = isEnabled)
+                    else -> currentState.user
+                }
+                _uiState.value = currentState.copy(user = updatedUser)
+            }
             try {
                 val updateData = mapOf(settingName to isEnabled)
                 db.collection("users").document(currentUserId).update(updateData).await()
 
                 // Re-fetch the entire profile to ensure consistency.
-                fetchUserProfile(currentUserId)
+                // 즉시 반응을 위해 fetchUserProfile 제거
 
             } catch (e: Exception) {
                 // Log the error. The UI will not change, which is a correct
