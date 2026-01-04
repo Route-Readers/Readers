@@ -32,6 +32,9 @@ class ReadersApplication : Application() {
 
         // 프로필 리셋 마이그레이션 (한 번만 실행)
         runProfileResetMigration()
+        
+        // 관리자 계정 설정 (한 번만 실행)
+        setupAdminAccount()
     }
 
     private fun runProfileResetMigration() {
@@ -56,6 +59,25 @@ class ReadersApplication : Application() {
                 android.util.Log.d("Migration", "Profile reset migration completed")
             } catch (e: Exception) {
                 android.util.Log.e("Migration", "Profile reset migration failed", e)
+            }
+        }
+    }
+
+    private fun setupAdminAccount() {
+        val prefs = getSharedPreferences("app_migrations", Context.MODE_PRIVATE)
+        if (prefs.getBoolean("admin_setup_v1_done", false)) return
+
+        GlobalScope.launch {
+            try {
+                val db = FirebaseFirestore.getInstance()
+                // 관리자 UID 설정
+                val adminUid = "e5L9qEfF9bMuJ4k8Iqac7QkgbTs1"
+                db.collection("users").document(adminUid).update("role", "admin").await()
+                
+                prefs.edit().putBoolean("admin_setup_v1_done", true).apply()
+                android.util.Log.d("Migration", "Admin account setup completed")
+            } catch (e: Exception) {
+                android.util.Log.e("Migration", "Admin account setup failed", e)
             }
         }
     }

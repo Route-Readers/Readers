@@ -56,5 +56,10 @@ data class User(@DocumentId @get:Exclude
                 val readingAlarmMinute: Int = 0,
 
                 val fcmToken: String? = null,
-                val phoneHash: String? = null
+                val phoneHash: String? = null,
+                val role: String = "user",
+                val isBanned: Boolean = false,
+                val banReason: String? = null,
+                val banExpiry: Long? = null,
+                val warnings: Int = 0
 )

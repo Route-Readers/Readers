@@ -37,8 +37,10 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -46,6 +48,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -305,6 +309,8 @@ fun ActualFeedContent(
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var feedToDelete by remember { mutableStateOf<String?>(null) }
+    var showReportDialog by remember { mutableStateOf(false) }
+    var reportTargetFeed by remember { mutableStateOf<FeedItem?>(null) }
 
     if (showDeleteDialog && feedToDelete != null) {
         AlertDialog(
@@ -338,6 +344,20 @@ fun ActualFeedContent(
         )
     }
 
+    if (showReportDialog && reportTargetFeed != null) {
+        val feed = reportTargetFeed!!
+        val targetOwnerId = when (feed) {
+            is FeedItem.BookReview -> feed.authorId
+            is FeedItem.FollowNotification -> feed.followerId
+        }
+        com.route.readers.ui.components.ReportDialog(
+            targetId = feed.id,
+            targetType = "feed",
+            targetOwnerId = targetOwnerId,
+            onDismiss = { showReportDialog = false; reportTargetFeed = null }
+        )
+    }
+
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
@@ -363,6 +383,10 @@ fun ActualFeedContent(
                         is FeedItem.FollowNotification -> item.followerId
                     }
                     onNavigateToOtherUserProfile(userId)
+                },
+                onReportClick = {
+                    reportTargetFeed = item
+                    showReportDialog = true
                 },
                 onFollowBack = onFollowBack,
                 followerInfoMap = followerInfoMap,
@@ -397,6 +421,7 @@ fun FeedCard(
     onBookmarkClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onUserClick: () -> Unit,
+    onReportClick: () -> Unit = {},
     onFollowBack: (String) -> Unit = {},
     followerInfoMap: Map<String, User> = emptyMap(),
     modifier: Modifier = Modifier,
@@ -407,6 +432,13 @@ fun FeedCard(
 ) {
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
     var isBookCardExpanded by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
+
+    val feedAuthorId = when (item) {
+        is FeedItem.BookReview -> item.authorId
+        is FeedItem.FollowNotification -> item.followerId
+    }
+    val isMyPost = currentUserId == feedAuthorId
 
     Card(
         modifier = modifier
@@ -487,6 +519,32 @@ fun FeedCard(
                         contentDescription = "저장",
                         tint = if (isBookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+                
+                // 더보기 메뉴 (신고/삭제)
+                Box {
+                    IconButton(onClick = { showMenu = true }, modifier = Modifier.size(24.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "더보기",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                        if (isMyPost) {
+                            DropdownMenuItem(
+                                text = { Text("삭제") },
+                                onClick = { showMenu = false; onDeleteClick() },
+                                leadingIcon = { Icon(Icons.Default.Delete, null) }
+                            )
+                        } else {
+                            DropdownMenuItem(
+                                text = { Text("신고하기") },
+                                onClick = { showMenu = false; onReportClick() },
+                                leadingIcon = { Icon(Icons.Default.Flag, null) }
+                            )
+                        }
+                    }
                 }
             }
 

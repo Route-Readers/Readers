@@ -129,6 +129,7 @@ fun ProfileScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
+    var showReportDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(key1 = userId) {
         viewModel.fetchUserProfile(userId)
@@ -140,6 +141,16 @@ fun ProfileScreen(
     val isSelectionModeActive = (uiState as? ProfileUiState.Success)?.isSelectionMode == true
     BackHandler(enabled = isSelectionModeActive) {
         viewModel.clearSelectionMode()
+    }
+
+    // 신고 다이얼로그
+    if (showReportDialog) {
+        com.route.readers.ui.components.ReportDialog(
+            targetId = userId,
+            targetType = "user",
+            targetOwnerId = userId,
+            onDismiss = { showReportDialog = false }
+        )
     }
 
     Scaffold(
@@ -182,6 +193,7 @@ fun ProfileScreen(
                         onNavigateToOtherUserProfile = onNavigateToOtherUserProfile,
                         onBlockUser = { viewModel.blockUser(state.user.uid) },
                         onUnblockUser = { viewModel.unblockUser(state.user.uid) },
+                        onReportUser = { showReportDialog = true },
                         onBookmarkClick = { feedId, isBookmarked ->
                             viewModel.toggleBookmark(feedId, isBookmarked)
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -215,6 +227,7 @@ fun ProfileContent(
     onNavigateToGoal: () -> Unit,
     onBlockUser: () -> Unit,
     onUnblockUser: () -> Unit,
+    onReportUser: () -> Unit = {},
     onBookmarkClick: (String, Boolean) -> Unit,
     onNavigateToOtherUserProfile: (String) -> Unit
 ) {
@@ -267,7 +280,8 @@ fun ProfileContent(
                 onNavigateToMyBookList = onNavigateToMyBookList,
                 onNavigateToLevel = onNavigateToLevel,
                 onBlockUser = onBlockUser,
-                onUnblockUser = onUnblockUser
+                onUnblockUser = onUnblockUser,
+                onReportUser = onReportUser
             )
         }
 
@@ -587,7 +601,8 @@ fun ProfileInfoSection(
     onNavigateToMyBookList: () -> Unit,
     onNavigateToLevel: () -> Unit,
     onBlockUser: () -> Unit,
-    onUnblockUser: () -> Unit
+    onUnblockUser: () -> Unit,
+    onReportUser: () -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -684,6 +699,14 @@ fun ProfileInfoSection(
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                         ) {
                             Text(text = "차단하기", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        OutlinedButton(
+                            onClick = onReportUser,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, DarkRed)
+                        ) {
+                            Text(text = "신고하기", color = DarkRed)
                         }
                     }
                 }

@@ -32,3 +32,15 @@ app/google-services.json
 
 # Android Profiling
 *.hprof
+
+# Kotlin cache
+.kotlin/
+
+# Firebase project config
+.firebaserc
+
+# Backup files
+*.backup
+
+# Duplicate data folder at root
+/data/
