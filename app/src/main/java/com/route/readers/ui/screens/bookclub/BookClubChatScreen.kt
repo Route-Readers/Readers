@@ -28,7 +28,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
@@ -306,7 +306,7 @@ fun BookClubChatScreen(
                             Icon(Icons.Default.DateRange, contentDescription = "날짜 선택")
                         }
                         IconButton(onClick = { showMoreMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "더보기")
+                            Icon(Icons.Default.Menu, contentDescription = "더보기")
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -1645,7 +1645,7 @@ private fun MemberItem(
         if ((isOwner && role != BookClubRole.OWNER) || (canKick && role == BookClubRole.MEMBER)) {
             Box {
                 IconButton(onClick = { showMenu = true }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "관리", modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.Menu, contentDescription = "관리", modifier = Modifier.size(20.dp))
                 }
                 DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                     if (isOwner) {
