@@ -69,10 +69,8 @@ import com.route.readers.ui.screens.profile.FollowListScreen
 import com.route.readers.ui.screens.profile.GoalScreen
 import com.route.readers.ui.screens.profile.LevelScreen
 import com.route.readers.ui.screens.profile.MyBookListScreen
-import com.route.readers.ui.screens.profile.ProfileCustomizationScreen
 import com.route.readers.ui.screens.profile.ProfileScreen
 import com.route.readers.ui.screens.profile.ProfileSetupScreen
-import com.route.readers.ui.screens.profile.ProfileUiState
 import com.route.readers.ui.screens.profile.ProfileViewModel
 import com.route.readers.ui.screens.profile.StatisticsScreen
 import com.route.readers.ui.screens.token.TokenShopScreen
@@ -499,7 +497,7 @@ fun RootAppNavigation(
                         appNavController.navigate("level_route")
                     },
                     onNavigateToCustomization = {
-                        appNavController.navigate("profile_customization_route")
+                        appNavController.navigate("token_shop_route")
                     },
                     onNavigateToGoal = {
                         appNavController.navigate("goal_route")
@@ -576,32 +574,6 @@ fun RootAppNavigation(
                 rewardedAdManager = rewardedAdManager,
                 onTokenEarned = { }
             )
-        }
-
-        composable("profile_customization_route") {
-            val profileViewModel: ProfileViewModel = viewModel()
-            val uiState = profileViewModel.uiState.collectAsState()
-
-            LaunchedEffect(Unit) {
-                val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
-                if (currentUserId != null) {
-                    profileViewModel.fetchUserProfile(currentUserId)
-                }
-            }
-
-            val currentState = uiState.value
-            if (currentState is ProfileUiState.Success && currentState.isMyProfile) {
-                ProfileCustomizationScreen(
-                    currentCharacter = currentState.user.profileCharacter,
-                    currentBackgroundColor = currentState.user.profileBackgroundColor,
-                    nickname = currentState.user.nickname,
-                    onSave = { character, backgroundColor, phoneNumber ->
-                        profileViewModel.updateProfileCustomization(character, backgroundColor, phoneNumber)
-                        appNavController.popBackStack()
-                    },
-                    onBack = { appNavController.navigate("signup_route") }
-                )
-            }
         }
 
         composable(

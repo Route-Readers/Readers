@@ -93,18 +93,20 @@ fun MainScreen(
     val bottomNavController = rememberNavController()
     val mainViewModel: MainViewModel = viewModel()
     val readingViewModel: ReadingViewModel = viewModel()
+    val feedViewModel: com.route.readers.ui.screens.feed.FeedViewModel = viewModel()
     val currentUserId = remember { FirebaseAuth.getInstance().currentUser?.uid }
     var selectedBook by remember { mutableStateOf<MyBook?>(null) }
     val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     var showLogoutDialog by remember { mutableStateOf(false) }
 
-    // 화면 복귀 시 토큰 새로고침
+    // 화면 복귀 시 토큰 + 피드 새로고침
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 mainViewModel.refreshTokens()
+                feedViewModel.refreshFeeds()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -297,6 +299,7 @@ fun MainScreen(
                 selectedBook = null
                 FeedScreen(
                     attendanceViewModel = attendanceViewModel,
+                    feedViewModel = feedViewModel,
                     onNavigateToAddFeed = onNavigateToAddFeed,
                     onNavigateToOtherUserProfile = { userId ->
                         bottomNavController.navigate("profile_route/$userId")
@@ -394,7 +397,7 @@ fun MainScreen(
                             navController.navigate("level_route")
                         },
                         onNavigateToCustomization = {
-                            navController.navigate("profile_customization_route")
+                            navController.navigate("token_shop_route")
                         },
                         onNavigateToGoal = {
                             navController.navigate("goal_route")
