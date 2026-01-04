@@ -126,7 +126,6 @@ fun ProfileScreen(
     onNavigateToOtherUserProfile: (String) -> Unit,
     viewModel: ProfileViewModel = viewModel()
 ) {
-    var showCustomization by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
@@ -141,21 +140,6 @@ fun ProfileScreen(
     val isSelectionModeActive = (uiState as? ProfileUiState.Success)?.isSelectionMode == true
     BackHandler(enabled = isSelectionModeActive) {
         viewModel.clearSelectionMode()
-    }
-
-    val currentState = uiState
-    if (showCustomization && currentState is ProfileUiState.Success) {
-        ProfileCustomizationScreen(
-            currentCharacter = currentState.user.profileCharacter,
-            currentBackgroundColor = currentState.user.profileBackgroundColor,
-            nickname = currentState.user.nickname,
-            onSave = { character, backgroundColor, phoneNumber ->
-                viewModel.updateProfileCustomization(character, backgroundColor, phoneNumber)
-                showCustomization = false
-            },
-            onBack = { showCustomization = false }
-        )
-        return
     }
 
     Scaffold(
@@ -188,16 +172,10 @@ fun ProfileScreen(
                             onNavigateToFollowList(listType, state.user.nickname)
                         },
                         onUpdateProfileImage = { imageUri ->
-                            if (imageUri == Uri.EMPTY) {
-                                showCustomization = true
-                            } else {
-                                viewModel.updateProfileImage(imageUri)
-                            }
+                            viewModel.updateProfileImage(imageUri)
                         },
                         onNavigateToSearch = onNavigateToSearch,
-                        onNavigateToCustomization = {
-                            showCustomization = true
-                        },
+                        onNavigateToCustomization = onNavigateToCustomization,
                         onNavigateToMyBookList = onNavigateToMyBookList,
                         onNavigateToLevel = onNavigateToLevel,
                         onNavigateToGoal = onNavigateToGoal,

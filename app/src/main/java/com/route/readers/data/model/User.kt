@@ -24,6 +24,8 @@ data class User(@DocumentId @get:Exclude
                 val titles: List<String> = emptyList(),
                 val totalPoints: Int = 0,
                 val tokens: Int = 0,
+                val unlockedCharacters: List<String> = emptyList(),
+                val unlockedColors: List<String> = emptyList(),
                 val claimedAchievements: List<String> = emptyList(),
 
                 val followers: List<String> = emptyList(),

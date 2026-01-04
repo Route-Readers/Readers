@@ -394,7 +394,7 @@ fun MainScreen(
                             navController.navigate("level_route")
                         },
                         onNavigateToCustomization = {
-                            navController.navigate("profile_customization_route")
+                            navController.navigate("token_shop_route")
                         },
                         onNavigateToGoal = {
                             navController.navigate("goal_route")
