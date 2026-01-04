@@ -139,6 +139,10 @@ class MainViewModel : ViewModel() {
         }
     }
 
+    fun refreshTokens() {
+        loadUserTokens()
+    }
+
     fun addReadingTime(bookId: String, timeInSeconds: Int) {
         viewModelScope.launch {
             myLibraryRepository.addReadingTime(bookId, timeInSeconds)

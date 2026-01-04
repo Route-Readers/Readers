@@ -569,8 +569,12 @@ fun RootAppNavigation(
         }
 
         composable("token_shop_route") {
+            val context = LocalContext.current
+            val rewardedAdManager = remember { com.route.readers.utils.RewardedAdManager(context) }
             TokenShopScreen(
-                onNavigateBack = { appNavController.popBackStack() }
+                onNavigateBack = { appNavController.popBackStack() },
+                rewardedAdManager = rewardedAdManager,
+                onTokenEarned = { }
             )
         }
 
