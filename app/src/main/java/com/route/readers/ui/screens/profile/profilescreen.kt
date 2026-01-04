@@ -1009,12 +1009,6 @@ fun ProfileImage(
     isMyProfile: Boolean,
     onImageClick: () -> Unit
 ) {
-    val modifier = if (isMyProfile) {
-        Modifier.clickable(onClick = onImageClick)
-    } else {
-        Modifier
-    }
-
     val backgroundColor = try {
         user.profileBackgroundColor?.let { Color(android.graphics.Color.parseColor(it)) } ?: DarkRed
     } catch (e: Exception) {
@@ -1022,7 +1016,7 @@ fun ProfileImage(
     }
 
     Box(
-        modifier = modifier
+        modifier = Modifier
             .size(100.dp)
             .clip(CircleShape)
             .background(backgroundColor),
@@ -1070,22 +1064,6 @@ fun ProfileImage(
                     color = Color.White,
                     fontSize = 40.sp,
                     fontWeight = FontWeight.Bold
-                )
-            }
-        }
-        if (isMyProfile) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(Color.Black.copy(alpha = 0.3f))
-                    .padding(8.dp),
-                contentAlignment = Alignment.BottomEnd
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = "프로필 사진 변경",
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
                 )
             }
         }

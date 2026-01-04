@@ -72,6 +72,10 @@ fun TokenShopScreen(
     var nickname by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(true) }
 
+    // 구매 확인 다이얼로그 상태
+    var showPurchaseDialog by remember { mutableStateOf(false) }
+    var pendingPurchase by remember { mutableStateOf<Any?>(null) }
+
     val characters = listOf(
         ShopCharacter("lion", R.drawable.lion, "사자", 5),
         ShopCharacter("penguin", R.drawable.penguin, "펭귄", 5),
@@ -155,6 +159,33 @@ fun TokenShopScreen(
         }
     }
 
+    // 구매 확인 다이얼로그
+    if (showPurchaseDialog && pendingPurchase != null) {
+        val (name, price) = when (val item = pendingPurchase) {
+            is ShopCharacter -> item.name to item.price
+            is ShopColor -> item.name to item.price
+            else -> "" to 0
+        }
+        AlertDialog(
+            onDismissRequest = { showPurchaseDialog = false; pendingPurchase = null },
+            title = { Text("구매 확인") },
+            text = { Text("${name}을(를) ${price} 토큰에 구매하시겠습니까?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    when (val item = pendingPurchase) {
+                        is ShopCharacter -> purchaseCharacter(item)
+                        is ShopColor -> purchaseColor(item)
+                    }
+                    showPurchaseDialog = false
+                    pendingPurchase = null
+                }) { Text("구매") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPurchaseDialog = false; pendingPurchase = null }) { Text("취소") }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -185,15 +216,45 @@ fun TokenShopScreen(
                 tokenColor = tokenColor
             )
 
-            // 광고 보고 토큰 받기
-            WatchAdCard(tokenColor = tokenColor) {
+            // 토큰 획득 섹션
+            Text("토큰 획득", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+
+            // 짧은 광고 - 토큰 1개
+            WatchAdCard(
+                tokenColor = tokenColor,
+                title = "짧은 광고 보기",
+                description = "15초 광고 시청",
+                reward = 1
+            ) {
                 activity?.let {
-                    rewardedAdManager.showAd(
+                    rewardedAdManager.showAdFor1Token(
                         activity = it,
                         onRewardEarned = {
                             currentTokens += 1
                             onTokenEarned()
                             Toast.makeText(context, "🎉 토큰 1개 획득!", Toast.LENGTH_SHORT).show()
+                        },
+                        onAdNotReady = {
+                            Toast.makeText(context, "광고를 불러오는 중...", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
+            }
+
+            // 긴 광고 - 토큰 3개
+            WatchAdCard(
+                tokenColor = tokenColor,
+                title = "긴 광고 보기",
+                description = "30초 광고 시청",
+                reward = 3
+            ) {
+                activity?.let {
+                    rewardedAdManager.showAdFor3Tokens(
+                        activity = it,
+                        onRewardEarned = {
+                            currentTokens += 3
+                            onTokenEarned()
+                            Toast.makeText(context, "🎉 토큰 3개 획득!", Toast.LENGTH_SHORT).show()
                         },
                         onAdNotReady = {
                             Toast.makeText(context, "광고를 불러오는 중...", Toast.LENGTH_SHORT).show()
@@ -221,7 +282,7 @@ fun TokenShopScreen(
                         isUnlocked = isUnlocked,
                         isApplied = isApplied,
                         canAfford = currentTokens >= char.price,
-                        onPurchase = { purchaseCharacter(char) },
+                        onPurchase = { pendingPurchase = char; showPurchaseDialog = true },
                         onApply = { applyCharacter(char.id) }
                     )
                 }
@@ -245,7 +306,7 @@ fun TokenShopScreen(
                         isUnlocked = isUnlocked,
                         isApplied = isApplied,
                         canAfford = currentTokens >= color.price,
-                        onPurchase = { purchaseColor(color) },
+                        onPurchase = { pendingPurchase = color; showPurchaseDialog = true },
                         onApply = { applyColor(color.id) }
                     )
                 }
@@ -345,7 +406,13 @@ private fun ProfilePreviewCard(
 }
 
 @Composable
-private fun WatchAdCard(tokenColor: Color, onClick: () -> Unit) {
+private fun WatchAdCard(
+    tokenColor: Color,
+    title: String,
+    description: String,
+    reward: Int,
+    onClick: () -> Unit
+) {
     val infiniteTransition = rememberInfiniteTransition(label = "")
     val scale by infiniteTransition.animateFloat(
         initialValue = 1f, targetValue = 1.05f,
@@ -369,8 +436,8 @@ private fun WatchAdCard(tokenColor: Color, onClick: () -> Unit) {
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text("광고 보고 토큰 받기", fontWeight = FontWeight.SemiBold)
-                Text("짧은 광고 시청으로 토큰 획득", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(title, fontWeight = FontWeight.SemiBold)
+                Text(description, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Button(
                 onClick = onClick,
@@ -379,7 +446,7 @@ private fun WatchAdCard(tokenColor: Color, onClick: () -> Unit) {
                 shape = RoundedCornerShape(12.dp),
                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
             ) {
-                Text("+1", fontWeight = FontWeight.Bold)
+                Text("+$reward", fontWeight = FontWeight.Bold)
             }
         }
     }
