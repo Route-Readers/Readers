@@ -1,55 +1,70 @@
 package com.route.readers.ui.screens.token
 
+import android.app.Activity
+import android.widget.Toast
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.CardGiftcard
-import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.MonetizationOn
-import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
-data class TokenPackage(
-    val tokens: Int,
-    val price: String,
-    val bonus: Int = 0
-)
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.route.readers.utils.RewardedAdManager
+import kotlinx.coroutines.tasks.await
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TokenShopScreen(
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    rewardedAdManager: RewardedAdManager,
+    onTokenEarned: () -> Unit
 ) {
-    val tokenPackages = listOf(
-        TokenPackage(100, "990원"),
-        TokenPackage(500, "4,900원", bonus = 50),
-        TokenPackage(1000, "9,900원", bonus = 150),
-        TokenPackage(3000, "29,900원", bonus = 500)
-    )
+    val context = LocalContext.current
+    val activity = context as? Activity
+    val tokenColor = Color(0xFFFFA000)
+    
+    var currentTokens by remember { mutableIntStateOf(0) }
+    var isLoading by remember { mutableStateOf(true) }
+    
+    // 토큰 로드
+    LaunchedEffect(Unit) {
+        loadTokens { tokens ->
+            currentTokens = tokens
+            isLoading = false
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("토큰 상점") },
+                title = { Text("교환소") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, "뒤로가기")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = Color.Transparent
                 )
             )
         }
@@ -57,165 +72,150 @@ fun TokenShopScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+                .padding(padding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
+            // 토큰 잔액 카드
+            item {
+                TokenBalanceCard(
+                    tokens = currentTokens,
+                    isLoading = isLoading,
+                    tokenColor = tokenColor
+                )
+            }
+
+            // 광고 보고 토큰 받기
+            item {
+                WatchAdCard(
+                    tokenColor = tokenColor,
+                    onClick = {
+                        activity?.let {
+                            rewardedAdManager.showAd(
+                                activity = it,
+                                onRewardEarned = {
+                                    currentTokens += 1
+                                    onTokenEarned()
+                                    Toast.makeText(context, "🎉 토큰 1개 획득!", Toast.LENGTH_SHORT).show()
+                                },
+                                onAdNotReady = {
+                                    Toast.makeText(context, "광고를 불러오는 중...", Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        }
+                    }
+                )
+            }
+
+            // 교환 가능한 아이템 섹션
             item {
                 Text(
-                    text = "토큰 구매",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
+                    text = "교환 가능한 아이템",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 8.dp)
                 )
             }
 
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    TokenPackageCard(
-                        package_ = tokenPackages[0],
-                        modifier = Modifier.weight(1f)
-                    )
-                    TokenPackageCard(
-                        package_ = tokenPackages[1],
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    TokenPackageCard(
-                        package_ = tokenPackages[2],
-                        modifier = Modifier.weight(1f)
-                    )
-                    TokenPackageCard(
-                        package_ = tokenPackages[3],
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "무료로 토큰 받기",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            item {
-                FreeTokenMethodCard(
-                    icon = Icons.Default.CardGiftcard,
-                    title = "출석 체크",
-                    description = "7일 연속 출석 시 10토큰 지급",
-                    tokenAmount = "+10"
-                )
-            }
-
-            item {
-                FreeTokenMethodCard(
-                    icon = Icons.Default.EmojiEvents,
-                    title = "챌린지 완료",
-                    description = "독서 챌린지 완료 시 토큰 획득",
-                    tokenAmount = "+20~50"
-                )
-            }
-
-            item {
-                FreeTokenMethodCard(
-                    icon = Icons.Default.People,
-                    title = "친구 초대",
-                    description = "친구가 가입하면 30토큰 지급",
-                    tokenAmount = "+30"
-                )
+                ComingSoonCard()
             }
         }
     }
 }
 
 @Composable
-fun TokenPackageCard(package_: TokenPackage, modifier: Modifier = Modifier) {
-    val tokenColor = Color(0xFFFFA000)
-    
-    Card(
-        modifier = modifier.aspectRatio(1f),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Icon(
-                imageVector = Icons.Default.MonetizationOn,
-                contentDescription = null,
-                tint = tokenColor,
-                modifier = Modifier.size(40.dp)
-            )
-            
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = "${package_.tokens}",
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = tokenColor
-                )
-                
-                if (package_.bonus > 0) {
-                    Text(
-                        text = "+${package_.bonus}",
-                        fontSize = 12.sp,
-                        color = tokenColor.copy(alpha = 0.7f),
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-
-            Button(
-                onClick = { /* TODO: 결제 로직 */ },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = tokenColor
-                ),
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Text(
-                    text = package_.price,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun FreeTokenMethodCard(
-    icon: ImageVector,
-    title: String,
-    description: String,
-    tokenAmount: String
+private fun TokenBalanceCard(
+    tokens: Int,
+    isLoading: Boolean,
+    tokenColor: Color
 ) {
+    val animatedTokens by animateIntAsState(
+        targetValue = tokens,
+        animationSpec = tween(500),
+        label = "tokenAnimation"
+    )
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.Transparent
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(
+                            tokenColor,
+                            tokenColor.copy(alpha = 0.7f)
+                        )
+                    )
+                )
+                .padding(24.dp)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "내 토큰",
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontSize = 14.sp
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MonetizationOn,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(36.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            modifier = Modifier.size(32.dp),
+                            strokeWidth = 3.dp
+                        )
+                    } else {
+                        Text(
+                            text = "$animatedTokens",
+                            color = Color.White,
+                            fontSize = 40.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WatchAdCard(
+    tokenColor: Color,
+    onClick: () -> Unit
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "scaleAnimation"
+    )
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
@@ -223,34 +223,106 @@ fun FreeTokenMethodCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(40.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(tokenColor.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    tint = tokenColor,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = title,
+                    text = "광고 보고 토큰 받기",
                     fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = description,
-                    fontSize = 12.sp,
+                    text = "짧은 광고 시청으로 토큰 획득",
+                    fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            Button(
+                onClick = onClick,
+                modifier = Modifier.scale(scale),
+                colors = ButtonDefaults.buttonColors(containerColor = tokenColor),
+                shape = RoundedCornerShape(12.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = "+1",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ComingSoonCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Default.Storefront,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.size(48.dp)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = tokenAmount,
+                text = "준비 중이에요",
                 fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFFFFA000)
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            )
+            Text(
+                text = "프로필 꾸미기, 캐릭터 등\n다양한 아이템이 곧 추가됩니다",
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 4.dp)
             )
         }
     }
+}
+
+private fun loadTokens(onResult: (Int) -> Unit) {
+    val uid = FirebaseAuth.getInstance().currentUser?.uid
+    if (uid == null) {
+        onResult(0)
+        return
+    }
+    FirebaseFirestore.getInstance()
+        .collection("users")
+        .document(uid)
+        .get()
+        .addOnSuccessListener { doc ->
+            onResult(doc.getLong("tokens")?.toInt() ?: 0)
+        }
+        .addOnFailureListener {
+            onResult(0)
+        }
 }

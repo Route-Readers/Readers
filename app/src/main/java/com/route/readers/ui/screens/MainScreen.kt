@@ -98,6 +98,18 @@ fun MainScreen(
     val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     var showLogoutDialog by remember { mutableStateOf(false) }
+
+    // 화면 복귀 시 토큰 새로고침
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                mainViewModel.refreshTokens()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     var showExitDialog by remember { mutableStateOf(false) }
     var bookToUpdateAfterReading by remember { mutableStateOf<MyBook?>(null) }
     var lastReadingSessionDuration by remember { mutableStateOf<Int?>(null) }
@@ -234,9 +246,7 @@ fun MainScreen(
                     onMyAccountClick = onNavigateToMyAccount,
                     onAttendanceClick = onNavigateToAttendance,
                     onNavigateToChallenge = onNavigateToChallenge,
-                    onTokenClick = {
-                        Toast.makeText(context, "아직 공개되지 않은 기능이에요", Toast.LENGTH_SHORT).show()
-                    },
+                    onTokenClick = { navController.navigate("token_shop_route") },
                     onShowInterstitialAd = { interstitialAdManager.showAd(activity) }
                 )
             }
