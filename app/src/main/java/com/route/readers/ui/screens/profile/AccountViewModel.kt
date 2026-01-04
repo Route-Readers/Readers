@@ -52,12 +52,17 @@ class AccountViewModel(
     fun updateUserPrivacySetting(isPrivate: Boolean) {
         val userId = auth.currentUser?.uid ?: return
         viewModelScope.launch {
+            // 즉시 로컬 상태 업데이트
+            val currentState = _uiState.value
+            if (currentState is ProfileUiState.Success) {
+                _uiState.value = currentState.copy(user = currentState.user.copy(isPrivate = isPrivate))
+            }
             try {
                 db.collection("users").document(userId)
                     .update("private", isPrivate)
                     .await()
                 
-                fetchUserProfile(userId)
+                // 즉시 반응을 위해 fetchUserProfile 제거
                 Log.d("AccountViewModel", "User privacy setting updated successfully.")
             } catch (e: Exception) {
                 Log.e("AccountViewModel", "Failed to update user privacy setting.", e)
