@@ -209,16 +209,22 @@ class TimerService : Service() {
             return
         }
 
-        // --- Logic to find the currently reading book ---
+        val sharedPrefs = getSharedPreferences(WIDGET_PREFS_NAME, Context.MODE_PRIVATE)
+        val savedIsbn = sharedPrefs.getString(CURRENT_BOOK_ISBN_PREF, null)
+
         val myBooks = firestoreRepository.getMyBooks()
-        currentBook = myBooks?.filter { !it.isCompleted } // Filter out completed books
-            ?.sortedByDescending { it.lastReadDate } // Sort by most recent read date
-            ?.firstOrNull() // Take the first (most recent) uncompleted book
+
+        currentBook = if (savedIsbn != null) {
+            myBooks?.find { it.isbn == savedIsbn }
+        } else {
+            myBooks?.filter { !it.isCompleted } // Filter out completed books
+                ?.sortedByDescending { it.lastReadDate } // Sort by most recent read date
+                ?.firstOrNull() // Take the first (most recent) uncompleted book
+        }
 
         if (currentBook != null) {
             Log.d(TAG, "Found currently reading book: ${currentBook?.title}")
             // Save current book info to SharedPreferences
-            val sharedPrefs = getSharedPreferences(WIDGET_PREFS_NAME, Context.MODE_PRIVATE)
             with(sharedPrefs.edit()) {
                 putString(CURRENT_BOOK_ISBN_PREF, currentBook?.isbn)
                 putInt(CURRENT_BOOK_PAGE_PREF, currentBook?.currentPage ?: 0)
