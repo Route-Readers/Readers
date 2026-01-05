@@ -92,6 +92,13 @@ fun CommunityScreen(
         }
     }
 
+    LaunchedEffect(uiState.addFriendMessage) {
+        uiState.addFriendMessage?.let {
+            Toast.makeText(localContext, it, Toast.LENGTH_SHORT).show()
+            viewModel.clearAddFriendMessage()
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -282,7 +289,8 @@ fun CommunityContent(
                     onNotifyClick = { onSendNotificationToFriend(friend.uid) },
                     onDeleteClick = { onRemoveFriend(friend) },
                     onProfileClick = { onNavigateToUserProfile(friend.uid) },
-                    hasReadToday = uiState.friendsReadingStatus[friend.uid] ?: false
+                    hasReadToday = uiState.friendsReadingStatus[friend.uid] ?: false,
+                    isNotifying = uiState.notifyingFriendId == friend.uid
                 )
                 Spacer(modifier = Modifier.height(16.dp))
             }
@@ -342,7 +350,8 @@ fun SwipeableFriendItem(
     onNotifyClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onProfileClick: () -> Unit,
-    hasReadToday: Boolean = false
+    hasReadToday: Boolean = false,
+    isNotifying: Boolean = false
 ) {
     Row(
         modifier = Modifier
@@ -361,8 +370,13 @@ fun SwipeableFriendItem(
                 color = MaterialTheme.colorScheme.onBackground
             )
         }
-        
-        if (hasReadToday) {
+
+        if (isNotifying) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(24.dp),
+                strokeWidth = 2.dp
+            )
+        } else if (hasReadToday) {
             Icon(
                 Icons.Default.MenuBook,
                 contentDescription = "오늘 독서 완료",
@@ -381,9 +395,9 @@ fun SwipeableFriendItem(
                 )
             }
         }
-        
+
         Spacer(modifier = Modifier.width(8.dp))
-        
+
         IconButton(
             onClick = onDeleteClick,
             modifier = Modifier.size(24.dp)

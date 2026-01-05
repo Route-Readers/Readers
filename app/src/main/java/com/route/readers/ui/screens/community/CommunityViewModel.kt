@@ -39,6 +39,7 @@ data class CommunityUiState(
     val availableChallenges: List<Challenge> = emptyList(),
     val addFriendMessage: String? = null,
     val friendToDelete: User? = null, // Changed to User?
+    val notifyingFriendId: String? = null,
     val isNotificationSending: Boolean = false,
     val consecutiveReadingDays: Int = 0
 ) {
@@ -187,11 +188,12 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun sendReadingNotificationToFriend(friendId: String) {
         viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(notifyingFriendId = friendId)
             try {
                 // FCM을 통해 특정 친구에게 독서 알림 전송
                 val currentUser = firestoreRepository.getUserProfile(currentUserId)
                 val friendUser = firestoreRepository.getUserProfile(friendId)
-                
+
                 if (currentUser != null && friendUser != null && friendUser.fcmToken != null) {
                     // Firebase Functions를 통해 FCM 메시지 전송
                     val firestore = FirebaseFirestore.getInstance()
@@ -205,13 +207,27 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
                         "body" to "${currentUser.nickname}님이 독서 알림을 보냈습니다! 📚",
                         "timestamp" to System.currentTimeMillis()
                     )
-                    
+
                     firestore.collection("fcm_messages")
                         .add(notificationData)
                         .await()
+
+                    _uiState.value = _uiState.value.copy(
+                        addFriendMessage = "${friendUser.nickname}님에게 알림을 보냈습니다.",
+                        notifyingFriendId = null
+                    )
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        addFriendMessage = "알림을 보낼 수 없습니다. (토큰 정보 없음)",
+                        notifyingFriendId = null
+                    )
                 }
             } catch (e: Exception) {
-                // 에러 처리
+                android.util.Log.e("CommunityViewModel", "Failed to send notification", e)
+                _uiState.value = _uiState.value.copy(
+                    addFriendMessage = "알림 전송 중 오류가 발생했습니다.",
+                    notifyingFriendId = null
+                )
             }
         }
     }
@@ -346,7 +362,7 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
         _uiState.value = _uiState.value.copy(addFriendMessage = null)
     }
 
-    fun getChallengeProgress(challenge: Challenge): Pair<Int, Int> {
+    suspend fun getChallengeProgress(challenge: Challenge): Pair<Int, Int> {
         return when (challenge.type) {
             com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING -> {
                 // Get actual daily reading data from Firestore
@@ -355,7 +371,7 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
             }
             com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING,
             com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING_WITH_FRIEND -> {
-                Pair(_uiState.value.consecutiveReadingDays, 7)
+                Pair(_uiState.value.consecutiveReadingDays, challenge.goal.takeIf { it > 0 } ?: 1)
             }
             else -> {
                 Pair(challenge.progress[currentUserId] ?: 0, challenge.goal.takeIf { it > 0 } ?: 1)
@@ -363,7 +379,7 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    private fun getDailyGoalMetDaysFromActualData(goalPages: Int): Int {
+    private suspend fun getDailyGoalMetDaysFromActualData(goalPages: Int): Int {
         // Get last 7 days of actual reading data
         var goalMetDays = 0
         for (i in 0..6) {
@@ -371,8 +387,7 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
             val dateStr = date.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"))
             
             // Try to get actual pages read from user's daily reading data
-            // This would need to be implemented to fetch from Firestore daily_reading collection
-            val actualPagesRead = getActualPagesReadForDate(dateStr)
+            val actualPagesRead = getActualDailyPagesRead(dateStr)
             
             if (actualPagesRead >= goalPages) {
                 goalMetDays++
@@ -381,17 +396,7 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
         return goalMetDays
     }
 
-    private fun getActualPagesReadForDate(dateStr: String): Int {
-        // Use a simple approach - try to get from user's total pages read
-        // This is a synchronous approximation since we can't use suspend functions here
-        return try {
-            // For now, return a default value
-            // In a real implementation, this would need to be refactored to use suspend functions
-            0
-        } catch (e: Exception) {
-            0
-        }
-    }
+
 
     // Add a suspend function to get actual daily pages
     suspend fun getActualDailyPagesRead(dateStr: String): Int {
