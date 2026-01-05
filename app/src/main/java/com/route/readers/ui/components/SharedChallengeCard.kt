@@ -36,7 +36,7 @@ fun SharedChallengeCard(
     var challengeProgress by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
     // Load actual daily reading data and progress for challenges
-    LaunchedEffect(challenge.type, currentUserId, communityViewModel, challengeViewModel) {
+    LaunchedEffect(challenge.type, currentUserId, communityViewModel, challengeViewModel, challenge.dailyProgress) {
         if (communityViewModel != null) {
             val dailyPagesMap = mutableMapOf<String, Int>()
             if (challenge.type == ChallengeType.DAILY_PAGES_READING) {
@@ -62,6 +62,24 @@ fun SharedChallengeCard(
                 getDefaultProgressWithActualData(challenge, currentUserId, consecutiveReadingDays, actualDailyPages)
             }
         } else if (challengeViewModel != null) {
+            val dailyPagesMap = mutableMapOf<String, Int>()
+            if (challenge.type == ChallengeType.DAILY_PAGES_READING) {
+                // Get last 7 days of reading data
+                for (i in 0..6) {
+                    val date = java.time.LocalDate.now().minusDays(i.toLong())
+                    val dateStr = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                    
+                    try {
+                        val pagesRead = challengeViewModel.getActualDailyPagesRead(dateStr)
+                        dailyPagesMap[dateStr] = pagesRead
+                    } catch (e: Exception) {
+                        // Fallback to challenge data
+                        val fallbackPages = (challenge.dailyProgress[currentUserId]?.get(dateStr) as? Number)?.toInt() ?: 0
+                        dailyPagesMap[dateStr] = fallbackPages
+                    }
+                }
+                actualDailyPages = dailyPagesMap
+            }
             challengeProgress = try {
                 challengeViewModel.getChallengeProgress(challenge)
             } catch (e: Exception) {

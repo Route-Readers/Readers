@@ -354,7 +354,7 @@ class ChallengeViewModel : ViewModel() {
     }
 
     // Add a suspend function to get actual daily pages
-    private suspend fun getActualDailyPagesRead(dateStr: String): Int {
+    internal suspend fun getActualDailyPagesRead(dateStr: String): Int {
         return try {
             // Direct Firestore access without using FirestoreRepository private methods
             val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
