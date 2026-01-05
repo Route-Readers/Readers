@@ -33,55 +33,47 @@ fun SharedChallengeCard(
 ) {
     var actualDailyPages by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
 
-    // Load actual daily reading data for DAILY_PAGES_READING challenges
-    LaunchedEffect(challenge.type, currentUserId, communityViewModel) {
-        if (challenge.type == ChallengeType.DAILY_PAGES_READING && communityViewModel != null) {
-            val dailyPagesMap = mutableMapOf<String, Int>()
-            // Get last 7 days of reading data
-            for (i in 0..6) {
-                val date = java.time.LocalDate.now().minusDays(i.toLong())
-                val dateStr = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-                
-                try {
-                    val pagesRead = communityViewModel.getActualDailyPagesRead(dateStr)
-                    dailyPagesMap[dateStr] = pagesRead
-                } catch (e: Exception) {
-                    // Fallback to challenge data
-                    val fallbackPages = (challenge.dailyProgress[currentUserId]?.get(dateStr) as? Number)?.toInt() ?: 0
-                    dailyPagesMap[dateStr] = fallbackPages
-                }
-            }
-            actualDailyPages = dailyPagesMap
-        } else if (challenge.type == ChallengeType.DAILY_PAGES_READING) {
-            // Fallback when no communityViewModel
-            val dailyPagesMap = mutableMapOf<String, Int>()
-            for (i in 0..6) {
-                val date = java.time.LocalDate.now().minusDays(i.toLong())
-                val dateStr = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-                val pagesRead = (challenge.dailyProgress[currentUserId]?.get(dateStr) as? Number)?.toInt() ?: 0
-                dailyPagesMap[dateStr] = pagesRead
-            }
-            actualDailyPages = dailyPagesMap
-        }
-    }
+    var challengeProgress by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
-    val (currentProgressValue, totalGoalValue) = when {
-        communityViewModel != null -> {
-            try {
+    // Load actual daily reading data and progress for challenges
+    LaunchedEffect(challenge.type, currentUserId, communityViewModel, challengeViewModel) {
+        if (communityViewModel != null) {
+            val dailyPagesMap = mutableMapOf<String, Int>()
+            if (challenge.type == ChallengeType.DAILY_PAGES_READING) {
+                // Get last 7 days of reading data
+                for (i in 0..6) {
+                    val date = java.time.LocalDate.now().minusDays(i.toLong())
+                    val dateStr = date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                    
+                    try {
+                        val pagesRead = communityViewModel.getActualDailyPagesRead(dateStr)
+                        dailyPagesMap[dateStr] = pagesRead
+                    } catch (e: Exception) {
+                        // Fallback to challenge data
+                        val fallbackPages = (challenge.dailyProgress[currentUserId]?.get(dateStr) as? Number)?.toInt() ?: 0
+                        dailyPagesMap[dateStr] = fallbackPages
+                    }
+                }
+                actualDailyPages = dailyPagesMap
+            }
+            challengeProgress = try {
                 communityViewModel.getChallengeProgress(challenge)
             } catch (e: Exception) {
                 getDefaultProgressWithActualData(challenge, currentUserId, consecutiveReadingDays, actualDailyPages)
             }
-        }
-        challengeViewModel != null -> {
-            try {
+        } else if (challengeViewModel != null) {
+            challengeProgress = try {
                 challengeViewModel.getChallengeProgress(challenge)
             } catch (e: Exception) {
-                getDefaultProgressWithActualData(challenge, currentUserId, consecutiveReadingDays, actualDailyPages)
+                getDefaultProgressWithActualData(challenge, currentUserId, consecutiveReadingDays, emptyMap())
             }
+        } else {
+            challengeProgress = getDefaultProgressWithActualData(challenge, currentUserId, consecutiveReadingDays, emptyMap())
         }
-        else -> getDefaultProgressWithActualData(challenge, currentUserId, consecutiveReadingDays, actualDailyPages)
     }
+
+    val (currentProgressValue, totalGoalValue) = challengeProgress ?: getDefaultProgressWithActualData(challenge, currentUserId, consecutiveReadingDays, actualDailyPages)
+    
     
     val progressUnit = "일"
     val overallProgressFraction = if (totalGoalValue > 0) currentProgressValue.toFloat() / totalGoalValue.toFloat() else 0f

@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.tasks.await
 import com.route.readers.data.remote.AttendanceRepository
 import com.route.readers.ui.screens.attendance.AttendanceData
 import java.time.LocalDate
@@ -319,21 +320,50 @@ class ChallengeViewModel : ViewModel() {
     }
 
     
-    fun getChallengeProgress(challenge: Challenge): Pair<Int, Int> {
+    suspend fun getChallengeProgress(challenge: Challenge): Pair<Int, Int> {
         return when (challenge.type) {
             ChallengeType.DAILY_PAGES_READING -> {
-                val dailyGoalMetDays = challenge.dailyProgress[currentUserId]?.values?.count { pages ->
-                    (pages as? Number)?.toInt() ?: 0 >= challenge.goal
-                } ?: 0
+                val dailyGoalMetDays = getDailyGoalMetDaysFromActualData(challenge.goal)
                 Pair(dailyGoalMetDays, 7)
             }
             ChallengeType.CONSECUTIVE_READING, 
             ChallengeType.CONSECUTIVE_READING_WITH_FRIEND -> {
-                Pair(_uiState.value.consecutiveReadingDays, 7)
+                Pair(_uiState.value.consecutiveReadingDays, challenge.goal.takeIf { it > 0 } ?: 1)
             }
             else -> {
                 Pair(challenge.progress[currentUserId] ?: 0, challenge.goal.takeIf { it > 0 } ?: 1)
             }
+        }
+    }
+
+    private suspend fun getDailyGoalMetDaysFromActualData(goalPages: Int): Int {
+        // Get last 7 days of actual reading data
+        var goalMetDays = 0
+        for (i in 0..6) {
+            val date = java.time.LocalDate.now().minusDays(i.toLong())
+            val dateStr = date.format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+            
+            // Try to get actual pages read from user's daily reading data
+            val actualPagesRead = getActualDailyPagesRead(dateStr)
+            
+            if (actualPagesRead >= goalPages) {
+                goalMetDays++
+            }
+        }
+        return goalMetDays
+    }
+
+    // Add a suspend function to get actual daily pages
+    private suspend fun getActualDailyPagesRead(dateStr: String): Int {
+        return try {
+            // Direct Firestore access without using FirestoreRepository private methods
+            val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+            val dailyReadingRef = firestore.collection("users").document(currentUserId)
+                .collection("daily_reading").document(dateStr)
+            val snapshot = dailyReadingRef.get().await()
+            snapshot.getLong("pagesRead")?.toInt() ?: 0
+        } catch (e: Exception) {
+            0
         }
     }
 
