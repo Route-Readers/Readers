@@ -36,7 +36,7 @@ fun SharedChallengeCard(
     var challengeProgress by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
     // Load actual daily reading data and progress for challenges
-    LaunchedEffect(challenge.type, currentUserId, communityViewModel, challengeViewModel, challenge.dailyProgress) {
+    LaunchedEffect(challenge.type, currentUserId, communityViewModel, challengeViewModel, challenge.dailyProgress, consecutiveReadingDays) {
         if (communityViewModel != null) {
             val dailyPagesMap = mutableMapOf<String, Int>()
             if (challenge.type == ChallengeType.DAILY_PAGES_READING) {
