@@ -76,8 +76,8 @@ class TimerService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        ensureForegroundNotification()
-
+        // ensureForegroundNotification() // 제거
+        
         intent?.let {
             appWidgetId = it.getIntExtra(
                 AppWidgetManager.EXTRA_APPWIDGET_ID,
