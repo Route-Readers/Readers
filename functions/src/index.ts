@@ -425,6 +425,16 @@ export const cleanupUserData = onDocumentDeleted(
                 });
             }
 
+            // 6. 북클럽 참여자 목록에서 제거
+            const bookClubsWithUser = await db.collection("bookClubs")
+                .where("members", "array-contains", uid).get();
+            for (const doc of bookClubsWithUser.docs) {
+                await doc.ref.update({
+                    members: admin.firestore.FieldValue.arrayRemove(uid),
+                    memberCount: admin.firestore.FieldValue.increment(-1)
+                });
+            }
+
             console.log(`[cleanupUserData] Successfully cleaned up data for user: ${uid}`);
 
         } catch (error) {

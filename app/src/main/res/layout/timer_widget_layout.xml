@@ -96,15 +96,6 @@
             android:contentDescription="Play or Pause Timer" />
 
         <ImageButton
-            android:id="@+id/reset_button"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_marginStart="16dp"
-            android:src="@android:drawable/ic_menu_revert"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Reset Timer" />
-
-        <ImageButton
             android:id="@+id/stop_button"
             android:layout_width="48dp"
             android:layout_height="48dp"

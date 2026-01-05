@@ -53,19 +53,6 @@ class TimerWidgetProvider : AppWidgetProvider() {
                 )
                 setOnClickPendingIntent(R.id.play_pause_button, togglePendingIntent)
 
-                // PendingIntent for Reset button
-                val resetTimerIntent = Intent(context, TimerService::class.java).apply {
-                    action = ACTION_RESET_TIMER
-                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-                }
-                val resetPendingIntent: PendingIntent = PendingIntent.getService(
-                    context,
-                    appWidgetId + 1, // Use a different request code for reset
-                    resetTimerIntent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                )
-                setOnClickPendingIntent(R.id.reset_button, resetPendingIntent)
-
                 // PendingIntent for Stop button: stop timer service first, then open page update flow
                 val stopTimerIntent = Intent(context, TimerService::class.java).apply {
                     action = ACTION_STOP_TIMER

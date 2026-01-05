@@ -68,7 +68,6 @@ class TimerService : Service() {
         const val ACTION_START_TIMER = "com.route.readers.ACTION_START_TIMER"
         const val ACTION_STOP_TIMER = "com.route.readers.ACTION_STOP_TIMER"
         const val ACTION_TOGGLE_TIMER = "com.route.readers.ACTION_TOGGLE_TIMER"
-        const val ACTION_RESET_TIMER = "com.route.readers.ACTION_RESET_TIMER"
         const val ACTION_UPDATE_BOOK_DATA = "com.route.readers.ACTION_UPDATE_BOOK_DATA" // New action to refresh book data
         private const val FOREGROUND_CHANNEL_ID = "timer_widget"
         private const val FOREGROUND_NOTIFICATION_ID = 42
@@ -76,8 +75,8 @@ class TimerService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        ensureForegroundNotification()
-
+        // ensureForegroundNotification() // 제거
+        
         intent?.let {
             appWidgetId = it.getIntExtra(
                 AppWidgetManager.EXTRA_APPWIDGET_ID,
@@ -86,7 +85,7 @@ class TimerService : Service() {
             when (it.action) {
                 ACTION_TOGGLE_TIMER -> {
                     if (timerRunning) {
-                        stopTimer()
+                        pauseTimer()
                     } else {
                         startTimer()
                     }
@@ -95,9 +94,6 @@ class TimerService : Service() {
                     startTimer()
                 }
                 ACTION_STOP_TIMER -> {
-                    stopTimer()
-                }
-                ACTION_RESET_TIMER -> {
                     resetTimer()
                 }
                 ACTION_UPDATE_BOOK_DATA -> {
@@ -161,37 +157,28 @@ class TimerService : Service() {
             startTime = System.currentTimeMillis() - elapsedTime // Resume from last elapsed time
             handler.post(updateTimerTask)
             Log.d(TAG, "Timer started. appWidgetId: $appWidgetId")
-            updateWidgetButton(true) // Update button to pause
+            updateWidget(updateImage = false) // Update widget with new button state
         }
     }
 
-    private fun stopTimer() {
+    private fun pauseTimer() {
         if (timerRunning) {
             timerRunning = false
             handler.removeCallbacks(updateTimerTask)
-            Log.d(TAG, "Timer stopped. appWidgetId: $appWidgetId")
-            updateWidgetButton(false) // Update button to play
-
-            // 자동으로 페이지 입력 액티비티를 띄워 사용자가 읽은 분량을 저장하도록 유도
-            if (currentBook != null) {
-                val stopIntent = Intent(this, UpdatePageCountActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    putExtra(TimerWidgetProvider.EXTRA_BOOK_ISBN, currentBook?.isbn)
-                    putExtra(TimerWidgetProvider.EXTRA_CURRENT_PAGE, currentBook?.currentPage ?: 0)
-                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-                }
-                startActivity(stopIntent)
-            }
+            Log.d(TAG, "Timer paused. appWidgetId: $appWidgetId")
+            updateWidget(updateImage = false) // Update widget with new button state
         }
     }
 
     private fun resetTimer() {
-        stopTimer() // Stop the timer if it's running
+        timerRunning = false
+        handler.removeCallbacks(updateTimerTask)
         elapsedTime = 0L // Reset elapsed time
-        updateWidget(updateImage = false) // Update widget to show "00:00:00" without re-loading image
-        updateWidgetButton(false) // Ensure play button is shown
         Log.d(TAG, "Timer reset. appWidgetId: $appWidgetId")
+        updateWidget(updateImage = false) // Update widget to show "00:00:00"
     }
+
+
 
     private suspend fun fetchBookDataAndBitmap(updateImage: Boolean) {
         val userId = auth.currentUser?.uid ?: run {
@@ -209,16 +196,22 @@ class TimerService : Service() {
             return
         }
 
-        // --- Logic to find the currently reading book ---
+        val sharedPrefs = getSharedPreferences(WIDGET_PREFS_NAME, Context.MODE_PRIVATE)
+        val savedIsbn = sharedPrefs.getString(CURRENT_BOOK_ISBN_PREF, null)
+
         val myBooks = firestoreRepository.getMyBooks()
-        currentBook = myBooks?.filter { !it.isCompleted } // Filter out completed books
-            ?.sortedByDescending { it.lastReadDate } // Sort by most recent read date
-            ?.firstOrNull() // Take the first (most recent) uncompleted book
+
+        currentBook = if (savedIsbn != null) {
+            myBooks?.find { it.isbn == savedIsbn }
+        } else {
+            myBooks?.filter { !it.isCompleted } // Filter out completed books
+                ?.sortedByDescending { it.lastReadDate } // Sort by most recent read date
+                ?.firstOrNull() // Take the first (most recent) uncompleted book
+        }
 
         if (currentBook != null) {
             Log.d(TAG, "Found currently reading book: ${currentBook?.title}")
             // Save current book info to SharedPreferences
-            val sharedPrefs = getSharedPreferences(WIDGET_PREFS_NAME, Context.MODE_PRIVATE)
             with(sharedPrefs.edit()) {
                 putString(CURRENT_BOOK_ISBN_PREF, currentBook?.isbn)
                 putInt(CURRENT_BOOK_PAGE_PREF, currentBook?.currentPage ?: 0)
@@ -264,6 +257,10 @@ class TimerService : Service() {
         val timeFormatted = String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds)
         remoteViews.setTextViewText(R.id.timer_text_view, timeFormatted)
 
+        // Update Play/Pause Button Icon
+        val iconRes = if (timerRunning) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play
+        remoteViews.setImageViewResource(R.id.play_pause_button, iconRes)
+
 
         // Update Book Display
         currentBook?.let { book ->
@@ -303,19 +300,6 @@ class TimerService : Service() {
         )
         remoteViews.setOnClickPendingIntent(R.id.play_pause_button, togglePendingIntent)
 
-        // Set up PendingIntent for the reset button
-        val resetTimerIntent = Intent(this, TimerService::class.java).apply {
-            action = ACTION_RESET_TIMER
-            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-        }
-        val resetPendingIntent: PendingIntent = PendingIntent.getService(
-            this,
-            appWidgetId + 1, // Use a different request code for reset
-            resetTimerIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        remoteViews.setOnClickPendingIntent(R.id.reset_button, resetPendingIntent)
-
 
         if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
             appWidgetManager.updateAppWidget(appWidgetId, remoteViews)
@@ -326,30 +310,13 @@ class TimerService : Service() {
         Log.d(TAG, "Widget updated: $timeFormatted")
     }
 
-    private fun updateWidgetButton(isPlaying: Boolean) {
-        val appWidgetManager = AppWidgetManager.getInstance(this)
-        val remoteViews = RemoteViews(packageName, R.layout.timer_widget_layout)
-
-        val iconRes = if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play
-        remoteViews.setImageViewResource(R.id.play_pause_button, iconRes)
-
-        if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
-            appWidgetManager.partiallyUpdateAppWidget(appWidgetId, remoteViews) // Use partial update for just the button
-        } else {
-            val componentName = ComponentName(this, TimerWidgetProvider::class.java)
-            val allAppWidgetIds = appWidgetManager.getAppWidgetIds(componentName)
-            appWidgetManager.partiallyUpdateAppWidget(allAppWidgetIds, remoteViews)
-        }
-    }
-
-
     override fun onBind(intent: Intent?): IBinder? {
         return null // This service does not allow binding
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        if (timerRunning) stopTimer() // Ensure timer is stopped when service is destroyed
+        if (timerRunning) pauseTimer() // Ensure timer state is saved when service is destroyed
         serviceJob.cancel() // Cancel coroutine scope
         stopForeground(true)
         Log.d(TAG, "TimerService destroyed.")
