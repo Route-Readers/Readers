@@ -1,27 +1,19 @@
 package com.route.readers.data.model
 
+import com.google.firebase.Timestamp
+
 data class Report(
     val id: String = "",
-    val reporterId: String = "",
-    val reporterNickname: String = "",
-    val targetId: String = "",
-    val targetType: String = "", // "user", "feed", "chat", "bookclub_chat"
-    val targetOwnerId: String = "", // 신고 대상의 소유자 (피드 작성자, 채팅 발신자 등)
-    val reason: String = "",
-    val reasonDetail: String? = null,
-    val status: String = "pending", // "pending", "resolved", "dismissed"
+    val reporterId: String = "", // 신고한 사용자 UID
+    val reporterNickname: String = "", // 신고한 사용자 닉네임
+    val targetId: String = "", // 신고 대상 ID (댓글, 게시물 등)
+    val targetType: String = "", // 신고 타입 (feed, chat, comment 등)
+    val targetOwnerId: String = "", // 신고당한 사용자 UID
+    val reason: String = "", // 신고 이유
+    val reasonDetail: String? = null, // 상세 사유
     val createdAt: Long = System.currentTimeMillis(),
-    val resolvedBy: String? = null,
-    val resolvedAt: Long? = null,
-    val actionTaken: String? = null // "warning", "ban", "delete", "none"
+    val status: String = "pending", // pending, resolved, dismissed
+    val resolvedBy: String? = null, // 처리한 관리자 ID
+    val resolvedAt: Long? = null, // 처리 시간
+    val actionTaken: String? = null // 취한 조치
 )
-
-object ReportReason {
-    const val SPAM = "스팸/광고"
-    const val HATE = "욕설/혐오 표현"
-    const val SEXUAL = "성적 콘텐츠"
-    const val FRAUD = "사기/사칭"
-    const val OTHER = "기타"
-    
-    val all = listOf(SPAM, HATE, SEXUAL, FRAUD, OTHER)
-}
