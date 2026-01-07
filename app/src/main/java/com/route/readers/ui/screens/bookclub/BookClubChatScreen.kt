@@ -50,6 +50,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.route.readers.data.model.Book
 import com.route.readers.data.model.BookClub
 import com.route.readers.data.model.BookClubRole
 import com.route.readers.data.model.ChatMessage
@@ -112,7 +113,7 @@ fun BookClubChatScreen(
     
     LaunchedEffect(bookClubId) {
         viewModel.loadMessages(bookClubId)
-        viewModel.loadBookClubInfo(bookClubId)
+        viewModel.listenForBookClubUpdates(bookClubId)
     }
     
     val scope = rememberCoroutineScope()
@@ -617,49 +618,56 @@ fun BookClubChatScreen(
                             uiState.bookClub?.let { club ->
                                 // 방장
                                 item {
-                                    SideSheetMemberItem(
-                                        user = uiState.memberProfiles[club.createdBy],
-                                        role = BookClubRole.OWNER,
-                                        isOwner = isOwner,
-                                        canManage = false,
-                                        onClick = {
-                                            showMoreMenu = false
-                                            onNavigateToProfile(club.createdBy)
-                                        }
-                                    )
+                                    val user = uiState.memberProfiles[club.createdBy]
+                                    if (user != null) {
+                                        SideSheetMemberItem(
+                                            user = user,
+                                            role = BookClubRole.OWNER,
+                                            isOwner = isOwner,
+                                            canManage = false,
+                                            onClick = {
+                                                showMoreMenu = false
+                                                onNavigateToProfile(club.createdBy)
+                                            }
+                                        )
+                                    }
                                 }
                                 // 부방장들
-                                items(club.viceOwners.size) { index ->
-                                    val memberId = club.viceOwners[index]
-                                    SideSheetMemberItem(
-                                        user = uiState.memberProfiles[memberId],
-                                        role = BookClubRole.VICE_OWNER,
-                                        isOwner = isOwner,
-                                        canManage = isOwner,
-                                        onClick = {
-                                            showMoreMenu = false
-                                            onNavigateToProfile(memberId)
-                                        },
-                                        onRemoveViceOwner = { viewModel.setViceOwner(bookClubId, memberId, false) },
-                                        onKick = { viewModel.kickMember(bookClubId, memberId) }
-                                    )
-                                }
-                                // 일반 멤버들
-                                items(club.members.size) { index ->
-                                    val memberId = club.members[index]
-                                    if (!club.viceOwners.contains(memberId) && memberId != club.createdBy) {
+                                items(club.viceOwners, key = { "side_vice_${it}" }) { memberId ->
+                                    val memberUser = uiState.memberProfiles[memberId]
+                                    if (memberUser != null) {
                                         SideSheetMemberItem(
-                                            user = uiState.memberProfiles[memberId],
-                                            role = BookClubRole.MEMBER,
+                                            user = memberUser,
+                                            role = BookClubRole.VICE_OWNER,
                                             isOwner = isOwner,
-                                            canManage = canManage,
+                                            canManage = isOwner,
                                             onClick = {
                                                 showMoreMenu = false
                                                 onNavigateToProfile(memberId)
                                             },
-                                            onSetViceOwner = { viewModel.setViceOwner(bookClubId, memberId, true) },
+                                            onRemoveViceOwner = { viewModel.setViceOwner(bookClubId, memberId, false) },
                                             onKick = { viewModel.kickMember(bookClubId, memberId) }
                                         )
+                                    }
+                                }
+                                // 일반 멤버들
+                                items(club.members, key = { "side_member_${it}" }) { memberId ->
+                                    val memberUser = uiState.memberProfiles[memberId]
+                                    if (memberUser != null) {
+                                        if (!club.viceOwners.contains(memberId) && memberId != club.createdBy) {
+                                            SideSheetMemberItem(
+                                                user = memberUser,
+                                                role = BookClubRole.MEMBER,
+                                                isOwner = isOwner,
+                                                canManage = canManage,
+                                                onClick = {
+                                                    showMoreMenu = false
+                                                    onNavigateToProfile(memberId)
+                                                },
+                                                onSetViceOwner = { viewModel.setViceOwner(bookClubId, memberId, true) },
+                                                onKick = { viewModel.kickMember(bookClubId, memberId) }
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -844,13 +852,13 @@ fun ChatMessageItem(
 
 @Composable
 fun BookInfoDialog(
-    bookClub: com.route.readers.data.model.BookClub?,
-    searchResults: List<com.route.readers.data.model.Book>,
+    bookClub: BookClub?,
+    searchResults: List<Book>,
     isSearching: Boolean,
     canChangeBook: Boolean = false,
     onDismiss: () -> Unit,
     onSearch: (String) -> Unit,
-    onBookSelected: (com.route.readers.data.model.Book) -> Unit
+    onBookSelected: (Book) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var isEditMode by remember { mutableStateOf(false) }
@@ -1035,7 +1043,7 @@ fun BookInfoDialog(
 
 @Composable
 fun BookCalendarDialog(
-    bookClub: com.route.readers.data.model.BookClub?,
+    bookClub: BookClub?,
     messages: List<ChatMessage>,
     canEditSchedule: Boolean = false,
     onDismiss: () -> Unit,
@@ -1533,42 +1541,49 @@ fun MemberListDialog(
                 bookClub?.let { club ->
                     // 방장
                     item {
-                        MemberItem(
-                            user = memberProfiles[club.createdBy],
-                            role = BookClubRole.OWNER,
-                            isOwner = isOwner,
-                            canKick = false,
-                            onProfileClick = { onProfileClick(club.createdBy) },
-                            onKickClick = {},
-                            onViceOwnerToggle = {}
-                        )
+                        val user = memberProfiles[club.createdBy]
+                        if (user != null) {
+                            MemberItem(
+                                user = user,
+                                role = BookClubRole.OWNER,
+                                isOwner = isOwner,
+                                canKick = false,
+                                onProfileClick = { onProfileClick(club.createdBy) },
+                                onKickClick = {},
+                                onViceOwnerToggle = {}
+                            )
+                        }
                     }
                     // 부방장들
-                    items(club.viceOwners.size) { index ->
-                        val memberId = club.viceOwners[index]
-                        MemberItem(
-                            user = memberProfiles[memberId],
-                            role = BookClubRole.VICE_OWNER,
-                            isOwner = isOwner,
-                            canKick = isOwner,
-                            onProfileClick = { onProfileClick(memberId) },
-                            onKickClick = { kickTargetId = memberId },
-                            onViceOwnerToggle = { onSetViceOwner(memberId, false) }
-                        )
-                    }
-                    // 일반 멤버들
-                    items(club.members.size) { index ->
-                        val memberId = club.members[index]
-                        if (!club.viceOwners.contains(memberId) && memberId != club.createdBy) {
+                    items(club.viceOwners, key = { "vice_${it}" }) { memberId ->
+                        val memberUser = memberProfiles[memberId]
+                        if (memberUser != null) {
                             MemberItem(
-                                user = memberProfiles[memberId],
-                                role = BookClubRole.MEMBER,
+                                user = memberUser,
+                                role = BookClubRole.VICE_OWNER,
                                 isOwner = isOwner,
-                                canKick = canKick,
+                                canKick = isOwner,
                                 onProfileClick = { onProfileClick(memberId) },
                                 onKickClick = { kickTargetId = memberId },
-                                onViceOwnerToggle = { onSetViceOwner(memberId, true) }
+                                onViceOwnerToggle = { onSetViceOwner(memberId, false) }
                             )
+                        }
+                    }
+                    // 일반 멤버들
+                    items(club.members, key = { "member_${it}" }) { memberId ->
+                        val memberUser = memberProfiles[memberId]
+                        if (memberUser != null) {
+                            if (!club.viceOwners.contains(memberId) && memberId != club.createdBy) {
+                                MemberItem(
+                                    user = memberUser,
+                                    role = BookClubRole.MEMBER,
+                                    isOwner = isOwner,
+                                    canKick = canKick,
+                                    onProfileClick = { onProfileClick(memberId) },
+                                    onKickClick = { kickTargetId = memberId },
+                                    onViceOwnerToggle = { onSetViceOwner(memberId, true) }
+                                )
+                            }
                         }
                     }
                 }

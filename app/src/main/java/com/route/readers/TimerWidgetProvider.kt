@@ -13,10 +13,15 @@ import com.route.readers.TimerService.Companion.ACTION_STOP_TIMER
 class TimerWidgetProvider : AppWidgetProvider() {
 
     companion object {
-        const val ACTION_TOGGLE_TIMER = "com.route.readers.ACTION_TOGGLE_TIMER"
-        const val ACTION_RESET_TIMER = "com.route.readers.ACTION_RESET_TIMER"
+        // Actions for BroadcastReceiver in this provider
+        const val ACTION_WIDGET_TOGGLE_TIMER = "com.route.readers.WIDGET_TOGGLE_TIMER"
+        const val ACTION_WIDGET_STOP_TIMER = "com.route.readers.WIDGET_STOP_TIMER"
+        const val ACTION_WIDGET_SELECT_BOOK = "com.route.readers.WIDGET_SELECT_BOOK"
+
+        // Intent Extras
         const val EXTRA_BOOK_ISBN = "com.route.readers.EXTRA_BOOK_ISBN"
         const val EXTRA_CURRENT_PAGE = "com.route.readers.EXTRA_CURRENT_PAGE"
+
         // SharedPreferences keys - must match those used in TimerService
         const val WIDGET_PREFS_NAME = "widget_preferences"
         const val CURRENT_BOOK_ISBN_PREF = "current_reading_book_isbn_for_widget"
@@ -40,12 +45,12 @@ class TimerWidgetProvider : AppWidgetProvider() {
                 // Initial text set by TimerService eventually
                 setTextViewText(R.id.timer_text_view, "00:00:00") // Set default
 
-                // PendingIntent for Play/Pause button
-                val toggleTimerIntent = Intent(context, TimerService::class.java).apply {
-                    action = ACTION_TOGGLE_TIMER
+                // PendingIntent for Play/Pause button (using Broadcast)
+                val toggleTimerIntent = Intent(context, TimerWidgetProvider::class.java).apply {
+                    action = ACTION_WIDGET_TOGGLE_TIMER
                     putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
                 }
-                val togglePendingIntent: PendingIntent = PendingIntent.getService(
+                val togglePendingIntent: PendingIntent = PendingIntent.getBroadcast(
                     context,
                     appWidgetId, // Use appWidgetId as request code for uniqueness
                     toggleTimerIntent,
@@ -53,27 +58,27 @@ class TimerWidgetProvider : AppWidgetProvider() {
                 )
                 setOnClickPendingIntent(R.id.play_pause_button, togglePendingIntent)
 
-                // PendingIntent for Stop button: stop timer service first, then open page update flow
-                val stopTimerIntent = Intent(context, TimerService::class.java).apply {
-                    action = ACTION_STOP_TIMER
+                // PendingIntent for Stop button (using Broadcast)
+                val stopTimerIntent = Intent(context, TimerWidgetProvider::class.java).apply {
+                    action = ACTION_WIDGET_STOP_TIMER
                     putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
                 }
-                val stopTimerPendingIntent: PendingIntent = PendingIntent.getService(
+                val stopTimerPendingIntent: PendingIntent = PendingIntent.getBroadcast(
                     context,
-                    appWidgetId + 2,
+                    appWidgetId + 2, // Use a different request code
                     stopTimerIntent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
                 setOnClickPendingIntent(R.id.stop_button, stopTimerPendingIntent)
 
-                // PendingIntent for clicking the book info area
-                val bookSelectionIntent = Intent(context, BookSelectionActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) // Needed to launch Activity from non-Activity context
-                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId) // Pass widget ID back
+                // PendingIntent for clicking the book info area (using Broadcast)
+                val bookSelectionIntent = Intent(context, TimerWidgetProvider::class.java).apply {
+                    action = ACTION_WIDGET_SELECT_BOOK
+                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
                 }
-                val bookSelectionPendingIntent: PendingIntent = PendingIntent.getActivity(
+                val bookSelectionPendingIntent: PendingIntent = PendingIntent.getBroadcast(
                     context,
-                    appWidgetId + 3, // Use a different request code for book selection
+                    appWidgetId + 3, // Use a different request code
                     bookSelectionIntent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
@@ -88,6 +93,38 @@ class TimerWidgetProvider : AppWidgetProvider() {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
             }
             ContextCompat.startForegroundService(context, updateBookDataIntent)
+        }
+    }
+
+    override fun onReceive(context: Context, intent: Intent) {
+        super.onReceive(context, intent)
+
+        val appWidgetId = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+        if (appWidgetId == AppWidgetManager.INVALID_APPWIDGET_ID && intent.action !in listOf(AppWidgetManager.ACTION_APPWIDGET_DELETED, AppWidgetManager.ACTION_APPWIDGET_DISABLED)) {
+            // We need a widget ID for most actions. If it's not here, and it's not a general non-ID action, bail.
+            return
+        }
+
+        when (intent.action) {
+            ACTION_WIDGET_TOGGLE_TIMER, ACTION_WIDGET_STOP_TIMER -> {
+                val serviceIntent = Intent(context, TimerService::class.java).apply {
+                    // Translate widget action to service action
+                    action = if (intent.action == ACTION_WIDGET_TOGGLE_TIMER) {
+                        TimerService.ACTION_TOGGLE_TIMER
+                    } else {
+                        TimerService.ACTION_STOP_TIMER
+                    }
+                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                }
+                ContextCompat.startForegroundService(context, serviceIntent)
+            }
+            ACTION_WIDGET_SELECT_BOOK -> {
+                val activityIntent = Intent(context, BookSelectionActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                }
+                context.startActivity(activityIntent)
+            }
         }
     }
 
