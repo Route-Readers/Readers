@@ -95,6 +95,23 @@ class TimerService : Service() {
                 }
                 ACTION_STOP_TIMER -> {
                     resetTimer()
+
+                    // Launch UpdatePageCountActivity
+                    val sharedPrefs = getSharedPreferences(WIDGET_PREFS_NAME, Context.MODE_PRIVATE)
+                    val bookIsbn = sharedPrefs.getString(CURRENT_BOOK_ISBN_PREF, null)
+                    val currentPage = sharedPrefs.getInt(CURRENT_BOOK_PAGE_PREF, 0)
+                    // The appWidgetId is already a member variable, but getting it from the intent is safer
+                    val widgetId = it.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+
+                    if (bookIsbn != null && widgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                        val updateIntent = Intent(applicationContext, UpdatePageCountActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            putExtra(TimerWidgetProvider.EXTRA_BOOK_ISBN, bookIsbn)
+                            putExtra(TimerWidgetProvider.EXTRA_CURRENT_PAGE, currentPage)
+                            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+                        }
+                        startActivity(updateIntent)
+                    }
                 }
                 ACTION_UPDATE_BOOK_DATA -> {
                     val targetIds = it.getIntArrayExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS)
