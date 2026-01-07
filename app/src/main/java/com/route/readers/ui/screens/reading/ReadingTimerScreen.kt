@@ -1,5 +1,6 @@
 package com.route.readers.ui.screens.reading
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -89,7 +90,14 @@ fun ReadingTimerScreen(
     LaunchedEffect(isRunning, seconds) {
         TimerState.setState(book.isbn, isRunning, seconds)
     }
-
+    // 시스템 뒤로가기 버튼 처리
+    BackHandler {
+        if (isRunning || seconds > 0) {
+            showFinishDialog = true
+        } else {
+            onNavigateBack()
+        }
+    }
     // 화면이 사라질 때 독서 시간을 저장
     DisposableEffect(Unit) {
         onDispose {
@@ -111,8 +119,8 @@ fun ReadingTimerScreen(
                 title = { Text("독서 중") },
                 navigationIcon = {
                     IconButton(onClick = {
-                        if (isRunning) {
-                            showBackDialog = true
+                        if (isRunning || seconds > 0) {
+                            showFinishDialog = true
                         } else {
                             onNavigateBack()
                         }
