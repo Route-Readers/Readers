@@ -182,7 +182,7 @@ class NotificationRepository(private val context: Context? = null) {
         }
     }
 
-    private suspend fun sendFCMNotification(userId: String, title: String, message: String) {
+    suspend fun sendFCMNotification(userId: String, title: String, message: String) {
         try {
             // fcmRequests 컬렉션에 문서를 추가하여 Cloud Function을 트리거합니다.
             val fcmRequest = hashMapOf(

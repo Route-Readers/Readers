@@ -274,7 +274,7 @@ fun RootAppNavigation(
                         }
                     }
                 }
-                // 다른 알림 타입에 대한 처리도 여기에 추가
+                // 다른 알림 타입은 decision_route에서 메인 화면으로 이동 처리
             }
         }
     }
@@ -316,10 +316,8 @@ fun RootAppNavigation(
                                 } else {
                                     "profile_setup_route"
                                 }
-                            if (initialNotificationType == null) {
-                                appNavController.navigate(destination) {
-                                    popUpTo("decision_route") { inclusive = true }
-                                }
+                            appNavController.navigate(destination) {
+                                popUpTo("decision_route") { inclusive = true }
                             }
                         }
                         .addOnFailureListener {
@@ -336,11 +334,9 @@ fun RootAppNavigation(
                         }
                 }
             }
-            // 알림으로 인해 decision_route에 머무는 동안 로딩 인디케이터 표시
-            if(initialNotificationType == null) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
+            // 로딩 인디케이터 표시
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
             }
         }
 
