@@ -103,7 +103,7 @@ fun BookClubCard(
                 Spacer(modifier = Modifier.height(4.dp))
                 
                 Text(
-                    text = bookClub.bookTitle.ifEmpty { "책 없음" },
+                    text = bookClub.currentBook.ifEmpty { "책 없음" },
                     style = MaterialTheme.typography.bodySmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
