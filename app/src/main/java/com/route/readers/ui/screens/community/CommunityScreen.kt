@@ -1,6 +1,7 @@
 package com.route.readers.ui.screens.community
 
 import android.app.Application
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -81,6 +82,14 @@ fun CommunityScreen(
     var showChatScreen by remember { mutableStateOf<BookClub?>(null) }
     var showDetailScreen by remember { mutableStateOf<BookClub?>(null) }
     val communityListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
+
+    // 시스템 뒤로가기 처리
+    BackHandler(enabled = showChatScreen != null || showDetailScreen != null) {
+        when {
+            showChatScreen != null -> showChatScreen = null
+            showDetailScreen != null -> showDetailScreen = null
+        }
+    }
 
     LaunchedEffect(showChatScreen, showDetailScreen) {
         onChatScreenChanged(showChatScreen != null || showDetailScreen != null)
