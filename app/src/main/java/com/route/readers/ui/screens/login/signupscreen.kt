@@ -463,7 +463,7 @@ fun SignUpScreen(
             }
 
             // Google 로그인
-            if (currentStep == SignUpStep.ACCOUNT) {
+            if (currentStep == SignUpStep.PHONE) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -476,7 +476,16 @@ fun SignUpScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedButton(
-                    onClick = { googleSignInLauncher.launch(googleSignInClient.signInIntent) },
+                    onClick = {
+                        scope.launch {
+                            try {
+                                googleSignInClient.signOut().await()
+                            } catch (_: Exception) {
+                                // Ignore signOut failure
+                            }
+                            googleSignInLauncher.launch(googleSignInClient.signInIntent)
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
@@ -497,6 +506,12 @@ fun SignUpScreen(
                         Text("Google로 계속하기", color = MaterialTheme.colorScheme.onSurface)
                     }
                 }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            // Google 로그인
+            if (currentStep == SignUpStep.ACCOUNT) {
+
             }
 
             Spacer(modifier = Modifier.height(16.dp))

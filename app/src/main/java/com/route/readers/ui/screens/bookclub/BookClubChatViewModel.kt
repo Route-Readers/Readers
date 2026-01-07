@@ -72,18 +72,34 @@ class BookClubChatViewModel : ViewModel() {
         return BookClubPermissions.getUserRole(bookClub, memberId)
     }
     
-    fun loadBookClubInfo(bookClubId: String) {
-        viewModelScope.launch {
-            try {
-                val doc = firestore.collection("bookClubs").document(bookClubId).get().await()
-                val bookClub = doc.toObject(BookClub::class.java)?.copy(id = doc.id)
-                _uiState.value = _uiState.value.copy(bookClub = bookClub)
-                updateUserRole()
-                bookClub?.let { loadMemberProfiles(it) }
-            } catch (e: Exception) {
-                // 무시
+    private var bookClubListener: com.google.firebase.firestore.ListenerRegistration? = null
+
+    fun listenForBookClubUpdates(bookClubId: String) {
+        // Clean up previous listener before starting a new one
+        bookClubListener?.remove()
+
+        bookClubListener = firestore.collection("bookClubs").document(bookClubId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    _uiState.value = _uiState.value.copy(error = "북클럽 정보를 불러오는데 실패했습니다: ${error.message}")
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null && snapshot.exists()) {
+                    viewModelScope.launch {
+                        val bookClub = snapshot.toObject(BookClub::class.java)?.copy(id = snapshot.id)
+
+                        // Validate members and clean up if necessary
+                        bookClub?.let { validateMembers(it) }
+
+                        _uiState.value = _uiState.value.copy(bookClub = bookClub)
+                        updateUserRole()
+                        bookClub?.let { loadMemberProfiles(it) }
+                    }
+                } else {
+                     _uiState.value = _uiState.value.copy(error = "북클럽 정보를 찾을 수 없습니다.")
+                }
             }
-        }
     }
     
     private fun loadMemberProfiles(bookClub: BookClub) {
@@ -133,7 +149,7 @@ class BookClubChatViewModel : ViewModel() {
                         "currentBookDescription" to book.description
                     )
                 ).await()
-                loadBookClubInfo(bookClubId)
+                // The listener will automatically update the UI after this write.
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(error = "책 정보 업데이트에 실패했습니다.")
             }
@@ -150,7 +166,7 @@ class BookClubChatViewModel : ViewModel() {
                 val currentHistory = _uiState.value.bookClub?.bookHistory?.toMutableMap() ?: mutableMapOf()
                 dates.forEach { date -> currentHistory[date] = bookCover }
                 firestore.collection("bookClubs").document(bookClubId).update("bookHistory", currentHistory).await()
-                loadBookClubInfo(bookClubId)
+                // The listener will automatically update the UI after this write.
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(error = "책 기록 저장에 실패했습니다.")
             }
@@ -167,7 +183,7 @@ class BookClubChatViewModel : ViewModel() {
                 val currentHistory = _uiState.value.bookClub?.bookHistory?.toMutableMap() ?: mutableMapOf()
                 dates.forEach { date -> currentHistory.remove(date) }
                 firestore.collection("bookClubs").document(bookClubId).update("bookHistory", currentHistory).await()
-                loadBookClubInfo(bookClubId)
+                // The listener will automatically update the UI after this write.
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(error = "책 기록 삭제에 실패했습니다.")
             }
@@ -263,7 +279,7 @@ class BookClubChatViewModel : ViewModel() {
                         "memberCount" to updatedMembers.size
                     )
                 ).await()
-                loadBookClubInfo(bookClubId)
+                // The listener will automatically update the UI after this write.
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(error = "멤버 강퇴에 실패했습니다.")
             }
@@ -284,7 +300,7 @@ class BookClubChatViewModel : ViewModel() {
                     bookClub.viceOwners - memberId
                 }
                 firestore.collection("bookClubs").document(bookClubId).update("viceOwners", updatedViceOwners).await()
-                loadBookClubInfo(bookClubId)
+                // The listener will automatically update the UI after this write.
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(error = "부방장 설정에 실패했습니다.")
             }
@@ -351,6 +367,44 @@ class BookClubChatViewModel : ViewModel() {
     
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
+    }
+
+    private fun validateMembers(bookClub: BookClub) {
+        viewModelScope.launch {
+            val membersToRemove = mutableListOf<String>()
+
+            // Check each member's existence
+            for (memberId in bookClub.members) {
+                try {
+                    val memberDoc = firestore.collection("users").document(memberId).get().await()
+                    if (!memberDoc.exists()) {
+                        membersToRemove.add(memberId)
+                    }
+                } catch (e: Exception) {
+                    // Handle exceptions, e.g., network errors
+                    android.util.Log.e("BookClubChatVM", "Error checking member existence for $memberId", e)
+                }
+            }
+
+            // If ghost members are found, update the book club document
+            if (membersToRemove.isNotEmpty()) {
+                android.util.Log.d("BookClubChatVM", "Found ghost members to remove: $membersToRemove")
+                try {
+                    firestore.collection("bookClubs").document(bookClub.id)
+                        .update("members", com.google.firebase.firestore.FieldValue.arrayRemove(*membersToRemove.toTypedArray()))
+                        .await()
+                    android.util.Log.d("BookClubChatVM", "Successfully removed ghost members from Firestore.")
+                    // The listener will automatically pick up this change and refresh the UI.
+                } catch (e: Exception) {
+                    android.util.Log.e("BookClubChatVM", "Error removing ghost members from Firestore", e)
+                }
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        bookClubListener?.remove()
     }
     
     fun retryLoadMessages(bookClubId: String) {

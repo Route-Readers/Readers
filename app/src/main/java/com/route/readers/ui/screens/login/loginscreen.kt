@@ -307,7 +307,16 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedButton(
-                onClick = { googleSignInLauncher.launch(googleSignInClient.signInIntent) },
+                onClick = {
+                    scope.launch {
+                        try {
+                            googleSignInClient.signOut().await()
+                        } catch (_: Exception) {
+                            // Ignore signOut failure
+                        }
+                        googleSignInLauncher.launch(googleSignInClient.signInIntent)
+                    }
+                },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(12.dp),
                 enabled = !isLoading

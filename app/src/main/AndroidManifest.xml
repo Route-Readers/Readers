@@ -82,6 +82,9 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.route.readers.WIDGET_TOGGLE_TIMER" />
+                <action android:name="com.route.readers.WIDGET_STOP_TIMER" />
+                <action android:name="com.route.readers.WIDGET_SELECT_BOOK" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
