@@ -190,27 +190,24 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(notifyingFriendId = friendId)
             try {
-                // FCM을 통해 특정 친구에게 독서 알림 전송
                 val currentUser = firestoreRepository.getUserProfile(currentUserId)
                 val friendUser = firestoreRepository.getUserProfile(friendId)
 
-                if (currentUser != null && friendUser != null && friendUser.fcmToken != null) {
-                    // Firebase Functions를 통해 FCM 메시지 전송
-                    val firestore = FirebaseFirestore.getInstance()
-                    val notificationData = mapOf(
-                        "type" to "reading_reminder",
-                        "fromUserId" to currentUserId,
-                        "fromUserName" to currentUser.nickname,
-                        "toUserId" to friendId,
-                        "fcmToken" to friendUser.fcmToken,
-                        "title" to "독서 알림",
-                        "body" to "${currentUser.nickname}님이 독서 알림을 보냈습니다! 📚",
-                        "timestamp" to System.currentTimeMillis()
+                if (currentUser != null && friendUser != null) {
+                    val title = "독서 알림 📚"
+                    val message = "${currentUser.nickname}님이 독서 알림을 보냈습니다!"
+                    
+                    // Firestore 알림 저장
+                    notificationRepository.createNotification(
+                        userId = friendId,
+                        type = com.route.readers.data.model.NotificationType.READING_INVITATION,
+                        title = title,
+                        message = message,
+                        data = mapOf("fromUserId" to currentUserId, "fromUserName" to currentUser.nickname)
                     )
-
-                    firestore.collection("fcm_messages")
-                        .add(notificationData)
-                        .await()
+                    
+                    // FCM 푸시 알림 전송
+                    notificationRepository.sendFCMNotification(friendId, title, message)
 
                     _uiState.value = _uiState.value.copy(
                         addFriendMessage = "${friendUser.nickname}님에게 알림을 보냈습니다.",
@@ -218,7 +215,7 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
                     )
                 } else {
                     _uiState.value = _uiState.value.copy(
-                        addFriendMessage = "알림을 보낼 수 없습니다. (토큰 정보 없음)",
+                        addFriendMessage = "알림을 보낼 수 없습니다.",
                         notifyingFriendId = null
                     )
                 }
