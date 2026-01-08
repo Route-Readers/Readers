@@ -99,6 +99,7 @@ enum class MenuItemType {
     DISPLAY,
     NOTIFICATIONS,
     TERMS,
+    PRIVACY_POLICY, // Added PRIVACY_POLICY
     CONTACT,
     DELETE_ACCOUNT
 }
@@ -287,6 +288,17 @@ fun AccountScreen(
             icon = Icons.Default.Description,
             onClick = {
                 val url = "https://www.notion.so/isaac8570/2d4cc1cddbdf803cacbfe9e7004b0434?source=copy_link"
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                context.startActivity(intent)
+            }
+        ),
+        AccountMenuItem(
+            type = MenuItemType.PRIVACY_POLICY,
+            title = "개인정보처리지침",
+            subtitle = "개인정보 처리 방침 확인",
+            icon = Icons.Default.Description, // Using Description icon for now, can be changed
+            onClick = {
+                val url = "https://dot-coneflower-035.notion.site/2df0666be8dc80bbb6c1f8e567b7d85c" // Updated URL
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                 context.startActivity(intent)
             }
