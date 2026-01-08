@@ -371,32 +371,77 @@ class BookClubChatViewModel : ViewModel() {
 
     private fun validateMembers(bookClub: BookClub) {
         viewModelScope.launch {
-            val membersToRemove = mutableListOf<String>()
+            val membersToRemoveFromMembersList = mutableListOf<String>()
+            val viceOwnersToRemove = mutableListOf<String>()
+            var ownerToRemove: String? = null
 
-            // Check each member's existence
+            // Check bookClub.members
             for (memberId in bookClub.members) {
                 try {
                     val memberDoc = firestore.collection("users").document(memberId).get().await()
                     if (!memberDoc.exists()) {
-                        membersToRemove.add(memberId)
+                        membersToRemoveFromMembersList.add(memberId)
                     }
                 } catch (e: Exception) {
-                    // Handle exceptions, e.g., network errors
-                    android.util.Log.e("BookClubChatVM", "Error checking member existence for $memberId", e)
+                    android.util.Log.e("BookClubChatVM", "Error checking member existence for $memberId in members list: ${e.message}")
                 }
             }
 
-            // If ghost members are found, update the book club document
-            if (membersToRemove.isNotEmpty()) {
-                android.util.Log.d("BookClubChatVM", "Found ghost members to remove: $membersToRemove")
+            // Check bookClub.viceOwners
+            for (viceOwnerId in bookClub.viceOwners) {
                 try {
-                    firestore.collection("bookClubs").document(bookClub.id)
-                        .update("members", com.google.firebase.firestore.FieldValue.arrayRemove(*membersToRemove.toTypedArray()))
-                        .await()
-                    android.util.Log.d("BookClubChatVM", "Successfully removed ghost members from Firestore.")
-                    // The listener will automatically pick up this change and refresh the UI.
+                    val viceOwnerDoc = firestore.collection("users").document(viceOwnerId).get().await()
+                    if (!viceOwnerDoc.exists()) {
+                        viceOwnersToRemove.add(viceOwnerId)
+                    }
                 } catch (e: Exception) {
-                    android.util.Log.e("BookClubChatVM", "Error removing ghost members from Firestore", e)
+                    android.util.Log.e("BookClubChatVM", "Error checking member existence for $viceOwnerId in viceOwners list: ${e.message}")
+                }
+            }
+
+            // Check bookClub.createdBy (owner)
+            try {
+                val ownerDoc = firestore.collection("users").document(bookClub.createdBy).get().await()
+                if (!ownerDoc.exists()) {
+                    ownerToRemove = bookClub.createdBy
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("BookClubChatVM", "Error checking owner existence for ${bookClub.createdBy}: ${e.message}")
+            }
+
+            // Perform updates if ghost members are found
+            if (membersToRemoveFromMembersList.isNotEmpty() || viceOwnersToRemove.isNotEmpty() || ownerToRemove != null) {
+                android.util.Log.d("BookClubChatVM", "Found ghost members for cleanup. Members to remove: $membersToRemoveFromMembersList, ViceOwners to remove: $viceOwnersToRemove, Owner to remove: $ownerToRemove")
+
+                val updates = mutableMapOf<String, Any>()
+
+                if (membersToRemoveFromMembersList.isNotEmpty()) {
+                    updates["members"] = com.google.firebase.firestore.FieldValue.arrayRemove(*membersToRemoveFromMembersList.toTypedArray())
+                    updates["memberCount"] = com.google.firebase.firestore.FieldValue.increment(-(membersToRemoveFromMembersList.size.toLong()))
+                }
+                if (viceOwnersToRemove.isNotEmpty()) {
+                    updates["viceOwners"] = com.google.firebase.firestore.FieldValue.arrayRemove(*viceOwnersToRemove.toTypedArray())
+                }
+                if (ownerToRemove != null) {
+                    // If the owner is removed, the book club is effectively without an owner.
+                    // This scenario needs careful consideration. For now, we will clear the createdBy field.
+                    // A more robust solution might involve transferring ownership or deleting the club.
+                    updates["createdBy"] = "" // Clear the owner field
+                    // Also remove from members and viceOwners if they were also the owner
+                    updates["members"] = com.google.firebase.firestore.FieldValue.arrayRemove(ownerToRemove)
+                    updates["viceOwners"] = com.google.firebase.firestore.FieldValue.arrayRemove(ownerToRemove)
+                    updates["memberCount"] = com.google.firebase.firestore.FieldValue.increment(-1)
+                }
+
+                if (updates.isNotEmpty()) {
+                    try {
+                        firestore.collection("bookClubs").document(bookClub.id)
+                            .update(updates)
+                            .await()
+                        android.util.Log.d("BookClubChatVM", "Successfully removed ghost members from Firestore. Updates: $updates")
+                    } catch (e: Exception) {
+                        android.util.Log.e("BookClubChatVM", "Error removing ghost members from Firestore", e)
+                    }
                 }
             }
         }
