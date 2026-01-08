@@ -115,6 +115,7 @@ class TimerWidgetProvider : AppWidgetProvider() {
                         TimerService.ACTION_STOP_TIMER
                     }
                     putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                    putExtra(TimerService.EXTRA_STARTED_FROM_WIDGET, true) // Add this extra
                 }
                 ContextCompat.startForegroundService(context, serviceIntent)
             }

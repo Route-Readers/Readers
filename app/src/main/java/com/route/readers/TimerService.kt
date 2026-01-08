@@ -48,6 +48,7 @@ class TimerService : Service() {
     private val auth = FirebaseAuth.getInstance()
     private var currentBook: MyBook? = null
     private var lastLoadedBitmap: Bitmap? = null // Cache the last loaded bitmap
+    private var wasStartedByWidget: Boolean = false // Track if service was started from widget
 
     // SharedPreferences keys - must match those used in TimerWidgetProvider
     private val WIDGET_PREFS_NAME = "widget_preferences"
@@ -69,13 +70,16 @@ class TimerService : Service() {
         const val ACTION_STOP_TIMER = "com.route.readers.ACTION_STOP_TIMER"
         const val ACTION_TOGGLE_TIMER = "com.route.readers.ACTION_TOGGLE_TIMER"
         const val ACTION_UPDATE_BOOK_DATA = "com.route.readers.ACTION_UPDATE_BOOK_DATA" // New action to refresh book data
+        const val EXTRA_STARTED_FROM_WIDGET = "com.route.readers.EXTRA_STARTED_FROM_WIDGET" // New extra
         private const val FOREGROUND_CHANNEL_ID = "timer_widget"
         private const val FOREGROUND_NOTIFICATION_ID = 42
         private const val TAG = "TimerService"
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        ensureForegroundNotification()
+        // Retrieve the extra indicating if it was started from the widget
+        wasStartedByWidget = intent?.getBooleanExtra(EXTRA_STARTED_FROM_WIDGET, false) ?: false
+        ensureForegroundNotification(wasStartedByWidget)
         
         intent?.let {
             appWidgetId = it.getIntExtra(
@@ -133,7 +137,11 @@ class TimerService : Service() {
     }
 
     @SuppressLint("ForegroundServiceType")
-    private fun ensureForegroundNotification() {
+    private fun ensureForegroundNotification(shouldShowNotification: Boolean) {
+        if (!shouldShowNotification) {
+            stopForeground(true)
+            return
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = android.app.NotificationChannel(
                 FOREGROUND_CHANNEL_ID,
