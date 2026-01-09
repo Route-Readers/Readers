@@ -101,6 +101,7 @@
             android:layout_height="48dp"
             android:layout_marginStart="16dp"
             android:src="@drawable/ic_stop_custom"
+            android:backgroundTint="#FF5722"
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:contentDescription="Stop Timer and Update Progress" />
 

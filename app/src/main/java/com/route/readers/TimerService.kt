@@ -77,6 +77,7 @@ class TimerService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Log.d(TAG, "onStartCommand received. Action: ${intent?.action}, appWidgetId: ${intent?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)}")
         // Retrieve the extra indicating if it was started from the widget
         wasStartedByWidget = intent?.getBooleanExtra(EXTRA_STARTED_FROM_WIDGET, false) ?: false
         ensureForegroundNotification(wasStartedByWidget)
@@ -98,13 +99,13 @@ class TimerService : Service() {
                     startTimer()
                 }
                 ACTION_STOP_TIMER -> {
+                    Log.d("TimerService", "ACTION_STOP_TIMER received")
                     resetTimer()
 
                     // Launch UpdatePageCountActivity
                     val sharedPrefs = getSharedPreferences(WIDGET_PREFS_NAME, Context.MODE_PRIVATE)
                     val bookIsbn = sharedPrefs.getString(CURRENT_BOOK_ISBN_PREF, null)
                     val currentPage = sharedPrefs.getInt(CURRENT_BOOK_PAGE_PREF, 0)
-                    // The appWidgetId is already a member variable, but getting it from the intent is safer
                     val widgetId = it.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
 
                     if (bookIsbn != null && widgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
@@ -116,6 +117,7 @@ class TimerService : Service() {
                         }
                         startActivity(updateIntent)
                     }
+                    stopSelf() // Add this line to stop the service
                 }
                 ACTION_UPDATE_BOOK_DATA -> {
                     val targetIds = it.getIntArrayExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS)
