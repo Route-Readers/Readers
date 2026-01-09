@@ -1187,6 +1187,7 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
                 .get()
                 .await()
             snapshot.documents.mapNotNull { it.toFeedItem() }
+                .sortedByDescending { it.timestamp }
         } catch (e: Exception) {
             Log.e("ProfileViewModel", "Failed to fetch my posts", e)
             emptyList()
