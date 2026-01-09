@@ -9,6 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.route.readers.ui.screens.feed.FeedCard
 import com.route.readers.ui.screens.feed.FeedItem
 
 @Composable
@@ -19,7 +20,7 @@ fun PostsSection(
     onToggleSavePost: (FeedItem.BookReview) -> Unit = {}
 ) {
     var selectedTab by remember { mutableStateOf("내 게시물") }
-    
+
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -30,28 +31,28 @@ fun PostsSection(
             TextButton(
                 onClick = { selectedTab = "내 게시물" },
                 colors = ButtonDefaults.textButtonColors(
-                    contentColor = if (selectedTab == "내 게시물") 
-                        MaterialTheme.colorScheme.primary 
+                    contentColor = if (selectedTab == "내 게시물")
+                        MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             ) {
                 Text("내 게시물 (${myPosts.size})")
             }
-            
+
             TextButton(
                 onClick = { selectedTab = "저장된 게시물" },
                 colors = ButtonDefaults.textButtonColors(
-                    contentColor = if (selectedTab == "저장된 게시물") 
-                        MaterialTheme.colorScheme.primary 
+                    contentColor = if (selectedTab == "저장된 게시물")
+                        MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             ) {
                 Text("저장된 게시물 (${savedPosts.size})")
             }
         }
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         when (selectedTab) {
             "내 게시물" -> {
                 if (myPosts.isEmpty()) {
@@ -72,16 +73,20 @@ fun PostsSection(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         myPosts.forEach { post ->
-                            PostItem(
-                                post = post,
-                                isMyPost = true,
-                                onDelete = { onDeletePost(post.id) }
+                            FeedCard(
+                                item = post,
+                                isLiked = false, // Not available in this context
+                                isBookmarked = savedPosts.any { it.id == post.id }, // Check if the post is in saved list
+                                onLikeClick = { /* Not available */ },
+                                onBookmarkClick = { onToggleSavePost(post) },
+                                onDeleteClick = { onDeletePost(post.id) },
+                                onUserClick = { /* Not available */ }
                             )
                         }
                     }
                 }
             }
-            
+
             "저장된 게시물" -> {
                 if (savedPosts.isEmpty()) {
                     Box(
@@ -101,67 +106,16 @@ fun PostsSection(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         savedPosts.forEach { post ->
-                            PostItem(
-                                post = post,
-                                isMyPost = false,
-                                onToggleSave = { onToggleSavePost(post) }
+                            FeedCard(
+                                item = post,
+                                isLiked = false, // Not available in this context
+                                isBookmarked = true, // Always true for saved posts
+                                onLikeClick = { /* Not available */ },
+                                onBookmarkClick = { onToggleSavePost(post) },
+                                onDeleteClick = { /* Not applicable for saved posts */ },
+                                onUserClick = { /* Not available */ }
                             )
                         }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PostItem(
-    post: FeedItem.BookReview,
-    isMyPost: Boolean,
-    onDelete: () -> Unit = {},
-    onToggleSave: () -> Unit = {}
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = post.bookTitle,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            
-            Spacer(modifier = Modifier.height(4.dp))
-            
-            Text(
-                text = post.review,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 3
-            )
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "평점: ${post.rating}/5",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                
-                if (isMyPost) {
-                    TextButton(onClick = onDelete) {
-                        Text("삭제")
-                    }
-                } else {
-                    TextButton(onClick = onToggleSave) {
-                        Text("저장 해제")
                     }
                 }
             }
