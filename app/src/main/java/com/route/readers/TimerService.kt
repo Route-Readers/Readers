@@ -108,15 +108,14 @@ class TimerService : Service() {
                     val currentPage = sharedPrefs.getInt(CURRENT_BOOK_PAGE_PREF, 0)
                     val widgetId = it.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
 
-                    if (bookIsbn != null && widgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
-                        val updateIntent = Intent(applicationContext, UpdatePageCountActivity::class.java).apply {
+                    // 항상 페이지 업데이트 화면 열기
+                    val updateIntent = Intent(applicationContext, UpdatePageCountActivity::class.java).apply {
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            putExtra(TimerWidgetProvider.EXTRA_BOOK_ISBN, bookIsbn)
+                            putExtra(TimerWidgetProvider.EXTRA_BOOK_ISBN, bookIsbn ?: "")
                             putExtra(TimerWidgetProvider.EXTRA_CURRENT_PAGE, currentPage)
                             putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
                         }
-                        startActivity(updateIntent)
-                    }
+                    startActivity(updateIntent)
                     stopSelf() // Add this line to stop the service
                 }
                 ACTION_UPDATE_BOOK_DATA -> {
