@@ -19,6 +19,19 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.text.font.FontWeight
+import com.route.readers.ui.components.BottomNavBar
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -235,6 +248,7 @@ class AccountViewModelFactory(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RootAppNavigation(
     accountViewModel: AccountViewModel,
@@ -486,33 +500,68 @@ fun RootAppNavigation(
         ) { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId")
             if (userId != null) {
-                val profileViewModel: ProfileViewModel =
-                    viewModel()
-                ProfileScreen(
-                    userId = userId,
-                    viewModel = profileViewModel,
-                    onNavigateToFollowList = { listType, nickname ->
-                        val encodedNickname = URLEncoder.encode(nickname, "UTF-8")
-                        appNavController.navigate("follow_list_route/$userId/$listType/$encodedNickname")
+                val profileViewModel: ProfileViewModel = viewModel()
+                val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+                
+                Scaffold(
+                    topBar = {
+                        TopAppBar(
+                            title = { Text("프로필", fontWeight = FontWeight.Bold) },
+                            navigationIcon = {
+                                IconButton(onClick = { appNavController.popBackStack() }) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "뒤로 가기"
+                                    )
+                                }
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
+                        )
                     },
-                    onNavigateToSearch = {
-                    },
-                    onNavigateToMyBookList = {
-                        appNavController.navigate("my_book_list_route")
-                    },
-                    onNavigateToLevel = {
-                        appNavController.navigate("level_route")
-                    },
-                    onNavigateToCustomization = {
-                        appNavController.navigate("token_shop_route")
-                    },
-                    onNavigateToGoal = {
-                        appNavController.navigate("goal_route")
-                    },
-                    onNavigateToOtherUserProfile = { otherUserId ->
-                        appNavController.navigate("profile_route/$otherUserId")
+                    bottomBar = {
+                        BottomNavBar(
+                            navController = rememberNavController(),
+                            onProfileClick = {
+                                if (currentUserId != null) {
+                                    appNavController.navigate("main_app_content_route") {
+                                        popUpTo("main_app_content_route") { inclusive = true }
+                                    }
+                                }
+                            }
+                        )
                     }
-                )
+                ) { innerPadding ->
+                    Box(modifier = Modifier.padding(innerPadding)) {
+                        ProfileScreen(
+                            userId = userId,
+                            viewModel = profileViewModel,
+                            onNavigateToFollowList = { listType, nickname ->
+                                val encodedNickname = URLEncoder.encode(nickname, "UTF-8")
+                                appNavController.navigate("follow_list_route/$userId/$listType/$encodedNickname")
+                            },
+                            onNavigateToSearch = {
+                                appNavController.navigate("main_app_content_route")
+                            },
+                            onNavigateToMyBookList = {
+                                appNavController.navigate("my_book_list_route")
+                            },
+                            onNavigateToLevel = {
+                                appNavController.navigate("level_route")
+                            },
+                            onNavigateToCustomization = {
+                                appNavController.navigate("token_shop_route")
+                            },
+                            onNavigateToGoal = {
+                                appNavController.navigate("goal_route")
+                            },
+                            onNavigateToOtherUserProfile = { otherUserId ->
+                                appNavController.navigate("profile_route/$otherUserId")
+                            }
+                        )
+                    }
+                }
             }
         }
 
