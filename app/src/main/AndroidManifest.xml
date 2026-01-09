@@ -119,5 +119,10 @@
             android:exported="false"
             android:foregroundServiceType="specialUse" />
 
+        <activity
+            android:name=".WidgetActionActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
     </application>
 </manifest>

@@ -830,7 +830,7 @@ fun LibrarySearchTab(
                             key = { library -> library.libraryInfo.libCode }
                         ) { library ->
                             val isSelected = currentLibraryState.selectedLibrary?.libraryInfo?.libCode == library.libraryInfo.libCode
-                            LibraryResultCard(
+                            LibraryBookAvailabilityCard(
                                 libraryName = library.libraryInfo.libName,
                                 address = library.libraryInfo.address,
                                 distance = library.distance,
