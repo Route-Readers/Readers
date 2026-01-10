@@ -134,10 +134,10 @@ class FirestoreRepository {
         }
     }
 
-    suspend fun getMyBooks(): List<MyBook> {
+    suspend fun getMyBooks(source: com.google.firebase.firestore.Source = com.google.firebase.firestore.Source.DEFAULT): List<MyBook> {
         return try {
             val userId = auth.currentUser?.uid ?: return emptyList()
-            getMyBooksCollection(userId).get().await()?.toObjects(MyBook::class.java)
+            getMyBooksCollection(userId).get(source).await()?.toObjects(MyBook::class.java)
                 ?: emptyList()
         } catch (e: Exception) {
             Log.e("FirestoreRepository", "Error getting books: ${e.message}", e)

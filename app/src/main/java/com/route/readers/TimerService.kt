@@ -71,6 +71,8 @@ class TimerService : Service() {
         const val ACTION_TOGGLE_TIMER = "com.route.readers.ACTION_TOGGLE_TIMER"
         const val ACTION_UPDATE_BOOK_DATA = "com.route.readers.ACTION_UPDATE_BOOK_DATA" // New action to refresh book data
         const val EXTRA_STARTED_FROM_WIDGET = "com.route.readers.EXTRA_STARTED_FROM_WIDGET" // New extra
+        const val EXTRA_STOP_FROM_ACTIVITY = "com.route.readers.EXTRA_STOP_FROM_ACTIVITY" // New extra
+        const val EXTRA_STOP_AFTER_UPDATE = "com.route.readers.EXTRA_STOP_AFTER_UPDATE" // New extra
         private const val FOREGROUND_CHANNEL_ID = "timer_widget"
         private const val FOREGROUND_NOTIFICATION_ID = 42
         private const val TAG = "TimerService"
@@ -98,33 +100,42 @@ class TimerService : Service() {
                 ACTION_START_TIMER -> {
                     startTimer()
                 }
-                ACTION_STOP_TIMER -> {
-                    Log.d("TimerService", "ACTION_STOP_TIMER received")
-                    resetTimer()
-
-                    // Launch UpdatePageCountActivity
-                    val sharedPrefs = getSharedPreferences(WIDGET_PREFS_NAME, Context.MODE_PRIVATE)
-                    val bookIsbn = sharedPrefs.getString(CURRENT_BOOK_ISBN_PREF, null)
-                    val currentPage = sharedPrefs.getInt(CURRENT_BOOK_PAGE_PREF, 0)
-                    val widgetId = it.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
-
-                    // 항상 페이지 업데이트 화면 열기
-                    val updateIntent = Intent(applicationContext, UpdatePageCountActivity::class.java).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            putExtra(TimerWidgetProvider.EXTRA_BOOK_ISBN, bookIsbn ?: "")
-                            putExtra(TimerWidgetProvider.EXTRA_CURRENT_PAGE, currentPage)
-                            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
-                        }
-                    startActivity(updateIntent)
-                    stopSelf() // Add this line to stop the service
-                }
+                                ACTION_STOP_TIMER -> {
+                                    Log.d("TimerService", "ACTION_STOP_TIMER received")
+                                    resetTimer()
+                
+                                    val stopFromActivity = it.getBooleanExtra(EXTRA_STOP_FROM_ACTIVITY, false)
+                                    if (stopFromActivity) {
+                                        stopSelf()
+                                        return START_STICKY
+                                    }
+                
+                                    // Launch UpdatePageCountActivity
+                                    val sharedPrefs = getSharedPreferences(WIDGET_PREFS_NAME, Context.MODE_PRIVATE)
+                                    val bookIsbn = sharedPrefs.getString(CURRENT_BOOK_ISBN_PREF, null)
+                                    val currentPage = sharedPrefs.getInt(CURRENT_BOOK_PAGE_PREF, 0)
+                                    val widgetId = it.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+                
+                                    // 항상 페이지 업데이트 화면 열기
+                                    val updateIntent = Intent(applicationContext, UpdatePageCountActivity::class.java).apply {
+                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            putExtra(TimerWidgetProvider.EXTRA_BOOK_ISBN, bookIsbn ?: "")
+                                            putExtra(TimerWidgetProvider.EXTRA_CURRENT_PAGE, currentPage)
+                                            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+                                        }
+                                    startActivity(updateIntent)
+                                }
                 ACTION_UPDATE_BOOK_DATA -> {
                     val targetIds = it.getIntArrayExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS)
                         ?: intArrayOf(appWidgetId)
+                    val stopAfterUpdate = it.getBooleanExtra(EXTRA_STOP_AFTER_UPDATE, false) // Get the flag
                     serviceScope.launch {
                         targetIds.forEach { id ->
                             appWidgetId = id
                             fetchBookDataAndBitmap(updateImage = true)
+                        }
+                        if (stopAfterUpdate) {
+                            stopSelf() // Stop the service after the update if the flag is set
                         }
                     } // Fetch book data explicitly
                 }
@@ -225,7 +236,7 @@ class TimerService : Service() {
         val sharedPrefs = getSharedPreferences(WIDGET_PREFS_NAME, Context.MODE_PRIVATE)
         val savedIsbn = sharedPrefs.getString(CURRENT_BOOK_ISBN_PREF, null)
 
-        val myBooks = firestoreRepository.getMyBooks()
+        val myBooks = firestoreRepository.getMyBooks(com.google.firebase.firestore.Source.SERVER)
 
         currentBook = if (savedIsbn != null) {
             myBooks?.find { it.isbn == savedIsbn }
