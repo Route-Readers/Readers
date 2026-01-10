@@ -72,6 +72,7 @@ class TimerService : Service() {
         const val ACTION_UPDATE_BOOK_DATA = "com.route.readers.ACTION_UPDATE_BOOK_DATA" // New action to refresh book data
         const val EXTRA_STARTED_FROM_WIDGET = "com.route.readers.EXTRA_STARTED_FROM_WIDGET" // New extra
         const val EXTRA_STOP_FROM_ACTIVITY = "com.route.readers.EXTRA_STOP_FROM_ACTIVITY" // New extra
+        const val EXTRA_STOP_AFTER_UPDATE = "com.route.readers.EXTRA_STOP_AFTER_UPDATE" // New extra
         private const val FOREGROUND_CHANNEL_ID = "timer_widget"
         private const val FOREGROUND_NOTIFICATION_ID = 42
         private const val TAG = "TimerService"
@@ -127,10 +128,14 @@ class TimerService : Service() {
                 ACTION_UPDATE_BOOK_DATA -> {
                     val targetIds = it.getIntArrayExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS)
                         ?: intArrayOf(appWidgetId)
+                    val stopAfterUpdate = it.getBooleanExtra(EXTRA_STOP_AFTER_UPDATE, false) // Get the flag
                     serviceScope.launch {
                         targetIds.forEach { id ->
                             appWidgetId = id
                             fetchBookDataAndBitmap(updateImage = true)
+                        }
+                        if (stopAfterUpdate) {
+                            stopSelf() // Stop the service after the update if the flag is set
                         }
                     } // Fetch book data explicitly
                 }
@@ -231,7 +236,7 @@ class TimerService : Service() {
         val sharedPrefs = getSharedPreferences(WIDGET_PREFS_NAME, Context.MODE_PRIVATE)
         val savedIsbn = sharedPrefs.getString(CURRENT_BOOK_ISBN_PREF, null)
 
-        val myBooks = firestoreRepository.getMyBooks()
+        val myBooks = firestoreRepository.getMyBooks(com.google.firebase.firestore.Source.SERVER)
 
         currentBook = if (savedIsbn != null) {
             myBooks?.find { it.isbn == savedIsbn }
