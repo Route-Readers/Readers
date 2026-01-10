@@ -103,6 +103,7 @@ class UpdatePageCountActivity : AppCompatActivity() {
         }
 
         cancelButton.setOnClickListener {
+            stopTimerService()
             finish() // Just close the activity
         }
     }
@@ -111,6 +112,7 @@ class UpdatePageCountActivity : AppCompatActivity() {
         // 1. Stop the timer service
         val stopServiceIntent = Intent(this@UpdatePageCountActivity, TimerService::class.java).apply {
             action = TimerService.ACTION_STOP_TIMER
+            putExtra(TimerService.EXTRA_STOP_FROM_ACTIVITY, true)
         }
         this@UpdatePageCountActivity.startService(stopServiceIntent)
 
@@ -120,6 +122,14 @@ class UpdatePageCountActivity : AppCompatActivity() {
             putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
         }
         this@UpdatePageCountActivity.startService(updateIntent)
+    }
+
+    private fun stopTimerService() {
+        val stopServiceIntent = Intent(this@UpdatePageCountActivity, TimerService::class.java).apply {
+            action = TimerService.ACTION_STOP_TIMER
+            putExtra(TimerService.EXTRA_STOP_FROM_ACTIVITY, true)
+        }
+        this@UpdatePageCountActivity.startService(stopServiceIntent)
     }
 
     override fun onDestroy() {
