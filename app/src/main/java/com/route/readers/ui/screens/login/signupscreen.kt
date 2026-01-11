@@ -480,38 +480,29 @@ fun SignUpScreen(
                         scope.launch {
                             try {
                                 googleSignInClient.signOut().await()
-                            } catch (_: Exception) {
-                                // Ignore signOut failure
-                            }
+                            } catch (_: Exception) {}
                             googleSignInLauncher.launch(googleSignInClient.signInIntent)
                         }
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = CircleShape,
                     enabled = !isLoading && !isGoogleLoading,
+                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White),
                     border = ButtonDefaults.outlinedButtonBorder(enabled = true)
                 ) {
                     if (isGoogleLoading) {
                         CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                     } else {
                         Image(
-                            painter = painterResource(id = R.mipmap.signupgoogle),
+                            painter = painterResource(id = R.drawable.ic_google),
                             contentDescription = null,
-                            modifier = Modifier.height(24.dp),
-                            contentScale = ContentScale.Fit
+                            modifier = Modifier.size(20.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Google로 계속하기", color = MaterialTheme.colorScheme.onSurface)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text("Continue with Google", color = Color.Black, fontWeight = FontWeight.Medium)
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-            }
-
-            // Google 로그인
-            if (currentStep == SignUpStep.ACCOUNT) {
-
             }
 
             Spacer(modifier = Modifier.height(16.dp))
