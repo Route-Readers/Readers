@@ -37,7 +37,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Lockimport androidx.compose.material.icons.filled.MoreVertimport androidx.compose.material3.DropdownMenuimport androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.EmojiEvents
@@ -604,6 +604,8 @@ fun ProfileInfoSection(
     onUnblockUser: () -> Unit,
     onReportUser: () -> Unit = {}
 ) {
+    var showMoreMenu by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -612,102 +614,122 @@ fun ProfileInfoSection(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(vertical = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            ProfileImage(
-                user = user,
-                isMyProfile = isMyProfile,
-                onImageClick = {
-                    onNavigateToCustomization()
+        Box {
+            // 더보기 메뉴 (다른 사용자 프로필일 때만)
+            if (!isMyProfile) {
+                Box(modifier = Modifier.align(Alignment.TopEnd)) {
+                    IconButton(onClick = { showMoreMenu = true }) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "더보기",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showMoreMenu,
+                        onDismissRequest = { showMoreMenu = false }
+                    ) {
+                        if (isFollowing) {
+                            DropdownMenuItem(
+                                text = { Text("언팔로우") },
+                                onClick = {
+                                    onUnfollowClick()
+                                    showMoreMenu = false
+                                }
+                            )
+                        }
+                        if (isBlocked) {
+                            DropdownMenuItem(
+                                text = { Text("차단 해제") },
+                                onClick = {
+                                    onUnblockUser()
+                                    showMoreMenu = false
+                                }
+                            )
+                        } else {
+                            DropdownMenuItem(
+                                text = { Text("차단하기") },
+                                onClick = {
+                                    onBlockUser()
+                                    showMoreMenu = false
+                                }
+                            )
+                        }
+                        DropdownMenuItem(
+                            text = { Text("신고하기", color = DarkRed) },
+                            onClick = {
+                                onReportUser()
+                                showMoreMenu = false
+                            }
+                        )
+                    }
                 }
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(text = user.nickname, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                LevelChip(level = level, onClick = onNavigateToLevel)
-                user.title?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 8.dp)
+            }
+
+            Column(
+                modifier = Modifier.padding(vertical = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ProfileImage(
+                    user = user,
+                    isMyProfile = isMyProfile,
+                    onImageClick = {
+                        onNavigateToCustomization()
+                    }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(text = user.nickname, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    LevelChip(level = level, onClick = onNavigateToLevel)
+                    user.title?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                ReadingStreakSection(
+                    attendanceDays = user.consecutiveDays,
+                    readingDays = user.consecutiveReadingDays
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ProfileInfoItem(count = user.followerCount.toString(), label = "팔로워", onClick = { onFollowListClick("followers") })
+                    ProfileInfoItem(count = user.followingCount.toString(), label = "팔로잉", onClick = { onFollowListClick("following") })
+                    ProfileInfoItem(
+                        count = user.readBookCount.toString(),
+                        label = "읽은 책",
+                        onClick = if (isMyProfile) onNavigateToMyBookList else null
                     )
                 }
-            }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            ReadingStreakSection(
-                attendanceDays = user.consecutiveDays,
-                readingDays = user.consecutiveReadingDays
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                ProfileInfoItem(count = user.followerCount.toString(), label = "팔로워", onClick = { onFollowListClick("followers") })
-                ProfileInfoItem(count = user.followingCount.toString(), label = "팔로잉", onClick = { onFollowListClick("following") })
-                ProfileInfoItem(
-                    count = user.readBookCount.toString(),
-                    label = "읽은 책",
-                    onClick = if (isMyProfile) onNavigateToMyBookList else null
-                )
-            }
-
-            if (!isMyProfile) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 32.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (isBlocked) {
-                        Button(
-                            onClick = onUnblockUser,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = DarkRed
-                            )
-                        ) {
-                            Text(text = "차단 해제")
-                        }
-                    } else {
-                        Button(
-                            onClick = { if (isFollowing) onUnfollowClick() else onFollowClick() },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isFollowing) MaterialTheme.colorScheme.secondary else DarkRed,
-                                contentColor = if (isFollowing) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onPrimary
-                            )
-                        ) {
-                            Text(text = if (isFollowing) "언팔로우" else "팔로우")
-                        }
-                        OutlinedButton(
-                            onClick = onBlockUser,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                        ) {
-                            Text(text = "차단하기", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        OutlinedButton(
-                            onClick = onReportUser,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
-                            border = BorderStroke(1.dp, DarkRed)
-                        ) {
-                            Text(text = "신고하기", color = DarkRed)
-                        }
+                // 팔로우 버튼 (다른 사용자 프로필일 때만)
+                if (!isMyProfile && !isBlocked) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = { if (isFollowing) onUnfollowClick() else onFollowClick() },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 32.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isFollowing) MaterialTheme.colorScheme.secondary else DarkRed,
+                            contentColor = if (isFollowing) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onPrimary
+                        )
+                    ) {
+                        Text(text = if (isFollowing) "팔로잉" else "팔로우")
                     }
                 }
             }
