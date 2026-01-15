@@ -54,11 +54,123 @@ import com.route.readers.ui.screens.bookclub.BookClubDetailScreen
 import com.route.readers.ui.theme.PrimaryRed
 import kotlinx.coroutines.delay
 
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+
 // Premium Theme Colors Local Definitions
 private val PremiumBackground = Color.White
 private val PremiumText = Color(0xFF333333)
 private val PremiumGold = Color(0xFFD4AF37)
 private val PremiumBurgundy = PrimaryRed
+
+@Composable
+fun ChallengeSuccessDialog(
+    challenge: Challenge,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.8f))
+                .clickable(onClick = onDismiss),
+            contentAlignment = Alignment.Center
+        ) {
+            val infiniteTransition = rememberInfiniteTransition(label = "success_anim")
+            
+            val scale by infiniteTransition.animateFloat(
+                initialValue = 0.9f,
+                targetValue = 1.1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1500, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "scale"
+            )
+
+            val rotate by infiniteTransition.animateFloat(
+                initialValue = -5f,
+                targetValue = 5f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(2000, easing = LinearEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "rotate"
+            )
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .padding(32.dp)
+                    .scale(scale)
+                    .rotate(rotate)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = PremiumGold,
+                    modifier = Modifier.size(100.dp)
+                )
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                Text(
+                    text = "챌린지 달성!",
+                    color = PremiumGold,
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Serif
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Text(
+                    text = challenge.title,
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.Center
+                )
+                
+                Spacer(modifier = Modifier.height(32.dp))
+                
+                Card(
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = PremiumBurgundy),
+                    border = BorderStroke(2.dp, PremiumGold)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "+ ${challenge.reward}",
+                            color = PremiumGold,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(48.dp))
+                
+                Text(
+                    text = "화면을 터치하여 계속하기",
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 14.sp
+                )
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -189,6 +301,14 @@ fun CommunityScreen(
                 )
             }
         }
+    }
+
+    // 챌린지 달성 팝업
+    uiState.completedChallenge?.let { challenge ->
+        ChallengeSuccessDialog(
+            challenge = challenge,
+            onDismiss = { viewModel.dismissCompletionPopup() }
+        )
     }
 
     if (showCreateBookClubDialog) {

@@ -41,7 +41,8 @@ data class CommunityUiState(
     val friendToDelete: User? = null, // Changed to User?
     val notifyingFriendId: String? = null,
     val isNotificationSending: Boolean = false,
-    val consecutiveReadingDays: Int = 0
+    val consecutiveReadingDays: Int = 0,
+    val completedChallenge: Challenge? = null // For success popup
 ) {
     val displayedFriends: List<User> = friends.take(5) // Changed to List<User>
     val hasMoreFriends: Boolean = friends.size > 5
@@ -63,6 +64,8 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val _uiState = MutableStateFlow(CommunityUiState())
     val uiState: StateFlow<CommunityUiState> = _uiState.asStateFlow()
+
+    private val notifiedChallengeIds = mutableSetOf<String>()
 
     init {
         viewModelScope.launch {
@@ -93,6 +96,17 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
                         userActiveChallenges = challenges,
                         isChallengesLoading = false
                     )
+                    
+                    // Check for challenge completion
+                    viewModelScope.launch {
+                        challenges.forEach { challenge ->
+                            val (current, total) = getChallengeProgress(challenge)
+                            if (current >= total && total > 0 && !notifiedChallengeIds.contains(challenge.id)) {
+                                notifiedChallengeIds.add(challenge.id)
+                                _uiState.value = _uiState.value.copy(completedChallenge = challenge)
+                            }
+                        }
+                    }
                 }
                 .launchIn(viewModelScope)
         }
@@ -100,6 +114,10 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
         loadFriends()
         loadConsecutiveReadingDays()
         refreshChallenges() // Load available challenges initially
+    }
+
+    fun dismissCompletionPopup() {
+        _uiState.value = _uiState.value.copy(completedChallenge = null)
     }
 
 
