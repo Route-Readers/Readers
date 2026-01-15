@@ -145,18 +145,18 @@ fun ReadingTimerScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
+                        contentDescription = "닫기",
                         tint = Color.Black,
                         modifier = Modifier.size(28.dp)
                     )
                 }
                 TextButton(onClick = { showFinishDialog = true }) {
                     Text(
-                        text = "DONE",
+                        text = "독서 종료",
                         color = PrimaryRed,
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
+                        letterSpacing = 0.5.sp
                     )
                 }
             }
@@ -176,7 +176,7 @@ fun ReadingTimerScreen(
                 Text(
                     text = book.title,
                     fontFamily = FontFamily.Serif,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
                     fontSize = 26.sp,
                     textAlign = TextAlign.Center,
                     color = Color.Black,
@@ -189,7 +189,8 @@ fun ReadingTimerScreen(
                     text = book.author,
                     fontSize = 16.sp,
                     color = Color.Gray,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Medium
                 )
             }
 
@@ -213,7 +214,7 @@ fun ReadingTimerScreen(
 
                 val pulseAlpha by infiniteTransition.animateFloat(
                     initialValue = 0f,
-                    targetValue = if (isRunning) 0.1f else 0f,
+                    targetValue = if (isRunning) 0.12f else 0f,
                     animationSpec = infiniteRepeatable(
                         animation = tween(2000, easing = FastOutSlowInEasing),
                         repeatMode = RepeatMode.Reverse
@@ -260,17 +261,17 @@ fun ReadingTimerScreen(
                 ) {
                     Text(
                         text = String.format("%02d:%02d", minutes, remainingSeconds),
-                        fontSize = 64.sp,
+                        fontSize = 68.sp,
                         fontWeight = FontWeight.Light,
                         fontFamily = FontFamily.SansSerif,
                         color = PrimaryRed,
-                        letterSpacing = 2.sp
+                        letterSpacing = 1.sp
                     )
                     Text(
-                        text = "${book.progressPercentage}% Completed",
+                        text = "${book.progressPercentage}% 완료됨",
                         fontSize = 14.sp,
                         color = Color(0xFF888888),
-                        fontWeight = FontWeight.Medium,
+                        fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(top = 8.dp)
                     )
                 }
@@ -281,12 +282,12 @@ fun ReadingTimerScreen(
             // Play/Pause Button
             Box(
                 modifier = Modifier
-                    .size(80.dp)
+                    .size(84.dp)
                     .shadow(
-                        elevation = 8.dp,
+                        elevation = 10.dp,
                         shape = CircleShape,
-                        spotColor = PrimaryRed.copy(alpha = 0.2f),
-                        ambientColor = PrimaryRed.copy(alpha = 0.1f)
+                        spotColor = PrimaryRed.copy(alpha = 0.25f),
+                        ambientColor = PrimaryRed.copy(alpha = 0.15f)
                     )
                     .clip(CircleShape)
                     .background(Color.White)
@@ -295,9 +296,9 @@ fun ReadingTimerScreen(
             ) {
                 Icon(
                     imageVector = if (isRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (isRunning) "Pause" else "Play",
+                    contentDescription = if (isRunning) "일시정지" else "시작",
                     tint = PrimaryRed,
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(40.dp)
                 )
             }
 
@@ -308,8 +309,19 @@ fun ReadingTimerScreen(
     if (showFinishDialog) {
         AlertDialog(
             onDismissRequest = { showFinishDialog = false },
-            title = { Text("Session Complete", fontWeight = FontWeight.Bold) },
-            text = { Text("You've read for $minutes minutes. Save this session?") },
+            title = { 
+                Text(
+                    "독서 세션 종료", 
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Default
+                ) 
+            },
+            text = { 
+                Text(
+                    "약 ${minutes}분 동안 독서하셨습니다.\n이 기록을 저장하고 종료하시겠습니까?",
+                    fontFamily = FontFamily.Default
+                ) 
+            },
             confirmButton = {
                 Button(
                     onClick = {
@@ -317,17 +329,22 @@ fun ReadingTimerScreen(
                         TimerState.setState(book.isbn, false, 0)
                         onFinishReading(seconds)
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed)
-                ) { Text("Save & Finish") }
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryRed),
+                    shape = RoundedCornerShape(10.dp)
+                ) { 
+                    Text("저장 및 종료", fontWeight = FontWeight.Bold) 
+                }
             },
             dismissButton = {
                 TextButton(onClick = { showFinishDialog = false }) {
-                    Text("Cancel", color = Color.Gray)
+                    Text("취소", color = Color.Gray, fontWeight = FontWeight.Medium)
                 }
             },
-            containerColor = Color.White
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp)
         )
     }
+}
 }
 
 // 독서 세션을 Firestore에 저장하는 함수

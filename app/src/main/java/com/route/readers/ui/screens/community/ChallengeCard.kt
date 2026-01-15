@@ -55,7 +55,7 @@ fun SwipeableChallengeCard(
     userChallenges: List<Challenge>,
     availableChallenges: List<Challenge>,
     onChallengeSelected: (Challenge) -> Unit,
-    onChallengeReset: (String) -> Unit, // Modified to accept challengeId for reset
+    onChallengeReset: (String) -> Unit,
     currentUserId: String,
     isChallengesLoading: Boolean,
     consecutiveReadingDays: Int,
@@ -63,27 +63,8 @@ fun SwipeableChallengeCard(
     challengeViewModel: com.route.readers.ui.screens.challenge.ChallengeViewModel? = null,
     startInSelectionMode: Boolean = false
 ) {
-    var cardState by remember { mutableStateOf(ChallengeCardState.INITIAL) }
-
-    // Revert to original logic: when challenges become empty, go to INITIAL state.
-    LaunchedEffect(userChallenges) {
-        if (userChallenges.isNotEmpty()) {
-            cardState = ChallengeCardState.ACTIVE
-        } else {
-            // This ensures that leaving a challenge returns to the initial swipe card.
-            if (cardState == ChallengeCardState.ACTIVE) {
-                cardState = ChallengeCardState.INITIAL
-            }
-        }
-    }
-
-    // New effect to handle starting directly in selection mode for the trophy tab
-    LaunchedEffect(startInSelectionMode, userChallenges) {
-        if (startInSelectionMode && userChallenges.isEmpty()) {
-            cardState = ChallengeCardState.SELECTING
-        }
-    }
-
+    // UI state for selection, using rememberSaveable to survive tab switching
+    var isSelectionMode by rememberSaveable { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -91,61 +72,42 @@ fun SwipeableChallengeCard(
             .height(220.dp),
         contentAlignment = Alignment.Center
     ) {
-        // While loading, if we don't have a challenge to show, display a progress indicator.
         if (isChallengesLoading && userChallenges.isEmpty()) {
             CircularProgressIndicator(color = PremiumBurgundy)
-        } else {
-            when (cardState) {
-                ChallengeCardState.INITIAL -> {
-                    // For the trophy tab, if it accidentally gets here, auto-swipe.
-                    if (startInSelectionMode) {
-                        LaunchedEffect(Unit) {
-                            cardState = ChallengeCardState.SELECTING
-                        }
-                    }
-                    InitialChallengeCard(
-                        onSwipe = {
-                            cardState = ChallengeCardState.SELECTING
-                        }
-                    )
-                }
-                ChallengeCardState.SELECTING -> {
-                    ChallengeSelectionCard(
-                        challenges = availableChallenges,
-                        onSelect = { challenge ->
-                            onChallengeSelected(challenge)
-                            cardState = ChallengeCardState.ACTIVE
+        } else if (userChallenges.isNotEmpty()) {
+            // User has active challenges - always show them
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(userChallenges, key = { it.id }) { challenge ->
+                    ActiveChallengeCard(
+                        challenge = challenge,
+                        currentUserId = currentUserId,
+                        consecutiveReadingDays = consecutiveReadingDays,
+                        onReset = {
+                            onChallengeReset(challenge.id)
+                            isSelectionMode = false
                         }
                     )
-                }
-                ChallengeCardState.ACTIVE -> {
-                    if (userChallenges.isNotEmpty()) {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(userChallenges, key = { it.id }) { challenge ->
-                                ActiveChallengeCard(
-                                    challenge = challenge,
-                                    currentUserId = currentUserId,
-                                    consecutiveReadingDays = consecutiveReadingDays,
-                                    onReset = {
-                                        onChallengeReset(challenge.id)
-                                        cardState = ChallengeCardState.INITIAL
-                                    }
-                                )
-                            }
-                        }
-                    } else {
-                        // This case should ideally not be reached if userChallenges is correctly managed by ViewModel
-                        // but as a fallback, go back to initial.
-                        LaunchedEffect(Unit) {
-                            cardState = ChallengeCardState.INITIAL
-                        }
-                    }
                 }
             }
+        } else if (isSelectionMode || startInSelectionMode) {
+            // No active challenges and in selection mode
+            ChallengeSelectionCard(
+                challenges = availableChallenges,
+                onSelect = { challenge ->
+                    onChallengeSelected(challenge)
+                    isSelectionMode = false
+                }
+            )
+        } else {
+            // Initial invitation card
+            InitialChallengeCard(
+                onSwipe = {
+                    isSelectionMode = true
+                }
+            )
         }
     }
 }

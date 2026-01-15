@@ -4,115 +4,24 @@ import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Lockimport androidx.compose.material.icons.filled.MoreVertimport androidx.compose.material3.DropdownMenuimport androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material.icons.rounded.AutoStories
-import androidx.compose.material.icons.rounded.Bookmark
-import androidx.compose.material.icons.rounded.EmojiEvents
-import androidx.compose.material.icons.rounded.FavoriteBorder
-import androidx.compose.material.icons.rounded.GridView
-import androidx.compose.material.icons.rounded.LocalFireDepartment
-import androidx.compose.material.icons.rounded.WorkspacePremium
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SecondaryTabRow
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
-import androidx.compose.material3.TabRowDefaults
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import com.route.readers.R
-import com.route.readers.data.model.Book
-import com.route.readers.data.model.Challenge
-import com.route.readers.data.model.ChallengeType
-import com.route.readers.data.model.User
-import com.route.readers.ui.components.AdBanner
-import com.route.readers.ui.screens.feed.FeedCard
-import com.route.readers.ui.screens.feed.FeedItem
-import com.route.readers.ui.screens.feed.FeedViewModel
-import com.route.readers.ui.screens.profile.PostsSection
-import com.route.readers.ui.screens.profile.Goal
-import com.route.readers.ui.screens.profile.calculateLevelInfo
-import com.route.readers.ui.theme.DarkRed
-import kotlinx.coroutines.launch
-import kotlin.text.isNotEmpty
-import kotlin.text.toFloat
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.text.font.FontFamily
 
-import androidx.compose.foundation.layout.WindowInsets
+val Gold = Color(0xFFD4AF37)
+val Burgundy = Color(0xFF800020)
+val PremiumGradient = Brush.linearGradient(
+    colors = listOf(Burgundy, Color(0xFF500010)),
+    start = Offset(0f, 0f),
+    end = Offset(1000f, 1000f)
+)
+val CardShadow = Shadow(
+    color = Color.Black.copy(alpha = 0.25f),
+    offset = Offset(0f, 4f),
+    blurRadius = 8f
+)
 
 @Composable
 fun ProfileScreen(
@@ -155,21 +64,24 @@ fun ProfileScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        containerColor = Color.White // Set background to White
     ) { paddingValues ->
         Box(
             modifier = Modifier
-                .fillMaxSize().padding(paddingValues),
+                .fillMaxSize()
+                .padding(paddingValues)
+                .background(Color.White), // Ensure background is White
             contentAlignment = Alignment.Center
         ) {
             when (val state = uiState) {
-                is ProfileUiState.Loading -> CircularProgressIndicator()
+                is ProfileUiState.Loading -> CircularProgressIndicator(color = Burgundy)
                 is ProfileUiState.Error -> Text(text = state.message)
                 is ProfileUiState.Success -> {
                     val levelInfo = calculateLevelInfo(state.user.totalPoints, state.user.level)
                     ProfileContent(
                         state = state,
-                        level = levelInfo.currentLevel,
+                        levelInfo = levelInfo, // Pass LevelInfo object
                         viewModel = viewModel,
                         onFollowClick = {
                             viewModel.followUser(state.user.uid)
@@ -214,7 +126,7 @@ fun ProfileScreen(
 @Composable
 fun ProfileContent(
     state: ProfileUiState.Success,
-    level: Int,
+    levelInfo: LevelInfo, // Changed from level: Int
     viewModel: ProfileViewModel,
     onFollowClick: () -> Unit,
     onUnfollowClick: () -> Unit,
@@ -262,13 +174,13 @@ fun ProfileContent(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(top = 8.dp, bottom = 0.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp), // Increased spacing
+        contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)
     ) {
         item {
             ProfileInfoSection(
                 user = user,
-                level = level,
+                levelInfo = levelInfo, // Pass levelInfo
                 isMyProfile = state.isMyProfile,
                 isFollowing = state.isFollowing,
                 isBlocked = state.isBlocked,
@@ -319,25 +231,37 @@ fun ProfileContent(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    colors = CardDefaults.cardColors(containerColor = Color.White), // White background for tabs
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    border = BorderStroke(1.dp, Color(0xFFEEEEEE))
                 ) {
                     TabRow(
                         selectedTabIndex = selectedTabIndex,
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        contentColor = DarkRed,
+                        containerColor = Color.Transparent,
+                        contentColor = Burgundy,
                         indicator = { tabPositions ->
                             TabRowDefaults.Indicator(
                                 Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
-                                color = DarkRed
+                                color = Burgundy,
+                                height = 3.dp
                             )
-                        }
+                        },
+                        divider = {}
                     ) {
                         tabs.forEachIndexed { index, title ->
                             Tab(
                                 selected = selectedTabIndex == index,
                                 onClick = { selectedTabIndex = index },
-                                text = { Text(text = title, fontSize = 14.sp, fontWeight = FontWeight.Medium) }
+                                text = { 
+                                    Text(
+                                        text = title, 
+                                        fontSize = 15.sp, 
+                                        fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Medium,
+                                        fontFamily = if (selectedTabIndex == index) FontFamily.Default else FontFamily.Serif
+                                    ) 
+                                },
+                                selectedContentColor = Burgundy,
+                                unselectedContentColor = Color.Gray
                             )
                         }
                     }
@@ -346,6 +270,7 @@ fun ProfileContent(
 
             // Contents of the tabs
             when (selectedTabIndex) {
+
                 0 -> {
                     val myPosts = state.myPosts.filterIsInstance<FeedItem.BookReview>()
                     if (myPosts.isEmpty()) {
@@ -439,40 +364,58 @@ fun AchievementsSection(
     Column(modifier = Modifier.fillMaxWidth()) {
         TabRow(
             selectedTabIndex = selectedTabIndex,
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = DarkRed,
+            containerColor = Color.Transparent,
+            contentColor = Burgundy,
             indicator = { tabPositions ->
                 TabRowDefaults.Indicator(
                     Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
-                    color = DarkRed
+                    color = Burgundy
                 )
-            }
+            },
+            divider = {}
         ) {
             tabs.forEachIndexed { index, title ->
                 Tab(
                     selected = selectedTabIndex == index,
                     onClick = { selectedTabIndex = index },
-                    text = { Text(text = title) }
+                    text = { 
+                        Text(
+                            text = title,
+                            fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Medium,
+                            fontFamily = if (selectedTabIndex == index) FontFamily.Default else FontFamily.Serif
+                        )
+                    },
+                    selectedContentColor = Burgundy,
+                    unselectedContentColor = Color.Gray
                 )
             }
         }
 
         TabRow(
             selectedTabIndex = selectedCategoryIndex,
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = DarkRed,
+            containerColor = Color.Transparent,
+            contentColor = Burgundy,
             indicator = { tabPositions ->
                 TabRowDefaults.Indicator(
                     Modifier.tabIndicatorOffset(tabPositions[selectedCategoryIndex]),
-                    color = DarkRed
+                    color = Burgundy
                 )
-            }
+            },
+            divider = {}
         ) {
             categories.forEachIndexed { index, title ->
                 Tab(
                     selected = selectedCategoryIndex == index,
                     onClick = { selectedCategoryIndex = index },
-                    text = { Text(text = title) }
+                    text = { 
+                        Text(
+                            text = title,
+                            fontWeight = if (selectedCategoryIndex == index) FontWeight.Bold else FontWeight.Medium,
+                            fontFamily = if (selectedCategoryIndex == index) FontFamily.Default else FontFamily.Serif
+                        )
+                    },
+                    selectedContentColor = Burgundy,
+                    unselectedContentColor = Color.Gray
                 )
             }
         }
@@ -485,7 +428,7 @@ fun AchievementsSection(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
                 .padding(top = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             if (achievementsToShow.isEmpty()) {
                 Text(
@@ -502,6 +445,7 @@ fun AchievementsSection(
                         text = category,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Serif,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
                     achievements.forEach { achievement ->
@@ -520,68 +464,99 @@ fun AchievementItem(achievement: Achievement, onClick: () -> Unit) {
     val progress = (achievement.currentProgress.toFloat() / achievement.targetProgress.toFloat()).coerceIn(0f, 1f)
     val isCompleted = achievement.isCompleted
 
-    val cardBackgroundColor = if (isCompleted) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surface
-    val cardBorderColor = if (isCompleted) Color(0xFFC8E6C9) else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-    val progressColor = if (isCompleted) Color(0xFF4CAF50) else DarkRed
-
+    // Premium Card Style
+    val cardBackgroundColor = Color.White
+    val cardBorder = if (isCompleted) BorderStroke(1.dp, Gold) else BorderStroke(1.dp, Color(0xFFEEEEEE))
+    
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = cardBackgroundColor),
-        border = BorderStroke(1.dp, cardBorderColor)
+        border = cardBorder,
+        elevation = CardDefaults.cardElevation(defaultElevation = if(isCompleted) 4.dp else 1.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(text = achievement.title, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+                // Icon Placeholder (Badge)
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(if (isCompleted) Gold.copy(alpha = 0.1f) else Color.Gray.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.EmojiEvents,
+                        contentDescription = null,
+                        tint = if (isCompleted) Gold else Color.Gray,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = achievement.title, 
+                        fontWeight = FontWeight.Bold, 
+                        fontSize = 16.sp, 
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = achievement.description, 
+                        fontSize = 13.sp, 
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 16.sp
+                    )
+                }
+                
                 if (isCompleted) {
                     Box(
                         modifier = Modifier
-                            .background(Color(0xFF4CAF50), RoundedCornerShape(8.dp))
+                            .background(Gold, RoundedCornerShape(20.dp))
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
-                        Text("완료", color = Color.White, fontSize = 12.sp)
+                        Text("COMPLETED", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
-            Text(text = achievement.description, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Progress",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "${(progress * 100).toInt()}%",
+                        fontSize = 12.sp,
+                        color = if(isCompleted) Gold else Burgundy,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "${achievement.currentProgress} / ${achievement.targetProgress}",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "${(progress * 100).toInt()}%",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Bold
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp)),
+                    color = if(isCompleted) Gold else Burgundy,
+                    trackColor = Color(0xFFF5F5F5)
                 )
             }
-
-            LinearProgressIndicator(
-                progress = { progress },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(10.dp)
-                    .clip(RoundedCornerShape(5.dp)),
-                color = progressColor,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-            )
         }
     }
 }
@@ -589,7 +564,7 @@ fun AchievementItem(achievement: Achievement, onClick: () -> Unit) {
 @Composable
 fun ProfileInfoSection(
     user: User,
-    level: Int,
+    levelInfo: LevelInfo,
     isMyProfile: Boolean,
     isFollowing: Boolean,
     isBlocked: Boolean,
@@ -606,70 +581,97 @@ fun ProfileInfoSection(
 ) {
     var showMoreMenu by remember { mutableStateOf(false) }
 
-    Card(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            .padding(horizontal = 16.dp)
+            // Soft shadow
+            .background(
+                color = Color.White,
+                shape = RoundedCornerShape(24.dp)
+            )
+            .border(
+                width = 1.dp,
+                color = Color(0xFFEEEEEE),
+                shape = RoundedCornerShape(24.dp)
+            )
+            .padding(1.dp) // inner border padding
     ) {
-        Box {
-            // 더보기 메뉴 (다른 사용자 프로필일 때만)
-            if (!isMyProfile) {
-                Box(modifier = Modifier.align(Alignment.TopEnd)) {
-                    IconButton(onClick = { showMoreMenu = true }) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "더보기",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = showMoreMenu,
-                        onDismissRequest = { showMoreMenu = false }
-                    ) {
-                        if (isFollowing) {
-                            DropdownMenuItem(
-                                text = { Text("언팔로우") },
-                                onClick = {
-                                    onUnfollowClick()
-                                    showMoreMenu = false
-                                }
+        // Gradient Card Background
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clip(RoundedCornerShape(24.dp))
+                .background(Brush.verticalGradient(
+                    colors = listOf(Color.White, Color(0xFFFAFAFA))
+                ))
+        )
+        
+        Column(
+            modifier = Modifier.padding(vertical = 24.dp, horizontal = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Header with Menu
+            Box(modifier = Modifier.fillMaxWidth()) {
+                 // 더보기 메뉴 (다른 사용자 프로필일 때만)
+                if (!isMyProfile) {
+                    Box(modifier = Modifier.align(Alignment.TopEnd)) {
+                        IconButton(onClick = { showMoreMenu = true }) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "더보기",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        if (isBlocked) {
-                            DropdownMenuItem(
-                                text = { Text("차단 해제") },
-                                onClick = {
-                                    onUnblockUser()
-                                    showMoreMenu = false
-                                }
-                            )
-                        } else {
-                            DropdownMenuItem(
-                                text = { Text("차단하기") },
-                                onClick = {
-                                    onBlockUser()
-                                    showMoreMenu = false
-                                }
-                            )
-                        }
-                        DropdownMenuItem(
-                            text = { Text("신고하기", color = DarkRed) },
-                            onClick = {
-                                onReportUser()
-                                showMoreMenu = false
+                        DropdownMenu(
+                            expanded = showMoreMenu,
+                            onDismissRequest = { showMoreMenu = false },
+                            modifier = Modifier.background(Color.White)
+                        ) {
+                            if (isFollowing) {
+                                DropdownMenuItem(
+                                    text = { Text("언팔로우") },
+                                    onClick = {
+                                        onUnfollowClick()
+                                        showMoreMenu = false
+                                    }
+                                )
                             }
-                        )
+                            if (isBlocked) {
+                                DropdownMenuItem(
+                                    text = { Text("차단 해제") },
+                                    onClick = {
+                                        onUnblockUser()
+                                        showMoreMenu = false
+                                    }
+                                )
+                            } else {
+                                DropdownMenuItem(
+                                    text = { Text("차단하기") },
+                                    onClick = {
+                                        onBlockUser()
+                                        showMoreMenu = false
+                                    }
+                                )
+                            }
+                            DropdownMenuItem(
+                                text = { Text("신고하기", color = Burgundy) },
+                                onClick = {
+                                    onReportUser()
+                                    showMoreMenu = false
+                                }
+                            )
+                        }
                     }
                 }
             }
 
+            // Profile Image & Info
             Column(
-                modifier = Modifier.padding(vertical = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.offset(y = (-20).dp) // Pull up slightly
             ) {
                 ProfileImage(
                     user = user,
@@ -678,59 +680,78 @@ fun ProfileInfoSection(
                         onNavigateToCustomization()
                     }
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(text = user.nickname, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    LevelChip(level = level, onClick = onNavigateToLevel)
+                
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = user.nickname, 
+                        fontSize = 24.sp, 
+                        fontWeight = FontWeight.Bold, 
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                     user.title?.let {
                         Text(
                             text = it,
                             style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(start = 8.dp)
+                            fontWeight = FontWeight.Medium,
+                            color = Burgundy,
+                            modifier = Modifier.padding(top = 4.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                // Premium Level Chip & XP
+                LevelChip(levelInfo = levelInfo, onClick = onNavigateToLevel)
+            }
 
-                ReadingStreakSection(
-                    attendanceDays = user.consecutiveDays,
-                    readingDays = user.consecutiveReadingDays
+            Divider(color = Color(0xFFEEEEEE), thickness = 1.dp)
+
+            // Stats Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ProfileInfoItem(count = user.followerCount.toString(), label = "Followers", onClick = { onFollowListClick("followers") })
+                // Divider
+                Box(modifier = Modifier.size(1.dp, 24.dp).background(Color(0xFFEEEEEE)))
+                ProfileInfoItem(count = user.followingCount.toString(), label = "Following", onClick = { onFollowListClick("following") })
+                // Divider
+                Box(modifier = Modifier.size(1.dp, 24.dp).background(Color(0xFFEEEEEE)))
+                ProfileInfoItem(
+                    count = user.readBookCount.toString(),
+                    label = "Books Read",
+                    onClick = if (isMyProfile) onNavigateToMyBookList else null
                 )
+            }
 
+            Spacer(modifier = Modifier.height(4.dp))
+
+            ReadingStreakSection(
+                attendanceDays = user.consecutiveDays,
+                readingDays = user.consecutiveReadingDays
+            )
+
+            // 팔로우 버튼 (다른 사용자 프로필일 때만)
+            if (!isMyProfile && !isBlocked) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
+                Button(
+                    onClick = { if (isFollowing) onUnfollowClick() else onFollowClick() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isFollowing) Color(0xFFF5F5F5) else Burgundy,
+                        contentColor = if (isFollowing) MaterialTheme.colorScheme.onSurface else Color.White
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = if (isFollowing) 0.dp else 4.dp)
                 ) {
-                    ProfileInfoItem(count = user.followerCount.toString(), label = "팔로워", onClick = { onFollowListClick("followers") })
-                    ProfileInfoItem(count = user.followingCount.toString(), label = "팔로잉", onClick = { onFollowListClick("following") })
-                    ProfileInfoItem(
-                        count = user.readBookCount.toString(),
-                        label = "읽은 책",
-                        onClick = if (isMyProfile) onNavigateToMyBookList else null
+                    Text(
+                        text = if (isFollowing) "Following" else "Follow",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
                     )
-                }
-
-                // 팔로우 버튼 (다른 사용자 프로필일 때만)
-                if (!isMyProfile && !isBlocked) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = { if (isFollowing) onUnfollowClick() else onFollowClick() },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 32.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isFollowing) MaterialTheme.colorScheme.secondary else DarkRed,
-                            contentColor = if (isFollowing) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onPrimary
-                        )
-                    ) {
-                        Text(text = if (isFollowing) "팔로잉" else "팔로우")
-                    }
                 }
             }
         }
@@ -814,69 +835,6 @@ fun GoalSettingSection(
                 tint = DarkRed
             )
         }
-    }
-}
-
-@Composable
-fun ReadingStreakSection(attendanceDays: Int, readingDays: Int) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
-        elevation = CardDefaults.cardElevation(0.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            StreakItem(
-                icon = Icons.Rounded.LocalFireDepartment,
-                label = "연속 출석",
-                days = attendanceDays,
-                iconColor = Color(0xFF81C784)
-            )
-            StreakItem(
-                icon = Icons.Rounded.LocalFireDepartment,
-                label = "연속 독서",
-                days = readingDays,
-                iconColor = Color(0xFFE57373)
-            )
-        }
-    }
-}
-
-@Composable
-fun StreakItem(icon: ImageVector, label: String, days: Int, iconColor: Color) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = iconColor,
-                modifier = Modifier.size(20.dp)
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-        Text(
-            text = "$days 일",
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.onSurface
-        )
     }
 }
 
@@ -1116,30 +1074,150 @@ fun ProfileImage(
 }
 
 @Composable
-fun ProfileInfoItem(count: String, label: String, onClick: (() -> Unit)? = null) {
-    val modifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier.padding(4.dp)) {
-        Text(text = count, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = DarkRed)
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(text = label, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+fun LevelChip(levelInfo: LevelInfo, onClick: () -> Unit) {
+    val currentXp = levelInfo.currentPoints
+    val requiredXp = levelInfo.pointsForNextLevel
+    val progress = if (requiredXp > 0) currentXp.toFloat() / requiredXp.toFloat() else 0f
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        // Level Badge
+        Box(
+            modifier = Modifier
+                .border(1.dp, Gold, CircleShape)
+                .background(Color.White, CircleShape)
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.WorkspacePremium,
+                    contentDescription = null,
+                    tint = Gold,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = "LV.${levelInfo.currentLevel}",
+                    color = Burgundy,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+        }
+
+        // Sleek XP Progress Bar
+        Box(
+            modifier = Modifier
+                .width(100.dp)
+                .height(4.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(Color(0xFFEEEEEE))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(progress)
+                    .background(Gold)
+            )
+        }
     }
 }
 
 @Composable
-fun Chip(label: String, onClick: (() -> Unit)? = null) {
-    val modifier = if (onClick != null) {
-        Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-    } else {
-        Modifier
+fun ProfileInfoItem(count: String, label: String, onClick: (() -> Unit)? = null) {
+    val modifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier.padding(8.dp)) {
+        Text(
+            text = count, 
+            fontSize = 20.sp, 
+            fontWeight = FontWeight.Bold, 
+            color = MaterialTheme.colorScheme.onSurface,
+            fontFamily = FontFamily.Default
+        )
+        Text(
+            text = label.uppercase(), 
+            fontSize = 11.sp, 
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Medium,
+            letterSpacing = 1.sp
+        )
     }
+}
+
+@Composable
+fun ReadingStreakSection(attendanceDays: Int, readingDays: Int) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        PremiumStreakItem(
+            modifier = Modifier.weight(1f),
+            icon = Icons.Rounded.LocalFireDepartment,
+            label = "Streak",
+            days = attendanceDays,
+            color = Color(0xFFE57373)
+        )
+        PremiumStreakItem(
+            modifier = Modifier.weight(1f),
+            icon = Icons.Rounded.AutoStories,
+            label = "Reading",
+            days = readingDays,
+            color = Color(0xFF81C784)
+        )
+    }
+}
+
+@Composable
+fun PremiumStreakItem(
+    modifier: Modifier = Modifier,
+    icon: ImageVector,
+    label: String,
+    days: Int,
+    color: Color
+) {
     Box(
         modifier = modifier
-            .background(color = DarkRed.copy(alpha = 0.1f), shape = RoundedCornerShape(12.dp))
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFFF9F9F9))
+            .padding(vertical = 12.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Text(text = label, color = DarkRed, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = color,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.Gray,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Text(
+                text = "$days Days",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
     }
 }
 
@@ -1274,21 +1352,20 @@ fun ChallengeItem(challenge: Challenge, onClick: () -> Unit, userId: String) {
                         tint = Color(0xFF27AE60)
                     )
                 } else {
-                    val userProgress = (challenge.progress[userId] as? Number)?.toInt() ?: 0 // This is total pages read for the challenge.
+                    val userProgress = (challenge.progress[userId] as? Number)?.toInt() ?: 0
 
                     val (currentProgressValue, totalGoalValue, progressUnit) = when (challenge.type) {
                         ChallengeType.DAILY_PAGES_READING -> {
-                            // Calculate how many days the daily goal has been met
                             val dailyGoalMetDays = challenge.dailyProgress[userId]?.values?.count { pages ->
                                 (pages as? Number)?.toInt() ?: 0 >= challenge.goal
                             } ?: 0
-                            Triple(dailyGoalMetDays, 7, "일") // X/7 일 완료
+                            Triple(dailyGoalMetDays, 7, "일")
                         }
                         ChallengeType.CONSECUTIVE_READING, ChallengeType.CONSECUTIVE_READING_WITH_FRIEND -> {
-                            Triple(userProgress, 7, "일") // X/7 일 완료 (consecutive days)
+                            Triple(userProgress, 7, "일")
                         }
                         else -> {
-                            Triple(userProgress, challenge.goal, "일") // Default for other types (e.g., total pages read for a book challenge)
+                            Triple(userProgress, challenge.goal, "일")
                         }
                     }
                     val overallProgressFraction = if (totalGoalValue > 0) currentProgressValue.toFloat() / totalGoalValue.toFloat() else 0f
@@ -1299,7 +1376,7 @@ fun ChallengeItem(challenge: Challenge, onClick: () -> Unit, userId: String) {
             }
             Text(text = challenge.description, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
-            val userProgress = (challenge.progress[userId] as? Number)?.toInt() ?: 0 // Redundant, but needed for type inference
+            val userProgress = (challenge.progress[userId] as? Number)?.toInt() ?: 0
             val (currentProgressValue, totalGoalValue, progressUnit) = when (challenge.type) {
                 ChallengeType.DAILY_PAGES_READING -> {
                     val dailyGoalMetDays = challenge.dailyProgress[userId]?.values?.count { pages ->
@@ -1406,32 +1483,5 @@ fun PrivateProfileContent() {
         )
         Text("비공개 계정입니다.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp)
         Text("콘텐츠를 보려면 이 계정을 팔로우하세요.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
-    }
-}
-
-@Composable
-fun LevelChip(level: Int, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .clip(CircleShape)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(24.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primary),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = level.toString(),
-                color = MaterialTheme.colorScheme.onPrimary,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
-            )
-        }
     }
 }
