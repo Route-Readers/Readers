@@ -18,7 +18,6 @@ import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.MenuBook
-import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Delete
@@ -26,9 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import android.widget.Toast
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,6 +34,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -55,6 +53,12 @@ import com.route.readers.ui.screens.bookclub.BookClubChatScreen
 import com.route.readers.ui.screens.bookclub.BookClubDetailScreen
 import com.route.readers.ui.theme.PrimaryRed
 import kotlinx.coroutines.delay
+
+// Premium Theme Colors Local Definitions
+private val PremiumBackground = Color.White
+private val PremiumText = Color(0xFF333333)
+private val PremiumGold = Color(0xFFD4AF37)
+private val PremiumBurgundy = PrimaryRed
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,18 +115,17 @@ fun CommunityScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(PremiumBackground)
     ) {
         if (showChatScreen == null) {
-            Spacer(modifier = Modifier.height(16.dp))
+            // Spacer(modifier = Modifier.height(16.dp)) // Removed top spacer for cleaner look
 
             if (uiState.isFriendsLoading || uiState.isBookClubsLoading) {
                 LinearProgressIndicator(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
+                        .fillMaxWidth(),
+                    color = PremiumBurgundy
                 )
-                Spacer(modifier = Modifier.height(12.dp))
             }
         }
 
@@ -201,8 +204,9 @@ fun CommunityScreen(
     uiState.friendToDelete?.let { user ->
         AlertDialog(
             onDismissRequest = { viewModel.cancelDeleteFriend() },
-            title = { Text("친구 삭제") },
+            title = { Text("친구 삭제", fontFamily = FontFamily.Serif) },
             text = { Text("${user.nickname}님을 친구에서 삭제하시겠습니까?") },
+            containerColor = Color.White,
             confirmButton = {
                 TextButton(onClick = { viewModel.confirmDeleteFriend() }) {
                     Text("삭제", color = MaterialTheme.colorScheme.error)
@@ -210,7 +214,7 @@ fun CommunityScreen(
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.cancelDeleteFriend() }) {
-                    Text("취소")
+                    Text("취소", color = PremiumText)
                 }
             }
         )
@@ -238,8 +242,9 @@ fun CommunityContent(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        state = listState
+        contentPadding = PaddingValues(top = 24.dp, bottom = 24.dp, start = 16.dp, end = 16.dp),
+        state = listState,
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         // 챌린지 카드
         item {
@@ -253,101 +258,133 @@ fun CommunityContent(
                 consecutiveReadingDays = uiState.consecutiveReadingDays,
                 communityViewModel = communityViewModel
             )
-            Spacer(modifier = Modifier.height(24.dp))
         }
 
-        // 친구 목록 헤더
+        // 친구 목록 섹션
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Group,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "내 친구들 (${uiState.friends.size})",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium
-                    )
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Group,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = PremiumGold
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "내 친구들",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Serif,
+                            color = PremiumText
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            "(${uiState.friends.size})",
+                            fontSize = 16.sp,
+                            color = Color.Gray,
+                            fontFamily = FontFamily.Serif
+                        )
+                    }
+                    if (uiState.hasMoreFriends) {
+                        TextButton(onClick = onNavigateToFriendsList) {
+                            Text("전체보기", color = Color.Gray, fontSize = 12.sp)
+                        }
+                    }
                 }
-                if (uiState.hasMoreFriends) {
-                    TextButton(onClick = onNavigateToFriendsList) {
-                        Text("전체보기", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (uiState.isFriendsLoading) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        repeat(3) {
+                            FriendPlaceholderRow()
+                        }
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        uiState.displayedFriends.forEach { friend ->
+                            SwipeableFriendItem(
+                                friend = friend,
+                                onNotifyClick = { onSendNotificationToFriend(friend.uid) },
+                                onDeleteClick = { onRemoveFriend(friend) },
+                                onProfileClick = { onNavigateToUserProfile(friend.uid) },
+                                hasReadToday = uiState.friendsReadingStatus[friend.uid] ?: false,
+                                isNotifying = uiState.notifyingFriendId == friend.uid
+                            )
+                        }
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
         }
 
-        if (uiState.isFriendsLoading) {
-            items(3) {
-                FriendPlaceholderRow()
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-        } else {
-            items(uiState.displayedFriends) { friend ->
-                SwipeableFriendItem(
-                    friend = friend,
-                    onNotifyClick = { onSendNotificationToFriend(friend.uid) },
-                    onDeleteClick = { onRemoveFriend(friend) },
-                    onProfileClick = { onNavigateToUserProfile(friend.uid) },
-                    hasReadToday = uiState.friendsReadingStatus[friend.uid] ?: false,
-                    isNotifying = uiState.notifyingFriendId == friend.uid
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-        }
-
+        // 북클럽 섹션
         item {
-            Spacer(modifier = Modifier.height(24.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Default.Book,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    "북클럽",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-        }
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Book,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = PremiumGold
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "북클럽",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Serif,
+                        color = PremiumText
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
 
-        if (uiState.isBookClubsLoading) {
-            items(2) {
-                BookClubPlaceholderCard()
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-        } else {
-            items(bookClubs) { bookClub ->
-                BookClubCard(
-                    bookClub = bookClub,
-                    onClick = { onBookClubClick(bookClub) }
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-        }
+                if (uiState.isBookClubsLoading) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        repeat(2) {
+                            BookClubPlaceholderCard()
+                        }
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        bookClubs.forEach { bookClub ->
+                            // Wrap BookClubCard with a custom styling since we can't easily modify the component
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .wrapContentHeight(),
+                                shape = RoundedCornerShape(12.dp),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFFE0E0E0))
+                            ) {
+                                BookClubCard(
+                                    bookClub = bookClub,
+                                    onClick = { onBookClubClick(bookClub) }
+                                )
+                            }
+                        }
+                    }
+                }
 
-        item {
-            TextButton(
-                onClick = onShowCreateBookClubDialog,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("+ 새 북클럽 만들기")
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                OutlinedButton(
+                    onClick = onShowCreateBookClubDialog,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, PremiumBurgundy),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = PremiumBurgundy)
+                ) {
+                    Text("+ 새 북클럽 만들기", fontWeight = FontWeight.Medium)
+                }
             }
         }
     }
@@ -362,60 +399,68 @@ fun SwipeableFriendItem(
     hasReadToday: Boolean = false,
     isNotifying: Boolean = false
 ) {
-    Row(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onProfileClick() }
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .clickable { onProfileClick() },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFAFAFA)),
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFFEEEEEE))
     ) {
-        UserProfileImage(user = friend, size = 48.dp)
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                friend.nickname,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-        }
-
-        if (isNotifying) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(24.dp),
-                strokeWidth = 2.dp
-            )
-        } else if (hasReadToday) {
-            Icon(
-                Icons.Default.MenuBook,
-                contentDescription = "오늘 독서 완료",
-                tint = MaterialTheme.colorScheme.error,
-                modifier = Modifier.size(24.dp)
-            )
-        } else {
-            IconButton(
-                onClick = onNotifyClick,
-                modifier = Modifier.size(24.dp)
-            ) {
-                Icon(
-                    Icons.Default.Notifications,
-                    contentDescription = "독서 알림 보내기",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+        Row(
+            modifier = Modifier
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            UserProfileImage(user = friend, size = 48.dp)
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    friend.nickname,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = PremiumText
                 )
             }
-        }
 
-        Spacer(modifier = Modifier.width(8.dp))
+            if (isNotifying) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp,
+                    color = PremiumBurgundy
+                )
+            } else if (hasReadToday) {
+                Icon(
+                    Icons.Default.MenuBook,
+                    contentDescription = "오늘 독서 완료",
+                    tint = PremiumBurgundy,
+                    modifier = Modifier.size(24.dp)
+                )
+            } else {
+                IconButton(
+                    onClick = onNotifyClick,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Notifications,
+                        contentDescription = "독서 알림 보내기",
+                        tint = Color.Gray
+                    )
+                }
+            }
 
-        IconButton(
-            onClick = onDeleteClick,
-            modifier = Modifier.size(24.dp)
-        ) {
-            Icon(
-                Icons.Default.Delete,
-                contentDescription = "친구 삭제",
-                tint = MaterialTheme.colorScheme.error
-            )
+            Spacer(modifier = Modifier.width(16.dp))
+
+            IconButton(
+                onClick = onDeleteClick,
+                modifier = Modifier.size(20.dp)
+            ) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "친구 삭제",
+                    tint = Color.LightGray
+                )
+            }
         }
     }
 }
@@ -432,7 +477,7 @@ private fun FriendPlaceholderRow() {
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                .background(Color(0xFFF0F0F0))
         )
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -441,7 +486,7 @@ private fun FriendPlaceholderRow() {
                     .fillMaxWidth(0.6f)
                     .height(16.dp)
                     .clip(MaterialTheme.shapes.extraSmall)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    .background(Color(0xFFF0F0F0))
             )
         }
     }
@@ -452,7 +497,7 @@ fun BookClubPlaceholderCard() {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -461,7 +506,7 @@ fun BookClubPlaceholderCard() {
                     .fillMaxWidth(0.5f)
                     .height(18.dp)
                     .clip(MaterialTheme.shapes.extraSmall)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    .background(Color(0xFFF0F0F0))
             )
             Spacer(modifier = Modifier.height(10.dp))
             Box(
@@ -469,7 +514,7 @@ fun BookClubPlaceholderCard() {
                     .fillMaxWidth()
                     .height(12.dp)
                     .clip(MaterialTheme.shapes.extraSmall)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                    .background(Color(0xFFF0F0F0))
             )
         }
     }
@@ -486,37 +531,49 @@ fun CreateBookClubDialog(
     
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("새 북클럽 만들기") },
+        title = { Text("새 북클럽 만들기", fontFamily = FontFamily.Serif) },
         text = {
             Column {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("북클럽 이름") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PremiumBurgundy,
+                        focusedLabelColor = PremiumBurgundy,
+                        cursorColor = PremiumBurgundy
+                    )
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
                     label = { Text("설명") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PremiumBurgundy,
+                        focusedLabelColor = PremiumBurgundy,
+                        cursorColor = PremiumBurgundy
+                    )
                 )
             }
         },
+        containerColor = Color.White,
         confirmButton = {
-            TextButton(
+            Button(
                 onClick = {
                     onCreateBookClub(name, description, "", "", "", "", "", "")
                 },
-                enabled = name.isNotBlank()
+                enabled = name.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = PremiumBurgundy)
             ) {
                 Text("만들기")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("취소")
+                Text("취소", color = PremiumText)
             }
         }
     )

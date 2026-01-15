@@ -4,6 +4,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
@@ -21,6 +22,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -32,7 +34,15 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import androidx.compose.runtime.getValue
+import com.route.readers.ui.theme.PrimaryRed
 import kotlin.math.abs
+
+// Premium Colors
+private val PremiumGold = Color(0xFFD4AF37)
+private val PremiumBurgundy = PrimaryRed // 0xFF800020
+private val PremiumDarkBurgundy = Color(0xFF500014)
+private val PremiumSurface = Color(0xFFF9F9F9)
+private val PremiumText = Color(0xFF333333)
 
 enum class ChallengeCardState {
     INITIAL,      // 초기 "참여하세요" 카드
@@ -83,7 +93,7 @@ fun SwipeableChallengeCard(
     ) {
         // While loading, if we don't have a challenge to show, display a progress indicator.
         if (isChallengesLoading && userChallenges.isEmpty()) {
-            CircularProgressIndicator()
+            CircularProgressIndicator(color = PremiumBurgundy)
         } else {
             when (cardState) {
                 ChallengeCardState.INITIAL -> {
@@ -116,16 +126,14 @@ fun SwipeableChallengeCard(
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             items(userChallenges, key = { it.id }) { challenge ->
-                                com.route.readers.ui.components.SharedChallengeCard(
+                                ActiveChallengeCard(
                                     challenge = challenge,
                                     currentUserId = currentUserId,
                                     consecutiveReadingDays = consecutiveReadingDays,
                                     onReset = {
                                         onChallengeReset(challenge.id)
                                         cardState = ChallengeCardState.INITIAL
-                                    },
-                                    communityViewModel = communityViewModel,
-                                    challengeViewModel = challengeViewModel
+                                    }
                                 )
                             }
                         }
@@ -168,8 +176,9 @@ fun InitialChallengeCard(
                     }
                 )
             },
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        border = BorderStroke(1.dp, PremiumGold.copy(alpha = 0.3f))
     ) {
         Box(
             modifier = Modifier
@@ -177,9 +186,8 @@ fun InitialChallengeCard(
                 .background(
                     Brush.linearGradient(
                         colors = listOf(
-                            Color(0xFF0A0E27),
-                            Color(0xFF1A4D2E),
-                            Color(0xFF00FF88)
+                            PremiumBurgundy,
+                            PremiumDarkBurgundy
                         )
                     )
                 ),
@@ -192,21 +200,23 @@ fun InitialChallengeCard(
                 Icon(
                     Icons.Default.EmojiEvents,
                     contentDescription = null,
-                    tint = Color(0xFF00FF88),
+                    tint = PremiumGold,
                     modifier = Modifier.size(48.dp)
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    "이번주 챌린지에 참여하세요!",
+                    "이번주 챌린지 도전하기",
                     color = Color.White,
                     fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Serif
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "← 스와이프하여 챌린지 선택 →",
-                    color = Color(0xFF00FF88),
-                    fontSize = 14.sp
+                    "← 스와이프하여 멤버십 혜택 확인 →",
+                    color = PremiumGold,
+                    fontSize = 14.sp,
+                    fontFamily = FontFamily.Serif
                 )
             }
         }
@@ -222,8 +232,10 @@ fun ChallengeSelectionCard(
         modifier = Modifier
             .fillMaxWidth()
             .height(220.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(1.dp, Color(0xFFEEEEEE))
     ) {
         Column(
             modifier = Modifier
@@ -231,10 +243,11 @@ fun ChallengeSelectionCard(
                 .padding(20.dp)
         ) {
             Text(
-                "어떤 챌린지에 참여하시겠어요?",
+                "챌린지 선택",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black
+                color = PremiumText,
+                fontFamily = FontFamily.Serif
             )
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -249,13 +262,13 @@ fun ChallengeSelectionCard(
             } else {
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(challenges, key = { it.id }) { challenge ->
                         ChallengeOption(
                             challenge = challenge,
                             onSelect = { onSelect(challenge) },
-                            modifier = Modifier.width(150.dp) // Give each card a fixed width for scrolling
+                            modifier = Modifier.width(160.dp) 
                         )
                     }
                 }
@@ -278,11 +291,12 @@ fun ChallengeOption(
 
     Card(
         onClick = onSelect,
-        modifier = modifier.height(100.dp),
-        shape = RoundedCornerShape(12.dp),
+        modifier = modifier.height(110.dp),
+        shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFF5F5F5)
-        )
+            containerColor = PremiumSurface
+        ),
+        border = BorderStroke(1.dp, Color(0xFFE0E0E0))
     ) {
         Column(
             modifier = Modifier
@@ -294,17 +308,19 @@ fun ChallengeOption(
             Icon(
                 icon,
                 contentDescription = null,
-                tint = Color(0xFF1A4D2E),
+                tint = PremiumBurgundy,
                 modifier = Modifier.size(28.dp)
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 challenge.title,
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
                 textAlign = TextAlign.Center,
-                lineHeight = 14.sp,
-                maxLines = 2
+                lineHeight = 16.sp,
+                maxLines = 2,
+                color = PremiumText,
+                fontFamily = FontFamily.Serif
             )
         }
     }
@@ -346,10 +362,12 @@ fun ActiveChallengeCard(
         modifier = Modifier
             .fillMaxWidth()
             .height(220.dp),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF1A4D2E)
-        )
+            containerColor = PremiumBurgundy
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        border = BorderStroke(1.dp, PremiumGold.copy(alpha = 0.5f))
     ) {
         Column(
             modifier = Modifier
@@ -363,9 +381,10 @@ fun ActiveChallengeCard(
             ) {
                 Text(
                     "진행 중인 챌린지",
-                    color = Color(0xFF00FF88),
+                    color = PremiumGold,
                     fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Serif
                 )
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -373,15 +392,16 @@ fun ActiveChallengeCard(
                 ) {
                     Text(
                         "${daysRemaining}일 남음",
-                        color = Color.White.copy(alpha = 0.7f),
-                        fontSize = 14.sp
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 12.sp
                     )
                     TextButton(
                         onClick = onReset,
                         colors = ButtonDefaults.textButtonColors(
-                            contentColor = Color(0xFF00FF88)
+                            contentColor = PremiumGold
                         ),
-                        contentPadding = PaddingValues(4.dp)
+                        contentPadding = PaddingValues(4.dp),
+                        modifier = Modifier.height(30.dp)
                     ) {
                         Text("변경", fontSize = 12.sp)
                     }
@@ -393,17 +413,31 @@ fun ActiveChallengeCard(
             Text(
                 challenge.title,
                 color = Color.White,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Serif
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            Text(
-                "내 진행률",
-                color = Color.White.copy(alpha = 0.7f),
-                fontSize = 14.sp
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                 Text(
+                    "내 진행률",
+                    color = Color.White.copy(alpha = 0.8f),
+                    fontSize = 14.sp,
+                    fontFamily = FontFamily.Serif
+                )
+                Text(
+                    "${(overallProgressFraction * 100).toInt()}%",
+                    color = PremiumGold,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -411,39 +445,15 @@ fun ActiveChallengeCard(
                 progress = { overallProgressFraction },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(12.dp)
-                    .clip(RoundedCornerShape(6.dp)),
-                color = Color(0xFF00FF88),
-                trackColor = Color.White.copy(alpha = 0.2f)
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                color = PremiumGold,
+                trackColor = Color.Black.copy(alpha = 0.3f)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                val progressText = if (challenge.type == com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING) {
-                    val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
-                    val todayPages = (challenge.dailyProgress[currentUserId]?.get(todayStr) as? Number)?.toInt() ?: 0
-                    "${currentProgressValue}/${totalGoalValue}${progressUnit} (오늘: ${todayPages}/${challenge.goal}페이지)"
-                } else {
-                    "${currentProgressValue}/${totalGoalValue}${progressUnit}"
-                }
-
-                Text(
-                    text = progressText,
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    "${(overallProgressFraction * 100).toInt()}%",
-                    color = Color(0xFF00FF88),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+             
+             // Additional info if needed
         }
     }
 }

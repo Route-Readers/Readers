@@ -6,8 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.*
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.*
@@ -22,14 +21,19 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -123,34 +127,33 @@ fun MyLibraryScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(16.dp)
+            .padding(start = 24.dp, end = 24.dp, top = 24.dp) // Increased padding
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp),
+                .padding(bottom = 24.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Bottom
         ) {
             Text(
                 text = "내 서재",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+                style = androidx.compose.ui.text.TextStyle(
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 32.sp,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
             )
         }
 
         if (isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+                contentPadding = PaddingValues(bottom = 24.dp)
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("책 목록을 불러오는 중...", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                items(5) {
+                    ShimmerBookCard()
                 }
             }
         } else if (books.isEmpty()) {
@@ -162,75 +165,89 @@ fun MyLibraryScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "📚",
+                        text = "📖",
                         fontSize = 48.sp
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
                     Text(
                         text = "서재가 비어있습니다",
-                        color = MaterialTheme.colorScheme.primary,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
+                        style = androidx.compose.ui.text.TextStyle(
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "검색에서 책을 추가해보세요",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 16.sp
+                        text = "새로운 이야기를 만나보세요",
+                        style = androidx.compose.ui.text.TextStyle(
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.SansSerif,
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     )
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(32.dp))
                     Button(
                         onClick = { onNavigateToSearch() },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                        shape = CircleShape,
-                        modifier = Modifier.size(56.dp),
-                        contentPadding = PaddingValues(0.dp)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
-                            contentDescription = "책 추가하기",
-                            tint = MaterialTheme.colorScheme.onPrimary
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "책 추가하기",
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.SansSerif,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
             }
         } else {
-            Card(
+            // Premium Filter Tabs
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(12.dp)
+                    .padding(bottom = 24.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    FilterChip(
-                        count = books.size,
-                        label = "총 책 수",
-                        isSelected = selectedFilter == FilterState.ALL,
-                        onClick = { selectedFilter = FilterState.ALL }
-                    )
-                    FilterChip(
-                        count = books.count { !it.isCompleted },
-                        label = "읽는 중",
-                        isSelected = selectedFilter == FilterState.READING,
-                        onClick = { selectedFilter = FilterState.READING }
-                    )
-                    FilterChip(
-                        count = books.count { it.isCompleted },
-                        label = "완독",
-                        isSelected = selectedFilter == FilterState.COMPLETED,
-                        onClick = { selectedFilter = FilterState.COMPLETED }
-                    )
-                }
+                FilterTab(
+                    count = books.size,
+                    label = "전체",
+                    isSelected = selectedFilter == FilterState.ALL,
+                    onClick = { selectedFilter = FilterState.ALL },
+                    modifier = Modifier.weight(1f)
+                )
+                FilterTab(
+                    count = books.count { !it.isCompleted },
+                    label = "읽는 중",
+                    isSelected = selectedFilter == FilterState.READING,
+                    onClick = { selectedFilter = FilterState.READING },
+                    modifier = Modifier.weight(1f)
+                )
+                FilterTab(
+                    count = books.count { it.isCompleted },
+                    label = "완독",
+                    isSelected = selectedFilter == FilterState.COMPLETED,
+                    onClick = { selectedFilter = FilterState.COMPLETED },
+                    modifier = Modifier.weight(1f)
+                )
             }
 
             LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(20.dp), // Increased spacing
+                contentPadding = PaddingValues(bottom = 24.dp)
             ) {
                 items(filteredBooks, key = { it.isbn }) { book ->
                     MyBookCard(
@@ -410,31 +427,41 @@ fun MyLibraryScreen(
 }
 
 @Composable
-fun FilterChip(
+fun FilterTab(
     count: Int,
     label: String,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+    val backgroundColor = if (isSelected) MaterialTheme.colorScheme.surface else Color.Transparent
+    val contentColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    
+    // Add a shadow only when selected for the "lifted tab" effect
+    val shadowElevation = if (isSelected) 2.dp else 0.dp
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
+        modifier = modifier
+            .shadow(elevation = shadowElevation, shape = RoundedCornerShape(12.dp), clip = false)
+            .clip(RoundedCornerShape(12.dp))
+            .background(backgroundColor)
             .clickable(onClick = onClick)
-            .border(2.dp, borderColor, RoundedCornerShape(8.dp))
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(vertical = 12.dp)
     ) {
         Text(
             text = "$count",
-            fontSize = 24.sp,
+            fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
-            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+            color = contentColor,
+            fontFamily = androidx.compose.ui.text.font.FontFamily.Serif
         )
+        Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = label,
             fontSize = 12.sp,
-            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            fontWeight = FontWeight.Medium,
+            color = contentColor.copy(alpha = 0.8f)
         )
     }
 }
@@ -450,7 +477,7 @@ fun MyBookCard(
     onUpdateClick: () -> Unit = {}
 ) {
     val elevation by animateDpAsState(
-        if (isSelected) 16.dp else 1.dp,
+        if (isSelected) 8.dp else 2.dp,
         label = "elevation"
     )
     val scale by animateFloatAsState(
@@ -464,68 +491,117 @@ fun MyBookCard(
             .scale(scale)
             .shadow(
                 elevation = elevation,
-                shape = RoundedCornerShape(12.dp),
-                clip = false
+                shape = RoundedCornerShape(16.dp),
+                spotColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                ambientColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
             )
             .clickable { onProgressClick() },
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp), // Set to 0 as shadow is handled by modifier
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (book.isCompleted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-            else MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surface
         ),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(16.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) { // Main column for card content
-            Row( // Row for book cover and text details
+        Column(modifier = Modifier.padding(24.dp)) {
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top // Align items to the top
+                verticalAlignment = Alignment.Top
             ) {
-                AsyncImage(
-                    model = book.cover.ifEmpty { null },
-                    contentDescription = "책 표지",
+                // Book Cover with Depth Effect
+                Box(
                     modifier = Modifier
                         .width(80.dp)
                         .height(120.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainer),
-                    contentScale = ContentScale.Crop,
-                    error = painterResource(R.mipmap.readerslogo),
-                    placeholder = painterResource(R.mipmap.readerslogo)
-                )
+                        .shadow(6.dp, RoundedCornerShape(4.dp))
+                ) {
+                    AsyncImage(
+                        model = book.cover.ifEmpty { null },
+                        contentDescription = "책 표지",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainer),
+                        contentScale = ContentScale.Crop,
+                        error = painterResource(R.mipmap.readerslogo),
+                        placeholder = painterResource(R.mipmap.readerslogo)
+                    )
+                    // Spine shadow effect (left side)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .width(4.dp)
+                            .align(Alignment.CenterStart)
+                            .background(
+                                brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                    colors = listOf(
+                                        Color.Black.copy(alpha = 0.3f),
+                                        Color.Transparent
+                                    )
+                                )
+                            )
+                    )
+                    // Border for definition
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .border(0.5.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp))
+                    )
+                }
 
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(20.dp))
 
                 Column(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
                         text = book.title,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
+                        style = androidx.compose.ui.text.TextStyle(
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            lineHeight = 24.sp
+                        ),
                         maxLines = 2,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = book.author,
-                        fontSize = 14.sp,
+                        style = androidx.compose.ui.text.TextStyle(
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.SansSerif,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        ),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     val progressPercentage = book.progressPercentage
-                    val progressColor = when {
-                        book.isCompleted -> MaterialTheme.colorScheme.primary
-                        progressPercentage == 0 -> MaterialTheme.colorScheme.onSurfaceVariant
-                        else -> MaterialTheme.colorScheme.tertiary
+                    val progressColor = MaterialTheme.colorScheme.primary
+                    
+                    Row(verticalAlignment = Alignment.Bottom) {
+                         Text(
+                            text = if (book.isCompleted) "완독" else "$progressPercentage",
+                            style = androidx.compose.ui.text.TextStyle(
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                                color = progressColor
+                            )
+                        )
+                        if (!book.isCompleted) {
+                            Text(
+                                text = "%",
+                                style = androidx.compose.ui.text.TextStyle(
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = progressColor,
+                                    baselineShift = androidx.compose.ui.text.style.BaselineShift(0.2f)
+                                ),
+                                modifier = Modifier.padding(start = 2.dp, bottom = 4.dp)
+                            )
+                        }
                     }
-
-                    Text(
-                        text = if (book.isCompleted) "완독!" else "$progressPercentage%",
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = progressColor
-                    )
                 }
 
                 IconButton(
@@ -534,53 +610,90 @@ fun MyBookCard(
                     Icon(
                         imageVector = Icons.Default.Delete,
                         contentDescription = "삭제",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                     )
                 }
             }
 
-            // Progress bar and pages text below the Row
-            Spacer(modifier = Modifier.height(16.dp)) // Increased margin
-            LinearProgressIndicator(
-                progress = { if (book.isCompleted) 1f else book.progressPercentage / 100f },
+            // Elegant Progress Bar
+            Spacer(modifier = Modifier.height(20.dp))
+            
+            // Background track
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(4.dp)),
-                color = when {
-                    book.isCompleted -> MaterialTheme.colorScheme.primary
-                    book.progressPercentage == 0 -> MaterialTheme.colorScheme.onSurfaceVariant
-                    else -> MaterialTheme.colorScheme.tertiary
-                },
-                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.4f)
-            )
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                 // Progress fill
+                 Box(
+                    modifier = Modifier
+                        .fillMaxWidth(if (book.isCompleted) 1f else book.progressPercentage / 100f)
+                        .fillMaxHeight()
+                        .background(MaterialTheme.colorScheme.primary)
+                )
+            }
 
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "${book.currentPage} / ${book.totalPages} 페이지",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                 Text(
+                    text = "${book.currentPage} 페이지",
+                    style = androidx.compose.ui.text.TextStyle(
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Serif
+                    )
+                )
+                Text(
+                    text = "${book.totalPages} 페이지",
+                    style = androidx.compose.ui.text.TextStyle(
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.outline,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Serif
+                    )
+                )
+            }
             
             if (showTimer) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.5f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
                 ) {
-                    Text(
-                        text = "⏱️ ${String.format("%02d:%02d", timerSeconds / 60, timerSeconds % 60)}",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                         Text(
+                            text = "⏱️",
+                            fontSize = 14.sp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = String.format("%02d:%02d", timerSeconds / 60, timerSeconds % 60),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                        )
+                    }
+                    
                     Button(
                         onClick = onUpdateClick,
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.height(32.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp)
                     ) {
-                        Text("업데이트", fontSize = 12.sp)
+                        Text("기록하기", fontSize = 12.sp)
                     }
                 }
             }
@@ -817,4 +930,129 @@ fun FinishReadingDialog(
         },
         containerColor = MaterialTheme.colorScheme.surface
     )
+}
+
+@Composable
+fun ShimmerBookCard() {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(24.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
+            ) {
+                // Book Cover Placeholder
+                Box(
+                    modifier = Modifier
+                        .width(80.dp)
+                        .height(120.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .shimmerEffect()
+                )
+
+                Spacer(modifier = Modifier.width(20.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    // Title Placeholder
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(0.7f)
+                            .height(24.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .shimmerEffect()
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    // Author Placeholder
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(0.4f)
+                            .height(16.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .shimmerEffect()
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Progress Percentage Placeholder
+                    Box(
+                        modifier = Modifier
+                            .width(60.dp)
+                            .height(32.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .shimmerEffect()
+                    )
+                }
+            }
+
+            // Progress Bar Placeholder
+            Spacer(modifier = Modifier.height(20.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .shimmerEffect()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(60.dp)
+                        .height(12.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .shimmerEffect()
+                )
+                Box(
+                    modifier = Modifier
+                        .width(60.dp)
+                        .height(12.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .shimmerEffect()
+                )
+            }
+        }
+    }
+}
+
+fun Modifier.shimmerEffect(): Modifier = composed {
+    var size by remember { mutableStateOf(IntSize.Zero) }
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val startOffsetX by transition.animateFloat(
+        initialValue = -2 * size.width.toFloat(),
+        targetValue = 2 * size.width.toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000)
+        ),
+        label = "shimmer_offset"
+    )
+
+    val baseColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+    val highlightColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)
+
+    background(
+        brush = Brush.linearGradient(
+            colors = listOf(
+                baseColor,
+                highlightColor,
+                baseColor,
+            ),
+            start = Offset(startOffsetX, 0f),
+            end = Offset(startOffsetX + size.width.toFloat(), size.height.toFloat())
+        )
+    )
+        .onGloballyPositioned {
+            size = it.size
+        }
 }
