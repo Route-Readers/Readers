@@ -4,11 +4,75 @@ import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Shadow
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.rounded.AutoStories
+import androidx.compose.material.icons.rounded.Bookmark
+import androidx.compose.material.icons.rounded.EmojiEvents
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.LocalFireDepartment
+import androidx.compose.material.icons.rounded.WorkspacePremium
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.route.readers.R
+import com.route.readers.data.model.Book
+import com.route.readers.data.model.Challenge
+import com.route.readers.data.model.ChallengeType
+import com.route.readers.data.model.User
+import com.route.readers.ui.components.AdBanner
+import com.route.readers.ui.screens.feed.FeedCard
+import com.route.readers.ui.screens.feed.FeedItem
+import com.route.readers.ui.screens.feed.FeedViewModel
+import com.route.readers.ui.theme.DarkRed
+import kotlinx.coroutines.launch
+import kotlin.text.isNotEmpty
+import kotlin.text.toFloat
 
 val Gold = Color(0xFFD4AF37)
 val Burgundy = Color(0xFF800020)
@@ -522,7 +586,7 @@ fun AchievementItem(achievement: Achievement, onClick: () -> Unit) {
                             .background(Gold, RoundedCornerShape(20.dp))
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
-                        Text("COMPLETED", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text("달성 완료", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -534,7 +598,7 @@ fun AchievementItem(achievement: Achievement, onClick: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Progress",
+                        text = "진행도",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Medium
@@ -711,15 +775,15 @@ fun ProfileInfoSection(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                ProfileInfoItem(count = user.followerCount.toString(), label = "Followers", onClick = { onFollowListClick("followers") })
+                ProfileInfoItem(count = user.followerCount.toString(), label = "팔로워", onClick = { onFollowListClick("followers") })
                 // Divider
                 Box(modifier = Modifier.size(1.dp, 24.dp).background(Color(0xFFEEEEEE)))
-                ProfileInfoItem(count = user.followingCount.toString(), label = "Following", onClick = { onFollowListClick("following") })
+                ProfileInfoItem(count = user.followingCount.toString(), label = "팔로잉", onClick = { onFollowListClick("following") })
                 // Divider
                 Box(modifier = Modifier.size(1.dp, 24.dp).background(Color(0xFFEEEEEE)))
                 ProfileInfoItem(
                     count = user.readBookCount.toString(),
-                    label = "Books Read",
+                    label = "읽은 책",
                     onClick = if (isMyProfile) onNavigateToMyBookList else null
                 )
             }
@@ -748,7 +812,7 @@ fun ProfileInfoSection(
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = if (isFollowing) 0.dp else 4.dp)
                 ) {
                     Text(
-                        text = if (isFollowing) "Following" else "Follow",
+                        text = if (isFollowing) "팔로잉" else "팔로우",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
                     )
@@ -1162,14 +1226,14 @@ fun ReadingStreakSection(attendanceDays: Int, readingDays: Int) {
         PremiumStreakItem(
             modifier = Modifier.weight(1f),
             icon = Icons.Rounded.LocalFireDepartment,
-            label = "Streak",
+            label = "출석 스트릭",
             days = attendanceDays,
             color = Color(0xFFE57373)
         )
         PremiumStreakItem(
             modifier = Modifier.weight(1f),
             icon = Icons.Rounded.AutoStories,
-            label = "Reading",
+            label = "독서 기록",
             days = readingDays,
             color = Color(0xFF81C784)
         )
@@ -1213,7 +1277,7 @@ fun PremiumStreakItem(
                 )
             }
             Text(
-                text = "$days Days",
+                text = "$days 일",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onSurface
             )
