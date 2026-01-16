@@ -66,6 +66,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.style.TextAlign
 import com.route.readers.data.model.Challenge
 
+import com.route.readers.ui.components.DailyChallengeSuccessDialog
+
 // Premium Theme Colors Local Definitions
 private val PremiumBackground = Color.White
 private val PremiumText = Color(0xFF333333)
@@ -177,9 +179,12 @@ fun ChallengeSuccessDialog(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun CommunityScreen(
+    // 데일리 성공 팝업
+    if (uiState.dailyGoalMet) {
+        DailyChallengeSuccessDialog(
+            onDismiss = { viewModel.dismissCompletionPopup() }
+        )
+    }
     onNavigateToFriendsList: () -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
     onNavigateToUsedBookDetail: (String) -> Unit = {},
@@ -312,6 +317,13 @@ fun CommunityScreen(
     uiState.completedChallenge?.let { challenge ->
         ChallengeSuccessDialog(
             challenge = challenge,
+            onDismiss = { viewModel.dismissCompletionPopup() }
+        )
+    }
+
+    // 데일리 성공 팝업
+    if (uiState.dailyGoalMet) {
+        DailyChallengeSuccessDialog(
             onDismiss = { viewModel.dismissCompletionPopup() }
         )
     }

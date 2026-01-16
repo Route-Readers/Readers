@@ -42,10 +42,12 @@ data class CommunityUiState(
     val notifyingFriendId: String? = null,
     val isNotificationSending: Boolean = false,
     val consecutiveReadingDays: Int = 0,
-    val completedChallenge: Challenge? = null // For success popup
+    val completedChallenge: Challenge? = null, // For success popup
+    val dailyGoalMet: Boolean = false // For daily celebration
 ) {
     val displayedFriends: List<User> = friends.take(5) // Changed to List<User>
     val hasMoreFriends: Boolean = friends.size > 5
+    val hasActiveChallenges: Boolean = userActiveChallenges.isNotEmpty()
 }
 
 class CommunityViewModel(application: Application) : AndroidViewModel(application) {
@@ -117,9 +119,39 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun dismissCompletionPopup() {
-        _uiState.value = _uiState.value.copy(completedChallenge = null)
+        _uiState.value = _uiState.value.copy(completedChallenge = null, dailyGoalMet = false)
     }
 
+    fun checkDailyChallengeSuccess() {
+        viewModelScope.launch {
+            val userId = currentUserId
+            val activeChallenges = _uiState.value.userActiveChallenges
+            
+            val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+            val pagesToday = getActualDailyPagesRead(today)
+            
+            var newlyMet = false
+            
+            activeChallenges.forEach { challenge ->
+                if (challenge.type == com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING) {
+                    if (pagesToday >= challenge.goal) {
+                        // Check if we already rewarded this today to avoid spam
+                        val alreadyRewarded = sharedPreferences.getBoolean("daily_reward_${challenge.id}_$today", false)
+                        if (!alreadyRewarded) {
+                            // Give XP!
+                            firestoreRepository.addExp(20) // Daily bonus
+                            sharedPreferences.edit().putBoolean("daily_reward_${challenge.id}_$today", true).apply()
+                            newlyMet = true
+                        }
+                    }
+                }
+            }
+            
+            if (newlyMet) {
+                _uiState.value = _uiState.value.copy(dailyGoalMet = true)
+            }
+        }
+    }
 
     private fun loadFriends() {
         viewModelScope.launch {
@@ -168,15 +200,83 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
             _uiState.value = _uiState.value.copy(isChallengesLoading = true)
             try {
                 val currentWeekNumber = getCurrentWeekNumber()
-                val weeklyChallenges = challengeRepository.getChallengesForWeek(currentWeekNumber)
+                var weeklyChallenges = challengeRepository.getChallengesForWeek(currentWeekNumber)
+                
+                // If no challenges exist for this week, create some diverse ones
+                if (weeklyChallenges.isEmpty()) {
+                    createDiverseChallenges(currentWeekNumber)
+                    weeklyChallenges = challengeRepository.getChallengesForWeek(currentWeekNumber)
+                }
+
                 _uiState.value = _uiState.value.copy(
-                    availableChallenges = weeklyChallenges.filter { it.type != com.route.readers.data.model.ChallengeType.CUSTOM },
+                    availableChallenges = weeklyChallenges.filter { !it.participants.contains(currentUserId) && it.type != com.route.readers.data.model.ChallengeType.CUSTOM },
                     isChallengesLoading = false
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(isChallengesLoading = false)
             }
         }
+    }
+
+    private suspend fun createDiverseChallenges(weekNumber: Int) {
+        val challenges = listOf(
+            Challenge(
+                id = "daily_10_pages_$weekNumber",
+                title = "매일 10페이지 읽기",
+                description = "일주일 동안 매일 10페이지씩 읽으며 독서 습관을 기르세요.",
+                goal = 10,
+                reward = 100,
+                type = com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING,
+                weekNumber = weekNumber
+            ),
+            Challenge(
+                id = "daily_30_pages_$weekNumber",
+                title = "매일 30페이지: 독서 열정",
+                description = "매일 30페이지씩 읽으며 깊이 있는 독서 시간을 가집니다.",
+                goal = 30,
+                reward = 300,
+                type = com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING,
+                weekNumber = weekNumber
+            ),
+            Challenge(
+                id = "daily_50_pages_$weekNumber",
+                title = "매일 50페이지: 독서 마스터",
+                description = "진정한 독서가라면 하루 50페이지는 기본이죠!",
+                goal = 50,
+                reward = 600,
+                type = com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING,
+                weekNumber = weekNumber
+            ),
+            Challenge(
+                id = "daily_100_pages_$weekNumber",
+                title = "매일 100페이지: 광속의 독서",
+                description = "일주일 동안 매일 책 한 권 분량을 독파하세요.",
+                goal = 100,
+                reward = 1500,
+                type = com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING,
+                weekNumber = weekNumber
+            ),
+            Challenge(
+                id = "streak_7days_$weekNumber",
+                title = "일주일 연속 출석",
+                description = "단 하루도 빠짐없이 Readers에 접속하여 독서 기록을 남기세요.",
+                goal = 7,
+                reward = 500,
+                type = com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING,
+                weekNumber = weekNumber
+            ),
+            Challenge(
+                id = "friend_streak_$weekNumber",
+                title = "친구와 함께 7일 연속 읽기",
+                description = "친구와 함께 7일 동안 매일 독서 스트릭을 쌓으세요.",
+                goal = 7,
+                reward = 800,
+                type = com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING_WITH_FRIEND,
+                weekNumber = weekNumber
+            )
+        )
+        
+        challenges.forEach { challengeRepository.createChallenge(it) }
     }
 
     suspend fun checkFriendReadingStatusAsync(friendId: String): Boolean {

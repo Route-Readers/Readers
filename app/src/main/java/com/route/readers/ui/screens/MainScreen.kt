@@ -72,6 +72,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.route.readers.ui.components.AdBanner
+import com.route.readers.ui.components.DailyChallengeSuccessDialog
 import com.route.readers.ui.theme.DarkRed
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -130,6 +131,14 @@ fun MainScreen(
                 restoreState = true
             }
         }
+    }
+
+    val showDailySuccess by mainViewModel.showDailyChallengeSuccess.collectAsState()
+
+    if (showDailySuccess) {
+        DailyChallengeSuccessDialog(
+            onDismiss = { mainViewModel.dismissDailyChallengePopup() }
+        )
     }
 
     if (showExitDialog) {
@@ -325,6 +334,7 @@ fun MainScreen(
                     onUpdateFinished = {
                         bookToUpdateAfterReading = null
                         lastReadingSessionDuration = null
+                        mainViewModel.checkDailyChallengeSuccess() // 독서 종료 후 챌린지 성공 여부 확인
                     },
                     lastReadingSessionDuration = lastReadingSessionDuration,
                     showFinishReadingDialogBook = showFinishReadingDialogBook,

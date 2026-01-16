@@ -67,21 +67,24 @@ fun SwipeableChallengeCard(
     // UI state for selection, using rememberSaveable to survive tab switching
     var isSelectionMode by rememberSaveable { mutableStateOf(false) }
 
+    // If user already has active challenges, we should NEVER be in selection mode or show initial card
+    val hasActiveChallenges = userActiveChallenges.isNotEmpty()
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(220.dp),
+            .height(if (hasActiveChallenges) 220.dp else 180.dp),
         contentAlignment = Alignment.Center
     ) {
-        if (isChallengesLoading && userChallenges.isEmpty()) {
+        if (isChallengesLoading && userActiveChallenges.isEmpty()) {
             CircularProgressIndicator(color = PremiumBurgundy)
-        } else if (userChallenges.isNotEmpty()) {
-            // User has active challenges - always show them
+        } else if (hasActiveChallenges) {
+            // User has active challenges - always show them and hide selection UI
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(userChallenges, key = { it.id }) { challenge ->
+                items(userActiveChallenges, key = { it.id }) { challenge ->
                     ActiveChallengeCard(
                         challenge = challenge,
                         currentUserId = currentUserId,
@@ -124,7 +127,7 @@ fun InitialChallengeCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(200.dp)
+            .height(160.dp)
             .rotate(rotation)
             .pointerInput(Unit) {
                 detectHorizontalDragGestures(
@@ -139,9 +142,9 @@ fun InitialChallengeCard(
                     }
                 )
             },
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-        border = BorderStroke(1.dp, PremiumGold.copy(alpha = 0.3f))
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+        border = BorderStroke(1.dp, PremiumGold.copy(alpha = 0.5f))
     ) {
         Box(
             modifier = Modifier
@@ -158,28 +161,36 @@ fun InitialChallengeCard(
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(16.dp)
             ) {
                 Icon(
                     Icons.Default.EmojiEvents,
                     contentDescription = null,
                     tint = PremiumGold,
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier.size(40.dp)
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    "이번주 챌린지 도전하기",
+                    "이번주 챌린지에 참여해 XP를 확보하세요!",
                     color = Color.White,
-                    fontSize = 20.sp,
+                    fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Serif
+                    fontFamily = FontFamily.Default
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "← 스와이프하여 멤버십 혜택 확인 →",
-                    color = PremiumGold,
-                    fontSize = 14.sp,
-                    fontFamily = FontFamily.Serif
+                    "매일 읽기 습관을 만들고 보상을 받으세요",
+                    color = PremiumGold.copy(alpha = 0.9f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    "← 스와이프하여 선택하기 →",
+                    color = Color.White.copy(alpha = 0.5f),
+                    fontSize = 11.sp,
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
                 )
             }
         }
@@ -194,44 +205,44 @@ fun ChallengeSelectionCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(220.dp),
-        shape = RoundedCornerShape(12.dp),
+            .height(180.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         border = BorderStroke(1.dp, Color(0xFFEEEEEE))
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(20.dp)
+                .padding(16.dp)
         ) {
             Text(
-                "챌린지 선택",
-                fontSize = 18.sp,
+                "나에게 맞는 챌린지 선택",
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = PremiumText,
-                fontFamily = FontFamily.Serif
+                color = PremiumText
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             if (challenges.isEmpty()) {
-                Text(
-                    "참여 가능한 챌린지를 불러오는 중...",
-                    fontSize = 14.sp,
-                    color = Color.Gray,
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Center
-                )
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        "참여 가능한 챌린지를 불러오는 중...",
+                        fontSize = 13.sp,
+                        color = Color.Gray
+                    )
+                }
             } else {
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(bottom = 4.dp)
                 ) {
                     items(challenges, key = { it.id }) { challenge ->
                         ChallengeOption(
                             challenge = challenge,
                             onSelect = { onSelect(challenge) },
-                            modifier = Modifier.width(160.dp) 
+                            modifier = Modifier.width(140.dp) 
                         )
                     }
                 }
@@ -254,17 +265,17 @@ fun ChallengeOption(
 
     Card(
         onClick = onSelect,
-        modifier = modifier.height(110.dp),
-        shape = RoundedCornerShape(8.dp),
+        modifier = modifier.height(100.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = PremiumSurface
         ),
-        border = BorderStroke(1.dp, Color(0xFFE0E0E0))
+        border = BorderStroke(1.dp, Color(0xFFEFEFEF))
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(12.dp),
+                .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -272,18 +283,25 @@ fun ChallengeOption(
                 icon,
                 contentDescription = null,
                 tint = PremiumBurgundy,
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(24.dp)
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
                 challenge.title,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
-                lineHeight = 16.sp,
+                lineHeight = 14.sp,
                 maxLines = 2,
                 color = PremiumText,
-                fontFamily = FontFamily.Serif
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "${challenge.reward} XP",
+                fontSize = 10.sp,
+                color = PremiumGold,
+                fontWeight = FontWeight.Black
             )
         }
     }
