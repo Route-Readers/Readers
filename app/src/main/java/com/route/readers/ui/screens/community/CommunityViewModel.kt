@@ -215,7 +215,7 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
                     val title = "독서 알림 📚"
                     val message = "${currentUser.nickname}님이 독서 알림을 보냈습니다!"
                     
-                    // Firestore 알림 저장
+                    // Firestore 알림 저장 및 FCM 트리거 통합 호출
                     notificationRepository.createNotification(
                         userId = friendId,
                         type = com.route.readers.data.model.NotificationType.READING_INVITATION,
@@ -223,9 +223,6 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
                         message = message,
                         data = mapOf("fromUserId" to currentUserId, "fromUserName" to currentUser.nickname)
                     )
-                    
-                    // FCM 푸시 알림 전송
-                    notificationRepository.sendFCMNotification(friendId, title, message)
 
                     _uiState.value = _uiState.value.copy(
                         addFriendMessage = "${friendUser.nickname}님에게 알림을 보냈습니다.",
