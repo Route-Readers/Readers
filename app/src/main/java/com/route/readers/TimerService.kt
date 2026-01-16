@@ -28,6 +28,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 import androidx.core.app.NotificationCompat
+import kotlinx.coroutines.delay
 
 class TimerService : Service() {
 

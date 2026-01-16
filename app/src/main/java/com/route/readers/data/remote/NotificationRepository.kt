@@ -137,6 +137,48 @@ class NotificationRepository(private val context: Context? = null) {
         }
     }
     
+    suspend fun createNotification(
+        userId: String,
+        type: NotificationType,
+        title: String,
+        message: String,
+        data: Map<String, Any> = emptyMap()
+    ) {
+        try {
+            val notification = hashMapOf(
+                "userId" to userId,
+                "type" to type.name,
+                "title" to title,
+                "message" to message,
+                "data" to data,
+                "isRead" to false,
+                "createdAt" to com.google.firebase.Timestamp.now()
+            )
+            
+            firestore.collection("notifications")
+                .add(notification)
+                .await()
+
+            // FCM 푸시 알림 전송용 문서를 추가하여 Cloud Function을 트리거합니다.
+            val fcmRequest = hashMapOf(
+                "targetUserId" to userId,
+                "title" to title,
+                "message" to message,
+                "type" to type.name, // 어떤 종류의 알림인지 명시
+                "fromUserId" to (data["fromUserId"] ?: ""),
+                "createdAt" to com.google.firebase.Timestamp.now()
+            )
+            
+            firestore.collection("fcmRequests")
+                .add(fcmRequest)
+                .await()
+                
+            android.util.Log.d("NotificationRepository", "FCM request created in firestore for user: $userId")
+        } catch (e: Exception) {
+            android.util.Log.e("NotificationRepository", "Failed to create notification or FCM request", e)
+        }
+    }
+
     suspend fun sendReadingNotificationToFriends() {
         currentUserId?.let { userId ->
             try {
@@ -161,7 +203,7 @@ class NotificationRepository(private val context: Context? = null) {
                 mutualFollowers.forEach { friendId ->
                     android.util.Log.d("NotificationRepository", "Sending notification to mutual follower: $friendId")
                     
-                    // Firestore에 알림 저장
+                    // createNotification을 호출하여 Firestore 저장 및 FCM 트리거 수행
                     createNotification(
                         userId = friendId,
                         type = NotificationType.READING_INVITATION,
@@ -169,28 +211,12 @@ class NotificationRepository(private val context: Context? = null) {
                         message = message,
                         data = mapOf("fromUserId" to userId, "fromUserName" to userName)
                     )
-                    
-                    // FCM 푸시 알림 전송용 문서를 추가하여 Cloud Function을 트리거합니다.
-                    val fcmRequest = hashMapOf(
-                        "targetUserId" to userId,
-                        "title" to title,
-                        "message" to message,
-                        "type" to type.name, // 어떤 종류의 알림인지 명시
-                        "fromUserId" to (data["fromUserId"] ?: ""),
-                        "createdAt" to com.google.firebase.Timestamp.now()
-                    )
-                    
-                    firestore.collection("fcmRequests")
-                        .add(fcmRequest)
-                        .await()
-                        
-                    android.util.Log.d("NotificationRepository", "FCM request created in firestore for user: $userId")
-                } catch (e: Exception) {
-                    android.util.Log.e("NotificationRepository", "Failed to create FCM request document", e)
                 }
+                
+                android.util.Log.d("NotificationRepository", "Successfully sent ${mutualFollowers.size} notifications")
+                
             } catch (e: Exception) {
-                // Handle error
+                android.util.Log.e("NotificationRepository", "Error sending reading notifications", e)
             }
         }
     }
-}
