@@ -36,8 +36,16 @@ object WidgetUpdateHelper {
             val timerUpdateIntent = Intent(context, TimerService::class.java).apply {
                 action = TimerService.ACTION_UPDATE_BOOK_DATA
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, timerWidgetIds)
+                putExtra(TimerService.EXTRA_STOP_AFTER_UPDATE, true) // Stop service after update if it was just for this
             }
-            ContextCompat.startForegroundService(context, timerUpdateIntent)
+            
+            try {
+                // Try starting as a normal service first (if app is in foreground)
+                context.startService(timerUpdateIntent)
+            } catch (e: Exception) {
+                // If it fails (background restriction), start as foreground service
+                ContextCompat.startForegroundService(context, timerUpdateIntent)
+            }
         }
     }
 }

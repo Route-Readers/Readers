@@ -80,8 +80,14 @@ class TimerWidgetProvider : AppWidgetProvider() {
             val updateBookDataIntent = Intent(context, TimerService::class.java).apply {
                 action = TimerService.ACTION_UPDATE_BOOK_DATA
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                putExtra(TimerService.EXTRA_STOP_AFTER_UPDATE, true)
             }
-            ContextCompat.startForegroundService(context, updateBookDataIntent)
+            
+            try {
+                context.startService(updateBookDataIntent)
+            } catch (e: Exception) {
+                ContextCompat.startForegroundService(context, updateBookDataIntent)
+            }
         }
     }
 
@@ -96,7 +102,11 @@ class TimerWidgetProvider : AppWidgetProvider() {
                     action = TimerService.ACTION_STOP_TIMER
                     putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
                 }
-                ContextCompat.startForegroundService(context, serviceIntent)
+                try {
+                    context.startService(serviceIntent)
+                } catch (e: Exception) {
+                    ContextCompat.startForegroundService(context, serviceIntent)
+                }
             }
             ACTION_WIDGET_SELECT_BOOK -> {
                 val activityIntent = Intent(context, BookSelectionActivity::class.java).apply {
