@@ -97,45 +97,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun dismissDailyChallengePopup() {
-        _showDailyChallengeSuccess.value = false
-    }
-
-    fun checkDailyChallengeSuccess() {
-        viewModelScope.launch {
-            val userId = currentUserId ?: return@launch
-            val activeChallenges = _userActiveChallenge.value
-            
-            val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
-            val pagesToday = firestoreRepository.getDailyPagesRead(userId, today)
-            
-            var newlyMet = false
-            
-            activeChallenges.forEach { challenge ->
-                if (challenge.type == com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING) {
-                    if (pagesToday >= challenge.goal) {
-                        // Check if we already rewarded this today to avoid spam
-                        val prefName = "challenge_rewards"
-                        val context = com.route.readers.ReadersApplication.instance
-                        val sharedPrefs = context.getSharedPreferences(prefName, android.content.Context.MODE_PRIVATE)
-                        
-                        val alreadyRewarded = sharedPrefs.getBoolean("daily_reward_${challenge.id}_$today", false)
-                        if (!alreadyRewarded) {
-                            // Give XP!
-                            firestoreRepository.addExp(20) // Daily bonus
-                            sharedPrefs.edit().putBoolean("daily_reward_${challenge.id}_$today", true).apply()
-                            newlyMet = true
-                        }
-                    }
-                }
-            }
-            
-            if (newlyMet) {
-                _showDailyChallengeSuccess.value = true
-            }
-        }
-    }
-
     private fun checkAndUpdateAttendance() {
         if (currentUserId == null) {
             _consecutiveDays.value = 0
@@ -324,7 +285,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     }
                 }
-                // Removed: loadUserActiveChallenge() // Refresh active challenge after progress update
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Failed to update challenge progress", e)
             }

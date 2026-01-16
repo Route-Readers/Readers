@@ -56,7 +56,9 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
     private val notificationRepository = NotificationRepository(null)
     private val firestoreRepository = FirestoreRepository()
     private val challengeRepository = ChallengeRepository(firestoreRepository)
-    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+    private val auth = FirebaseAuth.getInstance()
+    val currentUserId: String
+        get() = auth.currentUser?.uid ?: ""
 
     private val sharedPreferences =
         application.getSharedPreferences(Prefs.PREFS_NAME,
@@ -95,8 +97,8 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
             challengeRepository.getActiveChallengeStream(userId)
                 .onEach { challenges ->
                     _uiState.value = _uiState.value.copy(
-                        userActiveChallenges = challenges,
-                        isChallengesLoading = false
+                        userActiveChallenges = challenges
+                        // Removed: isChallengesLoading = false to avoid premature state change
                     )
                     
                     // Check for challenge completion
@@ -200,19 +202,34 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
             _uiState.value = _uiState.value.copy(isChallengesLoading = true)
             try {
                 val currentWeekNumber = getCurrentWeekNumber()
+                android.util.Log.d("CommunityViewModel", "Refreshing challenges for week: $currentWeekNumber")
+                
                 var weeklyChallenges = challengeRepository.getChallengesForWeek(currentWeekNumber)
+                android.util.Log.d("CommunityViewModel", "Initial query found ${weeklyChallenges.size} challenges")
                 
                 // If no challenges exist for this week, create some diverse ones
                 if (weeklyChallenges.isEmpty()) {
+                    android.util.Log.d("CommunityViewModel", "No challenges found, creating diverse challenges...")
                     createDiverseChallenges(currentWeekNumber)
+                    // Give Firestore a tiny bit of time to index (optional but safer)
+                    kotlinx.coroutines.delay(500)
                     weeklyChallenges = challengeRepository.getChallengesForWeek(currentWeekNumber)
+                    android.util.Log.d("CommunityViewModel", "After creation, found ${weeklyChallenges.size} challenges")
                 }
 
+                val currentUserIdSnapshot = currentUserId
+                val available = weeklyChallenges.filter { 
+                    !it.participants.contains(currentUserIdSnapshot) && it.type != com.route.readers.data.model.ChallengeType.CUSTOM 
+                }
+                
+                android.util.Log.d("CommunityViewModel", "Filtering available challenges. Total: ${weeklyChallenges.size}, Available: ${available.size}, userId: $currentUserId")
+
                 _uiState.value = _uiState.value.copy(
-                    availableChallenges = weeklyChallenges.filter { !it.participants.contains(currentUserId) && it.type != com.route.readers.data.model.ChallengeType.CUSTOM },
+                    availableChallenges = available,
                     isChallengesLoading = false
                 )
             } catch (e: Exception) {
+                android.util.Log.e("CommunityViewModel", "Error refreshing challenges", e)
                 _uiState.value = _uiState.value.copy(isChallengesLoading = false)
             }
         }
@@ -225,7 +242,7 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
                 title = "매일 10페이지 읽기",
                 description = "일주일 동안 매일 10페이지씩 읽으며 독서 습관을 기르세요.",
                 goal = 10,
-                reward = 100,
+                reward = "100",
                 type = com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING,
                 weekNumber = weekNumber
             ),
@@ -234,7 +251,7 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
                 title = "매일 30페이지: 독서 열정",
                 description = "매일 30페이지씩 읽으며 깊이 있는 독서 시간을 가집니다.",
                 goal = 30,
-                reward = 300,
+                reward = "300",
                 type = com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING,
                 weekNumber = weekNumber
             ),
@@ -243,7 +260,7 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
                 title = "매일 50페이지: 독서 마스터",
                 description = "진정한 독서가라면 하루 50페이지는 기본이죠!",
                 goal = 50,
-                reward = 600,
+                reward = "600",
                 type = com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING,
                 weekNumber = weekNumber
             ),
@@ -252,7 +269,7 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
                 title = "매일 100페이지: 광속의 독서",
                 description = "일주일 동안 매일 책 한 권 분량을 독파하세요.",
                 goal = 100,
-                reward = 1500,
+                reward = "1500",
                 type = com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING,
                 weekNumber = weekNumber
             ),
@@ -261,7 +278,7 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
                 title = "일주일 연속 출석",
                 description = "단 하루도 빠짐없이 Readers에 접속하여 독서 기록을 남기세요.",
                 goal = 7,
-                reward = 500,
+                reward = "500",
                 type = com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING,
                 weekNumber = weekNumber
             ),
@@ -270,7 +287,7 @@ class CommunityViewModel(application: Application) : AndroidViewModel(applicatio
                 title = "친구와 함께 7일 연속 읽기",
                 description = "친구와 함께 7일 동안 매일 독서 스트릭을 쌓으세요.",
                 goal = 7,
-                reward = 800,
+                reward = "800",
                 type = com.route.readers.data.model.ChallengeType.CONSECUTIVE_READING_WITH_FRIEND,
                 weekNumber = weekNumber
             )

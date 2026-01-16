@@ -359,18 +359,16 @@ fun MainScreen(
             }
             composable(BottomNavItem.Community.route) {
                 selectedBook = null
-                // --- 수정된 부분 ---
-                // CommunityScreen이 자체적으로 ViewModel을 생성하도록 viewModel 파라미터를 제거했습니다.
                 CommunityScreen(
                     onNavigateToFriendsList = { bottomNavController.navigate("friends_list") },
                     onNavigateToNotifications = { bottomNavController.navigate("notifications") },
                     onNavigateToUsedBookDetail = onNavigateToUsedBookDetail,
                     onNavigateToChatList = onNavigateToChatList,
-                    onNavigateToUserProfile = { userId ->
+                    onNavigateToUserProfile = { userId: String ->
                         bottomNavController.navigate("profile_route/$userId")
                     },
                     isActive = currentRoute == BottomNavItem.Community.route,
-                    onChatScreenChanged = { isInChat -> isInChatScreen = isInChat }
+                    onChatScreenChanged = { isInChat: Boolean -> isInChatScreen = isInChat }
                 )
             }
             composable("friends_list") {

@@ -4,8 +4,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,6 +31,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.route.readers.data.model.Challenge
@@ -45,12 +52,6 @@ private val PremiumDarkBurgundy = Color(0xFF500014)
 private val PremiumSurface = Color(0xFFF9F9F9)
 private val PremiumText = Color(0xFF333333)
 
-enum class ChallengeCardState {
-    INITIAL,      // 초기 "참여하세요" 카드
-    SELECTING,    // 챌린지 선택 화면
-    ACTIVE        // 선택된 챌린지 진행 중
-}
-
 @Composable
 fun SwipeableChallengeCard(
     userChallenges: List<Challenge>,
@@ -68,7 +69,7 @@ fun SwipeableChallengeCard(
     var isSelectionMode by rememberSaveable { mutableStateOf(false) }
 
     // If user already has active challenges, we should NEVER be in selection mode or show initial card
-    val hasActiveChallenges = userActiveChallenges.isNotEmpty()
+    val hasActiveChallenges = userChallenges.isNotEmpty()
 
     Box(
         modifier = Modifier
@@ -76,7 +77,7 @@ fun SwipeableChallengeCard(
             .height(if (hasActiveChallenges) 220.dp else 180.dp),
         contentAlignment = Alignment.Center
     ) {
-        if (isChallengesLoading && userActiveChallenges.isEmpty()) {
+        if (isChallengesLoading && userChallenges.isEmpty()) {
             CircularProgressIndicator(color = PremiumBurgundy)
         } else if (hasActiveChallenges) {
             // User has active challenges - always show them and hide selection UI
@@ -84,7 +85,7 @@ fun SwipeableChallengeCard(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(userActiveChallenges, key = { it.id }) { challenge ->
+                items(userChallenges, key = { it.id }) { challenge ->
                     ActiveChallengeCard(
                         challenge = challenge,
                         currentUserId = currentUserId,

@@ -65,7 +65,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.style.TextAlign
 import com.route.readers.data.model.Challenge
-
 import com.route.readers.ui.components.DailyChallengeSuccessDialog
 
 // Premium Theme Colors Local Definitions
@@ -179,12 +178,9 @@ fun ChallengeSuccessDialog(
     }
 }
 
-    // 데일리 성공 팝업
-    if (uiState.dailyGoalMet) {
-        DailyChallengeSuccessDialog(
-            onDismiss = { viewModel.dismissCompletionPopup() }
-        )
-    }
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CommunityScreen(
     onNavigateToFriendsList: () -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
     onNavigateToUsedBookDetail: (String) -> Unit = {},
@@ -240,8 +236,6 @@ fun ChallengeSuccessDialog(
             .background(PremiumBackground)
     ) {
         if (showChatScreen == null) {
-            // Spacer(modifier = Modifier.height(16.dp)) // Removed top spacer for cleaner look
-
             if (uiState.isFriendsLoading || uiState.isBookClubsLoading) {
                 LinearProgressIndicator(
                     modifier = Modifier
@@ -291,10 +285,8 @@ fun ChallengeSuccessDialog(
                     onShowCreateBookClubDialog = { showCreateBookClubDialog = true },
                     onBookClubClick = { bookClub -> 
                         if (bookClub.isJoined) {
-                            // 참여중이면 바로 채팅방으로
                             showChatScreen = bookClub
                         } else {
-                            // 미참여면 상세 페이지로
                             viewModel.loadBookClubOwnerProfile(bookClub.createdBy)
                             showDetailScreen = bookClub
                         }
@@ -492,7 +484,6 @@ fun CommunityContent(
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         bookClubs.forEach { bookClub ->
-                            // Wrap BookClubCard with a custom styling since we can't easily modify the component
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -500,7 +491,7 @@ fun CommunityContent(
                                 shape = RoundedCornerShape(12.dp),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                                border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFFE0E0E0))
+                                border = BorderStroke(0.5.dp, Color(0xFFE0E0E0))
                             ) {
                                 BookClubCard(
                                     bookClub = bookClub,
@@ -517,7 +508,7 @@ fun CommunityContent(
                     onClick = onShowCreateBookClubDialog,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, PremiumBurgundy),
+                    border = BorderStroke(1.dp, PremiumBurgundy),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = PremiumBurgundy)
                 ) {
                     Text("+ 새 북클럽 만들기", fontWeight = FontWeight.Medium)
@@ -542,7 +533,7 @@ fun SwipeableFriendItem(
             .clickable { onProfileClick() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFFAFAFA)),
-        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFFEEEEEE))
+        border = BorderStroke(0.5.dp, Color(0xFFEEEEEE))
     ) {
         Row(
             modifier = Modifier
