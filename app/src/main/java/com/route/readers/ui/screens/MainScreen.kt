@@ -52,7 +52,7 @@ import com.route.readers.ui.screens.profile.ProfileViewModel
 import com.route.readers.ui.screens.reading.ReadingTimerScreen
 import com.route.readers.ui.screens.reading.ReadingViewModel
 import com.route.readers.ui.screens.search.SearchScreen
-import com.route.readers.utils.InterstitialAdManager
+
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
@@ -90,7 +90,7 @@ fun MainScreen(
 ) {
     val context = LocalContext.current
     val activity = LocalContext.current as Activity
-    val interstitialAdManager = remember { InterstitialAdManager(context) }
+
     val bottomNavController = rememberNavController()
     val mainViewModel: MainViewModel = viewModel()
     val readingViewModel: ReadingViewModel = viewModel()
@@ -258,7 +258,7 @@ fun MainScreen(
                     onAttendanceClick = onNavigateToAttendance,
                     onNavigateToChallenge = onNavigateToChallenge,
                     onTokenClick = { navController.navigate("token_shop_route") },
-                    onShowInterstitialAd = { interstitialAdManager.showAd(activity) }
+
                 )
             }
         },

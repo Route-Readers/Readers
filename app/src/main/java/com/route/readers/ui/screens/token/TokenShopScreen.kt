@@ -222,8 +222,8 @@ fun TokenShopScreen(
             // 짧은 광고 - 토큰 1개
             WatchAdCard(
                 tokenColor = tokenColor,
-                title = "짧은 광고 보기",
-                description = "15초 광고 시청",
+                title = "광고 시청하고 토큰받기",
+                description = "광고 시청",
                 reward = 1
             ) {
                 activity?.let {
@@ -241,27 +241,7 @@ fun TokenShopScreen(
                 }
             }
 
-            // 긴 광고 - 토큰 3개
-            WatchAdCard(
-                tokenColor = tokenColor,
-                title = "긴 광고 보기",
-                description = "30초 광고 시청",
-                reward = 3
-            ) {
-                activity?.let {
-                    rewardedAdManager.showAdFor3Tokens(
-                        activity = it,
-                        onRewardEarned = {
-                            currentTokens += 3
-                            onTokenEarned()
-                            Toast.makeText(context, "🎉 토큰 3개 획득!", Toast.LENGTH_SHORT).show()
-                        },
-                        onAdNotReady = {
-                            Toast.makeText(context, "광고를 불러오는 중...", Toast.LENGTH_SHORT).show()
-                        }
-                    )
-                }
-            }
+
 
             // 캐릭터 상점
             Text("캐릭터", fontSize = 18.sp, fontWeight = FontWeight.Bold)

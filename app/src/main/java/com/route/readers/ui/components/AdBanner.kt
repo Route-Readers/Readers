@@ -16,7 +16,7 @@ fun AdBanner() {
             AdView(context).apply {
                 val adaptiveAdSize = AdSize.getPortraitAnchoredAdaptiveBannerAdSize(context, 300)
                 this.setAdSize(adaptiveAdSize)
-                adUnitId = "ca-app-pub-3940256099942544/6300978111" // Test Ad Unit ID
+                adUnitId = "ca-app-pub-1851313701640577/3411543920"
                 loadAd(AdRequest.Builder().build())
             }
         }
