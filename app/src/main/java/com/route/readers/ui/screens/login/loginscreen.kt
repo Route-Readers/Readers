@@ -13,6 +13,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -55,6 +57,7 @@ fun LoginScreen(
 
     var email by remember { mutableStateOf(sharedPreferences.getString(KEY_REMEMBERED_EMAIL, "") ?: "") }
     var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
     var rememberId by remember { mutableStateOf(sharedPreferences.getBoolean(KEY_REMEMBER_ID, false)) }
     var showResetDialog by remember { mutableStateOf(false) }
     var resetEmail by remember { mutableStateOf("") }
@@ -231,7 +234,16 @@ fun LoginScreen(
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("비밀번호") },
                 shape = RoundedCornerShape(12.dp),
-                visualTransformation = PasswordVisualTransformation(),
+                visualTransformation = if (passwordVisible) androidx.compose.ui.text.input.VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    val image = if (passwordVisible)
+                        Icons.Filled.Visibility
+                    else Icons.Filled.VisibilityOff
+
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Icon(imageVector = image, contentDescription = if (passwordVisible) "비밀번호 숨기기" else "비밀번호 보기")
+                    }
+                },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
