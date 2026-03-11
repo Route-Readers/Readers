@@ -47,8 +47,7 @@ fun FeedTopAppBar(
     onMyAccountClick: () -> Unit,
     onAttendanceClick: () -> Unit,
     onNavigateToChallenge: () -> Unit,
-    onTokenClick: () -> Unit,
-    onShowInterstitialAd: () -> Unit
+    onTokenClick: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
 
@@ -115,13 +114,7 @@ fun FeedTopAppBar(
                 )
             }
 
-//            IconButton(onClick = { /* onShowInterstitialAd() */ }) {
-//                Icon(
-//                    imageVector = Icons.Default.PlayArrow,
-//                    contentDescription = "Show Ad",
-//                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-//                )
-//            }
+
 
             Box {
                 IconButton(onClick = { menuExpanded = true }) {

@@ -171,7 +171,9 @@ class ChallengeRepository(
 
     private fun getCurrentWeekNumber(): Int {
         val calendar = Calendar.getInstance()
-        return calendar.get(Calendar.WEEK_OF_YEAR)
+        val year = calendar.get(Calendar.YEAR)
+        val week = calendar.get(Calendar.WEEK_OF_YEAR)
+        return year * 100 + week
     }
 
     suspend fun getChallengesForWeek(weekNumber: Int): List<Challenge> {

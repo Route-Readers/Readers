@@ -386,6 +386,7 @@ class FirestoreRepository {
             Log.e("FirestoreRepository", "Test connection failed: ${e.message}", e)
             false
         }
+    }
 
     suspend fun getDailyPagesRead(userId: String, date: String): Int {
         return try {
@@ -398,5 +399,16 @@ class FirestoreRepository {
             0
         }
     }
-}
+
+    suspend fun addExp(amount: Int): Boolean {
+        val userId = auth.currentUser?.uid ?: return false
+        return try {
+            val userRef = getUsersCollection().document(userId)
+            userRef.update("xp", FieldValue.increment(amount.toLong())).await()
+            true
+        } catch (e: Exception) {
+            Log.e("FirestoreRepository", "Error adding EXP", e)
+            false
+        }
+    }
 }

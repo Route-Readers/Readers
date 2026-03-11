@@ -13,15 +13,12 @@ import com.google.firebase.firestore.FirebaseFirestore
 class RewardedAdManager(private val context: Context) {
 
     private var rewardedAd1: RewardedAd? = null  // 토큰 1개용
-    private var rewardedAd3: RewardedAd? = null  // 토큰 3개용
     
     // 테스트 ID (배포 시 실제 광고 단위 ID로 교체)
-    private val adUnitId1 = "ca-app-pub-3940256099942544/5224354917"
-    private val adUnitId3 = "ca-app-pub-3940256099942544/5224354917"
+    private val adUnitId1 = "ca-app-pub-1851313701640577/2178353308"
 
     init {
         loadAd1()
-        loadAd3()
     }
 
     private fun loadAd1() {
@@ -31,12 +28,7 @@ class RewardedAdManager(private val context: Context) {
         })
     }
 
-    private fun loadAd3() {
-        RewardedAd.load(context, adUnitId3, AdRequest.Builder().build(), object : RewardedAdLoadCallback() {
-            override fun onAdFailedToLoad(error: LoadAdError) { rewardedAd3 = null }
-            override fun onAdLoaded(ad: RewardedAd) { rewardedAd3 = ad }
-        })
-    }
+
 
     fun showAdFor1Token(activity: Activity, onRewardEarned: () -> Unit, onAdNotReady: () -> Unit) {
         val ad = rewardedAd1
@@ -50,17 +42,7 @@ class RewardedAdManager(private val context: Context) {
         }
     }
 
-    fun showAdFor3Tokens(activity: Activity, onRewardEarned: () -> Unit, onAdNotReady: () -> Unit) {
-        val ad = rewardedAd3
-        if (ad != null) {
-            ad.show(activity) { grantTokens(3); onRewardEarned() }
-            rewardedAd3 = null
-            loadAd3()
-        } else {
-            onAdNotReady()
-            loadAd3()
-        }
-    }
+
 
     private fun grantTokens(amount: Int) {
         val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return

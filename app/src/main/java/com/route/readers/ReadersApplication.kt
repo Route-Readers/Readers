@@ -10,6 +10,7 @@ import com.route.readers.utils.SessionTimer
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import com.google.android.gms.ads.RequestConfiguration
 
 class ReadersApplication : Application() {
 
@@ -18,6 +19,11 @@ class ReadersApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        val testDeviceIds = listOf("C1EE5113E1E1245F343F5F926A19FEB2") // 로그캣에서 본 전체 ID를 여기에 붙여넣으세요!
+        val configuration = RequestConfiguration.Builder()
+            .setTestDeviceIds(testDeviceIds)
+            .build()
+        MobileAds.setRequestConfiguration(configuration)
         // Initialize Mobile Ads SDK
         MobileAds.initialize(this)
 

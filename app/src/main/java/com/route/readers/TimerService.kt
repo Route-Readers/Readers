@@ -28,6 +28,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
 import androidx.core.app.NotificationCompat
+import kotlinx.coroutines.delay
 
 class TimerService : Service() {
 
@@ -80,9 +81,21 @@ class TimerService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "onStartCommand received. Action: ${intent?.action}, appWidgetId: ${intent?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)}")
+        
         // Retrieve the extra indicating if it was started from the widget
         wasStartedByWidget = intent?.getBooleanExtra(EXTRA_STARTED_FROM_WIDGET, false) ?: false
-        ensureForegroundNotification(wasStartedByWidget)
+        
+        // Android 12+ requirement: Always call startForeground() if startForegroundService() was used.
+        // We'll show the notification if the timer is running or if explicitly requested.
+        val shouldShowNotification = timerRunning || wasStartedByWidget || 
+                intent?.action == ACTION_START_TIMER || 
+                intent?.action == ACTION_TOGGLE_TIMER ||
+                intent?.action == ACTION_UPDATE_BOOK_DATA // Keep foreground during update
+
+        ensureForegroundNotification(true) // Always start as foreground to avoid crash
+        
+        // If we don't actually need the notification (e.g. just a quick update), 
+        // we'll stop the foreground state after the work is done.
         
         intent?.let {
             appWidgetId = it.getIntExtra(
@@ -100,52 +113,76 @@ class TimerService : Service() {
                 ACTION_START_TIMER -> {
                     startTimer()
                 }
-                                ACTION_STOP_TIMER -> {
-                                    Log.d("TimerService", "ACTION_STOP_TIMER received")
-                                    resetTimer()
-                
-                                    val stopFromActivity = it.getBooleanExtra(EXTRA_STOP_FROM_ACTIVITY, false)
-                                    if (stopFromActivity) {
-                                        stopSelf()
-                                        return START_STICKY
-                                    }
-                
-                                    // Launch UpdatePageCountActivity
-                                    val sharedPrefs = getSharedPreferences(WIDGET_PREFS_NAME, Context.MODE_PRIVATE)
-                                    val bookIsbn = sharedPrefs.getString(CURRENT_BOOK_ISBN_PREF, null)
-                                    val currentPage = sharedPrefs.getInt(CURRENT_BOOK_PAGE_PREF, 0)
-                                    val widgetId = it.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
-                
-                                    // 항상 페이지 업데이트 화면 열기
-                                    val updateIntent = Intent(applicationContext, UpdatePageCountActivity::class.java).apply {
-                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                            putExtra(TimerWidgetProvider.EXTRA_BOOK_ISBN, bookIsbn ?: "")
-                                            putExtra(TimerWidgetProvider.EXTRA_CURRENT_PAGE, currentPage)
-                                            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
-                                        }
-                                    startActivity(updateIntent)
-                                }
+                ACTION_STOP_TIMER -> {
+                    Log.d("TimerService", "ACTION_STOP_TIMER received")
+                    resetTimer()
+                    stopForeground(true) // Explicitly stop foreground when timer stops
+
+                    val stopFromActivity = it.getBooleanExtra(EXTRA_STOP_FROM_ACTIVITY, false)
+                    if (stopFromActivity) {
+                        stopSelf()
+                        return START_STICKY
+                    }
+
+                    // Launch UpdatePageCountActivity
+                    val sharedPrefs = getSharedPreferences(WIDGET_PREFS_NAME, Context.MODE_PRIVATE)
+                    val bookIsbn = sharedPrefs.getString(CURRENT_BOOK_ISBN_PREF, null)
+                    val currentPage = sharedPrefs.getInt(CURRENT_BOOK_PAGE_PREF, 0)
+                    val widgetId = it.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+
+                    // 항상 페이지 업데이트 화면 열기
+                    val updateIntent = Intent(applicationContext, UpdatePageCountActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            putExtra(TimerWidgetProvider.EXTRA_BOOK_ISBN, bookIsbn ?: "")
+                            putExtra(TimerWidgetProvider.EXTRA_CURRENT_PAGE, currentPage)
+                            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+                        }
+                    startActivity(updateIntent)
+                }
                 ACTION_UPDATE_BOOK_DATA -> {
                     val targetIds = it.getIntArrayExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS)
                         ?: intArrayOf(appWidgetId)
-                    val stopAfterUpdate = it.getBooleanExtra(EXTRA_STOP_AFTER_UPDATE, false) // Get the flag
+                    val stopAfterUpdate = it.getBooleanExtra(EXTRA_STOP_AFTER_UPDATE, false)
                     serviceScope.launch {
                         targetIds.forEach { id ->
                             appWidgetId = id
                             fetchBookDataAndBitmap(updateImage = true)
                         }
-                        if (stopAfterUpdate) {
-                            stopSelf() // Stop the service after the update if the flag is set
+                        
+                        // If timer is not running, stop foreground state after update
+                        if (!timerRunning) {
+                            withContext(Dispatchers.Main) {
+                                stopForeground(true)
+                            }
                         }
-                    } // Fetch book data explicitly
+                        
+                        if (stopAfterUpdate) {
+                            stopSelf()
+                        }
+                    }
                 }
-                else -> { // Added else to catch any unhandled actions
+                else -> {
+                    // For any other action, if timer isn't running, stop foreground after a bit
+                    if (!timerRunning) {
+                        serviceScope.launch {
+                            delay(1000)
+                            if (!timerRunning) {
+                                withContext(Dispatchers.Main) {
+                                    stopForeground(true)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
+        
         // Always try to fetch book data on service start or command
-        serviceScope.launch { fetchBookDataAndBitmap(updateImage = true) }
-        return START_STICKY // Service will be restarted if killed
+        if (intent?.action != ACTION_UPDATE_BOOK_DATA) {
+            serviceScope.launch { fetchBookDataAndBitmap(updateImage = true) }
+        }
+        
+        return START_STICKY
     }
 
     @SuppressLint("ForegroundServiceType")

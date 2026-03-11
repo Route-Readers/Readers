@@ -52,7 +52,7 @@ import com.route.readers.ui.screens.profile.ProfileViewModel
 import com.route.readers.ui.screens.reading.ReadingTimerScreen
 import com.route.readers.ui.screens.reading.ReadingViewModel
 import com.route.readers.ui.screens.search.SearchScreen
-import com.route.readers.utils.InterstitialAdManager
+
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
@@ -72,6 +72,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.route.readers.ui.components.AdBanner
+import com.route.readers.ui.components.DailyChallengeSuccessDialog
 import com.route.readers.ui.theme.DarkRed
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -89,7 +90,7 @@ fun MainScreen(
 ) {
     val context = LocalContext.current
     val activity = LocalContext.current as Activity
-    val interstitialAdManager = remember { InterstitialAdManager(context) }
+
     val bottomNavController = rememberNavController()
     val mainViewModel: MainViewModel = viewModel()
     val readingViewModel: ReadingViewModel = viewModel()
@@ -130,6 +131,14 @@ fun MainScreen(
                 restoreState = true
             }
         }
+    }
+
+    val showDailySuccess by mainViewModel.showDailyChallengeSuccess.collectAsState()
+
+    if (showDailySuccess) {
+        DailyChallengeSuccessDialog(
+            onDismiss = { mainViewModel.dismissDailyChallengePopup() }
+        )
     }
 
     if (showExitDialog) {
@@ -249,7 +258,7 @@ fun MainScreen(
                     onAttendanceClick = onNavigateToAttendance,
                     onNavigateToChallenge = onNavigateToChallenge,
                     onTokenClick = { navController.navigate("token_shop_route") },
-                    onShowInterstitialAd = { interstitialAdManager.showAd(activity) }
+
                 )
             }
         },
@@ -325,6 +334,7 @@ fun MainScreen(
                     onUpdateFinished = {
                         bookToUpdateAfterReading = null
                         lastReadingSessionDuration = null
+                        mainViewModel.checkDailyChallengeSuccess() // 독서 종료 후 챌린지 성공 여부 확인
                     },
                     lastReadingSessionDuration = lastReadingSessionDuration,
                     showFinishReadingDialogBook = showFinishReadingDialogBook,
@@ -349,18 +359,16 @@ fun MainScreen(
             }
             composable(BottomNavItem.Community.route) {
                 selectedBook = null
-                // --- 수정된 부분 ---
-                // CommunityScreen이 자체적으로 ViewModel을 생성하도록 viewModel 파라미터를 제거했습니다.
                 CommunityScreen(
                     onNavigateToFriendsList = { bottomNavController.navigate("friends_list") },
                     onNavigateToNotifications = { bottomNavController.navigate("notifications") },
                     onNavigateToUsedBookDetail = onNavigateToUsedBookDetail,
                     onNavigateToChatList = onNavigateToChatList,
-                    onNavigateToUserProfile = { userId ->
+                    onNavigateToUserProfile = { userId: String ->
                         bottomNavController.navigate("profile_route/$userId")
                     },
                     isActive = currentRoute == BottomNavItem.Community.route,
-                    onChatScreenChanged = { isInChat -> isInChatScreen = isInChat }
+                    onChatScreenChanged = { isInChat: Boolean -> isInChatScreen = isInChat }
                 )
             }
             composable("friends_list") {

@@ -8,17 +8,17 @@ import androidx.compose.ui.unit.sp
 
 val Typography = Typography(
     bodyLarge = TextStyle(
-        fontFamily = FontFamily.Default,
+        fontFamily = FontFamily.Default, // Change to Default to allow Weight tuning
         fontWeight = FontWeight.Normal,
         fontSize = 16.sp,
         lineHeight = 24.sp,
         letterSpacing = 0.5.sp
     ),
     titleMedium = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 16.sp,
-        lineHeight = 24.sp,
+        fontFamily = FontFamily.Default, // Change to Default to allow Weight tuning
+        fontWeight = FontWeight.Bold, // Explicitly Bold for 닉네임/타이틀
+        fontSize = 18.sp,
+        lineHeight = 26.sp,
         letterSpacing = 0.15.sp
     ),
     labelSmall = TextStyle(

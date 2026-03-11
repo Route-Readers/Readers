@@ -16,57 +16,84 @@ class NotificationRepository(private val context: Context? = null) {
     private val firestore = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
     private val notificationManager = context?.let { ReadingNotificationManager(it) }
-    
+
     private val _notifications = MutableStateFlow<List<Notification>>(emptyList())
     val notifications: StateFlow<List<Notification>> = _notifications.asStateFlow()
-    
+
     private val _unreadCount = MutableStateFlow(0)
     val unreadCount: StateFlow<Int> = _unreadCount.asStateFlow()
-    
+
     private val currentUserId: String?
         get() = auth.currentUser?.uid
-    
+
     suspend fun loadNotifications() {
         currentUserId?.let { userId ->
             try {
-                android.util.Log.d("NotificationRepository", "Loading notifications for user: $userId")
-                
+                android.util.Log.d(
+                    "NotificationRepository",
+                    "Loading notifications for user: $userId"
+                )
+
                 // orderBy 제거하고 단순하게 쿼리
                 firestore.collection("notifications")
                     .whereEqualTo("userId", userId)
                     .addSnapshotListener { snapshot, error ->
                         if (error != null) {
-                            android.util.Log.e("NotificationRepository", "Error loading notifications", error)
+                            android.util.Log.e(
+                                "NotificationRepository",
+                                "Error loading notifications",
+                                error
+                            )
                             _notifications.value = emptyList()
                             _unreadCount.value = 0
                             return@addSnapshotListener
                         }
-                        
-                        android.util.Log.d("NotificationRepository", "Snapshot received with ${snapshot?.documents?.size} documents")
-                        
+
+                        android.util.Log.d(
+                            "NotificationRepository",
+                            "Snapshot received with ${snapshot?.documents?.size} documents"
+                        )
+
                         val notificationList = snapshot?.documents?.mapNotNull { doc ->
                             try {
-                                android.util.Log.d("NotificationRepository", "Processing document: ${doc.id}")
+                                android.util.Log.d(
+                                    "NotificationRepository",
+                                    "Processing document: ${doc.id}"
+                                )
                                 val notification = Notification(
                                     id = doc.id,
                                     userId = doc.getString("userId") ?: "",
-                                    type = NotificationType.valueOf(doc.getString("type") ?: "FRIEND_REQUEST"),
+                                    type = NotificationType.valueOf(
+                                        doc.getString("type") ?: "FRIEND_REQUEST"
+                                    ),
                                     title = doc.getString("title") ?: "",
                                     message = doc.getString("message") ?: "",
                                     data = doc.get("data") as? Map<String, Any> ?: emptyMap(),
                                     isRead = doc.getBoolean("isRead") ?: false,
-                                    createdAt = doc.getTimestamp("createdAt") ?: com.google.firebase.Timestamp.now(),
-                                    timestamp = doc.getTimestamp("createdAt")?.toDate()?.time ?: System.currentTimeMillis()
+                                    createdAt = doc.getTimestamp("createdAt")
+                                        ?: com.google.firebase.Timestamp.now(),
+                                    timestamp = doc.getTimestamp("createdAt")?.toDate()?.time
+                                        ?: System.currentTimeMillis()
                                 )
-                                android.util.Log.d("NotificationRepository", "Created notification: ${notification.title}")
+                                android.util.Log.d(
+                                    "NotificationRepository",
+                                    "Created notification: ${notification.title}"
+                                )
                                 notification
                             } catch (e: Exception) {
-                                android.util.Log.e("NotificationRepository", "Error parsing notification", e)
+                                android.util.Log.e(
+                                    "NotificationRepository",
+                                    "Error parsing notification",
+                                    e
+                                )
                                 null
                             }
                         } ?: emptyList()
-                        
-                        android.util.Log.d("NotificationRepository", "Final notification list size: ${notificationList.size}")
+
+                        android.util.Log.d(
+                            "NotificationRepository",
+                            "Final notification list size: ${notificationList.size}"
+                        )
                         _notifications.value = notificationList
                         _unreadCount.value = notificationList.count { !it.isRead }
                     }
@@ -77,20 +104,20 @@ class NotificationRepository(private val context: Context? = null) {
             }
         }
     }
-    
+
     suspend fun markAsRead(notificationId: String) {
         try {
             firestore.collection("notifications")
                 .document(notificationId)
                 .update("isRead", true)
                 .await()
-            
+
             loadNotifications()
         } catch (e: Exception) {
             // Handle error
         }
     }
-    
+
     suspend fun markAllAsRead() {
         currentUserId?.let { userId ->
             try {
@@ -98,14 +125,14 @@ class NotificationRepository(private val context: Context? = null) {
                 val updatedNotifications = _notifications.value.map { it.copy(isRead = true) }
                 _notifications.value = updatedNotifications
                 _unreadCount.value = 0
-                
+
                 // Firestore 업데이트
                 val unreadNotifications = firestore.collection("notifications")
                     .whereEqualTo("userId", userId)
                     .whereEqualTo("isRead", false)
                     .get()
                     .await()
-                
+
                 val batch = firestore.batch()
                 unreadNotifications.documents.forEach { doc ->
                     batch.update(doc.reference, "isRead", true)
@@ -116,7 +143,7 @@ class NotificationRepository(private val context: Context? = null) {
             }
         }
     }
-    
+
     suspend fun updateNotification(
         notificationId: String,
         message: String,
@@ -134,72 +161,6 @@ class NotificationRepository(private val context: Context? = null) {
                 .await()
         } catch (e: Exception) {
             // Handle error
-        }
-    }
-    
-    suspend fun sendReadingNotificationToFriends() {
-        currentUserId?.let { userId ->
-            try {
-                // 현재 사용자 정보 가져오기
-                val userDoc = firestore.collection("users").document(userId).get().await()
-                val userName = userDoc.getString("nickname") 
-                    ?: userDoc.getString("name") 
-                    ?: userDoc.getString("displayName") 
-                    ?: "독서친구"
-                
-                // 맞팔 관계 확인 (following과 followers 교집합)
-                val following = userDoc.get("following") as? List<String> ?: emptyList()
-                val followers = userDoc.get("followers") as? List<String> ?: emptyList()
-                val mutualFollowers = following.intersect(followers.toSet()).toList()
-                
-                android.util.Log.d("NotificationRepository", "User: $userName, Following: ${following.size}, Followers: ${followers.size}, Mutual: ${mutualFollowers.size}")
-                
-                val title = "함께 독서해요! 📚"
-                val message = "${userName}님이 지금 책을 읽고 있어요. 함께 독서하시겠어요?"
-                
-                // 각 맞팔 친구에게 알림 보내기
-                mutualFollowers.forEach { friendId ->
-                    android.util.Log.d("NotificationRepository", "Sending notification to mutual follower: $friendId")
-                    
-                    // Firestore에 알림 저장
-                    createNotification(
-                        userId = friendId,
-                        type = NotificationType.READING_INVITATION,
-                        title = title,
-                        message = message,
-                        data = mapOf("fromUserId" to userId, "fromUserName" to userName)
-                    )
-                    
-                    // FCM 푸시 알림 전송
-                    sendFCMNotification(friendId, title, message)
-                }
-                
-                android.util.Log.d("NotificationRepository", "Successfully sent ${mutualFollowers.size} notifications")
-                
-            } catch (e: Exception) {
-                android.util.Log.e("NotificationRepository", "Error sending reading notifications", e)
-            }
-        }
-    }
-
-    suspend fun sendFCMNotification(userId: String, title: String, message: String) {
-        try {
-            // fcmRequests 컬렉션에 문서를 추가하여 Cloud Function을 트리거합니다.
-            val fcmRequest = hashMapOf(
-                "targetUserId" to userId,
-                "title" to title,
-                "message" to message,
-                "createdAt" to com.google.firebase.Timestamp.now()
-            )
-
-            firestore.collection("fcmRequests")
-                .add(fcmRequest)
-                .await()
-
-            android.util.Log.d("NotificationRepository", "FCM request sent for user: $userId")
-
-        } catch (e: Exception) {
-            android.util.Log.e("NotificationRepository", "Failed to send FCM request", e)
         }
     }
 
@@ -220,12 +181,90 @@ class NotificationRepository(private val context: Context? = null) {
                 "isRead" to false,
                 "createdAt" to com.google.firebase.Timestamp.now()
             )
-            
+
             firestore.collection("notifications")
                 .add(notification)
                 .await()
+
+            // FCM 푸시 알림 전송용 문서를 추가하여 Cloud Function을 트리거합니다.
+            val fcmRequest = hashMapOf(
+                "targetUserId" to userId,
+                "title" to title,
+                "message" to message,
+                "type" to type.name, // 어떤 종류의 알림인지 명시
+                "fromUserId" to (data["fromUserId"] ?: ""),
+                "createdAt" to com.google.firebase.Timestamp.now()
+            )
+
+            firestore.collection("fcmRequests")
+                .add(fcmRequest)
+                .await()
+
+            android.util.Log.d(
+                "NotificationRepository",
+                "FCM request created in firestore for user: $userId"
+            )
         } catch (e: Exception) {
-            // Handle error
+            android.util.Log.e(
+                "NotificationRepository",
+                "Failed to create notification or FCM request",
+                e
+            )
+        }
+    }
+
+    suspend fun sendReadingNotificationToFriends() {
+        currentUserId?.let { userId ->
+            try {
+                // 현재 사용자 정보 가져오기
+                val userDoc = firestore.collection("users").document(userId).get().await()
+                val userName = userDoc.getString("nickname")
+                    ?: userDoc.getString("name")
+                    ?: userDoc.getString("displayName")
+                    ?: "독서친구"
+
+                // 맞팔 관계 확인 (following과 followers 교집합)
+                val following = userDoc.get("following") as? List<String> ?: emptyList()
+                val followers = userDoc.get("followers") as? List<String> ?: emptyList()
+                val mutualFollowers = following.intersect(followers.toSet()).toList()
+
+                android.util.Log.d(
+                    "NotificationRepository",
+                    "User: $userName, Following: ${following.size}, Followers: ${followers.size}, Mutual: ${mutualFollowers.size}"
+                )
+
+                val title = "함께 독서해요! 📚"
+                val message = "${userName}님이 지금 책을 읽고 있어요. 함께 독서하시겠어요?"
+
+                // 각 맞팔 친구에게 알림 보내기
+                mutualFollowers.forEach { friendId ->
+                    android.util.Log.d(
+                        "NotificationRepository",
+                        "Sending notification to mutual follower: $friendId"
+                    )
+
+                    // createNotification을 호출하여 Firestore 저장 및 FCM 트리거 수행
+                    createNotification(
+                        userId = friendId,
+                        type = NotificationType.READING_INVITATION,
+                        title = title,
+                        message = message,
+                        data = mapOf("fromUserId" to userId, "fromUserName" to userName)
+                    )
+                }
+
+                android.util.Log.d(
+                    "NotificationRepository",
+                    "Successfully sent ${mutualFollowers.size} notifications"
+                )
+
+            } catch (e: Exception) {
+                android.util.Log.e(
+                    "NotificationRepository",
+                    "Error sending reading notifications",
+                    e
+                )
+            }
         }
     }
 }

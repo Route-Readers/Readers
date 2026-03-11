@@ -402,7 +402,7 @@ fun ActualFeedContent(
             )
 
             if ((index + 1) % 3 == 0) {
-//                NativeAdComposable()
+                NativeAdComposable()
                 HorizontalDivider(
                     thickness = 1.dp,
                     color = Color(0xFFE0E0E0)

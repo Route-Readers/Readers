@@ -24,7 +24,7 @@ fun NativeAdComposable() {
     val context = LocalContext.current
     val nativeAdState = remember { mutableStateOf<NativeAd?>(null) }
     val adLoader = remember {
-        AdLoader.Builder(context, "ca-app-pub-3940256099942544/2247696110") // Test Ad Unit ID
+        AdLoader.Builder(context, "ca-app-pub-1851313701640577/5322886813") // Test Ad Unit ID
             .forNativeAd { ad: NativeAd ->
                 nativeAdState.value = ad
             }

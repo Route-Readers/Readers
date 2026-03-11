@@ -1,7 +1,8 @@
 package com.route.readers.ui.screens
 
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import android.util.Log
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -27,7 +28,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.UUID
 
-class MainViewModel : ViewModel() {
+class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
     private val currentUserId = auth.currentUser?.uid
@@ -35,6 +36,8 @@ class MainViewModel : ViewModel() {
     private val firestoreRepository = FirestoreRepository()
     private val challengeRepository = ChallengeRepository(firestoreRepository)
     private val bookRepository = BookRepository()
+
+    private val sharedPreferences = application.getSharedPreferences("challenge_rewards", android.content.Context.MODE_PRIVATE)
 
     private val _consecutiveDays = MutableStateFlow(0)
     val consecutiveDays = _consecutiveDays.asStateFlow()
@@ -44,6 +47,44 @@ class MainViewModel : ViewModel() {
 
     private val _userActiveChallenge = MutableStateFlow<List<Challenge>>(emptyList())
     val userActiveChallenge: StateFlow<List<Challenge>> = _userActiveChallenge.asStateFlow()
+
+    private val _showDailyChallengeSuccess = MutableStateFlow(false)
+    val showDailyChallengeSuccess = _showDailyChallengeSuccess.asStateFlow()
+
+    fun dismissDailyChallengePopup() {
+        _showDailyChallengeSuccess.value = false
+    }
+
+    fun checkDailyChallengeSuccess() {
+        viewModelScope.launch {
+            val userId = currentUserId ?: return@launch
+            val activeChallenges = _userActiveChallenge.value
+            
+            val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+            val pagesToday = firestoreRepository.getDailyPagesRead(userId, today)
+            
+            var newlyMet = false
+            
+            activeChallenges.forEach { challenge ->
+                if (challenge.type == com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING) {
+                    if (pagesToday >= challenge.goal) {
+                        // Check if we already rewarded this today to avoid spam
+                        val alreadyRewarded = sharedPreferences.getBoolean("daily_reward_${challenge.id}_$today", false)
+                        if (!alreadyRewarded) {
+                            // Give XP!
+                            firestoreRepository.addExp(20) // Daily bonus
+                            sharedPreferences.edit().putBoolean("daily_reward_${challenge.id}_$today", true).apply()
+                            newlyMet = true
+                        }
+                    }
+                }
+            }
+            
+            if (newlyMet) {
+                _showDailyChallengeSuccess.value = true
+            }
+        }
+    }
 
     init {
         checkAndUpdateAttendance()
@@ -244,7 +285,6 @@ class MainViewModel : ViewModel() {
                         )
                     }
                 }
-                // Removed: loadUserActiveChallenge() // Refresh active challenge after progress update
             } catch (e: Exception) {
                 Log.e("MainViewModel", "Failed to update challenge progress", e)
             }

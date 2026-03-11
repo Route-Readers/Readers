@@ -4,7 +4,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,8 +28,10 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.route.readers.data.model.Challenge
@@ -32,20 +41,23 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.route.readers.ui.theme.PrimaryRed
 import kotlin.math.abs
 
-enum class ChallengeCardState {
-    INITIAL,      // 초기 "참여하세요" 카드
-    SELECTING,    // 챌린지 선택 화면
-    ACTIVE        // 선택된 챌린지 진행 중
-}
+// Premium Colors
+private val PremiumGold = Color(0xFFD4AF37)
+private val PremiumBurgundy = PrimaryRed // 0xFF800020
+private val PremiumDarkBurgundy = Color(0xFF500014)
+private val PremiumSurface = Color(0xFFF9F9F9)
+private val PremiumText = Color(0xFF333333)
 
 @Composable
 fun SwipeableChallengeCard(
     userChallenges: List<Challenge>,
     availableChallenges: List<Challenge>,
     onChallengeSelected: (Challenge) -> Unit,
-    onChallengeReset: (String) -> Unit, // Modified to accept challengeId for reset
+    onChallengeReset: (String) -> Unit,
     currentUserId: String,
     isChallengesLoading: Boolean,
     consecutiveReadingDays: Int,
@@ -53,91 +65,54 @@ fun SwipeableChallengeCard(
     challengeViewModel: com.route.readers.ui.screens.challenge.ChallengeViewModel? = null,
     startInSelectionMode: Boolean = false
 ) {
-    var cardState by remember { mutableStateOf(ChallengeCardState.INITIAL) }
+    // UI state for selection, using rememberSaveable to survive tab switching
+    var isSelectionMode by rememberSaveable { mutableStateOf(false) }
 
-    // Revert to original logic: when challenges become empty, go to INITIAL state.
-    LaunchedEffect(userChallenges) {
-        if (userChallenges.isNotEmpty()) {
-            cardState = ChallengeCardState.ACTIVE
-        } else {
-            // This ensures that leaving a challenge returns to the initial swipe card.
-            if (cardState == ChallengeCardState.ACTIVE) {
-                cardState = ChallengeCardState.INITIAL
-            }
-        }
-    }
-
-    // New effect to handle starting directly in selection mode for the trophy tab
-    LaunchedEffect(startInSelectionMode, userChallenges) {
-        if (startInSelectionMode && userChallenges.isEmpty()) {
-            cardState = ChallengeCardState.SELECTING
-        }
-    }
-
+    // If user already has active challenges, we should NEVER be in selection mode or show initial card
+    val hasActiveChallenges = userChallenges.isNotEmpty()
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(220.dp),
+            .height(if (hasActiveChallenges) 220.dp else 180.dp),
         contentAlignment = Alignment.Center
     ) {
-        // While loading, if we don't have a challenge to show, display a progress indicator.
         if (isChallengesLoading && userChallenges.isEmpty()) {
-            CircularProgressIndicator()
-        } else {
-            when (cardState) {
-                ChallengeCardState.INITIAL -> {
-                    // For the trophy tab, if it accidentally gets here, auto-swipe.
-                    if (startInSelectionMode) {
-                        LaunchedEffect(Unit) {
-                            cardState = ChallengeCardState.SELECTING
-                        }
-                    }
-                    InitialChallengeCard(
-                        onSwipe = {
-                            cardState = ChallengeCardState.SELECTING
-                        }
-                    )
-                }
-                ChallengeCardState.SELECTING -> {
-                    ChallengeSelectionCard(
-                        challenges = availableChallenges,
-                        onSelect = { challenge ->
-                            onChallengeSelected(challenge)
-                            cardState = ChallengeCardState.ACTIVE
+            CircularProgressIndicator(color = PremiumBurgundy)
+        } else if (hasActiveChallenges) {
+            // User has active challenges - always show them and hide selection UI
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(userChallenges, key = { it.id }) { challenge ->
+                    ActiveChallengeCard(
+                        challenge = challenge,
+                        currentUserId = currentUserId,
+                        consecutiveReadingDays = consecutiveReadingDays,
+                        onReset = {
+                            onChallengeReset(challenge.id)
+                            isSelectionMode = false
                         }
                     )
-                }
-                ChallengeCardState.ACTIVE -> {
-                    if (userChallenges.isNotEmpty()) {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(userChallenges, key = { it.id }) { challenge ->
-                                com.route.readers.ui.components.SharedChallengeCard(
-                                    challenge = challenge,
-                                    currentUserId = currentUserId,
-                                    consecutiveReadingDays = consecutiveReadingDays,
-                                    onReset = {
-                                        onChallengeReset(challenge.id)
-                                        cardState = ChallengeCardState.INITIAL
-                                    },
-                                    communityViewModel = communityViewModel,
-                                    challengeViewModel = challengeViewModel
-                                )
-                            }
-                        }
-                    } else {
-                        // This case should ideally not be reached if userChallenges is correctly managed by ViewModel
-                        // but as a fallback, go back to initial.
-                        LaunchedEffect(Unit) {
-                            cardState = ChallengeCardState.INITIAL
-                        }
-                    }
                 }
             }
+        } else if (isSelectionMode || startInSelectionMode) {
+            // No active challenges and in selection mode
+            ChallengeSelectionCard(
+                challenges = availableChallenges,
+                onSelect = { challenge ->
+                    onChallengeSelected(challenge)
+                    isSelectionMode = false
+                }
+            )
+        } else {
+            // Initial invitation card
+            InitialChallengeCard(
+                onSwipe = {
+                    isSelectionMode = true
+                }
+            )
         }
     }
 }
@@ -153,7 +128,7 @@ fun InitialChallengeCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(200.dp)
+            .height(160.dp)
             .rotate(rotation)
             .pointerInput(Unit) {
                 detectHorizontalDragGestures(
@@ -169,7 +144,8 @@ fun InitialChallengeCard(
                 )
             },
         shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+        border = BorderStroke(1.dp, PremiumGold.copy(alpha = 0.5f))
     ) {
         Box(
             modifier = Modifier
@@ -177,9 +153,8 @@ fun InitialChallengeCard(
                 .background(
                     Brush.linearGradient(
                         colors = listOf(
-                            Color(0xFF0A0E27),
-                            Color(0xFF1A4D2E),
-                            Color(0xFF00FF88)
+                            PremiumBurgundy,
+                            PremiumDarkBurgundy
                         )
                     )
                 ),
@@ -187,26 +162,36 @@ fun InitialChallengeCard(
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(16.dp)
             ) {
                 Icon(
                     Icons.Default.EmojiEvents,
                     contentDescription = null,
-                    tint = Color(0xFF00FF88),
-                    modifier = Modifier.size(48.dp)
+                    tint = PremiumGold,
+                    modifier = Modifier.size(40.dp)
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    "이번주 챌린지에 참여하세요!",
+                    "이번주 챌린지에 참여해 XP를 확보하세요!",
                     color = Color.White,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Default
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "← 스와이프하여 챌린지 선택 →",
-                    color = Color(0xFF00FF88),
-                    fontSize = 14.sp
+                    "매일 읽기 습관을 만들고 보상을 받으세요",
+                    color = PremiumGold.copy(alpha = 0.9f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    "← 스와이프하여 선택하기 →",
+                    color = Color.White.copy(alpha = 0.5f),
+                    fontSize = 11.sp,
+                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
                 )
             }
         }
@@ -221,41 +206,44 @@ fun ChallengeSelectionCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(220.dp),
+            .height(180.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        border = BorderStroke(1.dp, Color(0xFFEEEEEE))
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(20.dp)
+                .padding(16.dp)
         ) {
             Text(
-                "어떤 챌린지에 참여하시겠어요?",
-                fontSize = 18.sp,
+                "나에게 맞는 챌린지 선택",
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black
+                color = PremiumText
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             if (challenges.isEmpty()) {
-                Text(
-                    "참여 가능한 챌린지를 불러오는 중...",
-                    fontSize = 14.sp,
-                    color = Color.Gray,
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Center
-                )
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        "참여 가능한 챌린지를 불러오는 중...",
+                        fontSize = 13.sp,
+                        color = Color.Gray
+                    )
+                }
             } else {
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(bottom = 4.dp)
                 ) {
                     items(challenges, key = { it.id }) { challenge ->
                         ChallengeOption(
                             challenge = challenge,
                             onSelect = { onSelect(challenge) },
-                            modifier = Modifier.width(150.dp) // Give each card a fixed width for scrolling
+                            modifier = Modifier.width(140.dp) 
                         )
                     }
                 }
@@ -281,30 +269,40 @@ fun ChallengeOption(
         modifier = modifier.height(100.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFF5F5F5)
-        )
+            containerColor = PremiumSurface
+        ),
+        border = BorderStroke(1.dp, Color(0xFFEFEFEF))
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(12.dp),
+                .padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Icon(
                 icon,
                 contentDescription = null,
-                tint = Color(0xFF1A4D2E),
-                modifier = Modifier.size(28.dp)
+                tint = PremiumBurgundy,
+                modifier = Modifier.size(24.dp)
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
                 challenge.title,
                 fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
                 lineHeight = 14.sp,
-                maxLines = 2
+                maxLines = 2,
+                color = PremiumText,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "${challenge.reward} XP",
+                fontSize = 10.sp,
+                color = PremiumGold,
+                fontWeight = FontWeight.Black
             )
         }
     }
@@ -346,10 +344,12 @@ fun ActiveChallengeCard(
         modifier = Modifier
             .fillMaxWidth()
             .height(220.dp),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF1A4D2E)
-        )
+            containerColor = PremiumBurgundy
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        border = BorderStroke(1.dp, PremiumGold.copy(alpha = 0.5f))
     ) {
         Column(
             modifier = Modifier
@@ -363,9 +363,10 @@ fun ActiveChallengeCard(
             ) {
                 Text(
                     "진행 중인 챌린지",
-                    color = Color(0xFF00FF88),
+                    color = PremiumGold,
                     fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Serif
                 )
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -373,15 +374,16 @@ fun ActiveChallengeCard(
                 ) {
                     Text(
                         "${daysRemaining}일 남음",
-                        color = Color.White.copy(alpha = 0.7f),
-                        fontSize = 14.sp
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 12.sp
                     )
                     TextButton(
                         onClick = onReset,
                         colors = ButtonDefaults.textButtonColors(
-                            contentColor = Color(0xFF00FF88)
+                            contentColor = PremiumGold
                         ),
-                        contentPadding = PaddingValues(4.dp)
+                        contentPadding = PaddingValues(4.dp),
+                        modifier = Modifier.height(30.dp)
                     ) {
                         Text("변경", fontSize = 12.sp)
                     }
@@ -393,17 +395,31 @@ fun ActiveChallengeCard(
             Text(
                 challenge.title,
                 color = Color.White,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Serif
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            Text(
-                "내 진행률",
-                color = Color.White.copy(alpha = 0.7f),
-                fontSize = 14.sp
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                 Text(
+                    "내 진행률",
+                    color = Color.White.copy(alpha = 0.8f),
+                    fontSize = 14.sp,
+                    fontFamily = FontFamily.Serif
+                )
+                Text(
+                    "${(overallProgressFraction * 100).toInt()}%",
+                    color = PremiumGold,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -411,39 +427,15 @@ fun ActiveChallengeCard(
                 progress = { overallProgressFraction },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(12.dp)
-                    .clip(RoundedCornerShape(6.dp)),
-                color = Color(0xFF00FF88),
-                trackColor = Color.White.copy(alpha = 0.2f)
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                color = PremiumGold,
+                trackColor = Color.Black.copy(alpha = 0.3f)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                val progressText = if (challenge.type == com.route.readers.data.model.ChallengeType.DAILY_PAGES_READING) {
-                    val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
-                    val todayPages = (challenge.dailyProgress[currentUserId]?.get(todayStr) as? Number)?.toInt() ?: 0
-                    "${currentProgressValue}/${totalGoalValue}${progressUnit} (오늘: ${todayPages}/${challenge.goal}페이지)"
-                } else {
-                    "${currentProgressValue}/${totalGoalValue}${progressUnit}"
-                }
-
-                Text(
-                    text = progressText,
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    "${(overallProgressFraction * 100).toInt()}%",
-                    color = Color(0xFF00FF88),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+             
+             // Additional info if needed
         }
     }
 }
