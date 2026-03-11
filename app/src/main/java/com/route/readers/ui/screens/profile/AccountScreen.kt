@@ -375,7 +375,16 @@ fun AccountScreen(
 
             is ProfileUiState.Error -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(text = state.message)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = state.message, color = MaterialTheme.colorScheme.error)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = { viewModel.retryFetchProfile() },
+                            colors = ButtonDefaults.buttonColors(containerColor = DarkRed)
+                        ) {
+                            Text("다시 시도", color = Color.White)
+                        }
+                    }
                 }
             }
 
