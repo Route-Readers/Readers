@@ -619,7 +619,9 @@ fun RootAppNavigation(
         }
 
         composable("challenge_route") {
-            ChallengeScreen()
+            ChallengeScreen(
+                onBackClick = { appNavController.popBackStack() }
+            )
         }
 
         composable("token_shop_route") {
