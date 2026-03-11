@@ -347,7 +347,7 @@ open class ProfileViewModel(application: Application) : AndroidViewModel(applica
 
                     
 
-                                                                        val userDocument = db.collection("users").document(targetUserId).get(com.google.firebase.firestore.Source.SERVER).await()
+                                                                        val userDocument = db.collection("users").document(targetUserId).get().await()
 
                     // 삭제된 유저 체크
                     if (!userDocument.exists()) {

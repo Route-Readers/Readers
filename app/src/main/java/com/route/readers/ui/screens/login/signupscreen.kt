@@ -14,6 +14,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -61,6 +63,8 @@ fun SignUpScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordConfirm by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var passwordConfirmVisible by remember { mutableStateOf(false) }
 
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -396,7 +400,16 @@ fun SignUpScreen(
                                 label = "비밀번호",
                                 placeholder = "6자 이상",
                                 keyboardType = KeyboardType.Password,
-                                isPassword = true
+                                isPassword = !passwordVisible,
+                                trailingIcon = {
+                                    val image = if (passwordVisible)
+                                        Icons.Filled.Visibility
+                                    else Icons.Filled.VisibilityOff
+
+                                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                        Icon(imageVector = image, contentDescription = if (passwordVisible) "비밀번호 숨기기" else "비밀번호 보기")
+                                    }
+                                }
                             )
                             Spacer(modifier = Modifier.height(24.dp))
                             UnderlineTextField(
@@ -405,7 +418,16 @@ fun SignUpScreen(
                                 label = "비밀번호 확인",
                                 placeholder = "다시 입력해주세요",
                                 keyboardType = KeyboardType.Password,
-                                isPassword = true
+                                isPassword = !passwordConfirmVisible,
+                                trailingIcon = {
+                                    val image = if (passwordConfirmVisible)
+                                        Icons.Filled.Visibility
+                                    else Icons.Filled.VisibilityOff
+
+                                    IconButton(onClick = { passwordConfirmVisible = !passwordConfirmVisible }) {
+                                        Icon(imageVector = image, contentDescription = if (passwordConfirmVisible) "비밀번호 숨기기" else "비밀번호 보기")
+                                    }
+                                }
                             )
                         }
                     }
@@ -557,7 +579,8 @@ private fun UnderlineTextField(
     label: String,
     placeholder: String,
     keyboardType: KeyboardType,
-    isPassword: Boolean = false
+    isPassword: Boolean = false,
+    trailingIcon: @Composable (() -> Unit)? = null
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val lineColor by animateColorAsState(
@@ -589,6 +612,7 @@ private fun UnderlineTextField(
             },
             singleLine = true,
             visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+            trailingIcon = trailingIcon,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Transparent,
