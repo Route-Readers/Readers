@@ -1,5 +1,6 @@
 package com.route.readers.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -120,8 +121,9 @@ fun SharedChallengeCard(
             .height(220.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF1A4D2E)
-        )
+            containerColor = Color(0xFF800020)
+        ),
+        border = BorderStroke(1.dp, Color(0xFFD4AF37).copy(alpha = 0.5f))
     ) {
         Column(
             modifier = Modifier
@@ -135,9 +137,9 @@ fun SharedChallengeCard(
             ) {
                 Text(
                     "진행 중인 챌린지",
-                    color = Color(0xFF00FF88),
+                    color = Color(0xFFD4AF37),
                     fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Bold
                 )
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -152,7 +154,7 @@ fun SharedChallengeCard(
                         TextButton(
                             onClick = { onReset(challenge.id) },
                             colors = ButtonDefaults.textButtonColors(
-                                contentColor = Color(0xFF00FF88)
+                                contentColor = Color(0xFFD4AF37)
                             ),
                             contentPadding = PaddingValues(4.dp)
                         ) {
@@ -187,7 +189,7 @@ fun SharedChallengeCard(
                     .fillMaxWidth()
                     .height(12.dp)
                     .clip(RoundedCornerShape(6.dp)),
-                color = Color(0xFF00FF88),
+                color = Color(0xFFD4AF37),
                 trackColor = Color.White.copy(alpha = 0.2f)
             )
 
@@ -213,7 +215,7 @@ fun SharedChallengeCard(
                 )
                 Text(
                     "${(overallProgressFraction * 100).toInt()}%",
-                    color = Color(0xFF00FF88),
+                    color = Color(0xFFD4AF37),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )

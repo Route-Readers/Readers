@@ -81,30 +81,13 @@ fun FeedTopAppBar(
             )
 
             if (userActiveChallenge != null) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clickable(onClick = onNavigateToChallenge)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                ) {
+                IconButton(onClick = onNavigateToChallenge) {
                     Icon(
                         imageVector = Icons.Default.EmojiEvents,
                         contentDescription = "Active Challenge Icon",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = userActiveChallenge.title,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
-                Spacer(modifier = Modifier.width(4.dp))
             } else {
                 IconButton(onClick = onNavigateToChallenge) {
                     Icon(
